@@ -382,8 +382,55 @@ function updateTaskProgressLocally(tpKey, modalBody) {
 }
 
 
+// ===================== CELEBRATION EFFECTS =====================
+function triggerCelebration() {
+    // 1. Play "Ting" sound using Web Audio API
+    try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (AudioContext) {
+            const ctx = new AudioContext();
+            const playNote = (freq, startTime, duration) => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(freq, ctx.currentTime + startTime);
+                gain.gain.setValueAtTime(0, ctx.currentTime + startTime);
+                gain.gain.linearRampToValueAtTime(0.3, ctx.currentTime + startTime + 0.05);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + startTime + duration);
+                osc.start(ctx.currentTime + startTime);
+                osc.stop(ctx.currentTime + startTime + duration);
+            };
+            playNote(880, 0, 0.4);      // A5 note
+            playNote(1108.73, 0.1, 0.6); // C#6 note
+        }
+    } catch (e) {
+        console.log("Audio not supported or blocked");
+    }
+
+    // 2. Fire Confetti
+    if (typeof confetti === 'function') {
+        const duration = 2000;
+        const end = Date.now() + duration;
+        (function frame() {
+            confetti({
+                particleCount: 5, angle: 60, spread: 55, origin: { x: 0 }, zIndex: 9999,
+                colors: ['#26ccff', '#a25afd', '#ff5e7e', '#88ff5a', '#fcff42', '#ffa62d', '#ff36ff']
+            });
+            confetti({
+                particleCount: 5, angle: 120, spread: 55, origin: { x: 1 }, zIndex: 9999,
+                colors: ['#26ccff', '#a25afd', '#ff5e7e', '#88ff5a', '#fcff42', '#ffa62d', '#ff36ff']
+            });
+            if (Date.now() < end) { requestAnimationFrame(frame); }
+        }());
+    }
+}
+
 // ===================== LOGTIME SUCCESS MODAL =====================
 function showSuccessModal() {
+    triggerCelebration();
+
     let overlay = document.getElementById('success-modal-overlay');
     if (!overlay) {
         overlay = document.createElement('div');
