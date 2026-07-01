@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+{% block title %}Login — VN-Tracking Dashboard{% endblock %}
+
+{% block body %}
+<div class="loader-overlay" id="login-loader">
+    <div class="spinner"></div>
+    <div style="font-weight: 700; color: var(--text); margin-top: 10px; font-size: 1.1rem;">{{ 'Đang xử lý đăng nhập...' if lang == 'vi' else 'ログイン中...' }}</div>
+</div>
+
+<div class="login-page">
+    <div class="login-settings" style="position: absolute; top: 20px; right: 20px; display: flex; gap: 15px; align-items: center; z-index: 10;">
+        <!-- Custom Language Select -->
+        <div class="custom-lang-select" id="custom-lang-select" onclick="toggleLangSelect(event)">
+            <div class="lang-trigger" style="background: var(--surface); padding: 8px 12px; border-radius: 12px; border: 1px solid var(--border); cursor: pointer; display: flex; align-items: center; gap: 8px; color: var(--text); font-weight: 600; font-size: 0.9rem;">
+                <span id="lang-text">{{ 'VN' if lang == 'vi' else 'JP' }}</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lang-arrow" style="transition: transform 0.3s;"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+            <div class="lang-dropdown" style="position: absolute; top: calc(100% + 8px); right: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; width: 100%; opacity: 0; visibility: hidden; transform: translateY(-10px); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15);">
+                <div class="lang-option {{ 'active' if lang == 'vi' }}" onclick="changeLang('vi', event)" style="padding: 10px 15px; cursor: pointer; color: var(--text); font-size: 0.9rem; text-align: center;">VN</div>
+                <div class="lang-option {{ 'active' if lang == 'ja' }}" onclick="changeLang('ja', event)" style="padding: 10px 15px; cursor: pointer; color: var(--text); font-size: 0.9rem; text-align: center;">JP</div>
+            </div>
+        </div>
+
+        <!-- Theme Toggle -->
+        <button class="theme-toggle" onclick="toggleTheme()" title="Toggle Dark Mode" style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; width: 40px; height: 40px; display: flex; justify-content: center; align-items: center; cursor: pointer; color: var(--text); transition: all 0.3s;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+        </button>
+    </div>
+
+    <div class="login-bg">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+    </div>
+
+    <div class="login-card">
+        <div class="login-icon" style="background: transparent; box-shadow: none;">
+            <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" width="56" height="56" style="border-radius: var(--radius-md);">
+        </div>
+        <h1>VN-Tracking</h1>
+        <p class="login-subtitle">{{ 'Quản lý tiến độ Team Việt Nam' if lang == 'vi' else 'ベトナムチーム進捗管理' }}</p>
+
+        {% if error %}
+        <div class="login-error">{{ error }}</div>
+        {% endif %}
+
+        <form method="POST" action="/login" id="login-form" onsubmit="sessionStorage.removeItem('activeTab'); showLoader()">
+            <div class="form-group" style="position: relative;">
+                <label>{{ 'Tài khoản (Người thực hiện)' if lang == 'vi' else 'アカウント（担当者）' }}</label>
+                <!-- Hidden real select to submit form data -->
+                <select name="username" id="username" required style="display: none;">
+                    <option value="">{{ '-- Chọn tài khoản --' if lang == 'vi' else '-- アカウントを選択 --' }}</option>
+                    {% for user in users %}
+                    <option value="{{ user }}">{{ user }}</option>
+                    {% endfor %}
+                </select>
+
+                <!-- Custom Dropdown UI -->
+                <div class="custom-select-container" id="custom-user-select">
+                    <div class="custom-select-trigger" onclick="toggleCustomSelect(event)">
+                        <span id="custom-select-text" style="color: var(--text-4);">{{ '-- Chọn tài khoản --' if lang == 'vi' else '-- アカウントを選択 --' }}</span>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transition: transform 0.3s;" id="custom-select-arrow"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                    </div>
+                    <div class="custom-select-dropdown" id="custom-select-dropdown">
+                        {% for user in users %}
+                        <div class="custom-select-option" onclick="selectUser('{{ user }}', '{{ user }}', event)">
+                            {{ user }}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="password">{{ 'Mật khẩu' if lang == 'vi' else 'パスワード' }}</label>
+                <input type="password" name="password" id="password" placeholder="{{ 'Nhập mật khẩu...' if lang == 'vi' else 'パスワードを入力してください...' }}" required style="border-radius: 16px; padding: 14px 20px;">
+            </div>
+
+            <button type="submit" class="btn btn-primary w-full" style="padding: 14px; margin-top: 16px; border-radius: 16px; border: none;">{{ 'Đăng nhập' if lang == 'vi' else 'ログイン' }}</button>
+        </form>
+    </div>
+</div>
+
+<style>
+/* Custom Dropdown Styling */
+.custom-select-container {
+    position: relative;
+    width: 100%;
+}
+.custom-select-trigger {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 20px;
+    background: var(--bg-page);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    color: var(--text);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.custom-select-trigger:hover, .custom-select-container.open .custom-select-trigger {
+    border-color: var(--primary);
+    background: var(--surface);
+}
+.custom-select-container.open #custom-select-arrow {
+    transform: rotate(180deg);
+}
+.custom-select-dropdown {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15);
+    z-index: 100;
+    max-height: 250px;
+    overflow-y: auto;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.custom-select-container.open .custom-select-dropdown {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+.custom-select-option {
+    padding: 12px 20px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    color: var(--text-2);
+    transition: background 0.2s, color 0.2s;
+}
+.custom-select-option:hover {
+    background: var(--surface-hover);
+    color: var(--text);
+}
+.custom-select-option:first-child {
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+}
+.custom-select-option:last-child {
+    border-bottom-left-radius: 16px;
+    border-bottom-right-radius: 16px;
+}
+/* Scrollbar styling for dropdown */
+.custom-select-dropdown::-webkit-scrollbar { width: 6px; }
+.custom-select-dropdown::-webkit-scrollbar-track { background: transparent; }
+.custom-select-dropdown::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+.custom-select-dropdown::-webkit-scrollbar-thumb:hover { background: var(--text-4); }
+
+/* Language Select Open State */
+.custom-lang-select.open .lang-dropdown {
+    opacity: 1 !important;
+    visibility: visible !important;
+    transform: translateY(0) !important;
+}
+.custom-lang-select.open .lang-arrow {
+    transform: rotate(180deg) !important;
+}
+.lang-option:hover {
+    background: var(--surface-hover);
+}
+</style>
+
+<script>
+function toggleCustomSelect(event) {
+    if(event) {
+        event.stopPropagation();
+    }
+    document.getElementById('custom-user-select').classList.toggle('open');
+}
+
+function selectUser(value, text, event) {
+    if(event) {
+        event.stopPropagation();
+    }
+    // Update visual text
+    const textEl = document.getElementById('custom-select-text');
+    textEl.innerText = text;
+    textEl.style.color = value ? 'var(--text)' : 'var(--text-4)';
+    
+    // Update hidden select
+    document.getElementById('username').value = value;
+    
+    // Close dropdown
+    document.getElementById('custom-user-select').classList.remove('open');
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', function(e) {
+    const container = document.getElementById('custom-user-select');
+    if (container && container.classList.contains('open')) {
+        container.classList.remove('open');
+    }
+});
+</script>
+
+<script>
+function showLoader() {
+    document.getElementById('login-loader').classList.add('active');
+    // We let the form submit naturally. The loader overlay will stay on screen
+    // until the page unloads (which is fast since Flask processes it instantly).
+}
+</script>
+{% endblock %}
