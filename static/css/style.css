@@ -305,7 +305,31 @@ select option { background: var(--surface); color: var(--text); }
 .tab-btn.active::after { opacity: 1; }
 
 .info-banner { display: flex; align-items: center; gap: 16px; font-size: 0.85rem; color: var(--text-3); font-weight: 500; }
-.deadline-badge { background: rgba(239, 68, 68, 0.1); color: #ef4444; padding: 4px 12px; border-radius: var(--radius-full); font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; font-size: 0.75rem; }
+.deadline-badge { 
+    background: rgba(239, 68, 68, 0.1); 
+    color: #ef4444; 
+    padding: 6px 16px; 
+    border-radius: var(--radius-full); 
+    font-weight: 700; 
+    letter-spacing: 0.05em; 
+    text-transform: uppercase; 
+    font-size: 0.75rem; 
+    display: inline-flex;
+    align-items: center;
+    transition: all var(--t-fast);
+    cursor: pointer;
+    border: 1px solid transparent;
+}
+.deadline-badge:hover {
+    background: rgba(239, 68, 68, 0.15);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25);
+    border-color: rgba(239, 68, 68, 0.3);
+}
+.deadline-badge:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 6px rgba(239, 68, 68, 0.2);
+}
 
 .tab-content { display: none; animation: fadeIn 0.3s ease; }
 .tab-content.active { display: block; }
@@ -767,4 +791,3 @@ select option { background: var(--surface); color: var(--text); }
 .profile-chevron.rotated {
     transform: rotate(180deg);
 }
-
