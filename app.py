@@ -388,11 +388,11 @@ def render_logtime_form_html(row, index, t, users, lang):
             <div class="form-row cols-3">
                 <div class="form-group">
                     <label>{t['f_hours']}</label>
-                    <input type="number" name="so_gio" value="0" min="0" step="0.5">
+                    <input type="number" name="so_gio" min="0" step="0.5">
                 </div>
                 <div class="form-group">
                     <label>{t['f_pages'].format(total=so_trang)}</label>
-                    <input type="number" name="so_page" value="0" min="0" step="1">
+                    <input type="number" name="so_page" min="0" step="1">
                 </div>
                 <div class="form-group">
                     <label>{t['f_note']}</label>
