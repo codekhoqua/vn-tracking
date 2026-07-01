@@ -29,10 +29,37 @@
     </div>
 </div>
 
+<!-- ============ ROLE MODAL ============ -->
+<div id="role-overlay" class="cp-overlay" onclick="closeRoleModal()"></div>
+<div id="role-modal" class="cp-modal" style="max-width: 600px;">
+    <div class="modal-header">
+        <h3>{{ 'Quản lý Phân quyền' if lang == 'vi' else '権限管理' }}</h3>
+        <button class="modal-close" onclick="closeRoleModal()">✕</button>
+    </div>
+    <div class="modal-body" style="max-height: 50vh; overflow-y: auto; padding-right: 10px;">
+        {% for uname, info in user_profiles.items() %}
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border);">
+                <div>
+                    <div style="font-weight: 500;">{{ info.fullname or uname }}</div>
+                    <div style="font-size: 0.85rem; color: var(--text-3);">@{{ uname }}</div>
+                </div>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <select id="role-select-{{ uname | replace(' ', '_') | replace('.', '_') }}" style="padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-page); color: var(--text);">
+                        <option value="admin" {% if info.role == 'admin' %}selected{% endif %}>Admin</option>
+                        <option value="leader" {% if info.role == 'leader' %}selected{% endif %}>Leader</option>
+                        <option value="member" {% if info.role == 'member' %}selected{% endif %}>Member</option>
+                    </select>
+                    <button class="btn btn-primary" style="padding: 6px 12px; font-size: 0.85rem; display: flex; align-items: center; gap: 5px; min-width: 60px; justify-content: center;" onclick="updateRole('{{ uname }}', this)">{{ 'Lưu' if lang == 'vi' else '保存' }}</button>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+
 
 
 <!-- ============ FILTER DRAWER (RIGHT SIDE) ============ -->
-{% if role == 'leader' %}
+{% if role in ['admin', 'manager', 'leader'] %}
 <div class="drawer-overlay" id="filter-overlay" onclick="toggleFilters()"></div>
 <div class="filter-drawer" id="filter-drawer">
     <div class="drawer-header">
@@ -128,6 +155,15 @@
         </div>
     </div>
     
+    {% if session.get('user') == 'Manager' or session.get('role') == 'admin' %}
+    <div class="nav-item" onclick="openRoleModal()" style="cursor: pointer;">
+        <div class="nav-item-content">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+            Phân quyền
+        </div>
+    </div>
+    {% endif %}
+    
     <div class="sidebar-footer">
         <!-- Profile Slide-Up Panel -->
         {% set p = user_profiles.get(user, {}) if user_profiles else {} %}
@@ -200,7 +236,7 @@
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
             </button>
             
-            {% if role == 'leader' %}
+            {% if role in ['admin', 'manager', 'leader'] %}
             <button class="btn btn-outline" onclick="toggleFilters()">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
                 Filters
@@ -213,7 +249,37 @@
         </div>
     </div>
 
+    <div class="chart-section" style="background: var(--bg-card); border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: 1px solid var(--border); width: 100%;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h3 style="color: var(--text); display: flex; align-items: center; gap: 8px; margin: 0;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"></path><path d="M18 17V9"></path><path d="M13 17V5"></path><path d="M8 17v-3"></path></svg>
+                {{ 'Tiến độ theo thời gian' if lang == 'vi' else '期間別タスク進捗' }}
+            </h3>
+            
+            <div id="custom-chart-legend" style="display: none; align-items: center; gap: 16px; font-size: 0.9rem; color: var(--text-2); margin-left: auto; margin-right: 20px;">
+                <span style="display: flex; align-items: center; gap: 6px;">
+                    <span style="width: 12px; height: 12px; border-radius: 50%; background: rgba(96, 165, 250, 0.85);"></span>
+                    Retouch
+                </span>
+                <span style="display: flex; align-items: center; gap: 6px;">
+                    <span style="width: 12px; height: 12px; border-radius: 50%; background: rgba(167, 243, 208, 0.85);"></span>
+                    Lettering
+                </span>
+            </div>
+
+            <div class="chart-time-controls" style="display: flex; gap: 5px;">
+                <button class="btn btn-sm btn-primary active" data-period="week" onclick="setChartPeriod('week')">{{ 'Tuần' if lang == 'vi' else '週' }}</button>
+                <button class="btn btn-sm btn-outline" data-period="month" onclick="setChartPeriod('month')">{{ 'Tháng' if lang == 'vi' else '月' }}</button>
+                <button class="btn btn-sm btn-outline" data-period="year" onclick="setChartPeriod('year')">{{ 'Năm' if lang == 'vi' else '年' }}</button>
+            </div>
+        </div>
+        <div style="position: relative; height: 450px; width: 100%;">
+            <canvas id="monthlyTaskChart"></canvas>
+        </div>
+    </div>
+
     <div class="dashboard-controls">
+
         <div class="tab-bar">
             <button class="tab-btn" data-tab="truoc" onclick="switchTab('truoc')">{{ t.tab0 }}</button>
             <button class="tab-btn active" data-tab="nay" onclick="switchTab('nay')">{{ t.tab1 }}</button>
@@ -221,15 +287,27 @@
         </div>
         <div class="info-banner" id="banner-truoc" style="display: none;">
             <span>{{ weeks.truoc.info.start }} - {{ weeks.truoc.info.end }}</span>
-            <span class="deadline-badge">{{ weeks.truoc.info.deadline }}</span>
+            <span class="deadline-badge">{{ 'Deadline đã qua' if lang == 'vi' else '期限切れ' }}</span>
         </div>
-        <div class="info-banner" id="banner-nay">
+        <div class="info-banner" id="banner-nay" style="position: relative; z-index: 100;">
             <span>{{ weeks.nay.info.start }} - {{ weeks.nay.info.end }}</span>
-            <span class="deadline-badge">{{ weeks.nay.info.deadline }}</span>
+            <span class="deadline-badge" id="deadline-nay-badge" style="cursor: pointer;" onclick="toggleCalendarPopup('{{ weeks.nay.info.deadline }}')">{{ weeks.nay.info.deadline }}</span>
+            <div id="calendar-popup" style="display: none; position: absolute; top: 100%; right: 0; z-index: 999; margin-top: 10px; background: var(--bg-card); border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); border: 1px solid var(--border); overflow: hidden; width: max-content;">
+                <div style="display: flex; min-width: 350px;">
+                    <div style="padding: 20px; width: 130px; border-right: 1px solid var(--border); display: flex; flex-direction: column;">
+                        <div id="cal-left-dow" style="color: #ef4444; font-weight: 700; font-size: 0.75rem; text-transform: uppercase; margin-bottom: 2px;"></div>
+                        <div id="cal-left-date" style="font-size: 3.5rem; font-weight: 400; line-height: 1.1; color: var(--text); margin-bottom: 15px; letter-spacing: -2px;"></div>
+                        <div id="cal-left-text" style="font-size: 0.8rem; color: var(--text-2); line-height: 1.4;">Hạn chót nộp tác phẩm tuần này</div>
+                    </div>
+                    <div style="padding: 10px 15px 15px 15px;">
+                        <div id="inline-calendar"></div>
+                    </div>
+                </div>
+            </div>
         </div>
         <div class="info-banner" id="banner-sau" style="display: none;">
             <span>{{ weeks.sau.info.start }} - {{ weeks.sau.info.end }}</span>
-            <span class="deadline-badge">{{ weeks.sau.info.deadline }}</span>
+            <span class="deadline-badge">{{ 'Chưa có thông tin deadline' if lang == 'vi' else '締め切りの情報がありません' }}</span>
         </div>
     </div>
 
@@ -479,11 +557,107 @@
 
 {% endblock %}
 
+{% block head %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://npmcdn.com/flatpickr/dist/l10n/vn.js"></script>
+<script src="https://npmcdn.com/flatpickr/dist/l10n/ja.js"></script>
+<style>
+    .flatpickr-calendar {
+        background: transparent !important;
+        box-shadow: none !important;
+        border: none !important;
+        width: 280px !important;
+        padding: 0 !important;
+    }
+    .flatpickr-day.is-deadline {
+        background: #ef4444 !important; /* Red background */
+        border-color: #ef4444 !important;
+        color: white !important;
+    }
+    .flatpickr-month {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        height: 35px !important;
+        margin-bottom: 10px;
+        position: relative;
+    }
+    .flatpickr-current-month {
+        font-size: 0.9rem !important;
+        color: #ef4444 !important;
+        font-weight: 700 !important;
+        padding: 0 !important;
+        text-transform: uppercase;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        height: 100% !important;
+        position: static !important;
+        flex: 1;
+    }
+    .flatpickr-monthDropdown-months {
+        appearance: none !important;
+        -webkit-appearance: none !important;
+        background: transparent !important;
+        border: none !important;
+        color: inherit !important;
+        font-weight: inherit !important;
+        cursor: pointer;
+        padding: 2px 5px !important;
+        height: auto !important;
+        line-height: 1.2 !important;
+    }
+    .flatpickr-monthDropdown-months option {
+        background-color: #1e293b !important;
+        color: #ffffff !important;
+    }
+    .flatpickr-current-month svg {
+        display: none !important; /* Hide dropdown arrow */
+    }
+    .flatpickr-current-month .numInputWrapper { display: none; }
+    .flatpickr-current-month input.cur-year { display: none; }
+    .flatpickr-prev-month svg, .flatpickr-next-month svg {
+        fill: var(--text) !important;
+    }
+    .flatpickr-prev-month:hover svg, .flatpickr-next-month:hover svg {
+        fill: #ef4444 !important;
+    }
+    .flatpickr-weekday {
+        color: var(--text) !important;
+        font-weight: 700 !important;
+        font-size: 0.7rem !important;
+    }
+    .flatpickr-day {
+        color: var(--text) !important;
+        font-weight: 500 !important;
+        border-radius: 50% !important;
+    }
+    .flatpickr-day.flatpickr-disabled {
+        color: var(--text-2) !important;
+        opacity: 0.3;
+    }
+    .flatpickr-prev-month, .flatpickr-next-month {
+        position: static !important;
+        height: 100% !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        padding: 0 15px !important;
+        z-index: 3 !important;
+    }
+</style>
+{% endblock %}
+
 {% block scripts %}
 <script>
     const CHECKLIST_API = "{{ checklist_api }}";
     const CURRENT_LANG = "{{ lang }}";
     
+    // Inject Detailed Task Data
+    const vntaskDataList = {{ vntask_details | tojson }};
+    const userProfilesDB = {{ user_profiles | tojson }};
+
     // Store mappings from card name to modal ID
     const modalMap = {};
     {% for tab_key in ['truoc', 'nay', 'sau'] %}
@@ -494,5 +668,5 @@
         {% endfor %}
     {% endfor %}
 </script>
-<script src="{{ url_for('static', filename='js/app.js') }}?v=123"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}?v={{ range(1, 100000) | random }}"></script>
 {% endblock %}

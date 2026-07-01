@@ -4,10 +4,13 @@ import hashlib
 import pandas as pd
 import requests
 import re
-from datetime import date
+import json
+from collections import defaultdict
+from datetime import date, datetime
 from functools import wraps
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify
 from markupsafe import Markup
+from dateutil import parser as date_parser
 
 # =====================================================================
 # 1. CẤU HÌNH FLASK
@@ -20,7 +23,7 @@ app.secret_key = os.environ.get('SECRET_KEY', 'vn-tracking-secret-' + hashlib.md
 # =====================================================================
 USER_SHEET_URL = "https://docs.google.com/spreadsheets/d/1VLlDF5XoXt0Rz0ACZ3EZRKcKWFnIRXptMPbQthimNE0/export?format=csv&gid=0"
 CHECKLIST_API_URL = "https://script.google.com/macros/s/AKfycbyguXQno1gohakWqgfTwd0uP-b9BNkkExBcXIe23O267Jr2cXBX2JDSuS0_EVu_uv-7/exec"
-CHANGE_PASS_API = "https://script.google.com/macros/s/AKfycbxLWNSqylAHWvkY4JKNvCTpDQMiL2Vgl8_EYEhBI7Ob7OTcIVRXXiJmBQzDa4oNMAVK/exec"
+CHANGE_PASS_API = "https://script.google.com/macros/s/AKfycbzf59j11q0IfvgjRkhvUx6EhnSdssGbvpp3PnKQGL4JUmJC2w2uidZi0BKygpriqMVB/exec"
 LOGTIME_API_URL = "https://script.google.com/macros/s/AKfycbwRgcwRvxBZPOMEyfKbWCDXpLsY1H5edxQtxF4xihgaVIJn-eiqbuDB_2yCU9XYR_MwAQ/exec"
 
 url = "https://docs.google.com/spreadsheets/d/1ec_v1hsKu0oCOwyrFNgxckpoaq3Q02J4NdIchqbYE3s/edit?gid=597870203#gid=597870203"
@@ -29,7 +32,11 @@ csv_url = url.split("/edit")[0] + "/export?format=csv" if "/edit" in url else ur
 url_after_week = "https://docs.google.com/spreadsheets/d/1ec_v1hsKu0oCOwyrFNgxckpoaq3Q02J4NdIchqbYE3s/edit?gid=597870203#gid=597870203"
 csv_url_truoc = url_after_week.split("/edit")[0] + "/export?format=csv&" + url_after_week.split("#")[1] if "#gid" in url_after_week else url_after_week
 
+
+
 COLS = ['Công việc', 'Tên tác phẩm', 'Chương', 'Tập', 'Số trang', 'NXB', 'Ngày bắt đầu', 'Deadline (Nộp)', 'VN', 'Người thực hiện', 'QC Nội bộ', 'Quản lý', 'Trạng thái', 'Bắt đầu', 'Ghi chú']
+
+VNTASK_URL = "https://docs.google.com/spreadsheets/d/1ec_v1hsKu0oCOwyrFNgxckpoaq3Q02J4NdIchqbYE3s/gviz/tq?tqx=out:csv&sheet=VN-task"
 
 # =====================================================================
 # 3. SIMPLE CACHE
@@ -118,6 +125,7 @@ def load_users_from_sheet(url):
                 "avatar": avatar,
                 "team": team
             }
+            
         return users
     except Exception:
         return {}
@@ -143,6 +151,62 @@ def load_sheet_data(url):
         return df
     except Exception:
         return pd.DataFrame(columns=COLS)
+
+@cached(ttl=300)
+def load_vntask_details():
+    try:
+        df = pd.read_csv(VNTASK_URL)
+        start_date_col = None
+        for col in df.columns:
+            if '開始日' in col:
+                start_date_col = col
+                break
+                
+        if not start_date_col:
+            if len(df.columns) > 7:
+                start_date_col = df.columns[7]
+            else:
+                return []
+            
+        job_col = df.columns[1] if len(df.columns) > 1 else None
+        task_col = df.columns[2] if len(df.columns) > 2 else None
+        worker_col = df.columns[10] if len(df.columns) > 10 else (df.columns[9] if len(df.columns) > 9 else None)
+
+        details = []
+        current_year = date.today().year
+
+        for idx, row in df.iterrows():
+            val = str(row[start_date_col]).strip()
+            if val in ['nan', 'NaN', 'None', '']:
+                continue
+            
+            raw_job = str(row[job_col]).strip() if job_col and pd.notna(row[job_col]) else "Khác"
+            job_type = "Retouch" if "レタッチ" in raw_job else ("Lettering" if "写植" in raw_job else raw_job)
+            if job_type in ['nan', 'NaN', 'None', '']: job_type = "Khác"
+            
+            task_name = str(row[task_col]) if task_col and pd.notna(row[task_col]) else "Unknown Task"
+            worker = str(row[worker_col]) if worker_col and pd.notna(row[worker_col]) else ""
+            
+            # remove day of week like (Wed)
+            clean_d = re.sub(r'\([A-Za-z]+\)', '', val).strip()
+            # replace hyphens with space
+            clean_d = clean_d.replace('-', ' ')
+            try:
+                dt = date_parser.parse(clean_d, default=datetime(current_year, 1, 1))
+                formatted_date = dt.strftime('%Y-%m-%d')
+                details.append({
+                    "date": formatted_date,
+                    "taskName": task_name,
+                    "worker": worker,
+                    "jobType": job_type
+                })
+            except Exception:
+                pass
+                
+        return details
+    except Exception as e:
+        print("Error load_vntask_details:", e)
+        return []
 
 # =====================================================================
 # 5. HÀM XỬ LÝ DỮ LIỆU
@@ -470,6 +534,7 @@ def process_dashboard_data():
         'user_profiles': USER_DB,
         'cols_keys': COLS,
         'checklist_api': CHECKLIST_API_URL,
+        'vntask_details': load_vntask_details(),
         'filter_cv_nay': list(df_tuan_nay["Công việc"].dropna().unique()) if not df_tuan_nay.empty else [],
         'filter_cv_sau': list(df_tuan_sau["Công việc"].dropna().unique()) if not df_tuan_sau.empty else [],
         'weeks': {
@@ -525,6 +590,39 @@ def login():
         return redirect('/dashboard')
     else:
         return render_template('login.html', users=users, error="Mật khẩu không chính xác!", lang=lang)
+
+@app.route('/api/roles', methods=['POST'])
+def update_roles():
+    user = session.get('user')
+    role = session.get('role')
+    if not user or (user != 'Manager' and role not in ['admin', 'manager', 'leader']):
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+    
+    data = request.json
+    username = data.get("username")
+    new_role = data.get("role")
+    
+    if not username or not new_role:
+        return jsonify({"success": False, "message": "Missing parameters"}), 400
+        
+    try:
+        res = requests.post(CHANGE_PASS_API, json={
+            "action": "update_role",
+            "username": username,
+            "new_role": new_role
+        }, timeout=15)
+        res_data = res.json()
+        
+        if res_data.get("status") == "success":
+            global USER_DB
+            USER_DB = load_users_from_sheet(USER_SHEET_URL)
+            if username in USER_DB:
+                USER_DB[username]["role"] = new_role
+            return jsonify({"success": True})
+        else:
+            return jsonify({"success": False, "message": res_data.get("message", "Lỗi từ Google Apps Script")}), 500
+    except Exception as e:
+        return jsonify({"success": False, "message": "Lỗi kết nối API"}), 500
 
 @app.route('/logout')
 def logout():
@@ -636,7 +734,7 @@ def api_avatar_proxy():
         except Exception:
             continue
     
-    return Response('Image not found', status=404)
+
 
 # =====================================================================
 # 11. CHẠY ỨNG DỤNG

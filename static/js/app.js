@@ -452,7 +452,7 @@ function handleLogtime(event, formId) {
     const btn = form.querySelector('button[type="submit"]');
     const orig = btn.textContent;
     btn.disabled = true;
-    btn.textContent = 'Đang lưu...';
+    btn.innerHTML = '<span class="loading-spinner" style="width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-radius: 50%; border-top-color: #fff; animation: spin 1s linear infinite; display: inline-block; margin-right: 8px;"></span>ĐANG LƯU...';
 
     fetch('/api/logtime', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
         .then(r => r.json())
@@ -493,6 +493,12 @@ function toggleTheme() {
     body.classList.toggle('dark-theme');
     const isDark = body.classList.contains('dark-theme');
     localStorage.setItem('vn_tracking_theme', isDark ? 'dark' : 'light');
+    
+    // Redraw chart to apply new theme colors
+    if (typeof updateAreaChart === 'function') {
+        const activeBtn = document.querySelector('.chart-time-controls button.active');
+        if (activeBtn) updateAreaChart(activeBtn.dataset.period);
+    }
 }
 
 // ===================== BACKGROUND SYNC =====================
@@ -589,6 +595,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Background Sync for Server Truth
     backgroundSyncChecklist();
+
+    // Init Area Chart
+    if (typeof vntaskDataList !== 'undefined') {
+        setChartPeriod('week');
+    }
 });
 
 // ===================== IDLE TIMEOUT =====================
@@ -715,3 +726,537 @@ function submitChangePass() {
         });
 }
 
+// ===================== TASK AREA CHART =====================
+let taskChartInstance = null;
+
+function setChartPeriod(period) {
+    document.querySelectorAll('.chart-time-controls button').forEach(btn => {
+        if(btn.dataset.period === period) {
+            btn.classList.add('active', 'btn-primary');
+            btn.classList.remove('btn-outline');
+        } else {
+            btn.classList.remove('active', 'btn-primary');
+            btn.classList.add('btn-outline');
+        }
+    });
+    updateAreaChart(period);
+}
+
+const avatarCache = {};
+const avatarPlugin = {
+    id: 'avatarPlugin',
+    afterDatasetsDraw(chart, args, options) {
+        if (!options.avatars) return;
+        const ctx = chart.ctx;
+        const xAxis = chart.scales.x;
+        const yAxis = chart.scales.y;
+        
+        chart.data.labels.forEach((label, index) => {
+            const avatarUrl = options.avatars[label];
+            if (!avatarUrl) return;
+
+            const x = xAxis.getPixelForTick(index);
+            let maxYPixel = yAxis.bottom;
+            
+            for (let i = 0; i < chart.data.datasets.length; i++) {
+                const meta = chart.getDatasetMeta(i);
+                if (!meta.hidden && meta.data[index]) {
+                    const yPixel = meta.data[index].y;
+                    if (yPixel < maxYPixel) {
+                        maxYPixel = yPixel;
+                    }
+                }
+            }
+            
+            const imgSize = 28;
+            const drawY = maxYPixel - imgSize/2 - 8;
+            if (drawY - imgSize/2 < 0) return; // Only skip if it goes off the canvas
+
+            let img = avatarCache[avatarUrl];
+            if (!img) {
+                img = new Image();
+                img.src = avatarUrl;
+                avatarCache[avatarUrl] = img;
+                img.onload = () => chart.draw();
+            }
+
+            if (img.complete && img.naturalHeight !== 0) {
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(x, drawY, imgSize/2, 0, Math.PI * 2);
+                ctx.closePath();
+                ctx.clip();
+                ctx.drawImage(img, x - imgSize/2, drawY - imgSize/2, imgSize, imgSize);
+                ctx.restore();
+                
+                ctx.beginPath();
+                ctx.arc(x, drawY, imgSize/2, 0, Math.PI * 2);
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = '#fff';
+                ctx.stroke();
+            }
+        });
+    }
+};
+
+Chart.defaults.font.family = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+
+function updateAreaChart(period) {
+    if (typeof vntaskDataList === 'undefined' || !document.getElementById('monthlyTaskChart')) return;
+    
+    const customLegend = document.getElementById('custom-chart-legend');
+    if (customLegend) {
+        customLegend.style.display = period === 'week' ? 'flex' : 'none';
+        const legendOther = document.getElementById('legend-other-text');
+        if (legendOther) {
+            legendOther.textContent = typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi' ? 'Khác' : 'その他';
+        }
+    }
+    
+    const now = new Date();
+    let groupedData = {};
+    let labels = [];
+    let isBarChart = false;
+    let titleX = '';
+    
+    let chartDatasets = [];
+    let chartDetailsMap = [];
+    let chartAvatars = null;
+    
+    const getWeekNumber = (d) => {
+        const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+        const dayNum = date.getUTCDay() || 7;
+        date.setUTCDate(date.getUTCDate() + 4 - dayNum);
+        const yearStart = new Date(Date.UTC(date.getUTCFullYear(),0,1));
+        return Math.ceil((((date - yearStart) / 86400000) + 1)/7);
+    };
+
+    const isVi = typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi';
+
+    if (period === 'week') {
+        isBarChart = true;
+        titleX = isVi ? 'Người thực hiện' : '担当者';
+        const txtOtherWorker = isVi ? 'Khác' : 'その他';
+        
+        let targetWeek = getWeekNumber(now);
+        let targetYear = now.getFullYear();
+        const hasDataThisWeek = vntaskDataList.some(item => getWeekNumber(new Date(item.date)) === targetWeek && new Date(item.date).getFullYear() === targetYear);
+        
+        if (!hasDataThisWeek && vntaskDataList.length > 0) {
+            const maxDate = new Date(Math.max(...vntaskDataList.map(item => new Date(item.date))));
+            targetWeek = getWeekNumber(maxDate);
+            targetYear = maxDate.getFullYear();
+        }
+
+        const currentWeekTasks = vntaskDataList.filter(item => {
+            const d = new Date(item.date);
+            return getWeekNumber(d) === targetWeek && d.getFullYear() === targetYear;
+        });
+
+        const workerTasks = {};
+        currentWeekTasks.forEach(item => {
+            if (item.worker) {
+                const workers = item.worker.split(',').map(w => w.trim());
+                workers.forEach(w => {
+                    const shortName = w;
+                    if (!workerTasks[shortName]) workerTasks[shortName] = [];
+                    workerTasks[shortName].push(item);
+                });
+            } else {
+                if (!workerTasks[txtOtherWorker]) workerTasks[txtOtherWorker] = [];
+                workerTasks[txtOtherWorker].push(item);
+            }
+        });
+        
+        labels = Object.keys(workerTasks);
+        
+        let dataRetouch = [];
+        let dataLettering = [];
+        let dataOther = [];
+        let detailRetouch = [];
+        let detailLettering = [];
+        let detailOther = [];
+        
+        labels.forEach(w => {
+            const tasks = workerTasks[w];
+            let rTasks = tasks.filter(t => t.jobType === 'Retouch');
+            let lTasks = tasks.filter(t => t.jobType === 'Lettering');
+            let oTasks = tasks.filter(t => t.jobType !== 'Retouch' && t.jobType !== 'Lettering');
+            
+            dataRetouch.push(rTasks.length);
+            dataLettering.push(lTasks.length);
+            dataOther.push(oTasks.length);
+            
+            detailRetouch.push(rTasks);
+            detailLettering.push(lTasks);
+            detailOther.push(oTasks);
+        });
+
+        chartDatasets = [
+            {
+                label: 'Retouch',
+                data: dataRetouch,
+                backgroundColor: 'rgba(96, 165, 250, 0.85)', // Pastel Blue
+                hoverBackgroundColor: 'rgba(59, 130, 246, 0.9)',
+                borderRadius: 20,
+                borderSkipped: false,
+                maxBarThickness: 32,
+                details: detailRetouch
+            },
+            {
+                label: 'Lettering',
+                data: dataLettering,
+                backgroundColor: 'rgba(167, 243, 208, 0.85)', // Pastel Green
+                hoverBackgroundColor: 'rgba(52, 211, 153, 0.9)',
+                borderRadius: 20,
+                borderSkipped: false,
+                maxBarThickness: 32,
+                details: detailLettering
+            },
+            {
+                label: txtOtherWorker,
+                data: dataOther,
+                backgroundColor: 'rgba(209, 213, 219, 0.85)', // Pastel Gray
+                hoverBackgroundColor: 'rgba(156, 163, 175, 0.9)',
+                borderRadius: 20,
+                borderSkipped: false,
+                maxBarThickness: 32,
+                details: detailOther
+            }
+        ].filter(d => d.data.some(v => v > 0));
+        
+        chartAvatars = {};
+        if (typeof userProfilesDB !== 'undefined') {
+            labels.forEach(w => {
+                const dbKey = Object.keys(userProfilesDB).find(k => w.toLowerCase().includes(k.toLowerCase()));
+                if (dbKey && userProfilesDB[dbKey]) {
+                    chartAvatars[w] = userProfilesDB[dbKey].avatar || userProfilesDB[dbKey].profile_picture;
+                }
+            });
+        }
+        
+    } else {
+        // Month or Year Mode (Area Chart)
+        if (period === 'month') {
+            labels = isVi ? ['Tuần 1', 'Tuần 2', 'Tuần 3', 'Tuần 4', 'Tuần 5'] : ['第1週', '第2週', '第3週', '第4週', '第5週'];
+            labels.forEach(l => groupedData[l] = []);
+            
+            let targetMonth = now.getMonth();
+            let targetYear = now.getFullYear();
+            const hasDataThisMonth = vntaskDataList.some(item => {
+                const d = new Date(item.date);
+                return d.getMonth() === targetMonth && d.getFullYear() === targetYear;
+            });
+
+            if (!hasDataThisMonth && vntaskDataList.length > 0) {
+                const maxDate = new Date(Math.max(...vntaskDataList.map(item => new Date(item.date))));
+                targetMonth = maxDate.getMonth();
+                targetYear = maxDate.getFullYear();
+            }
+
+            vntaskDataList.forEach(item => {
+                const d = new Date(item.date);
+                if (d.getMonth() === targetMonth && d.getFullYear() === targetYear) {
+                    const firstDayOfMonth = new Date(targetYear, targetMonth, 1).getDay();
+                    const adjustedDate = d.getDate() + (firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1);
+                    const weekIdx = Math.floor((adjustedDate - 1) / 7);
+                    if (weekIdx < 5) {
+                        groupedData[labels[weekIdx]].push(item);
+                    } else {
+                        groupedData[labels[4]].push(item);
+                    }
+                }
+            });
+            
+        } else if (period === 'year') {
+            labels = isVi ? 
+                ['Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6', 'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'] : 
+                ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
+            labels.forEach(l => groupedData[l] = []);
+            
+            let targetYear = now.getFullYear();
+            const hasDataThisYear = vntaskDataList.some(item => new Date(item.date).getFullYear() === targetYear);
+            if (!hasDataThisYear && vntaskDataList.length > 0) {
+                targetYear = new Date(Math.max(...vntaskDataList.map(item => new Date(item.date)))).getFullYear();
+            }
+
+            vntaskDataList.forEach(item => {
+                const d = new Date(item.date);
+                if (d.getFullYear() === targetYear) {
+                    groupedData[labels[d.getMonth()]].push(item);
+                }
+            });
+        }
+        
+        const dataPoints = labels.map(l => groupedData[l].length);
+        chartDetailsMap = labels.map(l => groupedData[l]);
+        
+        const ctx = document.getElementById('monthlyTaskChart').getContext('2d');
+        let gradient = ctx.createLinearGradient(0, 0, 0, 400);
+        gradient.addColorStop(0, 'rgba(16, 185, 129, 0.6)');
+        gradient.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
+        
+        chartDatasets = [{
+            label: isVi ? 'Số Task' : 'タスク数',
+            data: dataPoints,
+            borderColor: '#10b981',
+            backgroundColor: gradient,
+            borderWidth: 3,
+            fill: true,
+            tension: 0.4,
+            pointBackgroundColor: '#10b981',
+            pointBorderColor: '#fff',
+            pointHoverBorderColor: '#10b981',
+            pointRadius: 4,
+            pointHoverRadius: 6
+        }];
+    }
+
+    if (taskChartInstance) {
+        taskChartInstance.destroy();
+    }
+    
+    const ctx = document.getElementById('monthlyTaskChart').getContext('2d');
+    const isDark = document.body.classList.contains('dark-theme');
+    const textColor = isDark ? '#f1f5f9' : '#1e293b';
+    const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)';
+    
+    taskChartInstance = new Chart(ctx, {
+        type: isBarChart ? 'bar' : 'line',
+        data: {
+            labels: labels,
+            datasets: chartDatasets
+        },
+        plugins: isBarChart ? [avatarPlugin] : [],
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            layout: {
+                padding: {
+                    top: isBarChart ? 40 : 10 // Leave extra space for avatars
+                }
+            },
+            plugins: {
+                legend: { 
+                    display: false
+                },
+                avatarPlugin: {
+                    avatars: chartAvatars
+                },
+                tooltip: {
+                    backgroundColor: isDark ? 'rgba(15, 23, 42, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+                    titleColor: isDark ? '#fff' : '#000',
+                    bodyColor: isDark ? '#cbd5e1' : '#334155',
+                    borderColor: isDark ? '#334155' : '#e2e8f0',
+                    borderWidth: 1,
+                    padding: 12,
+                    boxPadding: 4,
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) label += ': ' + context.parsed.y;
+                            return label;
+                        },
+                        afterBody: function(context) {
+                            if (isBarChart) {
+                                // For Week mode
+                                let lines = [isVi ? '\n--- Chi tiết ---' : '\n--- 詳細 ---'];
+                                context.forEach(c => {
+                                    const ds = c.chart.data.datasets[c.datasetIndex];
+                                    const tasks = ds.details[c.dataIndex];
+                                    if (tasks && tasks.length > 0) {
+                                        lines.push(`${ds.label}:`);
+                                        tasks.forEach(t => lines.push(`  • ${t.taskName}`));
+                                    }
+                                });
+                                return lines;
+                            } else {
+                                // For Month/Year mode
+                                const idx = context[0].dataIndex;
+                                const tasks = chartDetailsMap[idx];
+                                if (!tasks || tasks.length === 0) return '';
+                                
+                                const txtOtherJob = isVi ? 'Khác' : 'その他';
+                                let jobCounts = {};
+                                tasks.forEach(t => {
+                                    let jt = t.jobType || 'Khác';
+                                    if (jt === 'Khác') jt = txtOtherJob;
+                                    jobCounts[jt] = (jobCounts[jt] || 0) + 1;
+                                });
+                                
+                                let lines = [isVi ? '\n--- Phân loại ---' : '\n--- 分類 ---'];
+                                for (let [job, count] of Object.entries(jobCounts)) {
+                                    lines.push(`• ${job}: ${count}`);
+                                }
+                                return lines;
+                            }
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    stacked: isBarChart,
+                    beginAtZero: true,
+                    ticks: { color: textColor, stepSize: 1 },
+                    grid: { color: gridColor, drawBorder: false }
+                },
+                x: {
+                    stacked: isBarChart,
+                    title: {
+                        display: isBarChart,
+                        text: titleX,
+                        color: textColor,
+                        font: {
+                            weight: 'bold',
+                            size: 14
+                        }
+                    },
+                    ticks: { color: textColor },
+                    grid: { display: false, drawBorder: false }
+                }
+            },
+            interaction: {
+                intersect: false,
+                mode: isBarChart ? 'index' : 'index',
+            },
+        }
+    });
+}
+
+// Calendar Popup logic
+let calendarInstance = null;
+
+function toggleCalendarPopup(deadlineText) {
+    const popup = document.getElementById('calendar-popup');
+    if (!popup) return;
+    
+    if (popup.style.display === 'block') {
+        popup.style.display = 'none';
+        return;
+    }
+    
+    popup.style.display = 'block';
+    
+    let targetDate = new Date(deadlineText);
+    if (isNaN(targetDate.getTime())) {
+        targetDate = new Date(); // fallback
+    }
+    
+    // Calculate countdown
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const targetDateOnly = new Date(targetDate);
+    targetDateOnly.setHours(0, 0, 0, 0);
+    const diffDays = Math.round((targetDateOnly - today) / (1000 * 60 * 60 * 24));
+    
+    let isVi = typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi';
+    let countdownText = "";
+    if (isVi) {
+        if (diffDays > 0) countdownText = `Còn ${diffDays} ngày nữa tới deadline`;
+        else if (diffDays === 0) countdownText = "Deadline là hôm nay!";
+        else countdownText = `Đã quá hạn ${Math.abs(diffDays)} ngày`;
+    } else {
+        if (diffDays > 0) countdownText = `締め切りまであと${diffDays}日`;
+        else if (diffDays === 0) countdownText = "今日が締め切りです！";
+        else countdownText = `締め切りから${Math.abs(diffDays)}日経過`;
+    }
+    
+    // Show TODAY on the left panel
+    document.getElementById('cal-left-dow').textContent = isVi ? "HÔM NAY" : "今日";
+    document.getElementById('cal-left-date').textContent = new Date().getDate();
+    document.getElementById('cal-left-text').textContent = countdownText;
+
+    if (typeof flatpickr !== 'undefined' && flatpickr.l10ns && flatpickr.l10ns.vn) {
+        flatpickr.l10ns.vn.months.longhand = ["THÁNG 1", "THÁNG 2", "THÁNG 3", "THÁNG 4", "THÁNG 5", "THÁNG 6", "THÁNG 7", "THÁNG 8", "THÁNG 9", "THÁNG 10", "THÁNG 11", "THÁNG 12"];
+        flatpickr.l10ns.vn.months.shorthand = ["THÁNG 1", "THÁNG 2", "THÁNG 3", "THÁNG 4", "THÁNG 5", "THÁNG 6", "THÁNG 7", "THÁNG 8", "THÁNG 9", "THÁNG 10", "THÁNG 11", "THÁNG 12"];
+    }
+
+    if (!calendarInstance) {
+        calendarInstance = flatpickr("#inline-calendar", {
+            inline: true,
+            locale: isVi ? "vn" : "ja", // Automatically starts on Monday (t2)
+            defaultDate: targetDate,
+            onDayCreate: function(dObj, dStr, fp, dayElem) {
+                if (dayElem.dateObj.getDate() === targetDate.getDate() &&
+                    dayElem.dateObj.getMonth() === targetDate.getMonth() &&
+                    dayElem.dateObj.getFullYear() === targetDate.getFullYear()) {
+                    dayElem.classList.add('is-deadline');
+                }
+            }
+        });
+    } else {
+        calendarInstance.setDate(targetDate);
+        calendarInstance.redraw();
+    }
+}
+
+document.addEventListener('click', function(e) {
+    const popup = document.getElementById('calendar-popup');
+    const badge = document.getElementById('deadline-nay-badge');
+    if (popup && popup.style.display === 'block') {
+        if (!popup.contains(e.target) && e.target !== badge) {
+            popup.style.display = 'none';
+        }
+    }
+});
+
+// ======================================
+// ROLE MODAL (Popup Phân Quyền)
+// ======================================
+function openRoleModal() {
+    const overlay = document.getElementById('role-overlay');
+    const modal = document.getElementById('role-modal');
+    if (overlay && modal) {
+        overlay.classList.add('active');
+        modal.classList.add('active');
+    }
+}
+
+function closeRoleModal() {
+    const overlay = document.getElementById('role-overlay');
+    const modal = document.getElementById('role-modal');
+    if (overlay && modal) {
+        overlay.classList.remove('active');
+        modal.classList.remove('active');
+    }
+}
+
+function updateRole(username, btn) {
+    // Replace spaces and dots to match the ID logic
+    const selectId = 'role-select-' + username.replace(/ /g, '_').replace(/\./g, '_');
+    const selectElem = document.getElementById(selectId);
+    if (!selectElem) {
+        showToast('Không tìm thấy thông tin quyền!', 'error');
+        return;
+    }
+    const newRole = selectElem.value;
+    
+    // Set loading state
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<span class="loading-spinner" style="width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-radius: 50%; border-top-color: #fff; animation: spin 1s linear infinite; display: inline-block;"></span>';
+    btn.disabled = true;
+    
+    fetch('/api/roles', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username: username, role: newRole })
+    })
+    .then(response => response.json())
+    .then(data => {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+        if (data.success) {
+            showToast('Cập nhật thành công quyền cho: ' + username, 'success');
+        } else {
+            showToast('Lỗi: ' + (data.message || 'Không thể cập nhật quyền'), 'error');
+        }
+    })
+    .catch(error => {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+        showToast('Lỗi kết nối!', 'error');
+    });
+}
