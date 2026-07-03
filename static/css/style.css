@@ -791,3 +791,56 @@ select option { background: var(--surface); color: var(--text); }
 .profile-chevron.rotated {
     transform: rotate(180deg);
 }
+
+/* ============ ONLINE USERS CLUSTER ============ */
+.online-users-cluster {
+    display: flex;
+    align-items: center;
+    margin-right: 16px;
+    height: 100%;
+}
+.online-users-cluster:empty {
+    display: none;
+}
+.online-avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 2px solid var(--bg-page);
+    margin-left: -10px;
+    object-fit: cover;
+    background-color: var(--surface);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text);
+    position: relative;
+    cursor: default;
+    transition: transform 0.2s;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+.online-avatar:first-child {
+    margin-left: 0;
+}
+.online-avatar:hover {
+    transform: translateY(-2px);
+    z-index: 10;
+}
+.online-avatar-counter {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background-color: var(--surface-hover);
+    border: 2px solid var(--bg-page);
+    margin-left: -10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    color: var(--text-2);
+    font-weight: 600;
+    z-index: 1;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}

@@ -1,5 +1,6 @@
 import os
 import time
+import threading
 import hashlib
 import pandas as pd
 import requests
@@ -12,12 +13,15 @@ from flask import Flask, render_template, request, redirect, url_for, session, j
 from markupsafe import Markup
 from dateutil import parser as date_parser
 
+from flask_socketio import SocketIO, emit, join_room, leave_room
+
 # =====================================================================
-# 1. CẤU HÌNH FLASK
+# 1. CẤU HÌNH FLASK & SOCKETIO
 # =====================================================================
 app = Flask(__name__)
+app.config['TEMPLATES_AUTO_RELOAD'] = True
 app.secret_key = os.environ.get('SECRET_KEY', 'vn-tracking-secret-' + hashlib.md5(b'vn-tracking-2024').hexdigest())
-
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading', manage_session=False)
 # =====================================================================
 # 2. CƠ SỞ DỮ LIỆU TÀI KHOẢN VÀ LINK DỮ LIỆU
 # =====================================================================
@@ -135,7 +139,11 @@ def load_checklist_data(api_url):
     try:
         if api_url == "" or "DÁN_LINK" in api_url:
             return pd.DataFrame()
-        res = requests.get(api_url, timeout=10)
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36',
+            'Accept': 'application/json, text/plain, */*'
+        }
+        res = requests.get(api_url, headers=headers, timeout=10)
         data = res.json()
         if isinstance(data, list) and len(data) > 0:
             return pd.DataFrame(data)
@@ -148,9 +156,14 @@ def load_sheet_data(url):
     try:
         df = pd.read_csv(url, usecols=list(range(1, 16)), header=None)
         df.columns = COLS
+        if df.empty:
+            raise Exception("DataFrame rỗng")
         return df
-    except Exception:
-        return pd.DataFrame(columns=COLS)
+    except Exception as e:
+        import traceback
+        print("Lỗi load_sheet_data:", e)
+        traceback.print_exc()
+        raise e
 
 @cached(ttl=300)
 def load_vntask_details():
@@ -217,7 +230,7 @@ def get_clean_dates(vals_list):
         v_str = str(v).strip()
         if v_str in ['nan', 'NaN', 'None', ''] or v_str in [':', '->', '-', '=>']:
             continue
-        if 'tuần' not in v_str.lower() and 'deadline' not in v_str.lower() and not v_str.isnumeric() and len(v_str) >= 5:
+        if 'tuần' not in v_str.lower() and not any(kw in v_str.lower() for kw in ['deadline', 'deadlien', 'hạn chót']) and not v_str.isnumeric() and len(v_str) >= 5:
             valid.append(v_str)
     return valid
 
@@ -308,18 +321,26 @@ CHECKLIST_TEXT = {
 # =====================================================================
 # 7. JINJA2 HELPER FUNCTIONS (Render checklist & logtime inline)
 # =====================================================================
-def render_checklist_html(tac_pham_key, index, lang, api_url):
+def render_checklist_html(tac_pham_key, index, lang, api_url, checked_ids=None):
     l = CHECKLIST_TEXT.get(lang, CHECKLIST_TEXT['vi'])
+    if checked_ids is None:
+        checked_ids = set()
+    else:
+        checked_ids = set(str(x).strip().lower() for x in checked_ids)
+
+    def ch(tid):
+        return 'checked' if tid in checked_ids else ''
+
     return f'''
     <div class="checklist-grid" data-tp-key="{tac_pham_key}">
         <div class="step-col">
             <div class="step-header">{l['step1']}</div>
-            <div class="task-row"><span class="platform-badge notion">Notion</span><label class="check-label"><input type="checkbox" data-checklist data-check-id="t1"><span class="checkmark"></span><span class="action-text">{l['t1']}</span></label></div>
-            <div class="task-row"><span class="platform-badge sheet">Sheet</span><label class="check-label"><input type="checkbox" data-checklist data-check-id="t2"><span class="checkmark"></span><span class="action-text">{l['t2']}</span></label></div>
+            <div class="task-row"><span class="platform-badge notion">Notion</span><label class="check-label"><input type="checkbox" data-checklist data-check-id="t1" {ch('t1')}><span class="checkmark"></span><span class="action-text">{l['t1']}</span></label></div>
+            <div class="task-row"><span class="platform-badge sheet">Sheet</span><label class="check-label"><input type="checkbox" data-checklist data-check-id="t2" {ch('t2')}><span class="checkmark"></span><span class="action-text">{l['t2']}</span></label></div>
         </div>
         <div class="step-col">
             <div class="step-header">{l['step2']}</div>
-            <div class="task-row"><span class="platform-badge asana">Asana</span><label class="check-label"><input type="checkbox" data-checklist data-check-id="t3"><span class="checkmark"></span><span class="action-text">{l['t3']}</span></label></div>
+            <div class="task-row"><span class="platform-badge asana">Asana</span><label class="check-label"><input type="checkbox" data-checklist data-check-id="t3" {ch('t3')}><span class="checkmark"></span><span class="action-text">{l['t3']}</span></label></div>
             <div class="snippet-box" id="msg_t3_{index}">(PC) cc @Shiori Fujimura @Miho Osada @Erika Kawasaki\n===タスク着手===</div>
             <button class="btn-copy" onclick="copyText(this, 'msg_t3_{index}')">{l['copy_start']}</button>
             <div class="ask-task-toggle" onclick="toggleAskTask(this)">▸ {l['ask_task']}</div>
@@ -327,19 +348,19 @@ def render_checklist_html(tac_pham_key, index, lang, api_url):
                 <div class="snippet-box" id="jp_t3_{index}">お疲れ様です。\n写植工程を担当しております○○です。\n本日が作業開始日となっておりますが、現時点でまだご指示をいただいておりません。\nお手数をおかけいたしますが、ご確認のほどよろしくお願いいたします。</div>
                 <button class="btn-copy" onclick="copyText(this, 'jp_t3_{index}')">{l['copy_ask']}</button>
             </div>
-            <div class="task-row"><span class="platform-badge sheet">Sheet</span><label class="check-label"><input type="checkbox" data-checklist data-check-id="t4"><span class="checkmark"></span><span class="action-text">{l['t4']}</span></label></div>
-            <div class="task-row"><span class="platform-badge notion">Notion</span><label class="check-label"><input type="checkbox" data-checklist data-check-id="t5"><span class="checkmark"></span><span class="action-text">{l['t5']}</span></label></div>
+            <div class="task-row"><span class="platform-badge sheet">Sheet</span><label class="check-label"><input type="checkbox" data-checklist data-check-id="t4" {ch('t4')}><span class="checkmark"></span><span class="action-text">{l['t4']}</span></label></div>
+            <div class="task-row"><span class="platform-badge notion">Notion</span><label class="check-label"><input type="checkbox" data-checklist data-check-id="t5" {ch('t5')}><span class="checkmark"></span><span class="action-text">{l['t5']}</span></label></div>
         </div>
         <div class="step-col">
             <div class="step-header">{l['step3']}</div>
-            <div class="task-row"><span class="platform-badge asana">Asana</span><label class="check-label"><input type="checkbox" data-checklist data-check-id="t6"><span class="checkmark"></span><span class="action-text">{l['t6']}</span></label></div>
+            <div class="task-row"><span class="platform-badge asana">Asana</span><label class="check-label"><input type="checkbox" data-checklist data-check-id="t6" {ch('t6')}><span class="checkmark"></span><span class="action-text">{l['t6']}</span></label></div>
             <div class="snippet-box" id="msg_t6_{index}">(PC) cc @Shiori Fujimura @Miho Osada @Erika Kawasaki\n===タスク完了===</div>
             <button class="btn-copy" onclick="copyText(this, 'msg_t6_{index}')">{l['copy_done']}</button>
-            <div class="task-row"><span class="platform-badge sheet">Sheet</span><label class="check-label"><input type="checkbox" data-checklist data-check-id="t7"><span class="checkmark"></span><span class="action-text">{l['t7']}</span></label></div>
-            <div class="task-row"><span class="platform-badge notion">Notion</span><label class="check-label"><input type="checkbox" data-checklist data-check-id="t8"><span class="checkmark"></span><span class="action-text">{l['t8']}</span></label></div>
+            <div class="task-row"><span class="platform-badge sheet">Sheet</span><label class="check-label"><input type="checkbox" data-checklist data-check-id="t7" {ch('t7')}><span class="checkmark"></span><span class="action-text">{l['t7']}</span></label></div>
+            <div class="task-row"><span class="platform-badge notion">Notion</span><label class="check-label"><input type="checkbox" data-checklist data-check-id="t8" {ch('t8')}><span class="checkmark"></span><span class="action-text">{l['t8']}</span></label></div>
             <div class="snippet-box" id="msg_t8_{index}">納品いたしました。\nご確認のほどよろしくお願いいたします。</div>
             <button class="btn-copy" onclick="copyText(this, 'msg_t8_{index}')">{l['copy_deliver']}</button>
-            <div class="task-row"><span class="platform-badge mikan">Mikan</span><label class="check-label"><input type="checkbox" data-checklist data-check-id="t9"><span class="checkmark"></span><span class="action-text">{l['t9']}</span></label></div>
+            <div class="task-row"><span class="platform-badge mikan">Mikan</span><label class="check-label"><input type="checkbox" data-checklist data-check-id="t9" {ch('t9')}><span class="checkmark"></span><span class="action-text">{l['t9']}</span></label></div>
         </div>
     </div>
     '''
@@ -407,8 +428,9 @@ def render_logtime_form_html(row, index, t, users, lang):
 # Register template helpers
 @app.context_processor
 def utility_processor():
-    def render_checklist(tp_key, idx, lang, api_url):
-        return Markup(render_checklist_html(tp_key, idx, lang, api_url))
+    def render_checklist(tp_key, idx, lang, api_url, checked_ids_dict=None):
+        ids = (checked_ids_dict or {}).get(tp_key, [])
+        return Markup(render_checklist_html(tp_key, idx, lang, api_url, ids))
     def render_logtime_form(row, idx, t, users, lang):
         return Markup(render_logtime_form_html(row, idx, t, users, lang))
     return dict(render_checklist=render_checklist, render_logtime_form=render_logtime_form)
@@ -423,8 +445,11 @@ def process_dashboard_data():
     user = session.get('user', '')
     role = session.get('role', 'member')
 
-    df_raw = load_sheet_data(csv_url)
-    df_truoc_raw = load_sheet_data(csv_url_truoc)
+    try:
+        df_raw = load_sheet_data(csv_url)
+        df_truoc_raw = load_sheet_data(csv_url_truoc)
+    except Exception:
+        return None
 
     if df_raw.empty:
         return None
@@ -443,7 +468,7 @@ def process_dashboard_data():
                 dates = get_clean_dates(row_vals)
                 if any('tuần' in str(v).lower() for v in row_vals) and len(dates) >= 2:
                     info['start'], info['end'] = dates[0], dates[1]
-                if any('deadline' in str(v).lower() for v in row_vals) and len(dates) >= 1:
+                if any(kw in str(v).lower() for v in row_vals for kw in ['deadline', 'deadlien', 'hạn chót']) and len(dates) >= 1:
                     info['deadline'] = dates[-1]
         return info
 
@@ -534,6 +559,7 @@ def process_dashboard_data():
         'user_profiles': USER_DB,
         'cols_keys': COLS,
         'checklist_api': CHECKLIST_API_URL,
+        'checked_ids_dict': checked_ids_dict,
         'vntask_details': load_vntask_details(),
         'filter_cv_nay': list(df_tuan_nay["Công việc"].dropna().unique()) if not df_tuan_nay.empty else [],
         'filter_cv_sau': list(df_tuan_sau["Công việc"].dropna().unique()) if not df_tuan_sau.empty else [],
@@ -737,7 +763,78 @@ def api_avatar_proxy():
 
 
 # =====================================================================
-# 11. CHẠY ỨNG DỤNG
+# 11. SOCKETIO EVENTS
 # =====================================================================
+online_users = {}
+
+def get_unique_online_users():
+    unique_users = {}
+    for sid, u in online_users.items():
+        unique_users[u['username']] = u
+    return list(unique_users.values())
+
+@socketio.on('connect')
+def handle_connect():
+    username = session.get('user')
+    if username:
+        try:
+            USER_DB = load_users_from_sheet(USER_SHEET_URL)
+            avatar = USER_DB.get(username, {}).get("avatar", "")
+            fullname = USER_DB.get(username, {}).get("fullname", username)
+        except Exception:
+            avatar = ""
+            fullname = username
+            
+        online_users[request.sid] = {
+            'username': username,
+            'fullname': fullname,
+            'avatar': avatar
+        }
+        emit('online_users_update', get_unique_online_users(), broadcast=True)
+
+@socketio.on('request_online_users')
+def handle_request_online_users():
+    emit('online_users_update', get_unique_online_users())
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    if request.sid in online_users:
+        del online_users[request.sid]
+        emit('online_users_update', get_unique_online_users(), broadcast=True)
+
+@socketio.on('sync_checkbox')
+def on_sync_checkbox(data):
+    task_id = data.get('task_id')
+    checkbox_id = data.get('checkbox_id')
+    status = data.get('status')
+    if task_id and checkbox_id:
+        emit('checkbox_updated', {
+            'task_id': task_id,
+            'checkbox_id': checkbox_id,
+            'status': status
+        }, to=task_id, include_self=False)
+
+@socketio.on('sync_drag_drop')
+def on_sync_drag_drop(data):
+    task_id = data.get('task_id')
+    target_status = data.get('target_status')
+    if task_id and target_status:
+        emit('task_moved', {
+            'task_id': task_id,
+            'target_status': target_status
+        }, broadcast=True, include_self=False)
+
+# =====================================================================
+# 12. CHẠY ỨNG DỤNG & PRELOAD
+# =====================================================================
+def preload_data():
+    try:
+        load_checklist_data(CHECKLIST_API_URL)
+        load_sheet_data(csv_url)
+        load_sheet_data(csv_url_truoc)
+    except Exception as e:
+        print("Preload error:", e)
+
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    threading.Thread(target=preload_data, daemon=True).start()
+    socketio.run(app, debug=True, host='0.0.0.0', port=5000, allow_unsafe_werkzeug=True)

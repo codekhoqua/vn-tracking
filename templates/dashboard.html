@@ -159,7 +159,7 @@
     <div class="nav-item" onclick="openRoleModal()" style="cursor: pointer;">
         <div class="nav-item-content">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-            Phân quyền
+            {{ 'Phân quyền' if lang == 'vi' else '権限管理' }}
         </div>
     </div>
     {% endif %}
@@ -231,6 +231,9 @@
             <h1>{{ t.title }}</h1>
         </div>
         <div class="header-right">
+            <!-- Global Online Users -->
+            <div id="global-online-users" class="online-users-cluster"></div>
+            
             <!-- Theme Toggle -->
             <button class="theme-toggle" onclick="toggleTheme()" title="Toggle Dark Mode">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
@@ -269,7 +272,25 @@
 
             <div class="chart-time-controls" style="display: flex; gap: 5px;">
                 <button class="btn btn-sm btn-primary active" data-period="week" onclick="setChartPeriod('week')">{{ 'Tuần' if lang == 'vi' else '週' }}</button>
+                <div class="custom-lang-select" id="custom-week-select" style="display: none;" onclick="toggleWeekSelect(event)">
+                    <div class="lang-trigger" style="padding: 4px 12px; height: 100%;">
+                        <span id="week-text" style="font-size: 0.8rem; font-weight: 500;">{{ 'Tuần này' if lang == 'vi' else '今週' }}</span>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lang-arrow"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                    </div>
+                    <div class="lang-dropdown" id="week-dropdown-list" style="min-width: 140px; max-height: 250px; overflow-y: auto;">
+                    </div>
+                </div>
                 <button class="btn btn-sm btn-outline" data-period="month" onclick="setChartPeriod('month')">{{ 'Tháng' if lang == 'vi' else '月' }}</button>
+                
+                <div class="custom-lang-select" id="custom-month-select" style="display: none;" onclick="toggleMonthSelect(event)">
+                    <div class="lang-trigger" style="padding: 4px 12px; height: 100%;">
+                        <span id="month-text" style="font-size: 0.8rem; font-weight: 500;">{{ 'Tháng' if lang == 'vi' else '月' }}</span>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lang-arrow"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                    </div>
+                    <div class="lang-dropdown" id="month-dropdown-list" style="min-width: 140px; max-height: 250px; overflow-y: auto;">
+                    </div>
+                </div>
+                
                 <button class="btn btn-sm btn-outline" data-period="year" onclick="setChartPeriod('year')">{{ 'Năm' if lang == 'vi' else '年' }}</button>
             </div>
         </div>
@@ -307,7 +328,11 @@
         </div>
         <div class="info-banner" id="banner-sau" style="display: none;">
             <span>{{ weeks.sau.info.start }} - {{ weeks.sau.info.end }}</span>
-            <span class="deadline-badge">{{ 'Chưa có thông tin deadline' if lang == 'vi' else '締め切りの情報がありません' }}</span>
+            {% if weeks.sau.info.deadline and weeks.sau.info.deadline != t.not_update %}
+                <span class="deadline-badge" style="cursor: pointer;" onclick="toggleCalendarPopup('{{ weeks.sau.info.deadline }}')">{{ weeks.sau.info.deadline }}</span>
+            {% else %}
+                <span class="deadline-badge">{{ 'Chưa có thông tin deadline' if lang == 'vi' else '締め切りの情報がありません' }}</span>
+            {% endif %}
         </div>
     </div>
 
@@ -337,15 +362,29 @@
                         </div>
                         <div class="card-title">{{ card.name }}</div>
                         <div class="card-worker">
-                            <span class="worker-avatar">
-                                {% if user_profiles and card.worker in user_profiles and user_profiles[card.worker].avatar %}
-                                <img src="{{ user_profiles[card.worker].avatar }}" alt="Avatar" class="avatar-img" referrerpolicy="no-referrer" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                                <span class="avatar-fallback" style="display:none;">{{ card.worker[0]|upper if card.worker else 'U' }}</span>
-                                {% else %}
-                                {{ card.worker[0]|upper if card.worker else 'U' }}
-                                {% endif %}
-                            </span>
-                            <span class="worker-name">{{ card.worker }}</span>
+                            <div class="worker-avatars-group" style="display: flex;">
+                                {% set workers = card.worker.split(',') if card.worker else [] %}
+                                {% for w in workers %}
+                                    {% set w_trim = w.strip() %}
+                                    {% set ns = namespace(found_avatar=none) %}
+                                    {% if user_profiles %}
+                                        {% for k, v in user_profiles.items() %}
+                                            {% if k|lower in w_trim|lower or w_trim|lower in k|lower %}
+                                                {% set ns.found_avatar = v.avatar %}
+                                            {% endif %}
+                                        {% endfor %}
+                                    {% endif %}
+                                    <span class="worker-avatar" style="{% if not loop.first %}margin-left: -8px;{% endif %} border: 2px solid var(--bg-card); position: relative; z-index: {{ 10 - loop.index0 }};" title="{{ w_trim }}">
+                                        {% if ns.found_avatar %}
+                                        <img src="{{ ns.found_avatar }}" alt="Avatar" class="avatar-img" referrerpolicy="no-referrer" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                        <span class="avatar-fallback" style="display:none;">{{ w_trim[0]|upper if w_trim else 'U' }}</span>
+                                        {% else %}
+                                        {{ w_trim[0]|upper if w_trim else 'U' }}
+                                        {% endif %}
+                                    </span>
+                                {% endfor %}
+                            </div>
+                            <span class="worker-name" style="margin-left: 8px;">{{ card.worker }}</span>
                         </div>
                         <div class="progress-info">
                             <span class="status-text">
@@ -397,15 +436,29 @@
                         </div>
                         <div class="card-title">{{ card.name }}</div>
                         <div class="card-worker">
-                            <span class="worker-avatar">
-                                {% if user_profiles and card.worker in user_profiles and user_profiles[card.worker].avatar %}
-                                <img src="{{ user_profiles[card.worker].avatar }}" alt="Avatar" class="avatar-img" referrerpolicy="no-referrer" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                                <span class="avatar-fallback" style="display:none;">{{ card.worker[0]|upper if card.worker else 'U' }}</span>
-                                {% else %}
-                                {{ card.worker[0]|upper if card.worker else 'U' }}
-                                {% endif %}
-                            </span>
-                            <span class="worker-name">{{ card.worker }}</span>
+                            <div class="worker-avatars-group" style="display: flex;">
+                                {% set workers = card.worker.split(',') if card.worker else [] %}
+                                {% for w in workers %}
+                                    {% set w_trim = w.strip() %}
+                                    {% set ns = namespace(found_avatar=none) %}
+                                    {% if user_profiles %}
+                                        {% for k, v in user_profiles.items() %}
+                                            {% if k|lower in w_trim|lower or w_trim|lower in k|lower %}
+                                                {% set ns.found_avatar = v.avatar %}
+                                            {% endif %}
+                                        {% endfor %}
+                                    {% endif %}
+                                    <span class="worker-avatar" style="{% if not loop.first %}margin-left: -8px;{% endif %} border: 2px solid var(--bg-card); position: relative; z-index: {{ 10 - loop.index0 }};" title="{{ w_trim }}">
+                                        {% if ns.found_avatar %}
+                                        <img src="{{ ns.found_avatar }}" alt="Avatar" class="avatar-img" referrerpolicy="no-referrer" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                        <span class="avatar-fallback" style="display:none;">{{ w_trim[0]|upper if w_trim else 'U' }}</span>
+                                        {% else %}
+                                        {{ w_trim[0]|upper if w_trim else 'U' }}
+                                        {% endif %}
+                                    </span>
+                                {% endfor %}
+                            </div>
+                            <span class="worker-name" style="margin-left: 8px;">{{ card.worker }}</span>
                         </div>
                         <div class="progress-info">
                             <span class="status-text">
@@ -457,15 +510,29 @@
                         </div>
                         <div class="card-title">{{ card.name }}</div>
                         <div class="card-worker">
-                            <span class="worker-avatar">
-                                {% if user_profiles and card.worker in user_profiles and user_profiles[card.worker].avatar %}
-                                <img src="{{ user_profiles[card.worker].avatar }}" alt="Avatar" class="avatar-img" referrerpolicy="no-referrer" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                                <span class="avatar-fallback" style="display:none;">{{ card.worker[0]|upper if card.worker else 'U' }}</span>
-                                {% else %}
-                                {{ card.worker[0]|upper if card.worker else 'U' }}
-                                {% endif %}
-                            </span>
-                            <span class="worker-name">{{ card.worker }}</span>
+                            <div class="worker-avatars-group" style="display: flex;">
+                                {% set workers = card.worker.split(',') if card.worker else [] %}
+                                {% for w in workers %}
+                                    {% set w_trim = w.strip() %}
+                                    {% set ns = namespace(found_avatar=none) %}
+                                    {% if user_profiles %}
+                                        {% for k, v in user_profiles.items() %}
+                                            {% if k|lower in w_trim|lower or w_trim|lower in k|lower %}
+                                                {% set ns.found_avatar = v.avatar %}
+                                            {% endif %}
+                                        {% endfor %}
+                                    {% endif %}
+                                    <span class="worker-avatar" style="{% if not loop.first %}margin-left: -8px;{% endif %} border: 2px solid var(--bg-card); position: relative; z-index: {{ 10 - loop.index0 }};" title="{{ w_trim }}">
+                                        {% if ns.found_avatar %}
+                                        <img src="{{ ns.found_avatar }}" alt="Avatar" class="avatar-img" referrerpolicy="no-referrer" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                        <span class="avatar-fallback" style="display:none;">{{ w_trim[0]|upper if w_trim else 'U' }}</span>
+                                        {% else %}
+                                        {{ w_trim[0]|upper if w_trim else 'U' }}
+                                        {% endif %}
+                                    </span>
+                                {% endfor %}
+                            </div>
+                            <span class="worker-name" style="margin-left: 8px;">{{ card.worker }}</span>
                         </div>
                         <div class="progress-info">
                             <span class="status-text">
@@ -530,24 +597,44 @@
             <div class="modal-header">
                 <div>
                     <div class="modal-title">{{ tp_name_display }}</div>
-                    <div class="modal-worker">
-                        <span class="worker-avatar">
-                            {% if user_profiles and worker in user_profiles and user_profiles[worker].avatar %}
-                            <img src="{{ user_profiles[worker].avatar }}" alt="Avatar" class="avatar-img" referrerpolicy="no-referrer" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                            <span class="avatar-fallback" style="display:none;">{{ worker[0]|upper }}</span>
-                            {% else %}
-                            {{ worker[0]|upper }}
-                            {% endif %}
-                        </span>
-                        {{ worker }}
+                    <div class="modal-worker" style="display: flex; align-items: center;">
+                        <div class="worker-avatars-group" style="display: flex;">
+                            {% set workers = worker.split(',') if worker else [] %}
+                            {% for w in workers %}
+                                {% set w_trim = w.strip() %}
+                                {% set ns = namespace(found_avatar=none) %}
+                                {% if user_profiles %}
+                                    {% for k, v in user_profiles.items() %}
+                                        {% if k|lower in w_trim|lower or w_trim|lower in k|lower %}
+                                            {% set ns.found_avatar = v.avatar %}
+                                        {% endif %}
+                                    {% endfor %}
+                                {% endif %}
+                                <span class="worker-avatar" style="{% if not loop.first %}margin-left: -8px;{% endif %} border: 2px solid var(--bg-card); position: relative; z-index: {{ 10 - loop.index0 }};" title="{{ w_trim }}">
+                                    {% if ns.found_avatar %}
+                                    <img src="{{ ns.found_avatar }}" alt="Avatar" class="avatar-img" referrerpolicy="no-referrer" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                    <span class="avatar-fallback" style="display:none;">{{ w_trim[0]|upper if w_trim else 'U' }}</span>
+                                    {% else %}
+                                    {{ w_trim[0]|upper if w_trim else 'U' }}
+                                    {% endif %}
+                                </span>
+                            {% endfor %}
+                        </div>
+                        <span style="margin-left: 8px;">{{ worker }}</span>
                     </div>
                 </div>
-                <button class="close-btn" onclick="closeModal('{{ tab_key }}-{{ loop.index0 }}')">
+                
+                <!-- GHOST AVATARS CONTAINER -->
+                <div class="ghost-avatars" data-tp-key="{{ tp_key }}" style="display: flex; gap: -5px; align-items: center; margin-right: 10px;">
+                    <!-- Avatars injected by JS -->
+                </div>
+                
+                <button class="close-btn" onclick="closeModal('{{ tab_key }}-{{ loop.index0 }}', '{{ tp_key }}')">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                 </button>
             </div>
             <div class="modal-body">
-                {{ render_checklist(tp_key, tab_key ~ '_' ~ loop.index0, lang, checklist_api) }}
+                {{ render_checklist(tp_key, tab_key ~ '_' ~ loop.index0, lang, checklist_api, checked_ids_dict) }}
                 {{ render_logtime_form(row, tab_key ~ '_' ~ loop.index0, t, users, lang) }}
             </div>
         </div>
@@ -562,6 +649,7 @@
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script src="https://npmcdn.com/flatpickr/dist/l10n/vn.js"></script>
 <script src="https://npmcdn.com/flatpickr/dist/l10n/ja.js"></script>
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <style>
     .flatpickr-calendar {
         background: transparent !important;
@@ -653,6 +741,7 @@
 <script>
     const CHECKLIST_API = "{{ checklist_api }}";
     const CURRENT_LANG = "{{ lang }}";
+    const socket = typeof io !== 'undefined' ? io() : null;
     
     // Inject Detailed Task Data
     const vntaskDataList = {{ vntask_details | tojson }};

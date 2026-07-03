@@ -299,9 +299,9 @@ function initChecklistInContainer(container) {
         // 1. FAST LOCAL RENDER FROM CARD DATA (Injected by Python)
         const card = document.querySelector(`.progress-card[data-tp-key="${tpKey}"]`);
         if (card) {
-            const checkedIds = (card.dataset.checkedIds || '').split(',').filter(Boolean);
+            const checkedIds = (card.dataset.checkedIds || '').toLowerCase().split(',').filter(Boolean);
             checkboxes.forEach(cb => {
-                const rawId = cb.dataset.checkId;
+                const rawId = (cb.dataset.checkId || '').toLowerCase();
                 cb.checked = checkedIds.includes(rawId);
             });
             updateTaskProgressLocally(tpKey, container);
@@ -314,12 +314,14 @@ function initChecklistInContainer(container) {
                 .then(data => {
                     checkboxes.forEach(cb => {
                         if (cb.dataset.userModified !== 'true') {
-                            const rawId = cb.dataset.checkId;
-                            cb.checked = (data[rawId] === true || data[rawId] === 'true');
+                            const rawId = (cb.dataset.checkId || '').toLowerCase();
+                            // API might return 'T1' or 't1' as keys
+                            const checkedFromApi = Object.keys(data).some(k => k.toLowerCase() === rawId && (data[k] === true || data[k] === 'true'));
+                            cb.checked = checkedFromApi;
                         }
                     });
                     updateTaskProgressLocally(tpKey, container);
-                }).catch(() => { });
+                }).catch(e => console.error(e));
         }
     });
 }
@@ -786,6 +788,12 @@ function setChartPeriod(period) {
             btn.classList.add('btn-outline');
         }
     });
+    
+    const weekSelect = document.getElementById('custom-week-select');
+    const monthSelect = document.getElementById('custom-month-select');
+    if (weekSelect) weekSelect.style.display = period === 'week' ? 'block' : 'none';
+    if (monthSelect) monthSelect.style.display = period === 'month' ? 'block' : 'none';
+    
     updateAreaChart(period);
 }
 
@@ -884,15 +892,31 @@ function updateAreaChart(period) {
         isBarChart = true;
         titleX = isVi ? 'Người thực hiện' : '担当者';
         const txtOtherWorker = isVi ? 'Khác' : 'その他';
+        // Populate if empty
+        const dropdownList = document.getElementById('week-dropdown-list');
+        if (dropdownList && dropdownList.children.length === 0) {
+            let optionsHtml = '';
+            const weeksList = [
+                { val: -1, text: isVi ? 'Tuần trước' : '先週' },
+                { val: 0, text: isVi ? 'Tuần này' : '今週' },
+                { val: 1, text: isVi ? 'Tuần sau' : '来週' }
+            ];
+            weeksList.forEach(item => {
+                optionsHtml += `<div class="lang-option" onclick="selectWeek(${item.val}, '${item.text}', event)">${item.text}</div>`;
+            });
+            dropdownList.innerHTML = optionsHtml;
+        }
+
         
         let targetWeek = getWeekNumber(now);
         let targetYear = now.getFullYear();
-        const hasDataThisWeek = vntaskDataList.some(item => getWeekNumber(new Date(item.date)) === targetWeek && new Date(item.date).getFullYear() === targetYear);
-        
-        if (!hasDataThisWeek && vntaskDataList.length > 0) {
-            const maxDate = new Date(Math.max(...vntaskDataList.map(item => new Date(item.date))));
-            targetWeek = getWeekNumber(maxDate);
-            targetYear = maxDate.getFullYear();
+        const weekText = document.getElementById('week-text');
+        if (weekText && weekText.dataset.weekOffset) {
+            const offset = parseInt(weekText.dataset.weekOffset, 10);
+            const targetDate = new Date();
+            targetDate.setDate(targetDate.getDate() + (offset * 7));
+            targetWeek = getWeekNumber(targetDate);
+            targetYear = targetDate.getFullYear();
         }
 
         const currentWeekTasks = vntaskDataList.filter(item => {
@@ -904,14 +928,14 @@ function updateAreaChart(period) {
         currentWeekTasks.forEach(item => {
             if (item.worker) {
                 const workers = item.worker.split(',').map(w => w.trim());
+                const weight = 1.0 / workers.length;
                 workers.forEach(w => {
-                    const shortName = w;
-                    if (!workerTasks[shortName]) workerTasks[shortName] = [];
-                    workerTasks[shortName].push(item);
+                    if (!workerTasks[w]) workerTasks[w] = [];
+                    workerTasks[w].push({ ...item, weight: weight });
                 });
             } else {
                 if (!workerTasks[txtOtherWorker]) workerTasks[txtOtherWorker] = [];
-                workerTasks[txtOtherWorker].push(item);
+                workerTasks[txtOtherWorker].push({ ...item, weight: 1.0 });
             }
         });
         
@@ -930,9 +954,9 @@ function updateAreaChart(period) {
             let lTasks = tasks.filter(t => t.jobType === 'Lettering');
             let oTasks = tasks.filter(t => t.jobType !== 'Retouch' && t.jobType !== 'Lettering');
             
-            dataRetouch.push(rTasks.length);
-            dataLettering.push(lTasks.length);
-            dataOther.push(oTasks.length);
+            dataRetouch.push(rTasks.reduce((sum, t) => sum + t.weight, 0));
+            dataLettering.push(lTasks.reduce((sum, t) => sum + t.weight, 0));
+            dataOther.push(oTasks.reduce((sum, t) => sum + t.weight, 0));
             
             detailRetouch.push(rTasks);
             detailLettering.push(lTasks);
@@ -985,20 +1009,24 @@ function updateAreaChart(period) {
     } else {
         // Month or Year Mode (Area Chart)
         if (period === 'month') {
+            const monthDropdownList = document.getElementById('month-dropdown-list');
+            if (monthDropdownList && monthDropdownList.children.length === 0) {
+                let optionsHtml = '';
+                for (let i = 1; i <= 12; i++) {
+                    const text = isVi ? `Tháng ${i}` : `${i}月`;
+                    optionsHtml += `<div class="lang-option" onclick="selectMonth(${i}, '${text}', event)">${text}</div>`;
+                }
+                monthDropdownList.innerHTML = optionsHtml;
+            }
+
             labels = isVi ? ['Tuần 1', 'Tuần 2', 'Tuần 3', 'Tuần 4', 'Tuần 5'] : ['第1週', '第2週', '第3週', '第4週', '第5週'];
             labels.forEach(l => groupedData[l] = []);
             
             let targetMonth = now.getMonth();
             let targetYear = now.getFullYear();
-            const hasDataThisMonth = vntaskDataList.some(item => {
-                const d = new Date(item.date);
-                return d.getMonth() === targetMonth && d.getFullYear() === targetYear;
-            });
-
-            if (!hasDataThisMonth && vntaskDataList.length > 0) {
-                const maxDate = new Date(Math.max(...vntaskDataList.map(item => new Date(item.date))));
-                targetMonth = maxDate.getMonth();
-                targetYear = maxDate.getFullYear();
+            const monthText = document.getElementById('month-text');
+            if (monthText && monthText.dataset.monthValue) {
+                targetMonth = parseInt(monthText.dataset.monthValue, 10) - 1;
             }
 
             vntaskDataList.forEach(item => {
@@ -1022,10 +1050,6 @@ function updateAreaChart(period) {
             labels.forEach(l => groupedData[l] = []);
             
             let targetYear = now.getFullYear();
-            const hasDataThisYear = vntaskDataList.some(item => new Date(item.date).getFullYear() === targetYear);
-            if (!hasDataThisYear && vntaskDataList.length > 0) {
-                targetYear = new Date(Math.max(...vntaskDataList.map(item => new Date(item.date)))).getFullYear();
-            }
 
             vntaskDataList.forEach(item => {
                 const d = new Date(item.date);
@@ -1307,3 +1331,110 @@ function updateRole(username, btn) {
         showToast('Lỗi kết nối!', 'error');
     });
 }
+
+
+
+// ======================================
+// CHART DROPDOWN FUNCTIONS
+// ======================================
+function toggleWeekSelect(e) {
+    if (e) e.stopPropagation();
+    const select = document.getElementById('custom-week-select');
+    if (select) {
+        select.classList.toggle('open');
+    }
+}
+
+function selectWeek(offset, text, e) {
+    if (e) e.stopPropagation();
+    const textSpan = document.getElementById('week-text');
+    if (textSpan) {
+        textSpan.innerText = text;
+        textSpan.dataset.weekOffset = offset;
+    }
+    const select = document.getElementById('custom-week-select');
+    if (select) {
+        select.classList.remove('open');
+    }
+    updateAreaChart('week');
+}
+
+function toggleMonthSelect(e) {
+    if (e) e.stopPropagation();
+    const select = document.getElementById('custom-month-select');
+    if (select) {
+        select.classList.toggle('open');
+    }
+}
+
+function selectMonth(monthVal, text, e) {
+    if (e) e.stopPropagation();
+    const textSpan = document.getElementById('month-text');
+    if (textSpan) {
+        textSpan.innerText = text;
+        textSpan.dataset.monthValue = monthVal;
+    }
+    const select = document.getElementById('custom-month-select');
+    if (select) {
+        select.classList.remove('open');
+    }
+    updateAreaChart('month');
+}
+
+// Close dropdowns when clicking outside
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('#custom-week-select')) {
+        const dWeek = document.getElementById('custom-week-select');
+        if (dWeek) dWeek.classList.remove('open');
+    }
+    if (!e.target.closest('#custom-month-select')) {
+        const dMonth = document.getElementById('custom-month-select');
+        if (dMonth) dMonth.classList.remove('open');
+    }
+});
+
+// ======================================
+// GLOBAL SOCKET LISTENERS
+// ======================================
+document.addEventListener('DOMContentLoaded', () => {
+    if (typeof socket !== 'undefined' && socket) {
+        socket.on('online_users_update', function(users) {
+            console.log("Online users updated:", users);
+            const container = document.getElementById('global-online-users');
+            if (!container) return;
+            
+            const MAX_VISIBLE = 4;
+            let html = '';
+            
+            users.forEach((u, idx) => {
+                if (idx >= MAX_VISIBLE) return;
+                const zIndex = 100 - idx;
+                const initial = u.fullname ? u.fullname.charAt(0).toUpperCase() : 'U';
+                
+                html += `
+                    <span class="worker-avatar global-avatar" style="margin-left: ${idx > 0 ? '-8px' : '0'}; position: relative; z-index: ${zIndex}; border: 2px solid var(--bg-body);" title="${u.fullname}">
+                        ${u.avatar ? `<img src="${u.avatar}" alt="Avatar" class="avatar-img" referrerpolicy="no-referrer" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                        <span class="avatar-fallback" style="display:none;">${initial}</span>` : initial}
+                    </span>
+                `;
+            });
+            
+            if (users.length > MAX_VISIBLE) {
+                const extraCount = users.length - MAX_VISIBLE;
+                html += `
+                    <span class="worker-avatar global-avatar" style="margin-left: -8px; position: relative; z-index: 90; background: var(--bg-card); color: var(--text-2); font-size: 12px; border: 2px solid var(--bg-body);" title="+${extraCount} người nữa">
+                        +${extraCount}
+                    </span>
+                `;
+            }
+            
+            container.innerHTML = html;
+        });
+
+        // Request initial list
+        socket.emit('request_online_users');
+        socket.on('connect', () => {
+            socket.emit('request_online_users');
+        });
+    }
+});
