@@ -356,22 +356,9 @@ function initChecklistInContainer(container) {
             updateTaskProgressLocally(tpKey, container);
         }
 
-        // 2. BACKGROUND FETCH FOR FRESHNESS (Optional but good for multi-device sync)
-        if (tpKey && typeof CHECKLIST_API !== 'undefined' && CHECKLIST_API.startsWith('http')) {
-            fetch(`${CHECKLIST_API}?tac_pham=${encodeURIComponent(tpKey)}&_t=${Date.now()}`)
-                .then(r => r.json())
-                .then(data => {
-                    checkboxes.forEach(cb => {
-                        if (cb.dataset.userModified !== 'true') {
-                            const rawId = (cb.dataset.checkId || '').toLowerCase();
-                            // API might return 'T1' or 't1' as keys
-                            const checkedFromApi = Object.keys(data).some(k => k.toLowerCase() === rawId && (data[k] === true || data[k] === 'true'));
-                            cb.checked = checkedFromApi;
-                        }
-                    });
-                    updateTaskProgressLocally(tpKey, container);
-                }).catch(e => console.error(e));
-        }
+        // 2. BACKGROUND FETCH FOR FRESHNESS is removed because it conflicts with old_tp_key logic
+        // We now rely entirely on Python's initial render (which merges old and new keys)
+        // and Socket.IO for real-time synchronization between clients.
     });
 }
 
@@ -624,11 +611,17 @@ function backgroundSyncChecklist() {
                 document.querySelectorAll('.progress-card').forEach(card => {
                     const tpKey = card.dataset.tpKey;
                     if (!tpKey) return;
+                    
+                    const tpKeyParts = tpKey.split(' - ');
+                    const oldTpKey = tpKeyParts.length > 1 ? tpKeyParts.slice(1).join(' - ') : tpKey;
 
                     // Count how many are checked for this tpKey in the fetched data
                     let localCheckedCount = 0;
                     for (let i = 1; i <= 9; i++) {
-                        if (checkedMap[tpKey] && checkedMap[tpKey][`t${i}`]) {
+                        const checkId = `t${i}`;
+                        const isCheckedNew = checkedMap[tpKey] && checkedMap[tpKey][checkId];
+                        const isCheckedOld = checkedMap[oldTpKey] && checkedMap[oldTpKey][checkId];
+                        if (isCheckedNew || isCheckedOld) {
                             localCheckedCount++;
                         }
                     }
@@ -1737,6 +1730,25 @@ function onPlayerReady(event) {
         const statusText = document.getElementById('radio-status');
         if(statusText) statusText.innerHTML = `DJ: ${state.dj_username || 'Ai đó'}`;
     });
+
+    window.socket.on('radio_listeners_update', function(listeners) {
+        const container = document.getElementById('radio-listeners-container');
+        if (!container) return;
+        container.innerHTML = '';
+        
+        listeners.forEach((user, index) => {
+            const img = document.createElement('img');
+            img.src = user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.fullname)}&background=random&color=fff`;
+            img.style.width = '18px';
+            img.style.height = '18px';
+            img.style.borderRadius = '50%';
+            img.style.border = '1px solid rgba(255,255,255,0.2)';
+            img.style.marginLeft = index === 0 ? '0' : '-6px';
+            img.style.objectFit = 'cover';
+            img.title = user.fullname;
+            container.appendChild(img);
+        });
+    });
 }
 
 function onPlayerStateChange(event) {
@@ -1780,6 +1792,7 @@ document.addEventListener('DOMContentLoaded', () => {
             isListening = !isListening;
             if (isListening) {
                 // Join radio
+                if (window.socket) window.socket.emit('join_radio');
                 const currentVideo = ytPlayer.getVideoData()?.video_id;
                 if (currentVideo !== radioState.youtube_id) {
                     ytPlayer.loadVideoById(radioState.youtube_id, radioState.current_time);
@@ -1791,6 +1804,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 else ytPlayer.pauseVideo();
             } else {
                 // Leave radio
+                if (window.socket) window.socket.emit('leave_radio');
                 ytPlayer.pauseVideo();
             }
             updateRadioUI();
@@ -1809,6 +1823,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (response && response.success) {
                         isRadioDJ = true;
                         isListening = true;
+                        if (window.socket) window.socket.emit('join_radio');
                         if(djBadge) djBadge.style.display = 'block';
                         if(statusText) statusText.innerHTML = `Bạn đang là DJ 🎧`;
                         if(ytInputContainer) ytInputContainer.style.display = 'block';

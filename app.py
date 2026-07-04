@@ -513,12 +513,22 @@ def process_dashboard_data():
             tap = str(r.get('Tập', '')).strip()
             
             if tap and tap.lower() not in ['nan', 'none', '']:
+                old_tp_key = f"{tap}_{tp}"
                 tp_key = f"{cv} - {tap}_{tp}"
             else:
+                old_tp_key = f"{tp}"
                 tp_key = f"{cv} - {tp}"
                 
             r['tp_key'] = tp_key
             r['tp_name'] = tp_key
+            
+            # Merge old checklist data into the new tp_key for backward compatibility
+            if old_tp_key in checked_ids_dict:
+                existing = set(checked_ids_dict.get(tp_key, []))
+                merged = list(existing.union(checked_ids_dict[old_tp_key]))
+                checked_ids_dict[tp_key] = merged
+                check_counts[tp_key] = len(merged)
+
         return records
 
     def build_dashboard(df_target):
@@ -871,6 +881,7 @@ def api_avatar_proxy():
 # 11. SOCKETIO EVENTS
 # =====================================================================
 online_users = {}
+radio_listeners = set()
 
 radio_state = {
     'is_playing': False,
@@ -886,6 +897,19 @@ def get_unique_online_users():
     for sid, u in online_users.items():
         unique_users[u['username']] = u
     return list(unique_users.values())
+
+def get_radio_listener_profiles():
+    listeners = []
+    seen = set()
+    for sid in list(radio_listeners):
+        if sid in online_users:
+            u = online_users[sid]
+            if u['username'] not in seen:
+                seen.add(u['username'])
+                listeners.append(u)
+        else:
+            radio_listeners.discard(sid)
+    return listeners
 
 @socketio.on('connect')
 def handle_connect():
@@ -905,6 +929,17 @@ def handle_connect():
             'avatar': avatar
         }
         emit('online_users_update', get_unique_online_users(), broadcast=True)
+        emit('radio_listeners_update', get_radio_listener_profiles())
+
+@socketio.on('join_radio')
+def handle_join_radio():
+    radio_listeners.add(request.sid)
+    emit('radio_listeners_update', get_radio_listener_profiles(), broadcast=True)
+
+@socketio.on('leave_radio')
+def handle_leave_radio():
+    radio_listeners.discard(request.sid)
+    emit('radio_listeners_update', get_radio_listener_profiles(), broadcast=True)
 
 @socketio.on('request_online_users')
 def handle_request_online_users():
@@ -960,6 +995,10 @@ def handle_disconnect():
         radio_state['youtube_id'] = '4xDzrIxC4Dk'
         radio_state['current_time'] = 0
         emit('radio_sync', radio_state, broadcast=True)
+
+    if request.sid in radio_listeners:
+        radio_listeners.discard(request.sid)
+        emit('radio_listeners_update', get_radio_listener_profiles(), broadcast=True)
 
     if request.sid in online_users:
         del online_users[request.sid]
