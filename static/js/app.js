@@ -181,38 +181,87 @@ function scrollToTable() {
 
 // ===================== WEATHER & TIME =====================
 function initWeatherTime() {
-    const el = document.getElementById('weather-time');
+    const el = document.getElementById('main-hero-banner');
     if (!el) return;
     const isVN = (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi');
     const locQuery = isVN ? "Ho+Chi+Minh" : "Gifu";
-    const locName = isVN ? "TP. Hồ Chí Minh" : "Gifu, Japan";
+    const locName = isVN ? "TP.HCM" : "Gifu";
 
-    const updateTime = () => {
-        const now = new Date();
-        const timeZone = isVN ? 'Asia/Ho_Chi_Minh' : 'Asia/Tokyo';
-        const timeStr = now.toLocaleTimeString(isVN ? 'vi-VN' : 'ja-JP', { timeZone, hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        const dateStr = now.toLocaleDateString(isVN ? 'vi-VN' : 'ja-JP', { timeZone, weekday: 'short', month: 'short', day: 'numeric' });
-
-        const timeSpan = document.getElementById('wt-time');
-        if (timeSpan) timeSpan.innerHTML = `${dateStr} - ${timeStr}`;
-    };
-
-    setInterval(updateTime, 1000);
-
-    fetch(`https://wttr.in/${locQuery}?format=j1`)
+    fetch(`/api/weather?loc=${locQuery}`)
         .then(r => r.json())
         .then(data => {
-            const temp = data.current_condition[0].temp_C;
-            el.innerHTML = `
-                <span id="wt-loc" style="font-weight: 500;">📍 ${locName}</span>
-                <span id="wt-temp" style="margin-left: 12px; font-weight: bold; color: var(--primary);"> 🌥️${temp}°C</span>
-                <span id="wt-time" style="margin-left: 12px; font-variant-numeric: tabular-nums;"></span>
-            `;
-            updateTime();
+            const cc = data.current_condition[0];
+            const weather = data.weather[0];
+            const temp = cc.temp_C;
+            const feelsLike = cc.FeelsLikeC;
+            const maxTemp = weather.maxtempC;
+            const minTemp = weather.mintempC;
+            const wCode = parseInt(cc.weatherCode);
+            
+            let desc = isVN ? "Nhiều mây" : "曇り";
+            let bgUrl = "https://images.unsplash.com/photo-1501630834273-4b5604d2ee31?q=80&w=1200";
+            let iconSvg = `<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.5 19A4.5 4.5 0 0 0 18 10c-1-5-8.5-5-10-1.5A5 5 0 1 0 8 19h9.5z"></path></svg>`; // Cloud
+            let iconColor = "#94a3b8";
+            
+            if (wCode === 113) {
+                desc = isVN ? "Nắng đẹp" : "晴れ";
+                bgUrl = "https://images.unsplash.com/photo-1601297183305-6df142704ea2?q=80&w=1200";
+                iconSvg = `<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`;
+                iconColor = "#fbbf24";
+            } else if ([116, 119, 122].includes(wCode)) {
+                desc = isVN ? "Nhiều mây" : "曇り";
+                bgUrl = "https://images.unsplash.com/photo-1501630834273-4b5604d2ee31?q=80&w=1200";
+                iconSvg = `<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.5 19A4.5 4.5 0 0 0 18 10c-1-5-8.5-5-10-1.5A5 5 0 1 0 8 19h9.5z"></path></svg>`;
+                iconColor = "#94a3b8";
+            } else if ([143, 248, 260].includes(wCode)) {
+                desc = isVN ? "Sương mù" : "霧";
+                bgUrl = "https://images.unsplash.com/photo-1487621167305-5d248087c724?q=80&w=1200";
+                iconSvg = `<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.5 19A4.5 4.5 0 0 0 18 10c-1-5-8.5-5-10-1.5A5 5 0 1 0 8 19h9.5z"></path></svg>`;
+                iconColor = "#cbd5e1";
+            } else if ([227, 230, 323, 326, 329, 332, 335, 338, 350, 371].includes(wCode)) {
+                desc = isVN ? "Tuyết rơi" : "雪";
+                bgUrl = "https://images.unsplash.com/photo-1542601098-3adb3baeb1ec?q=80&w=1200";
+                iconSvg = `<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 17.58A5 5 0 0 0 18 8h-1.26A8 8 0 1 0 4 16.25"></path><line x1="8" y1="16" x2="8.01" y2="16"></line><line x1="8" y1="20" x2="8.01" y2="20"></line><line x1="12" y1="18" x2="12.01" y2="18"></line><line x1="12" y1="22" x2="12.01" y2="22"></line><line x1="16" y1="16" x2="16.01" y2="16"></line><line x1="16" y1="20" x2="16.01" y2="20"></line></svg>`;
+                iconColor = "#e0f2fe";
+            } else if ((wCode >= 263 && wCode <= 314) || [353, 356, 359].includes(wCode)) {
+                desc = isVN ? "Có mưa" : "雨";
+                bgUrl = "https://images.unsplash.com/photo-1515694346937-94d85e41e6f0?q=80&w=1200";
+                iconSvg = `<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="16" y1="13" x2="16" y2="21"></line><line x1="8" y1="13" x2="8" y2="21"></line><line x1="12" y1="15" x2="12" y2="23"></line><path d="M20 16.58A5 5 0 0 0 18 7h-1.26A8 8 0 1 0 4 15.25"></path></svg>`;
+                iconColor = "#60a5fa";
+            } else if ([200, 386, 389, 392, 395].includes(wCode)) {
+                desc = isVN ? "Giông bão" : "雷雨";
+                bgUrl = "https://images.unsplash.com/photo-1534274988757-a28bf1a57c17?q=80&w=1200";
+                iconSvg = `<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 16.9A5 5 0 0 0 18 7h-1.26a8 8 0 1 0-11.62 9"></path><polyline points="13 11 9 17 15 17 11 23"></polyline></svg>`;
+                iconColor = "#fcd34d";
+            }
+
+            const bgEl = document.getElementById('hero-weather-bg');
+            if (bgEl) {
+                bgEl.style.backgroundImage = `url('${bgUrl}')`;
+            }
+            
+            const inlineContainer = document.getElementById('inline-weather-container');
+            if (inlineContainer) {
+                inlineContainer.innerHTML = `
+                    <div style="color: ${iconColor}; display: flex; align-items: center; justify-content: center; margin-right: 4px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));">
+                        ${iconSvg}
+                    </div>
+                    <div style="font-size: 3.2rem; font-weight: 300; color: #fff; line-height: 1; text-shadow: 0 2px 8px rgba(0,0,0,0.4); margin-right: 12px; font-variant-numeric: tabular-nums;">
+                        ${temp}<span style="font-size: 1.2rem; vertical-align: super; font-weight: 500; opacity: 0.9;">°c</span>
+                    </div>
+                    <div style="display: flex; flex-direction: column; justify-content: center;">
+                        <div style="font-size: 1rem; font-weight: 700; color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,0.4); margin-bottom: 2px;">${locName}</div>
+                        <div style="font-size: 0.85rem; color: rgba(255,255,255,0.8); font-weight: 500; text-shadow: 0 1px 4px rgba(0,0,0,0.4); margin-bottom: 2px;">${desc}</div>
+                        <div style="font-size: 0.75rem; color: rgba(255,255,255,0.6); font-weight: 500; text-shadow: 0 1px 4px rgba(0,0,0,0.4);">H: ${maxTemp}° L: ${minTemp}°</div>
+                    </div>
+                `;
+            }
         }).catch(err => {
             console.error("Weather err:", err);
-            el.innerHTML = `<span id="wt-time"></span>`;
-            updateTime();
+            const inlineContainer = document.getElementById('inline-weather-container');
+            if (inlineContainer) {
+                inlineContainer.innerHTML = `<span style="color:#ef4444; font-weight: bold;">Lỗi tải dữ liệu</span>`;
+            }
         });
 }
 
@@ -843,7 +892,7 @@ const avatarPlugin = {
                 img = new Image();
                 img.src = avatarUrl;
                 avatarCache[avatarUrl] = img;
-                img.onload = () => chart.draw();
+                img.onload = () => chart.update('none');
             }
 
             if (img.complete && img.naturalHeight !== 0) {
@@ -1111,6 +1160,17 @@ function updateAreaChart(period) {
         },
         plugins: isBarChart ? [avatarPlugin] : [],
         options: {
+            animations: {
+                y: {
+                    from: (ctx) => {
+                        if (ctx.type === 'data') {
+                            return ctx.chart.scales.y ? ctx.chart.scales.y.bottom : 400;
+                        }
+                    },
+                    duration: 1200,
+                    easing: 'easeOutQuart'
+                }
+            },
             responsive: true,
             maintainAspectRatio: false,
             layout: {
@@ -1446,6 +1506,486 @@ document.addEventListener('DOMContentLoaded', () => {
         socket.emit('request_online_users');
         socket.on('connect', () => {
             socket.emit('request_online_users');
+        });
+    }
+});
+
+// ======================================
+// MINI CHAT BOX
+// ======================================
+let unreadChatCount = 0;
+let isChatOpen = false;
+
+window.toggleChat = function() {
+    const win = document.getElementById('chat-window');
+    const badge = document.getElementById('chat-badge');
+    if (!win) return;
+    
+    isChatOpen = win.style.display === 'flex';
+    if (isChatOpen) {
+        win.style.display = 'none';
+        isChatOpen = false;
+    } else {
+        win.style.display = 'flex';
+        isChatOpen = true;
+        unreadChatCount = 0;
+        if(badge) badge.style.display = 'none';
+        const input = document.getElementById('chat-input');
+        if(input) input.focus();
+        
+        // Scroll to bottom
+        const msgs = document.getElementById('chat-messages');
+        if(msgs) msgs.scrollTop = msgs.scrollHeight;
+    }
+};
+
+window.sendChatMessage = function() {
+    const input = document.getElementById('chat-input');
+    if (!input || !window.socket) return;
+    const msg = input.value.trim();
+    if (msg) {
+        window.socket.emit('chat_message', { msg: msg });
+        input.value = '';
+    }
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+    const input = document.getElementById('chat-input');
+    if (input) {
+        input.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') sendChatMessage();
+        });
+    }
+
+    if (typeof window.socket !== 'undefined' && window.socket) {
+        window.socket.on('chat_message', function(data) {
+            const msgs = document.getElementById('chat-messages');
+            if (!msgs) return;
+            
+            const isMe = data.username === (document.querySelector('.user-name')?.innerText || '');
+            
+            let html = `
+                <div style="display: flex; flex-direction: column; align-items: ${isMe ? 'flex-end' : 'flex-start'}; margin-bottom: 4px;">
+                    <span style="font-size: 10px; color: var(--text-3); margin-bottom: 2px;">${isMe ? 'Bạn' : data.fullname} - ${data.time}</span>
+                    <div style="background: ${isMe ? 'var(--primary)' : 'var(--bg-body)'}; color: ${isMe ? 'white' : 'var(--text)'}; padding: 8px 12px; border-radius: 12px; max-width: 85%; word-wrap: break-word;">
+                        ${data.msg}
+                    </div>
+                </div>
+            `;
+            
+            msgs.innerHTML += html;
+            msgs.scrollTop = msgs.scrollHeight;
+            
+            if (!isChatOpen) {
+                unreadChatCount++;
+                const badge = document.getElementById('chat-badge');
+                if (badge) {
+                    badge.innerText = unreadChatCount;
+                    badge.style.display = 'flex';
+                }
+            }
+        });
+    }
+});
+
+// ======================================
+// LIVE CURSORS
+// ======================================
+const cursors = {};
+let lastMouseMove = 0;
+
+function getColorForUser(str) {
+    let hash = 0;
+    if (!str) return '#3b82f6';
+    for (let i = 0; i < str.length; i++) {
+        hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const h = Math.abs(hash) % 360;
+    return `hsl(${h}, 70%, 50%)`;
+}
+
+document.addEventListener('mousemove', (e) => {
+    if (!window.socket) return;
+    const now = Date.now();
+    if (now - lastMouseMove > 50) { // 20fps
+        const x = (e.clientX / window.innerWidth) * 100;
+        const y = (e.clientY / window.innerHeight) * 100;
+        window.socket.emit('cursor_move', { x, y });
+        lastMouseMove = now;
+    }
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+    if (window.socket) {
+        window.socket.on('cursor_move', (data) => {
+            let cursorEl = cursors[data.sid];
+            if (!cursorEl) {
+                const userColor = getColorForUser(data.username);
+                cursorEl = document.createElement('div');
+                cursorEl.dataset.username = data.username;
+                cursorEl.innerHTML = `
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="${userColor}" stroke="white" stroke-width="2"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"></path></svg>
+                    <div style="background: ${userColor}; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; margin-top: 2px; font-weight: bold; white-space: nowrap;">
+                        ${data.fullname || data.username}
+                    </div>
+                `;
+                Object.assign(cursorEl.style, {
+                    position: 'fixed',
+                    pointerEvents: 'none',
+                    zIndex: '100000',
+                    transition: 'left 0.1s linear, top 0.1s linear',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'flex-start'
+                });
+                document.body.appendChild(cursorEl);
+                cursors[data.sid] = cursorEl;
+            }
+            cursorEl.style.left = data.x + 'vw';
+            cursorEl.style.top = data.y + 'vh';
+            
+            clearTimeout(cursorEl.timeoutId);
+            cursorEl.timeoutId = setTimeout(() => {
+                cursorEl.remove();
+                delete cursors[data.sid];
+            }, 300000); // 5 mins
+        });
+        
+        window.socket.on('online_users_update', (users) => {
+            // Remove offline cursors
+            const onlineUsernames = users.map(u => u.username);
+            for (let sid in cursors) {
+                const uname = cursors[sid].dataset.username;
+                if (!onlineUsernames.includes(uname)) {
+                    cursors[sid].remove();
+                    delete cursors[sid];
+                }
+            }
+        });
+    }
+});
+
+// ======================================
+// YOUTUBE RADIO SYNC
+// ======================================
+let ytPlayer = null;
+let isRadioDJ = false;
+let isListening = false;
+let radioState = {
+    is_playing: false,
+    youtube_id: '4xDzrIxC4Dk', // Lofi Girl Synthwave
+    current_time: 0
+};
+let djSyncInterval = null;
+let radioUpdateInterval = null;
+
+// Dynamically load YouTube Iframe API
+const tag = document.createElement('script');
+tag.src = "https://www.youtube.com/iframe_api";
+const firstScriptTag = document.getElementsByTagName('script')[0];
+firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+window.onYouTubeIframeAPIReady = function() {
+    ytPlayer = new YT.Player('lofi-youtube-player', {
+        height: '0',
+        width: '0',
+        videoId: radioState.youtube_id,
+        playerVars: { 'autoplay': 0, 'controls': 0, 'disablekb': 1, 'fs': 0, 'modestbranding': 1, 'rel': 0, 'showinfo': 0 },
+        events: {
+            'onReady': onPlayerReady,
+            'onStateChange': onPlayerStateChange
+        }
+    });
+};
+
+function onPlayerReady(event) {
+    if (!window.socket) return;
+    window.socket.emit('request_radio_state');
+    
+    window.socket.on('radio_sync', (state) => {
+        if (isRadioDJ) return;
+        
+        // Nếu DJ tắt, các máy đang nghe (listener) tự động bị văng khỏi chế độ nghe
+        if (!state.dj_username && isListening) {
+            isListening = false;
+            if (ytPlayer && ytPlayer.pauseVideo) {
+                ytPlayer.pauseVideo();
+            }
+        }
+        
+        radioState.youtube_id = state.youtube_id;
+        radioState.current_time = state.current_time;
+        radioState.is_playing = state.is_playing;
+        
+        if (isListening && ytPlayer && ytPlayer.loadVideoById) {
+            const currentVideo = ytPlayer.getVideoData()?.video_id;
+            if (currentVideo !== state.youtube_id) {
+                ytPlayer.loadVideoById(state.youtube_id, state.current_time);
+            } else if (Math.abs(ytPlayer.getCurrentTime() - state.current_time) > 0.5) {
+                ytPlayer.seekTo(state.current_time, true);
+            }
+            
+            const playerState = ytPlayer.getPlayerState();
+            if (state.is_playing && playerState !== YT.PlayerState.PLAYING) {
+                ytPlayer.playVideo();
+            } else if (!state.is_playing && playerState === YT.PlayerState.PLAYING) {
+                ytPlayer.pauseVideo();
+            }
+        }
+        
+        updateRadioUI();
+        const statusText = document.getElementById('radio-status');
+        if(statusText) statusText.innerHTML = `DJ: ${state.dj_username || 'Ai đó'}`;
+    });
+}
+
+function onPlayerStateChange(event) {
+    if (isRadioDJ) {
+        if (event.data === YT.PlayerState.PLAYING) {
+            radioState.is_playing = true;
+            updateRadioUI();
+            syncRadioToServer();
+        } else if (event.data === YT.PlayerState.PAUSED) {
+            radioState.is_playing = false;
+            updateRadioUI();
+            syncRadioToServer();
+        }
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const playIcon = document.getElementById('radio-icon-play');
+    const pauseIcon = document.getElementById('radio-icon-pause');
+    const trackName = document.getElementById('radio-track-name');
+    const statusText = document.getElementById('radio-status');
+    const djBadge = document.getElementById('radio-dj-badge');
+    const ytInput = document.getElementById('radio-yt-input');
+    const ytInputContainer = document.getElementById('radio-yt-input-container');
+
+    window.radioTogglePlay = function() {
+        if (!ytPlayer || !ytPlayer.getPlayerState) return;
+        
+        if (isRadioDJ) {
+            const state = ytPlayer.getPlayerState();
+            if (state === YT.PlayerState.PLAYING) {
+                ytPlayer.pauseVideo();
+                radioState.is_playing = false;
+            } else {
+                ytPlayer.playVideo();
+                radioState.is_playing = true;
+            }
+            updateRadioUI();
+            syncRadioToServer();
+        } else {
+            isListening = !isListening;
+            if (isListening) {
+                // Join radio
+                const currentVideo = ytPlayer.getVideoData()?.video_id;
+                if (currentVideo !== radioState.youtube_id) {
+                    ytPlayer.loadVideoById(radioState.youtube_id, radioState.current_time);
+                } else {
+                    ytPlayer.seekTo(radioState.current_time, true);
+                }
+                
+                if (radioState.is_playing) ytPlayer.playVideo();
+                else ytPlayer.pauseVideo();
+            } else {
+                // Leave radio
+                ytPlayer.pauseVideo();
+            }
+            updateRadioUI();
+        }
+    };
+
+    window.toggleDJMode = function() {
+        const toggleEl = document.getElementById('radio-dj-toggle');
+        const isChecked = toggleEl.checked;
+        const progressEl = document.getElementById('radio-progress');
+        
+        if (isChecked) {
+            // Attempt to claim DJ role
+            if(window.socket) {
+                window.socket.emit('claim_dj', (response) => {
+                    if (response && response.success) {
+                        isRadioDJ = true;
+                        isListening = true;
+                        if(djBadge) djBadge.style.display = 'block';
+                        if(statusText) statusText.innerHTML = `Bạn đang là DJ 🎧`;
+                        if(ytInputContainer) ytInputContainer.style.display = 'block';
+                        if(progressEl) progressEl.disabled = false;
+                        djSyncInterval = setInterval(syncRadioToServer, 1000);
+                        syncRadioToServer();
+                        updateRadioUI();
+                    } else {
+                        const djName = (response && response.dj_name) ? response.dj_name : 'Ai đó';
+                        showToast(`Đã có người làm DJ rồi! (${djName} đang host). Vui lòng đợi họ tắt DJ.`, 'error');
+                        toggleEl.checked = false;
+                        isRadioDJ = false;
+                    }
+                });
+            } else {
+                toggleEl.checked = false;
+            }
+        } else {
+            isRadioDJ = false;
+            if(djBadge) djBadge.style.display = 'none';
+            if(ytInputContainer) ytInputContainer.style.display = 'none';
+            if(progressEl) progressEl.disabled = true;
+            clearInterval(djSyncInterval);
+            if(window.socket) {
+                window.socket.emit('release_dj');
+                window.socket.emit('request_radio_state');
+            }
+            updateRadioUI();
+        }
+    };
+    
+    if(ytInput) {
+        ytInput.addEventListener('change', function(e) {
+            if (!isRadioDJ || !ytPlayer) return;
+            const url = e.target.value;
+            const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+            const match = url.match(regExp);
+            const videoId = (match && match[2].length === 11) ? match[2] : null;
+            
+            if (videoId) {
+                radioState.youtube_id = videoId;
+                ytPlayer.loadVideoById(videoId);
+                ytPlayer.playVideo();
+                radioState.is_playing = true;
+                updateRadioUI();
+                syncRadioToServer();
+                ytInput.value = '';
+            } else {
+                showToast('Link YouTube không hợp lệ!', 'error');
+            }
+        });
+    }
+
+    window.syncRadioToServer = function() {
+        if (!isRadioDJ || !ytPlayer || !window.socket || !ytPlayer.getCurrentTime) return;
+        let time = 0;
+        try { time = ytPlayer.getCurrentTime() || 0; } catch(e) {}
+        window.socket.emit('radio_sync', {
+            is_playing: radioState.is_playing,
+            youtube_id: radioState.youtube_id,
+            current_time: time
+        });
+    };
+
+    window.updateRadioUI = function() {
+        if(!playIcon || !pauseIcon || !trackName) return;
+        
+        const displayPlaying = isRadioDJ ? radioState.is_playing : isListening;
+        
+        if (displayPlaying) {
+            playIcon.style.display = 'none';
+            pauseIcon.style.display = 'block';
+        } else {
+            playIcon.style.display = 'block';
+            pauseIcon.style.display = 'none';
+        }
+        
+        if (isRadioDJ || isListening) {
+            if (!radioUpdateInterval) radioUpdateInterval = setInterval(updateRadioProgress, 1000);
+        } else {
+            if (radioUpdateInterval) {
+                clearInterval(radioUpdateInterval);
+                radioUpdateInterval = null;
+            }
+        }
+        
+        if (ytPlayer && ytPlayer.getVideoData) {
+            const data = ytPlayer.getVideoData();
+            if (data && data.title) {
+                trackName.innerText = data.title;
+            } else {
+                trackName.innerText = (isListening || isRadioDJ) ? "Chờ kết nối Youtube..." : "Nhấn Play để tham gia";
+            }
+            if (data && data.video_id) {
+                const coverUrl = `https://img.youtube.com/vi/${data.video_id}/hqdefault.jpg`;
+                const coverImg = document.getElementById('radio-cover');
+                const bgBlur = document.getElementById('radio-bg-blur');
+                if (coverImg && coverImg.src !== coverUrl) coverImg.src = coverUrl;
+                if (bgBlur) bgBlur.style.backgroundImage = `url('${coverUrl}')`;
+            }
+        } else {
+            trackName.innerText = (isListening || isRadioDJ) ? "Đang tải..." : "Nhấn Play để tham gia";
+        }
+        
+        const coverImg = document.getElementById('radio-cover');
+        if (coverImg) {
+            if (displayPlaying) {
+                coverImg.classList.add('apple-cover-playing');
+                coverImg.classList.remove('apple-cover-paused');
+            } else {
+                coverImg.classList.add('apple-cover-paused');
+                coverImg.classList.remove('apple-cover-playing');
+            }
+        }
+        
+        const djNameEl = document.getElementById('radio-dj-name');
+        if (djNameEl) {
+            if (isRadioDJ) {
+                djNameEl.innerText = radioState.is_playing ? "Bạn đang phát nhạc" : "Bạn đang tạm dừng";
+            } else {
+                if (isListening) {
+                    djNameEl.innerText = radioState.is_playing ? "Đang đồng bộ..." : "DJ đang tạm dừng...";
+                } else {
+                    djNameEl.innerText = "Chưa tham gia";
+                }
+            }
+        }
+    };
+
+    function updateRadioProgress() {
+        if (!ytPlayer || !ytPlayer.getCurrentTime) return;
+        const current = ytPlayer.getCurrentTime();
+        const duration = ytPlayer.getDuration();
+        
+        const currentEl = document.getElementById('radio-time-current');
+        const totalEl = document.getElementById('radio-time-total');
+        const progressEl = document.getElementById('radio-progress');
+        
+        // If duration is extremely large (e.g. > 24 hours), it's likely a live stream
+        const isLive = duration > 86400;
+        
+        if (currentEl) currentEl.innerText = isLive ? "LIVE" : formatTime(current);
+        if (totalEl) totalEl.innerText = isLive ? "LIVE" : formatTime(duration);
+        
+        if (progressEl && duration > 0 && !progressEl.matches(':active')) {
+            progressEl.value = isLive ? 100 : (current / duration) * 100;
+            if (isLive) progressEl.disabled = true; // Disable seeking for live streams
+        }
+    }
+
+    function formatTime(seconds) {
+        if (!seconds || isNaN(seconds)) return "0:00";
+        if (seconds > 86400) return "LIVE"; // Fallback
+        const h = Math.floor(seconds / 3600);
+        const m = Math.floor((seconds % 3600) / 60);
+        const s = Math.floor(seconds % 60);
+        if (h > 0) {
+            return `${h}:${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
+        }
+        return `${m}:${s < 10 ? '0' : ''}${s}`;
+    }
+
+    const progressEl = document.getElementById('radio-progress');
+    if (progressEl) {
+        progressEl.addEventListener('input', function(e) {
+            if (!isRadioDJ || !ytPlayer) return;
+            const duration = ytPlayer.getDuration();
+            if (duration > 0) {
+                const seekTo = (e.target.value / 100) * duration;
+                ytPlayer.seekTo(seekTo, true);
+                const currentEl = document.getElementById('radio-time-current');
+                if (currentEl) currentEl.innerText = formatTime(seekTo);
+            }
+        });
+        progressEl.addEventListener('change', function(e) {
+            if (!isRadioDJ || !ytPlayer) return;
+            syncRadioToServer();
         });
     }
 });

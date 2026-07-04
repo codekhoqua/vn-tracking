@@ -547,8 +547,84 @@ def process_dashboard_data():
             "lettering": len(df_target[df_target["Công việc"].astype(str).str.contains("Lettering|写植", case=False, na=False)]) if not df_target.empty else 0
         }
 
+    def generate_ai_insights(dash_nay, dash_truoc, lang):
+        insights = []
+        is_vi = lang == 'vi'
+        
+        total_nay = len(dash_nay)
+        total_truoc = len(dash_truoc)
+        
+        # 1. Khối lượng công việc
+        if total_truoc > 0:
+            diff = ((total_nay - total_truoc) / total_truoc) * 100
+            if diff > 0:
+                insights.append(f"📈 Khối lượng task tuần này tăng {diff:.0f}% so với tuần trước." if is_vi else f"📈 今週のタスク量は先週より{diff:.0f}%増加しました。")
+            elif diff < 0:
+                insights.append(f"📉 Khối lượng task tuần này giảm {-diff:.0f}% so với tuần trước." if is_vi else f"📉 今週のタスク量は先週より{-diff:.0f}%減少しました。")
+                
+        if total_nay == 0:
+            return insights
+            
+        completed = sum(1 for t in dash_nay if t['status_class'] == 'delivered')
+        not_started = sum(1 for t in dash_nay if t['status_class'] == 'not-started')
+        
+        # 2. Progress
+        completion_rate = (completed / total_nay) * 100
+        if completion_rate >= 80:
+            insights.append(f"🔥 Tuyệt vời! Team đã hoàn thành {completion_rate:.0f}% công việc tuần này." if is_vi else f"🔥 素晴らしい！今週のタスクの{completion_rate:.0f}%が完了しました。")
+        elif completion_rate > 0:
+            insights.append(f"📊 Tiến độ hiện tại: {completion_rate:.0f}% task đã hoàn thành." if is_vi else f"📊 現在の進捗状況：タスクの{completion_rate:.0f}%が完了。")
+            
+        # 3. Cảnh báo bottleneck
+        if not_started > 0:
+            insights.append(f"⚠️ Chú ý: Còn {not_started} task chưa bắt đầu, hãy theo dõi sát sao." if is_vi else f"⚠️ 注意：まだ開始されていないタスクが{not_started}件あります。")
+            
+        # 4. Gánh team
+        worker_counts = {}
+        for t in dash_nay:
+            workers = [w.strip() for w in t['worker'].split(',') if w.strip()]
+            for w in workers:
+                worker_counts[w] = worker_counts.get(w, 0) + 1
+        if worker_counts:
+            top_worker = max(worker_counts, key=worker_counts.get)
+            top_tasks = worker_counts[top_worker]
+            if top_tasks >= 3:
+                insights.append(f"👨‍💻 {top_worker} đang phụ trách nhiều nhất với {top_tasks} task." if is_vi else f"👨‍💻 {top_worker}さんが最多の{top_tasks}タスクを担当しています。")
+                
+        # 4. Dự đoán thời tiết (Weather Prediction)
+        try:
+            loc = 'Ho+Chi+Minh' if is_vi else 'Gifu'
+            now = time.time()
+            if loc in weather_cache and now - weather_cache[loc]['time'] < 1800:
+                w_data = weather_cache[loc]['data']
+            else:
+                w_data = requests.get(f'https://wttr.in/{loc}?format=j1', timeout=3).json()
+                weather_cache[loc] = {'time': now, 'data': w_data}
+            
+            if 'weather' in w_data and len(w_data['weather']) > 0:
+                today = w_data['weather'][0]
+                will_rain = False
+                for h in today.get('hourly', []):
+                    if int(h.get('chanceofrain', 0)) >= 50 or 'rain' in h.get('weatherDesc', [{'value': ''}])[0]['value'].lower():
+                        will_rain = True
+                        break
+                
+                if will_rain:
+                    insights.append("🌧️ Sắp tới có khả năng mưa, bạn ra ngoài nhớ mang theo ô nhé!" if is_vi else "🌧️ もうすぐ雨が降る可能性があります。外出時は傘をお忘れなく！")
+                else:
+                    insights.append("☀️ Thời tiết sắp tới khá đẹp, chúc bạn một ngày làm việc hiệu quả!" if is_vi else "☀️ 天気は良好です。今日も一日頑張りましょう！")
+        except Exception as e:
+            print(f"Weather prediction error: {e}")
+
+        return insights
+
     USER_DB = load_users_from_sheet(USER_SHEET_URL)
     users = list(USER_DB.keys())
+    
+    dash_nay = build_dashboard(df_tuan_nay)
+    dash_truoc = build_dashboard(df_tuan_truoc)
+    dash_sau = build_dashboard(df_tuan_sau)
+    ai_insights = generate_ai_insights(dash_nay, dash_truoc, lang)
 
     return {
         'user': user,
@@ -562,23 +638,24 @@ def process_dashboard_data():
         'checked_ids_dict': checked_ids_dict,
         'filter_cv_nay': list(df_tuan_nay["Công việc"].dropna().unique()) if not df_tuan_nay.empty else [],
         'filter_cv_sau': list(df_tuan_sau["Công việc"].dropna().unique()) if not df_tuan_sau.empty else [],
+        'ai_insights': ai_insights,
         'weeks': {
             'truoc': {
                 'info': info_truoc,
                 'tasks': df_to_records(df_tuan_truoc),
-                'dashboard': build_dashboard(df_tuan_truoc),
+                'dashboard': dash_truoc,
                 'metrics': get_metrics(df_tuan_truoc),
             },
             'nay': {
                 'info': info_nay,
                 'tasks': df_to_records(df_tuan_nay),
-                'dashboard': build_dashboard(df_tuan_nay),
+                'dashboard': dash_nay,
                 'metrics': get_metrics(df_tuan_nay),
             },
             'sau': {
                 'info': info_sau,
                 'tasks': df_to_records(df_tuan_sau),
-                'dashboard': build_dashboard(df_tuan_sau),
+                'dashboard': dash_sau,
                 'metrics': get_metrics(df_tuan_sau),
             }
         }
@@ -587,6 +664,28 @@ def process_dashboard_data():
 # =====================================================================
 # 9. ROUTES
 # =====================================================================
+weather_cache = {}
+
+@app.route('/api/weather')
+def api_weather():
+    loc = request.args.get('loc', 'Ho+Chi+Minh')
+    now = time.time()
+    
+    if loc in weather_cache and now - weather_cache[loc]['time'] < 1800:
+        return jsonify(weather_cache[loc]['data'])
+        
+    try:
+        r = requests.get(f'https://wttr.in/{loc}?format=j1', timeout=10)
+        data = r.json()
+        weather_cache[loc] = {'time': now, 'data': data}
+        return jsonify(data)
+    except Exception as e:
+        print(f"Weather error for {loc}: {e}")
+        # Return empty or fallback
+        if loc in weather_cache:
+            return jsonify(weather_cache[loc]['data'])
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/api/chart_data')
 def api_chart_data():
     if not session.get('logged_in'):
@@ -768,9 +867,19 @@ def api_avatar_proxy():
 
 
 # =====================================================================
+# =====================================================================
 # 11. SOCKETIO EVENTS
 # =====================================================================
 online_users = {}
+
+radio_state = {
+    'is_playing': False,
+    'youtube_id': '4xDzrIxC4Dk', # Lofi Girl Synthwave
+    'current_time': 0,
+    'last_update': time.time(),
+    'dj_username': None,
+    'dj_sid': None
+}
 
 def get_unique_online_users():
     unique_users = {}
@@ -801,8 +910,57 @@ def handle_connect():
 def handle_request_online_users():
     emit('online_users_update', get_unique_online_users())
 
+@socketio.on('request_radio_state')
+def handle_request_radio_state():
+    state = radio_state.copy()
+    if state['is_playing']:
+        state['current_time'] += (time.time() - state['last_update'])
+    emit('radio_sync', state)
+
+@socketio.on('radio_sync')
+def handle_radio_sync(data):
+    if radio_state.get('dj_sid') != request.sid:
+        return
+        
+    radio_state['is_playing'] = data.get('is_playing', False)
+    radio_state['youtube_id'] = data.get('youtube_id', radio_state['youtube_id'])
+    radio_state['current_time'] = data.get('current_time', 0)
+    radio_state['last_update'] = time.time()
+    emit('radio_sync', radio_state, broadcast=True, include_self=False)
+
+@socketio.on('claim_dj')
+def handle_claim_dj():
+    global radio_state
+    if radio_state.get('dj_sid') is None or radio_state.get('dj_sid') not in online_users:
+        radio_state['dj_sid'] = request.sid
+        radio_state['dj_username'] = session.get('user', 'Guest')
+        emit('radio_sync', radio_state, broadcast=True)
+        return {'success': True}
+    else:
+        return {'success': False, 'dj_name': radio_state['dj_username']}
+
+@socketio.on('release_dj')
+def handle_release_dj():
+    global radio_state
+    if radio_state.get('dj_sid') == request.sid:
+        radio_state['dj_sid'] = None
+        radio_state['dj_username'] = None
+        radio_state['is_playing'] = False
+        radio_state['youtube_id'] = '4xDzrIxC4Dk'
+        radio_state['current_time'] = 0
+        emit('radio_sync', radio_state, broadcast=True)
+
 @socketio.on('disconnect')
 def handle_disconnect():
+    global radio_state
+    if request.sid == radio_state.get('dj_sid'):
+        radio_state['dj_sid'] = None
+        radio_state['dj_username'] = None
+        radio_state['is_playing'] = False
+        radio_state['youtube_id'] = '4xDzrIxC4Dk'
+        radio_state['current_time'] = 0
+        emit('radio_sync', radio_state, broadcast=True)
+
     if request.sid in online_users:
         del online_users[request.sid]
         emit('online_users_update', get_unique_online_users(), broadcast=True)
@@ -828,6 +986,39 @@ def on_sync_drag_drop(data):
             'task_id': task_id,
             'target_status': target_status
         }, broadcast=True, include_self=False)
+
+@socketio.on('chat_message')
+def handle_chat_message(data):
+    username = session.get('user', 'Guest')
+    msg = data.get('msg', '').strip()
+    if msg:
+        fullname = username
+        avatar = ""
+        try:
+            USER_DB = load_users_from_sheet(USER_SHEET_URL)
+            fullname = USER_DB.get(username, {}).get("fullname", username)
+            avatar = USER_DB.get(username, {}).get("avatar", "")
+        except:
+            pass
+        
+        emit('chat_message', {
+            'username': username,
+            'fullname': fullname,
+            'avatar': avatar,
+            'msg': msg,
+            'time': pd.Timestamp.now().strftime("%H:%M")
+        }, broadcast=True)
+
+@socketio.on('cursor_move')
+def handle_cursor_move(data):
+    # data contains x, y, and window sizing.
+    # Broadcast to everyone else
+    emit('cursor_move', {
+        'sid': request.sid,
+        'username': session.get('user', 'Guest'),
+        'x': data.get('x', 0),
+        'y': data.get('y', 0)
+    }, broadcast=True, include_self=False)
 
 # =====================================================================
 # 12. CHẠY ỨNG DỤNG & PRELOAD
