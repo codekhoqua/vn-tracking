@@ -11,21 +11,29 @@
     </div>
     <div class="modal-body">
         <div style="margin-bottom: 15px;">
-            <label style="display:block; margin-bottom: 5px; color: var(--text-2); font-size: 0.9rem;">{{ 'Mật khẩu cũ' if lang == 'vi' else '現在のパスワード' }}</label>
-            <input type="password" id="old-pass" style="width: 100%; padding: 12px 16px; border-radius: 12px; border: 1px solid var(--border); background: var(--bg-page); color: var(--text); font-size: 0.95rem;">
+            <label style="display:block; margin-bottom: 5px; color: var(--text-2); font-size: 0.9rem;">{{ 'Mật khẩu cũ'
+                if lang == 'vi' else '現在のパスワード' }}</label>
+            <input type="password" id="old-pass"
+                style="width: 100%; padding: 12px 16px; border-radius: 12px; border: 1px solid var(--border); background: var(--bg-page); color: var(--text); font-size: 0.95rem;">
         </div>
         <div style="margin-bottom: 15px;">
-            <label style="display:block; margin-bottom: 5px; color: var(--text-2); font-size: 0.9rem;">{{ 'Mật khẩu mới' if lang == 'vi' else '新しいパスワード' }}</label>
-            <input type="password" id="new-pass" style="width: 100%; padding: 12px 16px; border-radius: 12px; border: 1px solid var(--border); background: var(--bg-page); color: var(--text); font-size: 0.95rem;">
+            <label style="display:block; margin-bottom: 5px; color: var(--text-2); font-size: 0.9rem;">{{ 'Mật khẩu mới'
+                if lang == 'vi' else '新しいパスワード' }}</label>
+            <input type="password" id="new-pass"
+                style="width: 100%; padding: 12px 16px; border-radius: 12px; border: 1px solid var(--border); background: var(--bg-page); color: var(--text); font-size: 0.95rem;">
         </div>
         <div>
-            <label style="display:block; margin-bottom: 5px; color: var(--text-2); font-size: 0.9rem;">{{ 'Xác nhận mật khẩu' if lang == 'vi' else '新しいパスワード（確認）' }}</label>
-            <input type="password" id="confirm-pass" style="width: 100%; padding: 12px 16px; border-radius: 12px; border: 1px solid var(--border); background: var(--bg-page); color: var(--text); font-size: 0.95rem;">
+            <label style="display:block; margin-bottom: 5px; color: var(--text-2); font-size: 0.9rem;">{{ 'Xác nhận mật
+                khẩu' if lang == 'vi' else '新しいパスワード（確認）' }}</label>
+            <input type="password" id="confirm-pass"
+                style="width: 100%; padding: 12px 16px; border-radius: 12px; border: 1px solid var(--border); background: var(--bg-page); color: var(--text); font-size: 0.95rem;">
         </div>
     </div>
     <div class="modal-footer" style="display: flex; gap: 10px; justify-content: flex-end;">
-        <button class="btn btn-outline" onclick="closeChangePassModal()">{{ 'Hủy' if lang == 'vi' else 'キャンセル' }}</button>
-        <button class="btn btn-primary" onclick="submitChangePass()">{{ 'Lưu thay đổi' if lang == 'vi' else '保存する' }}</button>
+        <button class="btn btn-outline" onclick="closeChangePassModal()">{{ 'Hủy' if lang == 'vi' else 'キャンセル'
+            }}</button>
+        <button class="btn btn-primary" onclick="submitChangePass()">{{ 'Lưu thay đổi' if lang == 'vi' else '保存する'
+            }}</button>
     </div>
 </div>
 
@@ -38,20 +46,24 @@
     </div>
     <div class="modal-body" style="max-height: 50vh; overflow-y: auto; padding-right: 10px;">
         {% for uname, info in user_profiles.items() %}
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border);">
-                <div>
-                    <div style="font-weight: 500;">{{ info.fullname or uname }}</div>
-                    <div style="font-size: 0.85rem; color: var(--text-3);">@{{ uname }}</div>
-                </div>
-                <div style="display: flex; gap: 10px; align-items: center;">
-                    <select id="role-select-{{ uname | replace(' ', '_') | replace('.', '_') }}" style="padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-page); color: var(--text);">
-                        <option value="admin" {% if info.role == 'admin' %}selected{% endif %}>Admin</option>
-                        <option value="leader" {% if info.role == 'leader' %}selected{% endif %}>Leader</option>
-                        <option value="member" {% if info.role == 'member' %}selected{% endif %}>Member</option>
-                    </select>
-                    <button class="btn btn-primary" style="padding: 6px 12px; font-size: 0.85rem; display: flex; align-items: center; gap: 5px; min-width: 60px; justify-content: center;" onclick="updateRole('{{ uname }}', this)">{{ 'Lưu' if lang == 'vi' else '保存' }}</button>
-                </div>
+        <div
+            style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border);">
+            <div>
+                <div style="font-weight: 500;">{{ info.fullname or uname }}</div>
+                <div style="font-size: 0.85rem; color: var(--text-3);">@{{ uname }}</div>
             </div>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <select id="role-select-{{ uname | replace(' ', '_') | replace('.', '_') }}"
+                    style="padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-page); color: var(--text);">
+                    <option value="admin" {% if info.role=='admin' %}selected{% endif %}>Admin</option>
+                    <option value="leader" {% if info.role=='leader' %}selected{% endif %}>Leader</option>
+                    <option value="member" {% if info.role=='member' %}selected{% endif %}>Member</option>
+                </select>
+                <button class="btn btn-primary"
+                    style="padding: 6px 12px; font-size: 0.85rem; display: flex; align-items: center; gap: 5px; min-width: 60px; justify-content: center;"
+                    onclick="updateRole('{{ uname }}', this)">{{ 'Lưu' if lang == 'vi' else '保存' }}</button>
+            </div>
+        </div>
         {% endfor %}
     </div>
 </div>
@@ -64,14 +76,21 @@
 <div class="filter-drawer" id="filter-drawer">
     <div class="drawer-header">
         <h2>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+            </svg>
             {{ t.filter_title }}
         </h2>
         <button class="close-btn" onclick="toggleFilters()">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
         </button>
     </div>
-    
+
     <div class="filter-group">
         <div class="filter-group-title">{{ t.cv_nay }}</div>
         {% for cv in filter_cv_nay %}
@@ -117,36 +136,60 @@
 <!-- ============ SIDEBAR ============ -->
 <aside class="sidebar">
     <div class="sidebar-logo">
-        <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" width="32" height="32" style="border-radius: var(--radius-sm); margin-right: 8px;">
+        <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" width="32" height="32"
+            style="border-radius: var(--radius-sm); margin-right: 8px;">
         VN-Tracking
     </div>
-    
+
     <div class="nav-label">MAIN</div>
     <div class="nav-item active" style="cursor: pointer;" id="nav-dashboard">
         <div class="nav-item-content">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="7" height="7"></rect>
+                <rect x="14" y="3" width="7" height="7"></rect>
+                <rect x="14" y="14" width="7" height="7"></rect>
+                <rect x="3" y="14" width="7" height="7"></rect>
+            </svg>
             Dashboard
         </div>
     </div>
     <div class="nav-item" onclick="scrollToTable()">
         <div class="nav-item-content">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <line x1="8" y1="6" x2="21" y2="6"></line>
+                <line x1="8" y1="12" x2="21" y2="12"></line>
+                <line x1="8" y1="18" x2="21" y2="18"></line>
+                <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                <line x1="3" y1="18" x2="3.01" y2="18"></line>
+            </svg>
             Data Table
         </div>
     </div>
-    
+
     <div class="nav-label">{{ 'SETTINGS' if lang == 'vi' else '設定' }}</div>
     <div class="nav-item" style="overflow: visible;">
         <div class="nav-item-content">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="2" y1="12" x2="22" y2="12"></line>
+                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z">
+                </path>
+            </svg>
             {{ 'Language' if lang == 'vi' else '言語' }}
         </div>
-        
+
         <!-- Custom Language Select -->
         <div class="custom-lang-select" id="custom-lang-select" onclick="toggleLangSelect(event)">
             <div class="lang-trigger">
                 <span id="lang-text">{{ 'VN' if lang == 'vi' else 'JP' }}</span>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lang-arrow"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round" class="lang-arrow">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
             </div>
             <div class="lang-dropdown">
                 <div class="lang-option {{ 'active' if lang == 'vi' }}" onclick="changeLang('vi', event)">VN</div>
@@ -154,32 +197,227 @@
             </div>
         </div>
     </div>
-    
+
     {% if session.get('user') == 'Manager' or session.get('role') == 'admin' %}
     <div class="nav-item" onclick="openRoleModal()" style="cursor: pointer;">
         <div class="nav-item-content">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+            </svg>
             {{ 'Phân quyền' if lang == 'vi' else '権限管理' }}
         </div>
     </div>
     {% endif %}
-    
+
+    <div style="flex-grow: 1;"></div>
+
     <div class="sidebar-footer">
+        <!-- LOFI RADIO WIDGET (Apple Music Style) -->
+        <div id="lofi-radio-widget"
+            style="position: relative; width: 100%; margin-bottom: 12px; border-radius: 16px; overflow: hidden; box-shadow: 0 8px 24px rgba(0,0,0,0.2); background: #1c1c1e; color: #fff; transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);">
+
+            <!-- Blurred Background Cover -->
+            <div id="radio-bg-blur"
+                style="position: absolute; inset: -20px; background-image: url('https://img.youtube.com/vi/4xDzrIxC4Dk/hqdefault.jpg'); background-size: cover; background-position: center; filter: blur(24px) brightness(0.35); z-index: 0; transition: background-image 0.8s ease;">
+            </div>
+
+            <div
+                style="position: relative; z-index: 1; padding: 16px; display: flex; flex-direction: column; gap: 14px;">
+
+                <!-- Header: Title & DJ Toggle -->
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div
+                        style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: rgba(255,255,255,0.7); display: flex; align-items: center; gap: 4px;">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M9 18V5l12-2v13"></path>
+                            <circle cx="6" cy="18" r="3"></circle>
+                            <circle cx="18" cy="16" r="3"></circle>
+                        </svg>
+                        LSA MUSIC
+                    </div>
+                    <!-- DJ Toggle (Apple iOS Style) -->
+                    <label style="position: relative; display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                        <span style="font-size: 10px; color: rgba(255,255,255,0.6); font-weight: 500;">DJ</span>
+                        <div class="switch" style="position: relative; width: 32px; height: 18px;">
+                            <input type="checkbox" id="radio-dj-toggle" onchange="toggleDJMode()"
+                                style="opacity: 0; width: 0; height: 0;">
+                            <span class="slider round"
+                                style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(255,255,255,0.2); transition: .4s; border-radius: 34px;">
+                                <span
+                                    style="position: absolute; content: ''; height: 14px; width: 14px; left: 2px; bottom: 2px; background-color: white; transition: .4s; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"></span>
+                            </span>
+                        </div>
+                    </label>
+                </div>
+
+                <!-- Cover & Track Info -->
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <img id="radio-cover" src="https://img.youtube.com/vi/4xDzrIxC4Dk/hqdefault.jpg"
+                        style="width: 52px; height: 52px; border-radius: 8px; object-fit: cover; box-shadow: 0 4px 12px rgba(0,0,0,0.4); transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), border-radius 0.4s; transform-origin: center;">
+
+                    <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center;">
+                        <div id="radio-track-name"
+                            style="font-weight: 700; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #fff; line-height: 1.2; text-shadow: 0 1px 2px rgba(0,0,0,0.2);">
+                            Đang chờ...</div>
+                        <div id="radio-dj-name"
+                            style="font-size: 12px; color: rgba(255,255,255,0.7); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 2px rgba(0,0,0,0.2);">
+                            Chưa tham gia</div>
+                    </div>
+                </div>
+
+                <!-- YouTube Input (DJ Only) -->
+                <div id="radio-yt-input-container" style="display: none;">
+                    <input type="text" id="radio-yt-input" placeholder="Dán link YouTube vào đây..."
+                        style="width: 100%; padding: 8px 12px; font-size: 11px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.25); color: #fff; outline: none; transition: background 0.2s;">
+                </div>
+
+                <!-- Progress Bar -->
+                <div style="display: flex; align-items: center; gap: 8px; font-variant-numeric: tabular-nums;">
+                    <span id="radio-time-current"
+                        style="font-size: 9px; font-weight: 600; color: rgba(255,255,255,0.6); min-width: 26px; text-align: left;">0:00</span>
+                    <div style="flex-grow: 1; display: flex; align-items: center;">
+                        <input type="range" id="radio-progress" min="0" max="100" value="0" disabled
+                            style="width: 100%;">
+                    </div>
+                    <span id="radio-time-total"
+                        style="font-size: 9px; font-weight: 600; color: rgba(255,255,255,0.6); min-width: 26px; text-align: right;">0:00</span>
+                </div>
+
+                <!-- Controls -->
+                <div
+                    style="display: flex; align-items: center; justify-content: center; gap: 24px; padding-bottom: 4px;">
+                    <!-- Prev (Decorative) -->
+                    <button
+                        style="background: none; border: none; color: rgba(255,255,255,0.9); cursor: pointer; padding: 4px; opacity: 0.8; transition: opacity 0.2s;">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
+                        </svg>
+                    </button>
+
+                    <!-- Play/Pause -->
+                    <button id="radio-play-btn" onclick="radioTogglePlay()"
+                        style="background: rgba(255,255,255,0.2); border: none; color: white; border-radius: 50%; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.2s, transform 0.1s; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+                        <svg id="radio-icon-play" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"
+                            stroke="none" style="margin-left: 3px;">
+                            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                        </svg>
+                        <svg id="radio-icon-pause" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"
+                            stroke="none" style="display: none;">
+                            <rect x="6" y="4" width="4" height="16"></rect>
+                            <rect x="14" y="4" width="4" height="16"></rect>
+                        </svg>
+                    </button>
+
+                    <!-- Next (Decorative) -->
+                    <button
+                        style="background: none; border: none; color: rgba(255,255,255,0.9); cursor: pointer; padding: 4px; opacity: 0.8; transition: opacity 0.2s;">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Hidden YouTube Player -->
+            <div style="position: absolute; width: 0; height: 0; overflow: hidden; opacity: 0;">
+                <div id="lofi-youtube-player"></div>
+            </div>
+        </div>
+
+        <style>
+            .switch input:checked+.slider {
+                background-color: #34c759 !important;
+            }
+
+            .switch input:checked+.slider>span {
+                transform: translateX(14px);
+            }
+
+            #radio-progress {
+                -webkit-appearance: none;
+                appearance: none;
+                background: transparent;
+                height: 12px;
+                outline: none;
+                margin: 0;
+            }
+
+            #radio-progress::-webkit-slider-runnable-track {
+                width: 100%;
+                height: 4px;
+                background: rgba(255, 255, 255, 0.25);
+                border-radius: 2px;
+            }
+
+            #radio-progress::-webkit-slider-thumb {
+                -webkit-appearance: none;
+                appearance: none;
+                width: 12px;
+                height: 12px;
+                background: white;
+                border-radius: 50%;
+                cursor: pointer;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+                transition: transform 0.1s;
+                margin-top: -4px;
+            }
+
+            #radio-progress:not([disabled])::-webkit-slider-thumb:hover {
+                transform: scale(1.3);
+            }
+
+            #radio-progress:not([disabled])::-webkit-slider-thumb:active {
+                transform: scale(1.1);
+            }
+
+            #radio-progress[disabled]::-webkit-slider-thumb {
+                cursor: default;
+                background: rgba(255, 255, 255, 0.8);
+            }
+
+            #radio-play-btn:hover {
+                background: rgba(255, 255, 255, 0.3) !important;
+            }
+
+            #radio-play-btn:active {
+                transform: scale(0.92);
+            }
+
+            .apple-cover-paused {
+                transform: scale(0.85);
+                opacity: 0.8;
+                border-radius: 12px !important;
+            }
+
+            .apple-cover-playing {
+                transform: scale(1);
+                opacity: 1;
+                border-radius: 8px !important;
+            }
+        </style>
+
         <!-- Profile Slide-Up Panel -->
         {% set p = user_profiles.get(user, {}) if user_profiles else {} %}
         <div class="profile-panel" id="profile-panel">
             <div class="profile-panel-inner">
                 <div class="profile-panel-avatar">
                     {% if p.avatar %}
-                    <img src="{{ p.avatar }}" alt="Avatar" class="avatar-img" referrerpolicy="no-referrer" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                    <div class="avatar-fallback" style="display:none;">{{ p.fullname[0]|upper if p.fullname else (user[0]|upper if user else 'U') }}</div>
+                    <img src="{{ p.avatar }}" alt="Avatar" class="avatar-img" referrerpolicy="no-referrer"
+                        onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                    <div class="avatar-fallback" style="display:none;">{{ p.fullname[0]|upper if p.fullname else
+                        (user[0]|upper if user else 'U') }}</div>
                     {% else %}
                     {{ user[0]|upper if user else 'U' }}
                     {% endif %}
                 </div>
                 <div class="profile-panel-name">{{ p.fullname or user }}</div>
                 <div class="profile-panel-team">@{{ user }} · {{ p.team or 'Member' }}</div>
-                
+
                 <div class="profile-panel-details">
                     <div class="profile-detail-row">
                         <span>{{ 'Giới tính' if lang == 'vi' else '性別' }}</span>
@@ -192,23 +430,36 @@
                 </div>
 
                 <div class="profile-panel-actions">
-                    <button class="profile-action-btn" onclick="event.stopPropagation(); toggleProfilePanel(); openChangePassModal()">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                    <button class="profile-action-btn"
+                        onclick="event.stopPropagation(); toggleProfilePanel(); openChangePassModal()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                        </svg>
                         {{ 'Đổi mật khẩu' if lang == 'vi' else 'パスワード変更' }}
                     </button>
                     <button class="profile-action-btn profile-action-logout" onclick="window.location.href='/logout'">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                            <polyline points="16 17 21 12 16 7"></polyline>
+                            <line x1="21" y1="12" x2="9" y2="12"></line>
+                        </svg>
                         {{ 'Đăng xuất' if lang == 'vi' else 'ログアウト' }}
                     </button>
                 </div>
             </div>
         </div>
 
-        <div class="user-card" onclick="toggleProfilePanel()" title="{{ 'Thông tin cá nhân' if lang == 'vi' else 'プロフィール' }}">
+        <div class="user-card" onclick="toggleProfilePanel()"
+            title="{{ 'Thông tin cá nhân' if lang == 'vi' else 'プロフィール' }}">
             <div class="user-avatar">
                 {% if p.avatar %}
-                <img src="{{ p.avatar }}" alt="Avatar" class="avatar-img" referrerpolicy="no-referrer" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                <div class="avatar-fallback" style="display:none;">{{ p.fullname[0]|upper if p.fullname else (user[0]|upper if user else 'U') }}</div>
+                <img src="{{ p.avatar }}" alt="Avatar" class="avatar-img" referrerpolicy="no-referrer"
+                    onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                <div class="avatar-fallback" style="display:none;">{{ p.fullname[0]|upper if p.fullname else
+                    (user[0]|upper if user else 'U') }}</div>
                 {% else %}
                 {{ user[0]|upper if user else 'U' }}
                 {% endif %}
@@ -217,432 +468,630 @@
                 <div class="user-name">{{ user }}</div>
                 <div class="user-role">{{ role }}</div>
             </div>
-            <svg class="profile-chevron" id="profile-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--text-4); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);"><polyline points="18 15 12 9 6 15"></polyline></svg>
+            <svg class="profile-chevron" id="profile-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                style="color: var(--text-4); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);">
+                <polyline points="18 15 12 9 6 15"></polyline>
+            </svg>
         </div>
     </div>
 </aside>
 
 <!-- ============ MAIN AREA ============ -->
 <main class="main-area">
-    <div class="top-header">
-        <div class="header-left">
-            <div class="header-title">{{ t.welcome }}, {{ user }}</div>
-            <div class="weather-time" id="weather-time"></div>
-            <h1>{{ t.title }}</h1>
+    <div class="hero-banner" id="main-hero-banner"
+        style="position: relative; overflow: hidden; display: flex; flex-direction: column; margin-bottom: 40px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.05); box-shadow: 0 8px 32px rgba(0,0,0,0.3); min-height: 110px;">
+
+        <!-- Dynamic Weather Background will be set here -->
+        <div id="hero-weather-bg"
+            style="position: absolute; inset: 0; z-index: 1; background-size: cover; background-position: center; transition: background-image 1s ease; background-color: #0f172a;">
         </div>
-        <div class="header-right">
-            <!-- Global Online Users -->
-            <div id="global-online-users" class="online-users-cluster"></div>
-            
-            <!-- Theme Toggle -->
-            <button class="theme-toggle" onclick="toggleTheme()" title="Toggle Dark Mode">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
-            </button>
-            
-            {% if role in ['admin', 'manager', 'leader'] %}
-            <button class="btn btn-outline" onclick="toggleFilters()">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
-                Filters
-            </button>
-            {% endif %}
-            <button class="btn btn-primary" onclick="refreshData()">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"></path><path d="M1 20v-6h6"></path><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"></path><path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"></path></svg>
-                Refresh
-            </button>
+        <!-- Gradient Overlay to ensure readability and match the sleek dark look -->
+        <div
+            style="position: absolute; inset: 0; z-index: 2; background: linear-gradient(90deg, rgba(15,23,42,0.95) 0%, rgba(15,23,42,0.6) 50%, rgba(15,23,42,0.85) 100%);">
         </div>
+
+        <!-- Content Wrapper -->
+        <div
+            style="position: relative; z-index: 3; display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 24px 32px;">
+
+            <!-- Left: Titles -->
+            <div class="header-left" style="flex: 1;">
+                <div class="header-title"
+                    style="font-size: 0.95rem; color: rgba(255,255,255,0.8); font-weight: 500; margin-bottom: 6px;">{{
+                    t.welcome }}, {{ user }}</div>
+                <h1
+                    style="font-size: 2.2rem; font-weight: 800; background: linear-gradient(90deg, #93c5fd, #bfdbfe); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: -0.02em; margin: 0; display: inline-block; text-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    {{ t.title }}</h1>
+            </div>
+
+            <!-- Center-Right: Weather Inline -->
+            <div class="header-center" id="inline-weather-container"
+                style="display: flex; align-items: center; margin-right: 24px; min-width: 250px;">
+                <span style="color: rgba(255,255,255,0.7); font-size: 0.9rem;">Đang tải thời tiết...</span>
+            </div>
+
+            <!-- Vertical Divider -->
+            <div style="width: 1px; height: 50px; background: rgba(255,255,255,0.15); margin-right: 24px;"></div>
+
+            <!-- Right: Controls -->
+            <div class="header-right" style="display: flex; align-items: center; gap: 16px;">
+                <!-- Avatars -->
+                <div id="global-online-users" class="online-users-cluster"
+                    style="background: rgba(255,255,255,0.05); padding: 4px 12px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1);">
+                </div>
+
+                <!-- Theme Toggle -->
+                <button class="theme-toggle" onclick="toggleTheme()" title="Toggle Dark Mode"
+                    style="background: transparent; border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.8); border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                </button>
+
+                {% if role in ['admin', 'manager', 'leader'] %}
+                <!-- Filters with glow -->
+                <button class="btn btn-outline" onclick="toggleFilters()"
+                    style="background: rgba(30,58,138,0.3); border: 1px solid rgba(96,165,250,0.4); color: #bfdbfe; border-radius: 20px; padding: 0 16px; height: 40px; font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; gap: 8px; cursor: pointer; transition: all 0.2s; box-shadow: 0 0 12px rgba(59,130,246,0.3);">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                    </svg>
+                    Filters
+                </button>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- AI Insights integrated as a sleek bottom bar -->
+        {% if ai_insights and ai_insights|length > 0 %}
+        <div
+            style="position: relative; z-index: 3; background: rgba(0,0,0,0.3); border-top: 1px solid rgba(255,255,255,0.08); padding: 10px 32px; display: flex; align-items: center; gap: 20px; backdrop-filter: blur(10px);">
+            <div
+                style="color: #fbbf24; display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; text-shadow: 0 2px 4px rgba(0,0,0,0.5);">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2v4"></path>
+                    <path d="M12 18v4"></path>
+                    <path d="M4.93 4.93l2.83 2.83"></path>
+                    <path d="M16.24 16.24l2.83 2.83"></path>
+                    <path d="M2 12h4"></path>
+                    <path d="M18 12h4"></path>
+                    <path d="M4.93 19.07l2.83-2.83"></path>
+                    <path d="M16.24 7.76l2.83-2.83"></path>
+                </svg>
+                AI Insights
+            </div>
+
+            <div style="display: flex; gap: 32px; flex: 1; align-items: center;">
+                {% for insight in ai_insights %}
+                <div
+                    style="color: rgba(255,255,255,0.9); font-size: 0.9rem; font-weight: 500; display: flex; align-items: center; gap: 8px; white-space: nowrap;">
+                    <span
+                        style="width: 4px; height: 4px; border-radius: 50%; background: #60a5fa; box-shadow: 0 0 8px #60a5fa;"></span>
+                    {{ insight }}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
     </div>
 
-    <div class="chart-section" style="background: var(--bg-card); border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: 1px solid var(--border); width: 100%;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-            <h3 style="color: var(--text); display: flex; align-items: center; gap: 8px; margin: 0;">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"></path><path d="M18 17V9"></path><path d="M13 17V5"></path><path d="M8 17v-3"></path></svg>
-                {{ 'Tiến độ theo thời gian' if lang == 'vi' else '期間別タスク進捗' }}
-            </h3>
-            
-            <div id="custom-chart-legend" style="display: none; align-items: center; gap: 16px; font-size: 0.9rem; color: var(--text-2); margin-left: auto; margin-right: 20px;">
-                <span style="display: flex; align-items: center; gap: 6px;">
-                    <span style="width: 12px; height: 12px; border-radius: 50%; background: rgba(96, 165, 250, 0.85);"></span>
-                    Retouch
-                </span>
-                <span style="display: flex; align-items: center; gap: 6px;">
-                    <span style="width: 12px; height: 12px; border-radius: 50%; background: rgba(167, 243, 208, 0.85);"></span>
-                    Lettering
-                </span>
-            </div>
 
-            <div class="chart-time-controls" style="display: flex; gap: 5px;">
-                <button class="btn btn-sm btn-primary active" data-period="week" onclick="setChartPeriod('week')">{{ 'Tuần' if lang == 'vi' else '週' }}</button>
-                <div class="custom-lang-select" id="custom-week-select" style="display: none;" onclick="toggleWeekSelect(event)">
-                    <div class="lang-trigger" style="padding: 4px 12px; height: 100%;">
-                        <span id="week-text" style="font-size: 0.8rem; font-weight: 500;">{{ 'Tuần này' if lang == 'vi' else '今週' }}</span>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lang-arrow"><polyline points="6 9 12 15 18 9"></polyline></svg>
-                    </div>
-                    <div class="lang-dropdown" id="week-dropdown-list" style="min-width: 140px; max-height: 250px; overflow-y: auto;">
-                    </div>
+        <div class="chart-section"
+            style="background: var(--bg-card); border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: 1px solid var(--border); width: 100%;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3 style="color: var(--text); display: flex; align-items: center; gap: 8px; margin: 0;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 3v18h18"></path>
+                        <path d="M18 17V9"></path>
+                        <path d="M13 17V5"></path>
+                        <path d="M8 17v-3"></path>
+                    </svg>
+                    {{ 'Tiến độ theo thời gian' if lang == 'vi' else '期間別タスク進捗' }}
+                </h3>
+
+                <div id="custom-chart-legend"
+                    style="display: none; align-items: center; gap: 16px; font-size: 0.9rem; color: var(--text-2); margin-left: auto; margin-right: 20px;">
+                    <span style="display: flex; align-items: center; gap: 6px;">
+                        <span
+                            style="width: 12px; height: 12px; border-radius: 50%; background: rgba(96, 165, 250, 0.85);"></span>
+                        Retouch
+                    </span>
+                    <span style="display: flex; align-items: center; gap: 6px;">
+                        <span
+                            style="width: 12px; height: 12px; border-radius: 50%; background: rgba(167, 243, 208, 0.85);"></span>
+                        Lettering
+                    </span>
                 </div>
-                <button class="btn btn-sm btn-outline" data-period="month" onclick="setChartPeriod('month')">{{ 'Tháng' if lang == 'vi' else '月' }}</button>
-                
-                <div class="custom-lang-select" id="custom-month-select" style="display: none;" onclick="toggleMonthSelect(event)">
-                    <div class="lang-trigger" style="padding: 4px 12px; height: 100%;">
-                        <span id="month-text" style="font-size: 0.8rem; font-weight: 500;">{{ 'Tháng' if lang == 'vi' else '月' }}</span>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lang-arrow"><polyline points="6 9 12 15 18 9"></polyline></svg>
-                    </div>
-                    <div class="lang-dropdown" id="month-dropdown-list" style="min-width: 140px; max-height: 250px; overflow-y: auto;">
-                    </div>
-                </div>
-                
-                <button class="btn btn-sm btn-outline" data-period="year" onclick="setChartPeriod('year')">{{ 'Năm' if lang == 'vi' else '年' }}</button>
-            </div>
-        </div>
-        <div style="position: relative; height: 450px; width: 100%;">
-            <div id="chart-loader" style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(15, 23, 42, 0.5); z-index: 10; border-radius: 12px; backdrop-filter: blur(4px);">
-                <div class="spinner"></div>
-            </div>
-            <canvas id="monthlyTaskChart"></canvas>
-        </div>
-    </div>
 
-    <div class="dashboard-controls">
+                <div class="chart-time-controls" style="display: flex; gap: 5px;">
+                    <button class="btn btn-sm btn-primary active" data-period="week" onclick="setChartPeriod('week')">{{
+                        'Tuần' if lang == 'vi' else '週' }}</button>
+                    <div class="custom-lang-select" id="custom-week-select" style="display: none;"
+                        onclick="toggleWeekSelect(event)">
+                        <div class="lang-trigger" style="padding: 4px 12px; height: 100%;">
+                            <span id="week-text" style="font-size: 0.8rem; font-weight: 500;">{{ 'Tuần này' if lang ==
+                                'vi' else '今週' }}</span>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lang-arrow">
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                            </svg>
+                        </div>
+                        <div class="lang-dropdown" id="week-dropdown-list"
+                            style="min-width: 140px; max-height: 250px; overflow-y: auto;">
+                        </div>
+                    </div>
+                    <button class="btn btn-sm btn-outline" data-period="month" onclick="setChartPeriod('month')">{{
+                        'Tháng' if lang == 'vi' else '月' }}</button>
 
-        <div class="tab-bar">
-            <button class="tab-btn" data-tab="truoc" onclick="switchTab('truoc')">{{ t.tab0 }}</button>
-            <button class="tab-btn active" data-tab="nay" onclick="switchTab('nay')">{{ t.tab1 }}</button>
-            <button class="tab-btn" data-tab="sau" onclick="switchTab('sau')">{{ t.tab2 }}</button>
-        </div>
-        <div class="info-banner" id="banner-truoc" style="display: none;">
-            <span>{{ weeks.truoc.info.start }} - {{ weeks.truoc.info.end }}</span>
-            <span class="deadline-badge">{{ 'Deadline đã qua' if lang == 'vi' else '期限切れ' }}</span>
-        </div>
-        <div class="info-banner" id="banner-nay" style="position: relative; z-index: 100;">
-            <span>{{ weeks.nay.info.start }} - {{ weeks.nay.info.end }}</span>
-            <span class="deadline-badge" id="deadline-nay-badge" style="cursor: pointer;" onclick="toggleCalendarPopup('{{ weeks.nay.info.deadline }}')">{{ weeks.nay.info.deadline }}</span>
-            <div id="calendar-popup" style="display: none; position: absolute; top: 100%; right: 0; z-index: 999; margin-top: 10px; background: var(--bg-card); border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); border: 1px solid var(--border); overflow: hidden; width: max-content;">
-                <div style="display: flex; min-width: 350px;">
-                    <div style="padding: 20px; width: 130px; border-right: 1px solid var(--border); display: flex; flex-direction: column;">
-                        <div id="cal-left-dow" style="color: #ef4444; font-weight: 700; font-size: 0.75rem; text-transform: uppercase; margin-bottom: 2px;"></div>
-                        <div id="cal-left-date" style="font-size: 3.5rem; font-weight: 400; line-height: 1.1; color: var(--text); margin-bottom: 15px; letter-spacing: -2px;"></div>
-                        <div id="cal-left-text" style="font-size: 0.8rem; color: var(--text-2); line-height: 1.4;">Hạn chót nộp tác phẩm tuần này</div>
+                    <div class="custom-lang-select" id="custom-month-select" style="display: none;"
+                        onclick="toggleMonthSelect(event)">
+                        <div class="lang-trigger" style="padding: 4px 12px; height: 100%;">
+                            <span id="month-text" style="font-size: 0.8rem; font-weight: 500;">{{ 'Tháng' if lang ==
+                                'vi' else '月' }}</span>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lang-arrow">
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                            </svg>
+                        </div>
+                        <div class="lang-dropdown" id="month-dropdown-list"
+                            style="min-width: 140px; max-height: 250px; overflow-y: auto;">
+                        </div>
                     </div>
-                    <div style="padding: 10px 15px 15px 15px;">
-                        <div id="inline-calendar"></div>
-                    </div>
+
+                    <button class="btn btn-sm btn-outline" data-period="year" onclick="setChartPeriod('year')">{{ 'Năm'
+                        if lang == 'vi' else '年' }}</button>
                 </div>
             </div>
+            <div style="position: relative; height: 450px; width: 100%;">
+                <div id="chart-loader"
+                    style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(15, 23, 42, 0.5); z-index: 10; border-radius: 12px; backdrop-filter: blur(4px);">
+                    <div class="spinner"></div>
+                </div>
+                <canvas id="monthlyTaskChart"></canvas>
+            </div>
         </div>
-        <div class="info-banner" id="banner-sau" style="display: none;">
-            <span>{{ weeks.sau.info.start }} - {{ weeks.sau.info.end }}</span>
-            {% if weeks.sau.info.deadline and weeks.sau.info.deadline != t.not_update %}
-                <span class="deadline-badge" style="cursor: pointer;" onclick="toggleCalendarPopup('{{ weeks.sau.info.deadline }}')">{{ weeks.sau.info.deadline }}</span>
+
+        <div class="dashboard-controls">
+
+            <div class="tab-bar">
+                <button class="tab-btn" data-tab="truoc" onclick="switchTab('truoc')">{{ t.tab0 }}</button>
+                <button class="tab-btn active" data-tab="nay" onclick="switchTab('nay')">{{ t.tab1 }}</button>
+                <button class="tab-btn" data-tab="sau" onclick="switchTab('sau')">{{ t.tab2 }}</button>
+            </div>
+            <div class="info-banner" id="banner-truoc" style="display: none;">
+                <span>{{ weeks.truoc.info.start }} - {{ weeks.truoc.info.end }}</span>
+                <span class="deadline-badge">{{ 'Deadline đã qua' if lang == 'vi' else '期限切れ' }}</span>
+            </div>
+            <div class="info-banner" id="banner-nay" style="position: relative; z-index: 100;">
+                <span>{{ weeks.nay.info.start }} - {{ weeks.nay.info.end }}</span>
+                <span class="deadline-badge" id="deadline-nay-badge" style="cursor: pointer;"
+                    onclick="toggleCalendarPopup('{{ weeks.nay.info.deadline }}')">{{ weeks.nay.info.deadline }}</span>
+                <div id="calendar-popup"
+                    style="display: none; position: absolute; top: 100%; right: 0; z-index: 999; margin-top: 10px; background: var(--surface); border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); border: 1px solid var(--border); overflow: hidden; width: max-content; backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); background-color: color-mix(in srgb, var(--surface) 80%, transparent);">
+                    <div style="display: flex; min-width: 350px;">
+                        <div
+                            style="padding: 20px; width: 130px; border-right: 1px solid var(--border); display: flex; flex-direction: column;">
+                            <div id="cal-left-dow"
+                                style="color: #ef4444; font-weight: 700; font-size: 0.75rem; text-transform: uppercase; margin-bottom: 2px;">
+                            </div>
+                            <div id="cal-left-date"
+                                style="font-size: 3.5rem; font-weight: 400; line-height: 1.1; color: var(--text); margin-bottom: 15px; letter-spacing: -2px;">
+                            </div>
+                            <div id="cal-left-text" style="font-size: 0.8rem; color: var(--text-2); line-height: 1.4;">
+                                Hạn chót nộp tác phẩm tuần này</div>
+                        </div>
+                        <div style="padding: 10px 15px 15px 15px;">
+                            <div id="inline-calendar"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="info-banner" id="banner-sau" style="display: none;">
+                <span>{{ weeks.sau.info.start }} - {{ weeks.sau.info.end }}</span>
+                {% if weeks.sau.info.deadline and weeks.sau.info.deadline != t.not_update %}
+                <span class="deadline-badge" style="cursor: pointer;"
+                    onclick="toggleCalendarPopup('{{ weeks.sau.info.deadline }}')">{{ weeks.sau.info.deadline }}</span>
+                {% else %}
+                <span class="deadline-badge">{{ 'Chưa có thông tin deadline' if lang == 'vi' else '締め切りの情報がありません'
+                    }}</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- ==================== TAB: TUẦN TRƯỚC ==================== -->
+        <div class="tab-content" id="tab-truoc">
+            {% if weeks.truoc.tasks %}
+            <div class="metrics-row">
+                <div class="metric-card">
+                    <div class="metric-title">{{ t.metric_total }}</div>
+                    <div class="metric-value">{{ weeks.truoc.metrics.total }}</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-title">{{ t.metric_retouch }}</div>
+                    <div class="metric-value">{{ weeks.truoc.metrics.retouch }}</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-title">{{ t.metric_type }}</div>
+                    <div class="metric-value">{{ weeks.truoc.metrics.lettering }}</div>
+                </div>
+            </div>
+            <div class="kanban-board">
+                {% set statuses = [('not-started', 'To Do', weeks.truoc.dashboard|selectattr("status_class", "equalto",
+                "not-started")|list), ('in-progress', 'In Progress', weeks.truoc.dashboard|selectattr("status_class",
+                "equalto", "in-progress")|list), ('delivered', 'Completed',
+                weeks.truoc.dashboard|selectattr("status_class", "equalto", "delivered")|list)] %}
+                {% for status_id, status_name, cards in statuses %}
+                <div class="kanban-column" data-status="{{ status_id }}">
+                    <div class="kanban-header">
+                        <span>{{ status_name }}</span>
+                        <span class="count kanban-col-count">{{ cards|length }}</span>
+                    </div>
+                    <div class="kanban-cards">
+                        {% for card in cards %}
+                        <div class="progress-card status-{{ card.status_class }}" data-tp-key="{{ card.key }}"
+                            data-checked-ids="{{ card.checked_ids }}" onclick="openModal('truoc', '{{ card.key }}')">
+                            <div class="card-tags">
+                                {% set cv = card.name.split(' - ')[0] %}
+                                {% set tag_class = 'tag-lettering' if '写植' in cv or 'Lettering' in cv else
+                                ('tag-retouch' if 'レタッチ' in cv or 'Retouch' in cv else '') %}
+                                <span class="tag {{ tag_class }}">{{ cv }}</span>
+                            </div>
+                            <div class="card-title">{{ card.name }}</div>
+                            <div class="card-worker">
+                                <div class="worker-avatars-group" style="display: flex;">
+                                    {% set workers = card.worker.split(',') if card.worker else [] %}
+                                    {% for w in workers %}
+                                    {% set w_trim = w.strip() %}
+                                    {% set ns = namespace(found_avatar=none) %}
+                                    {% if user_profiles %}
+                                    {% for k, v in user_profiles.items() %}
+                                    {% if k|lower in w_trim|lower or w_trim|lower in k|lower %}
+                                    {% set ns.found_avatar = v.avatar %}
+                                    {% endif %}
+                                    {% endfor %}
+                                    {% endif %}
+                                    <span class="worker-avatar"
+                                        style="{% if not loop.first %}margin-left: -8px;{% endif %} border: 2px solid var(--bg-card); position: relative; z-index: {{ 10 - loop.index0 }};"
+                                        title="{{ w_trim }}">
+                                        {% if ns.found_avatar %}
+                                        <img src="{{ ns.found_avatar }}" alt="Avatar" class="avatar-img"
+                                            referrerpolicy="no-referrer"
+                                            onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                        <span class="avatar-fallback" style="display:none;">{{ w_trim[0]|upper if w_trim
+                                            else 'U' }}</span>
+                                        {% else %}
+                                        {{ w_trim[0]|upper if w_trim else 'U' }}
+                                        {% endif %}
+                                    </span>
+                                    {% endfor %}
+                                </div>
+                                <span class="worker-name" style="margin-left: 8px;">{{ card.worker }}</span>
+                            </div>
+                            <div class="progress-info">
+                                <span class="status-text">
+                                    {% if card.status_class == 'not-started' %}
+                                    {{ 'To Do' if lang == 'vi' else '未着手' }}
+                                    {% elif card.status_class == 'delivered' %}
+                                    {{ 'Completed' if lang == 'vi' else '納品済み' }}
+                                    {% else %}
+                                    {{ 'In Progress' if lang == 'vi' else '進行中' }}
+                                    {% endif %}
+                                </span>
+                                <span>{{ card.progress }}%</span>
+                            </div>
+                            <div class="progress-track">
+                                <div class="progress-fill" style="width: {{ card.progress }}%"></div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
             {% else %}
-                <span class="deadline-badge">{{ 'Chưa có thông tin deadline' if lang == 'vi' else '締め切りの情報がありません' }}</span>
+            <p style="text-align: center; color: var(--text-4); padding: 40px;">{{ t.no_task }}</p>
             {% endif %}
         </div>
-    </div>
 
-    <!-- ==================== TAB: TUẦN TRƯỚC ==================== -->
-    <div class="tab-content" id="tab-truoc">
-        {% if weeks.truoc.tasks %}
-        <div class="metrics-row">
-            <div class="metric-card"><div class="metric-title">{{ t.metric_total }}</div><div class="metric-value">{{ weeks.truoc.metrics.total }}</div></div>
-            <div class="metric-card"><div class="metric-title">{{ t.metric_retouch }}</div><div class="metric-value">{{ weeks.truoc.metrics.retouch }}</div></div>
-            <div class="metric-card"><div class="metric-title">{{ t.metric_type }}</div><div class="metric-value">{{ weeks.truoc.metrics.lettering }}</div></div>
-        </div>
-        <div class="kanban-board">
-            {% set statuses = [('not-started', 'To Do', weeks.truoc.dashboard|selectattr("status_class", "equalto", "not-started")|list), ('in-progress', 'In Progress', weeks.truoc.dashboard|selectattr("status_class", "equalto", "in-progress")|list), ('delivered', 'Completed', weeks.truoc.dashboard|selectattr("status_class", "equalto", "delivered")|list)] %}
-            {% for status_id, status_name, cards in statuses %}
-            <div class="kanban-column" data-status="{{ status_id }}">
-                <div class="kanban-header">
-                    <span>{{ status_name }}</span>
-                    <span class="count kanban-col-count">{{ cards|length }}</span>
+        <!-- ==================== TAB: TUẦN NÀY ==================== -->
+        <div class="tab-content active" id="tab-nay">
+            {% if weeks.nay.tasks %}
+            <div class="metrics-row">
+                <div class="metric-card">
+                    <div class="metric-title">{{ t.metric_total }}</div>
+                    <div class="metric-value">{{ weeks.nay.metrics.total }}</div>
                 </div>
-                <div class="kanban-cards">
-                    {% for card in cards %}
-                    <div class="progress-card status-{{ card.status_class }}" data-tp-key="{{ card.key }}" data-checked-ids="{{ card.checked_ids }}" onclick="openModal('truoc', '{{ card.key }}')">
-                        <div class="card-tags">
-                            {% set cv = card.name.split(' - ')[0] %}
-                            {% set tag_class = 'tag-lettering' if '写植' in cv or 'Lettering' in cv else ('tag-retouch' if 'レタッチ' in cv or 'Retouch' in cv else '') %}
-                            <span class="tag {{ tag_class }}">{{ cv }}</span>
-                        </div>
-                        <div class="card-title">{{ card.name }}</div>
-                        <div class="card-worker">
-                            <div class="worker-avatars-group" style="display: flex;">
-                                {% set workers = card.worker.split(',') if card.worker else [] %}
-                                {% for w in workers %}
+                <div class="metric-card">
+                    <div class="metric-title">{{ t.metric_retouch }}</div>
+                    <div class="metric-value">{{ weeks.nay.metrics.retouch }}</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-title">{{ t.metric_type }}</div>
+                    <div class="metric-value">{{ weeks.nay.metrics.lettering }}</div>
+                </div>
+            </div>
+            <div class="kanban-board">
+                {% set statuses = [('not-started', 'To Do' if lang == 'vi' else '未着手',
+                weeks.nay.dashboard|selectattr("status_class", "equalto", "not-started")|list), ('in-progress', 'In
+                Progress' if lang == 'vi' else '進行中', weeks.nay.dashboard|selectattr("status_class", "equalto",
+                "in-progress")|list), ('delivered', 'Completed' if lang == 'vi' else '納品済み',
+                weeks.nay.dashboard|selectattr("status_class", "equalto", "delivered")|list)] %}
+                {% for status_id, status_name, cards in statuses %}
+                <div class="kanban-column" data-status="{{ status_id }}">
+                    <div class="kanban-header">
+                        <span>{{ status_name }}</span>
+                        <span class="count kanban-col-count">{{ cards|length }}</span>
+                    </div>
+                    <div class="kanban-cards">
+                        {% for card in cards %}
+                        <div class="progress-card status-{{ card.status_class }}" data-tp-key="{{ card.key }}"
+                            data-checked-ids="{{ card.checked_ids }}" onclick="openModal('nay', '{{ card.key }}')">
+                            <div class="card-tags">
+                                {% set cv = card.name.split(' - ')[0] %}
+                                {% set tag_class = 'tag-lettering' if '写植' in cv or 'Lettering' in cv else
+                                ('tag-retouch' if 'レタッチ' in cv or 'Retouch' in cv else '') %}
+                                <span class="tag {{ tag_class }}">{{ cv }}</span>
+                            </div>
+                            <div class="card-title">{{ card.name }}</div>
+                            <div class="card-worker">
+                                <div class="worker-avatars-group" style="display: flex;">
+                                    {% set workers = card.worker.split(',') if card.worker else [] %}
+                                    {% for w in workers %}
                                     {% set w_trim = w.strip() %}
                                     {% set ns = namespace(found_avatar=none) %}
                                     {% if user_profiles %}
-                                        {% for k, v in user_profiles.items() %}
-                                            {% if k|lower in w_trim|lower or w_trim|lower in k|lower %}
-                                                {% set ns.found_avatar = v.avatar %}
-                                            {% endif %}
-                                        {% endfor %}
+                                    {% for k, v in user_profiles.items() %}
+                                    {% if k|lower in w_trim|lower or w_trim|lower in k|lower %}
+                                    {% set ns.found_avatar = v.avatar %}
                                     {% endif %}
-                                    <span class="worker-avatar" style="{% if not loop.first %}margin-left: -8px;{% endif %} border: 2px solid var(--bg-card); position: relative; z-index: {{ 10 - loop.index0 }};" title="{{ w_trim }}">
+                                    {% endfor %}
+                                    {% endif %}
+                                    <span class="worker-avatar"
+                                        style="{% if not loop.first %}margin-left: -8px;{% endif %} border: 2px solid var(--bg-card); position: relative; z-index: {{ 10 - loop.index0 }};"
+                                        title="{{ w_trim }}">
                                         {% if ns.found_avatar %}
-                                        <img src="{{ ns.found_avatar }}" alt="Avatar" class="avatar-img" referrerpolicy="no-referrer" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                                        <span class="avatar-fallback" style="display:none;">{{ w_trim[0]|upper if w_trim else 'U' }}</span>
+                                        <img src="{{ ns.found_avatar }}" alt="Avatar" class="avatar-img"
+                                            referrerpolicy="no-referrer"
+                                            onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                        <span class="avatar-fallback" style="display:none;">{{ w_trim[0]|upper if w_trim
+                                            else 'U' }}</span>
                                         {% else %}
                                         {{ w_trim[0]|upper if w_trim else 'U' }}
                                         {% endif %}
                                     </span>
-                                {% endfor %}
+                                    {% endfor %}
+                                </div>
+                                <span class="worker-name" style="margin-left: 8px;">{{ card.worker }}</span>
                             </div>
-                            <span class="worker-name" style="margin-left: 8px;">{{ card.worker }}</span>
-                        </div>
-                        <div class="progress-info">
-                            <span class="status-text">
-                                {% if card.status_class == 'not-started' %}
+                            <div class="progress-info">
+                                <span class="status-text">
+                                    {% if card.status_class == 'not-started' %}
                                     {{ 'To Do' if lang == 'vi' else '未着手' }}
-                                {% elif card.status_class == 'delivered' %}
+                                    {% elif card.status_class == 'delivered' %}
                                     {{ 'Completed' if lang == 'vi' else '納品済み' }}
-                                {% else %}
+                                    {% else %}
                                     {{ 'In Progress' if lang == 'vi' else '進行中' }}
-                                {% endif %}
-                            </span>
-                            <span>{{ card.progress }}%</span>
+                                    {% endif %}
+                                </span>
+                                <span>{{ card.progress }}%</span>
+                            </div>
+                            <div class="progress-track">
+                                <div class="progress-fill" style="width: {{ card.progress }}%"></div>
+                            </div>
                         </div>
-                        <div class="progress-track"><div class="progress-fill" style="width: {{ card.progress }}%"></div></div>
+                        {% endfor %}
                     </div>
-                    {% endfor %}
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p style="text-align: center; color: var(--text-4); padding: 40px;">{{ t.no_task }}</p>
+            {% endif %}
+        </div>
+
+        <!-- ==================== TAB: TUẦN SAU ==================== -->
+        <div class="tab-content" id="tab-sau">
+            {% if weeks.sau.tasks %}
+            <div class="metrics-row">
+                <div class="metric-card">
+                    <div class="metric-title">{{ t.metric_total }}</div>
+                    <div class="metric-value">{{ weeks.sau.metrics.total }}</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-title">{{ t.metric_retouch }}</div>
+                    <div class="metric-value">{{ weeks.sau.metrics.retouch }}</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-title">{{ t.metric_type }}</div>
+                    <div class="metric-value">{{ weeks.sau.metrics.lettering }}</div>
                 </div>
             </div>
-            {% endfor %}
-        </div>
-        {% else %}
-        <p style="text-align: center; color: var(--text-4); padding: 40px;">{{ t.no_task }}</p>
-        {% endif %}
-    </div>
-
-    <!-- ==================== TAB: TUẦN NÀY ==================== -->
-    <div class="tab-content active" id="tab-nay">
-        {% if weeks.nay.tasks %}
-        <div class="metrics-row">
-            <div class="metric-card"><div class="metric-title">{{ t.metric_total }}</div><div class="metric-value">{{ weeks.nay.metrics.total }}</div></div>
-            <div class="metric-card"><div class="metric-title">{{ t.metric_retouch }}</div><div class="metric-value">{{ weeks.nay.metrics.retouch }}</div></div>
-            <div class="metric-card"><div class="metric-title">{{ t.metric_type }}</div><div class="metric-value">{{ weeks.nay.metrics.lettering }}</div></div>
-        </div>
-        <div class="kanban-board">
-            {% set statuses = [('not-started', 'To Do' if lang == 'vi' else '未着手', weeks.nay.dashboard|selectattr("status_class", "equalto", "not-started")|list), ('in-progress', 'In Progress' if lang == 'vi' else '進行中', weeks.nay.dashboard|selectattr("status_class", "equalto", "in-progress")|list), ('delivered', 'Completed' if lang == 'vi' else '納品済み', weeks.nay.dashboard|selectattr("status_class", "equalto", "delivered")|list)] %}
-            {% for status_id, status_name, cards in statuses %}
-            <div class="kanban-column" data-status="{{ status_id }}">
-                <div class="kanban-header">
-                    <span>{{ status_name }}</span>
-                    <span class="count kanban-col-count">{{ cards|length }}</span>
-                </div>
-                <div class="kanban-cards">
-                    {% for card in cards %}
-                    <div class="progress-card status-{{ card.status_class }}" data-tp-key="{{ card.key }}" data-checked-ids="{{ card.checked_ids }}" onclick="openModal('nay', '{{ card.key }}')">
-                        <div class="card-tags">
-                            {% set cv = card.name.split(' - ')[0] %}
-                            {% set tag_class = 'tag-lettering' if '写植' in cv or 'Lettering' in cv else ('tag-retouch' if 'レタッチ' in cv or 'Retouch' in cv else '') %}
-                            <span class="tag {{ tag_class }}">{{ cv }}</span>
-                        </div>
-                        <div class="card-title">{{ card.name }}</div>
-                        <div class="card-worker">
-                            <div class="worker-avatars-group" style="display: flex;">
-                                {% set workers = card.worker.split(',') if card.worker else [] %}
-                                {% for w in workers %}
+            <div class="kanban-board">
+                {% set statuses = [('not-started', 'To Do' if lang == 'vi' else '未着手',
+                weeks.sau.dashboard|selectattr("status_class", "equalto", "not-started")|list), ('in-progress', 'In
+                Progress' if lang == 'vi' else '進行中', weeks.sau.dashboard|selectattr("status_class", "equalto",
+                "in-progress")|list), ('delivered', 'Completed' if lang == 'vi' else '納品済み',
+                weeks.sau.dashboard|selectattr("status_class", "equalto", "delivered")|list)] %}
+                {% for status_id, status_name, cards in statuses %}
+                <div class="kanban-column" data-status="{{ status_id }}">
+                    <div class="kanban-header">
+                        <span>{{ status_name }}</span>
+                        <span class="count kanban-col-count">{{ cards|length }}</span>
+                    </div>
+                    <div class="kanban-cards">
+                        {% for card in cards %}
+                        <div class="progress-card status-{{ card.status_class }}" data-tp-key="{{ card.key }}"
+                            data-checked-ids="{{ card.checked_ids }}" onclick="openModal('sau', '{{ card.key }}')">
+                            <div class="card-tags">
+                                {% set cv = card.name.split(' - ')[0] %}
+                                {% set tag_class = 'tag-lettering' if '写植' in cv or 'Lettering' in cv else
+                                ('tag-retouch' if 'レタッチ' in cv or 'Retouch' in cv else '') %}
+                                <span class="tag {{ tag_class }}">{{ cv }}</span>
+                            </div>
+                            <div class="card-title">{{ card.name }}</div>
+                            <div class="card-worker">
+                                <div class="worker-avatars-group" style="display: flex;">
+                                    {% set workers = card.worker.split(',') if card.worker else [] %}
+                                    {% for w in workers %}
                                     {% set w_trim = w.strip() %}
                                     {% set ns = namespace(found_avatar=none) %}
                                     {% if user_profiles %}
-                                        {% for k, v in user_profiles.items() %}
-                                            {% if k|lower in w_trim|lower or w_trim|lower in k|lower %}
-                                                {% set ns.found_avatar = v.avatar %}
-                                            {% endif %}
-                                        {% endfor %}
+                                    {% for k, v in user_profiles.items() %}
+                                    {% if k|lower in w_trim|lower or w_trim|lower in k|lower %}
+                                    {% set ns.found_avatar = v.avatar %}
                                     {% endif %}
-                                    <span class="worker-avatar" style="{% if not loop.first %}margin-left: -8px;{% endif %} border: 2px solid var(--bg-card); position: relative; z-index: {{ 10 - loop.index0 }};" title="{{ w_trim }}">
+                                    {% endfor %}
+                                    {% endif %}
+                                    <span class="worker-avatar"
+                                        style="{% if not loop.first %}margin-left: -8px;{% endif %} border: 2px solid var(--bg-card); position: relative; z-index: {{ 10 - loop.index0 }};"
+                                        title="{{ w_trim }}">
                                         {% if ns.found_avatar %}
-                                        <img src="{{ ns.found_avatar }}" alt="Avatar" class="avatar-img" referrerpolicy="no-referrer" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                                        <span class="avatar-fallback" style="display:none;">{{ w_trim[0]|upper if w_trim else 'U' }}</span>
+                                        <img src="{{ ns.found_avatar }}" alt="Avatar" class="avatar-img"
+                                            referrerpolicy="no-referrer"
+                                            onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                        <span class="avatar-fallback" style="display:none;">{{ w_trim[0]|upper if w_trim
+                                            else 'U' }}</span>
                                         {% else %}
                                         {{ w_trim[0]|upper if w_trim else 'U' }}
                                         {% endif %}
                                     </span>
-                                {% endfor %}
+                                    {% endfor %}
+                                </div>
+                                <span class="worker-name" style="margin-left: 8px;">{{ card.worker }}</span>
                             </div>
-                            <span class="worker-name" style="margin-left: 8px;">{{ card.worker }}</span>
-                        </div>
-                        <div class="progress-info">
-                            <span class="status-text">
-                                {% if card.status_class == 'not-started' %}
+                            <div class="progress-info">
+                                <span class="status-text">
+                                    {% if card.status_class == 'not-started' %}
                                     {{ 'To Do' if lang == 'vi' else '未着手' }}
-                                {% elif card.status_class == 'delivered' %}
+                                    {% elif card.status_class == 'delivered' %}
                                     {{ 'Completed' if lang == 'vi' else '納品済み' }}
-                                {% else %}
+                                    {% else %}
                                     {{ 'In Progress' if lang == 'vi' else '進行中' }}
-                                {% endif %}
-                            </span>
-                            <span>{{ card.progress }}%</span>
-                        </div>
-                        <div class="progress-track"><div class="progress-fill" style="width: {{ card.progress }}%"></div></div>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-        {% else %}
-        <p style="text-align: center; color: var(--text-4); padding: 40px;">{{ t.no_task }}</p>
-        {% endif %}
-    </div>
-
-    <!-- ==================== TAB: TUẦN SAU ==================== -->
-    <div class="tab-content" id="tab-sau">
-        {% if weeks.sau.tasks %}
-        <div class="metrics-row">
-            <div class="metric-card"><div class="metric-title">{{ t.metric_total }}</div><div class="metric-value">{{ weeks.sau.metrics.total }}</div></div>
-            <div class="metric-card"><div class="metric-title">{{ t.metric_retouch }}</div><div class="metric-value">{{ weeks.sau.metrics.retouch }}</div></div>
-            <div class="metric-card"><div class="metric-title">{{ t.metric_type }}</div><div class="metric-value">{{ weeks.sau.metrics.lettering }}</div></div>
-        </div>
-        <div class="kanban-board">
-            {% set statuses = [('not-started', 'To Do' if lang == 'vi' else '未着手', weeks.sau.dashboard|selectattr("status_class", "equalto", "not-started")|list), ('in-progress', 'In Progress' if lang == 'vi' else '進行中', weeks.sau.dashboard|selectattr("status_class", "equalto", "in-progress")|list), ('delivered', 'Completed' if lang == 'vi' else '納品済み', weeks.sau.dashboard|selectattr("status_class", "equalto", "delivered")|list)] %}
-            {% for status_id, status_name, cards in statuses %}
-            <div class="kanban-column" data-status="{{ status_id }}">
-                <div class="kanban-header">
-                    <span>{{ status_name }}</span>
-                    <span class="count kanban-col-count">{{ cards|length }}</span>
-                </div>
-                <div class="kanban-cards">
-                    {% for card in cards %}
-                    <div class="progress-card status-{{ card.status_class }}" data-tp-key="{{ card.key }}" data-checked-ids="{{ card.checked_ids }}" onclick="openModal('sau', '{{ card.key }}')">
-                        <div class="card-tags">
-                            {% set cv = card.name.split(' - ')[0] %}
-                            {% set tag_class = 'tag-lettering' if '写植' in cv or 'Lettering' in cv else ('tag-retouch' if 'レタッチ' in cv or 'Retouch' in cv else '') %}
-                            <span class="tag {{ tag_class }}">{{ cv }}</span>
-                        </div>
-                        <div class="card-title">{{ card.name }}</div>
-                        <div class="card-worker">
-                            <div class="worker-avatars-group" style="display: flex;">
-                                {% set workers = card.worker.split(',') if card.worker else [] %}
-                                {% for w in workers %}
-                                    {% set w_trim = w.strip() %}
-                                    {% set ns = namespace(found_avatar=none) %}
-                                    {% if user_profiles %}
-                                        {% for k, v in user_profiles.items() %}
-                                            {% if k|lower in w_trim|lower or w_trim|lower in k|lower %}
-                                                {% set ns.found_avatar = v.avatar %}
-                                            {% endif %}
-                                        {% endfor %}
                                     {% endif %}
-                                    <span class="worker-avatar" style="{% if not loop.first %}margin-left: -8px;{% endif %} border: 2px solid var(--bg-card); position: relative; z-index: {{ 10 - loop.index0 }};" title="{{ w_trim }}">
-                                        {% if ns.found_avatar %}
-                                        <img src="{{ ns.found_avatar }}" alt="Avatar" class="avatar-img" referrerpolicy="no-referrer" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                                        <span class="avatar-fallback" style="display:none;">{{ w_trim[0]|upper if w_trim else 'U' }}</span>
-                                        {% else %}
-                                        {{ w_trim[0]|upper if w_trim else 'U' }}
-                                        {% endif %}
-                                    </span>
-                                {% endfor %}
+                                </span>
+                                <span>{{ card.progress }}%</span>
                             </div>
-                            <span class="worker-name" style="margin-left: 8px;">{{ card.worker }}</span>
+                            <div class="progress-track">
+                                <div class="progress-fill" style="width: {{ card.progress }}%"></div>
+                            </div>
                         </div>
-                        <div class="progress-info">
-                            <span class="status-text">
-                                {% if card.status_class == 'not-started' %}
-                                    {{ 'To Do' if lang == 'vi' else '未着手' }}
-                                {% elif card.status_class == 'delivered' %}
-                                    {{ 'Completed' if lang == 'vi' else '納品済み' }}
-                                {% else %}
-                                    {{ 'In Progress' if lang == 'vi' else '進行中' }}
-                                {% endif %}
-                            </span>
-                            <span>{{ card.progress }}%</span>
-                        </div>
-                        <div class="progress-track"><div class="progress-fill" style="width: {{ card.progress }}%"></div></div>
+                        {% endfor %}
                     </div>
-                    {% endfor %}
                 </div>
+                {% endfor %}
             </div>
-            {% endfor %}
+            {% else %}
+            <p style="text-align: center; color: var(--text-4); padding: 40px;">{{ t.no_task }}</p>
+            {% endif %}
         </div>
-        {% else %}
-        <p style="text-align: center; color: var(--text-4); padding: 40px;">{{ t.no_task }}</p>
-        {% endif %}
-    </div>
 
-    <!-- ============ DATA TABLE (COLLAPSIBLE) ============ -->
-    <div class="table-section">
-        <div class="table-header" onclick="toggleTable()">
-            <h3>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
-                Data Table
-            </h3>
-            <span id="table-arrow">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-            </span>
-        </div>
-        <div class="table-wrapper open" id="table-wrapper">
-            <table class="data-table">
-                <thead><tr>{% for col in t.cols %}<th>{{ col }}</th>{% endfor %}</tr></thead>
-                <tbody id="combined-table-body">
-                    {% for tab_key in ['truoc', 'nay', 'sau'] %}
+        <!-- ============ DATA TABLE (COLLAPSIBLE) ============ -->
+        <div class="table-section">
+            <div class="table-header" onclick="toggleTable()">
+                <h3>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                        <line x1="3" y1="9" x2="21" y2="9"></line>
+                        <line x1="9" y1="21" x2="9" y2="9"></line>
+                    </svg>
+                    Data Table
+                </h3>
+                <span id="table-arrow">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                </span>
+            </div>
+            <div class="table-wrapper open" id="table-wrapper">
+                <table class="data-table">
+                    <thead>
+                        <tr>{% for col in t.cols %}<th>{{ col }}</th>{% endfor %}</tr>
+                    </thead>
+                    <tbody id="combined-table-body">
+                        {% for tab_key in ['truoc', 'nay', 'sau'] %}
                         {% for row in weeks[tab_key].tasks %}
                         <tr class="table-row table-{{ tab_key }}">
-                            {% for col in cols_keys %}<td>{{ row[col] if row[col] is not none and row[col]|string != 'nan' else '' }}</td>{% endfor %}
+                            {% for col in cols_keys %}<td>{{ row[col] if row[col] is not none and row[col]|string !=
+                                'nan' else '' }}</td>{% endfor %}
                         </tr>
                         {% endfor %}
-                    {% endfor %}
-                </tbody>
-            </table>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
-    </div>
 </main>
 
 <!-- ============ MODALS FOR LOGTIME / CHECKLIST ============ -->
 {% for tab_key in ['truoc', 'nay', 'sau'] %}
-    {% for row in weeks[tab_key].tasks %}
-    {% set tp_key = row['tp_key'] %}
-    {% set tp_name_display = row['tp_name'] %}
-    {% set worker = row['Người thực hiện']|string|trim %}
-    <div class="modal-overlay" id="modal-{{ tab_key }}-{{ loop.index0 }}">
-        <div class="modal-content">
-            <div class="modal-header">
-                <div>
-                    <div class="modal-title">{{ tp_name_display }}</div>
-                    <div class="modal-worker" style="display: flex; align-items: center;">
-                        <div class="worker-avatars-group" style="display: flex;">
-                            {% set workers = worker.split(',') if worker else [] %}
-                            {% for w in workers %}
-                                {% set w_trim = w.strip() %}
-                                {% set ns = namespace(found_avatar=none) %}
-                                {% if user_profiles %}
-                                    {% for k, v in user_profiles.items() %}
-                                        {% if k|lower in w_trim|lower or w_trim|lower in k|lower %}
-                                            {% set ns.found_avatar = v.avatar %}
-                                        {% endif %}
-                                    {% endfor %}
-                                {% endif %}
-                                <span class="worker-avatar" style="{% if not loop.first %}margin-left: -8px;{% endif %} border: 2px solid var(--bg-card); position: relative; z-index: {{ 10 - loop.index0 }};" title="{{ w_trim }}">
-                                    {% if ns.found_avatar %}
-                                    <img src="{{ ns.found_avatar }}" alt="Avatar" class="avatar-img" referrerpolicy="no-referrer" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                                    <span class="avatar-fallback" style="display:none;">{{ w_trim[0]|upper if w_trim else 'U' }}</span>
-                                    {% else %}
-                                    {{ w_trim[0]|upper if w_trim else 'U' }}
-                                    {% endif %}
-                                </span>
-                            {% endfor %}
-                        </div>
-                        <span style="margin-left: 8px;">{{ worker }}</span>
+{% for row in weeks[tab_key].tasks %}
+{% set tp_key = row['tp_key'] %}
+{% set tp_name_display = row['tp_name'] %}
+{% set worker = row['Người thực hiện']|string|trim %}
+<div class="modal-overlay" id="modal-{{ tab_key }}-{{ loop.index0 }}">
+    <div class="modal-content">
+        <div class="modal-header">
+            <div>
+                <div class="modal-title">{{ tp_name_display }}</div>
+                <div class="modal-worker" style="display: flex; align-items: center;">
+                    <div class="worker-avatars-group" style="display: flex;">
+                        {% set workers = worker.split(',') if worker else [] %}
+                        {% for w in workers %}
+                        {% set w_trim = w.strip() %}
+                        {% set ns = namespace(found_avatar=none) %}
+                        {% if user_profiles %}
+                        {% for k, v in user_profiles.items() %}
+                        {% if k|lower in w_trim|lower or w_trim|lower in k|lower %}
+                        {% set ns.found_avatar = v.avatar %}
+                        {% endif %}
+                        {% endfor %}
+                        {% endif %}
+                        <span class="worker-avatar"
+                            style="{% if not loop.first %}margin-left: -8px;{% endif %} border: 2px solid var(--bg-card); position: relative; z-index: {{ 10 - loop.index0 }};"
+                            title="{{ w_trim }}">
+                            {% if ns.found_avatar %}
+                            <img src="{{ ns.found_avatar }}" alt="Avatar" class="avatar-img"
+                                referrerpolicy="no-referrer"
+                                onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                            <span class="avatar-fallback" style="display:none;">{{ w_trim[0]|upper if w_trim else 'U'
+                                }}</span>
+                            {% else %}
+                            {{ w_trim[0]|upper if w_trim else 'U' }}
+                            {% endif %}
+                        </span>
+                        {% endfor %}
                     </div>
+                    <span style="margin-left: 8px;">{{ worker }}</span>
                 </div>
-                
-                <!-- GHOST AVATARS CONTAINER -->
-                <div class="ghost-avatars" data-tp-key="{{ tp_key }}" style="display: flex; gap: -5px; align-items: center; margin-right: 10px;">
-                    <!-- Avatars injected by JS -->
-                </div>
-                
-                <button class="close-btn" onclick="closeModal('{{ tab_key }}-{{ loop.index0 }}', '{{ tp_key }}')">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                </button>
             </div>
-            <div class="modal-body">
-                {{ render_checklist(tp_key, tab_key ~ '_' ~ loop.index0, lang, checklist_api, checked_ids_dict) }}
-                {{ render_logtime_form(row, tab_key ~ '_' ~ loop.index0, t, users, lang) }}
+
+            <!-- GHOST AVATARS CONTAINER -->
+            <div class="ghost-avatars" data-tp-key="{{ tp_key }}"
+                style="display: flex; gap: -5px; align-items: center; margin-right: 10px;">
+                <!-- Avatars injected by JS -->
             </div>
+
+            <button class="close-btn" onclick="closeModal('{{ tab_key }}-{{ loop.index0 }}', '{{ tp_key }}')">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            {{ render_checklist(tp_key, tab_key ~ '_' ~ loop.index0, lang, checklist_api, checked_ids_dict) }}
+            {{ render_logtime_form(row, tab_key ~ '_' ~ loop.index0, t, users, lang) }}
         </div>
     </div>
-    {% endfor %}
+</div>
+{% endfor %}
 {% endfor %}
 
 {% endblock %}
@@ -661,11 +1110,14 @@
         width: 280px !important;
         padding: 0 !important;
     }
+
     .flatpickr-day.is-deadline {
-        background: #ef4444 !important; /* Red background */
+        background: #ef4444 !important;
+        /* Red background */
         border-color: #ef4444 !important;
         color: white !important;
     }
+
     .flatpickr-month {
         display: flex !important;
         align-items: center !important;
@@ -674,6 +1126,7 @@
         margin-bottom: 10px;
         position: relative;
     }
+
     .flatpickr-current-month {
         font-size: 0.9rem !important;
         color: #ef4444 !important;
@@ -687,6 +1140,7 @@
         position: static !important;
         flex: 1;
     }
+
     .flatpickr-monthDropdown-months {
         appearance: none !important;
         -webkit-appearance: none !important;
@@ -699,36 +1153,54 @@
         height: auto !important;
         line-height: 1.2 !important;
     }
+
     .flatpickr-monthDropdown-months option {
-        background-color: #1e293b !important;
-        color: #ffffff !important;
+        background-color: var(--surface) !important;
+        color: var(--text) !important;
     }
+
     .flatpickr-current-month svg {
-        display: none !important; /* Hide dropdown arrow */
+        display: none !important;
+        /* Hide dropdown arrow */
     }
-    .flatpickr-current-month .numInputWrapper { display: none; }
-    .flatpickr-current-month input.cur-year { display: none; }
-    .flatpickr-prev-month svg, .flatpickr-next-month svg {
+
+    .flatpickr-current-month .numInputWrapper {
+        display: none;
+    }
+
+    .flatpickr-current-month input.cur-year {
+        display: none;
+    }
+
+    .flatpickr-prev-month svg,
+    .flatpickr-next-month svg {
         fill: var(--text) !important;
     }
-    .flatpickr-prev-month:hover svg, .flatpickr-next-month:hover svg {
+
+    .flatpickr-prev-month:hover svg,
+    .flatpickr-next-month:hover svg {
         fill: #ef4444 !important;
     }
+
     .flatpickr-weekday {
         color: var(--text) !important;
         font-weight: 700 !important;
         font-size: 0.7rem !important;
     }
+
     .flatpickr-day {
         color: var(--text) !important;
         font-weight: 500 !important;
         border-radius: 50% !important;
     }
+
     .flatpickr-day.flatpickr-disabled {
         color: var(--text-2) !important;
         opacity: 0.3;
     }
-    .flatpickr-prev-month, .flatpickr-next-month {
+
+    .flatpickr-prev-month,
+    .flatpickr-next-month {
         position: static !important;
         height: 100% !important;
         display: flex !important;
@@ -744,8 +1216,8 @@
 <script>
     const CHECKLIST_API = "{{ checklist_api }}";
     const CURRENT_LANG = "{{ lang }}";
-    const socket = typeof io !== 'undefined' ? io() : null;
-    
+    window.socket = typeof io !== 'undefined' ? io() : null;
+
     // Inject Detailed Task Data
     let vntaskDataList = [];
     const userProfilesDB = {{ user_profiles | tojson }};
@@ -753,11 +1225,11 @@
     // Store mappings from card name to modal ID
     const modalMap = {};
     {% for tab_key in ['truoc', 'nay', 'sau'] %}
-        modalMap['{{ tab_key }}'] = {};
-        {% for row in weeks[tab_key].tasks %}
-        {% set tp_key = row['tp_key'] %}
-        modalMap['{{ tab_key }}']["{{ tp_key }}"] = "{{ tab_key }}-{{ loop.index0 }}";
-        {% endfor %}
+    modalMap['{{ tab_key }}'] = {};
+    {% for row in weeks[tab_key].tasks %}
+    {% set tp_key = row['tp_key'] %}
+    modalMap['{{ tab_key }}']["{{ tp_key }}"] = "{{ tab_key }}-{{ loop.index0 }}";
+    {% endfor %}
     {% endfor %}
 </script>
 <!-- Confetti Library for Celebration Effects -->
