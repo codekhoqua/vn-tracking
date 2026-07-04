@@ -295,6 +295,9 @@
             </div>
         </div>
         <div style="position: relative; height: 450px; width: 100%;">
+            <div id="chart-loader" style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(15, 23, 42, 0.5); z-index: 10; border-radius: 12px; backdrop-filter: blur(4px);">
+                <div class="spinner"></div>
+            </div>
             <canvas id="monthlyTaskChart"></canvas>
         </div>
     </div>
@@ -744,7 +747,7 @@
     const socket = typeof io !== 'undefined' ? io() : null;
     
     // Inject Detailed Task Data
-    const vntaskDataList = {{ vntask_details | tojson }};
+    let vntaskDataList = [];
     const userProfilesDB = {{ user_profiles | tojson }};
 
     // Store mappings from card name to modal ID

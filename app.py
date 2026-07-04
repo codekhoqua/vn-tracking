@@ -560,7 +560,6 @@ def process_dashboard_data():
         'cols_keys': COLS,
         'checklist_api': CHECKLIST_API_URL,
         'checked_ids_dict': checked_ids_dict,
-        'vntask_details': load_vntask_details(),
         'filter_cv_nay': list(df_tuan_nay["Công việc"].dropna().unique()) if not df_tuan_nay.empty else [],
         'filter_cv_sau': list(df_tuan_sau["Công việc"].dropna().unique()) if not df_tuan_sau.empty else [],
         'weeks': {
@@ -588,6 +587,12 @@ def process_dashboard_data():
 # =====================================================================
 # 9. ROUTES
 # =====================================================================
+@app.route('/api/chart_data')
+def api_chart_data():
+    if not session.get('logged_in'):
+        return jsonify([])
+    return jsonify(load_vntask_details())
+
 @app.route('/')
 def index():
     if session.get('logged_in'):

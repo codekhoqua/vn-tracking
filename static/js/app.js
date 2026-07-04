@@ -646,9 +646,20 @@ document.addEventListener('DOMContentLoaded', () => {
     backgroundSyncChecklist();
 
     // Init Area Chart
-    if (typeof vntaskDataList !== 'undefined') {
-        setChartPeriod('week');
-    }
+    const chartLoader = document.getElementById('chart-loader');
+    fetch('/api/chart_data')
+        .then(res => res.json())
+        .then(data => {
+            if (typeof vntaskDataList !== 'undefined') {
+                vntaskDataList = data;
+                if (chartLoader) chartLoader.style.display = 'none';
+                setChartPeriod('week');
+            }
+        })
+        .catch(err => {
+            console.error('Error fetching chart data:', err);
+            if (chartLoader) chartLoader.innerHTML = '<span style="color:#ef4444; font-weight: bold;">Lỗi tải dữ liệu</span>';
+        });
 });
 
 // ===================== IDLE TIMEOUT =====================
