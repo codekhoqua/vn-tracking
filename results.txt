@@ -1,0 +1,1 @@
+1121: showDriveConfirm("{{ '{{ 'Xác nhận xóa' if lang == 'vi' else '削除の確認 (Sakujo no kakunin)' }} hàng loạt' if lang == 'vi' else '一括削除の確認 (Ikkatsu sakujo no kakunin)' }}", `{{ 'Bạn có chắc chắn muốn xóa vĩnh viễn' if lang == 'vi' else '完全に削除してもよろしいですか？' }} ${selectedItems.size} {{ 'mục' if lang == 'vi' else 'アイテム (Aitemu)' }} đã chọn không?`, async () => {

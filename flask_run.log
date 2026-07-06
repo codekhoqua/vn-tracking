@@ -1,0 +1,378 @@
+ * Serving Flask app 'app'
+ * Debug mode: on
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.1.3:5000
+Press CTRL+C to quit
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 116-611-258
+127.0.0.1 - - [06/Jul/2026 10:27:07] "GET /socket.io/?EIO=4&transport=polling&t=PyrTn73 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:27:07] "GET /socket.io/?EIO=4&transport=polling&t=PyrTo2A&sid=B5j2SIcI6DQJrkR6AAAA HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:27:08] "POST /socket.io/?EIO=4&transport=polling&t=PyrTo1_&sid=B5j2SIcI6DQJrkR6AAAA HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:27:28] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:27:28] "GET /static/css/style.css?v=127 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:27:28] "GET /static/js/app.js?v=660871 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:27:29] "GET /static/logo.png HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:27:29] "GET /api/chart_data HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:27:29] "GET /static/intro.mp4 HTTP/1.1" 206 -
+127.0.0.1 - - [06/Jul/2026 10:27:35] "POST /login HTTP/1.1" 302 -
+127.0.0.1 - - [06/Jul/2026 10:27:37] "GET /dashboard HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:27:37] "GET /static/css/style.css?v=127 HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 10:27:38] "GET /static/js/app.js?v=88682 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:27:38] "GET /static/js/app.js?v=77687 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:27:38] "GET /static/logo.png HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 10:27:40] "GET /api/avatar-proxy?id=17cxYfv4o9Cy80Xlgo09oJvWHQazMZrgC HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:27:40] "GET /socket.io/?EIO=4&transport=polling&t=PyrTvoz HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:27:41] "GET /api/avatar-proxy?id=19uaJALCqzKY1f__UVDuStQcNZAYu5Eq3 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:27:41] "GET /api/avatar-proxy?id=1_pm1tasPR-QL8SF3ktZsXbf0_zg5WVx9 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:27:41] "POST /socket.io/?EIO=4&transport=polling&t=PyrTw5f&sid=AHORwHN05bY_flq_AAAC HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:27:41] "GET /socket.io/?EIO=4&transport=polling&t=PyrTw5j&sid=AHORwHN05bY_flq_AAAC HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:27:41] "GET /api/avatar-proxy?id=1S3BnuSQDn-xg9cZoYLagv7Q4utzgnrSO HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:27:41] "GET /api/avatar-proxy?id=1NtrYMLrCPA3gnb3ufQwJlGME2qCDFvUp HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:27:41] "GET /api/avatar-proxy?id=11X-LrpoCUqiLxlnHFgBHNXEsyjB03XAn HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:27:41] "GET /api/chart_data HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:27:42] "GET /api/weather?loc=Ho+Chi+Minh HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:27:43] "GET /api/avatar-proxy?id=1qRsjjzc1KOcGSWoyxWsKjoh_L-mTUQ3O HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:28:02] "GET /drive?modal=1 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:28:02] "GET /static/css/style.css?v=127 HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 10:28:02] "GET /static/js/app.js?v=264605 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:28:02] "GET /static/js/app.js?v=90436 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:28:02] "GET /socket.io/?EIO=4&transport=polling&t=PyrT_TL HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:28:02] "GET /api/chart_data HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:28:02] "GET /api/drive/list?path= HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:28:02] "POST /socket.io/?EIO=4&transport=polling&t=PyrT_Tg&sid=AYEqqTxYOcswzP2XAAAE HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:28:02] "GET /socket.io/?EIO=4&transport=polling&t=PyrT_Th&sid=AYEqqTxYOcswzP2XAAAE HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:28:43] "GET /socket.io/?EIO=4&transport=websocket&sid=AYEqqTxYOcswzP2XAAAE HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:28:43] "GET /socket.io/?EIO=4&transport=websocket&sid=AHORwHN05bY_flq_AAAC HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:28:48] "GET /dashboard HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:28:48] "GET /socket.io/?EIO=4&transport=websocket&sid=B5j2SIcI6DQJrkR6AAAA HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:28:48] "GET /static/css/style.css?v=127 HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 10:28:48] "GET /static/js/app.js?v=225374 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:28:48] "GET /socket.io/?EIO=4&transport=polling&t=PyrUAmO HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:28:48] "GET /static/js/app.js?v=11949 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:28:48] "POST /socket.io/?EIO=4&transport=polling&t=PyrUAoQ&sid=FuxblUxTgdI-TiKkAAAG HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:28:49] "GET /socket.io/?EIO=4&transport=polling&t=PyrUAoR&sid=FuxblUxTgdI-TiKkAAAG HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:28:49] "GET /api/chart_data HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:28:49] "GET /api/weather?loc=Ho+Chi+Minh HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:28:49] "GET /static/logo.png HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 10:28:49] "GET /socket.io/?EIO=4&transport=polling&t=PyrUAte&sid=FuxblUxTgdI-TiKkAAAG HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:28:49] "POST /socket.io/?EIO=4&transport=polling&t=PyrUAtg&sid=FuxblUxTgdI-TiKkAAAG HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:28:49] "GET /static/logo.png HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 10:28:53] "GET /dashboard HTTP/1.1" 302 -
+127.0.0.1 - - [06/Jul/2026 10:28:53] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:28:53] "GET /static/css/style.css?v=127 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:28:53] "GET /static/js/app.js?v=799108 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:28:53] "GET /static/logo.png HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:28:53] "GET /static/intro.mp4 HTTP/1.1" 206 -
+127.0.0.1 - - [06/Jul/2026 10:28:53] "GET /api/chart_data HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:28:53] "GET /static/logo.png HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 10:28:59] "POST /login HTTP/1.1" 302 -
+127.0.0.1 - - [06/Jul/2026 10:28:59] "GET /dashboard HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:28:59] "GET /static/css/style.css?v=127 HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 10:28:59] "GET /static/js/app.js?v=290686 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:28:59] "GET /static/logo.png HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 10:28:59] "GET /static/js/app.js?v=67812 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:29:01] "GET /api/avatar-proxy?id=17cxYfv4o9Cy80Xlgo09oJvWHQazMZrgC HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:29:01] "GET /socket.io/?EIO=4&transport=polling&t=PyrUDcs HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:29:01] "GET /api/weather?loc=Ho+Chi+Minh HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:29:01] "GET /api/chart_data HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:29:01] "POST /socket.io/?EIO=4&transport=polling&t=PyrUDx0&sid=_APlKoEazNBMEAW8AAAI HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:29:01] "GET /socket.io/?EIO=4&transport=polling&t=PyrUDx2&sid=_APlKoEazNBMEAW8AAAI HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:29:02] "GET /api/avatar-proxy?id=1_pm1tasPR-QL8SF3ktZsXbf0_zg5WVx9 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:29:02] "GET /api/avatar-proxy?id=19uaJALCqzKY1f__UVDuStQcNZAYu5Eq3 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:29:02] "GET /api/avatar-proxy?id=1S3BnuSQDn-xg9cZoYLagv7Q4utzgnrSO HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:29:02] "GET /api/avatar-proxy?id=11X-LrpoCUqiLxlnHFgBHNXEsyjB03XAn HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:29:02] "GET /api/avatar-proxy?id=1NtrYMLrCPA3gnb3ufQwJlGME2qCDFvUp HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:29:03] "GET /api/avatar-proxy?id=1qRsjjzc1KOcGSWoyxWsKjoh_L-mTUQ3O HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:29:05] "GET /dashboard HTTP/1.1" 302 -
+127.0.0.1 - - [06/Jul/2026 10:29:05] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:29:05] "GET /static/css/style.css?v=127 HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 10:29:05] "GET /static/js/app.js?v=757809 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:29:05] "GET /static/logo.png HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 10:29:05] "GET /static/intro.mp4 HTTP/1.1" 206 -
+127.0.0.1 - - [06/Jul/2026 10:29:05] "GET /api/chart_data HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:29:15] "POST /login HTTP/1.1" 302 -
+127.0.0.1 - - [06/Jul/2026 10:29:15] "GET /dashboard HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:29:15] "GET /static/css/style.css?v=127 HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 10:29:15] "GET /static/js/app.js?v=461899 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:29:15] "GET /static/js/app.js?v=29933 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:29:15] "GET /static/logo.png HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 10:29:17] "GET /api/avatar-proxy?id=1qRsjjzc1KOcGSWoyxWsKjoh_L-mTUQ3O HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:29:17] "GET /socket.io/?EIO=4&transport=polling&t=PyrUHQb HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:29:17] "GET /api/chart_data HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:29:17] "GET /api/weather?loc=Ho+Chi+Minh HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:29:17] "GET /api/avatar-proxy?id=1S3BnuSQDn-xg9cZoYLagv7Q4utzgnrSO HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:29:17] "POST /socket.io/?EIO=4&transport=polling&t=PyrUHoT&sid=HprHHTlwPXvi0RvTAAAK HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:29:17] "GET /socket.io/?EIO=4&transport=polling&t=PyrUHoV&sid=HprHHTlwPXvi0RvTAAAK HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:29:17] "GET /socket.io/?EIO=4&transport=polling&t=PyrUHrj&sid=HprHHTlwPXvi0RvTAAAK HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:29:17] "GET /socket.io/?EIO=4&transport=polling&t=PyrUHtm&sid=HprHHTlwPXvi0RvTAAAK HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:29:18] "GET /api/avatar-proxy?id=19uaJALCqzKY1f__UVDuStQcNZAYu5Eq3 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:29:18] "GET /api/avatar-proxy?id=1NtrYMLrCPA3gnb3ufQwJlGME2qCDFvUp HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:29:18] "GET /api/avatar-proxy?id=11X-LrpoCUqiLxlnHFgBHNXEsyjB03XAn HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:29:18] "GET /api/avatar-proxy?id=1_pm1tasPR-QL8SF3ktZsXbf0_zg5WVx9 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:29:19] "GET /api/avatar-proxy?id=17cxYfv4o9Cy80Xlgo09oJvWHQazMZrgC HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:29:31] "GET /static/logo.png HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 10:29:33] "GET /static/logo.png HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 10:29:33] "GET /socket.io/?EIO=4&transport=websocket&sid=FuxblUxTgdI-TiKkAAAG HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:30:55] "GET /dashboard HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:30:55] "GET /socket.io/?EIO=4&transport=websocket&sid=HprHHTlwPXvi0RvTAAAK HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:30:55] "GET /static/css/style.css?v=127 HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 10:30:55] "GET /static/js/app.js?v=144369 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:30:55] "GET /static/js/app.js?v=29802 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:30:55] "GET /dashboard HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:30:55] "GET /socket.io/?EIO=4&transport=websocket&sid=_APlKoEazNBMEAW8AAAI HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:30:55] "GET /static/css/style.css?v=127 HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 10:30:55] "GET /static/js/app.js?v=5111 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:30:55] "GET /static/js/app.js?v=83783 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:30:56] "GET /static/logo.png HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 10:30:56] "GET /static/logo.png HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 10:30:56] "GET /socket.io/?EIO=4&transport=polling&t=PyrUfyd HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:30:56] "GET /api/weather?loc=Ho+Chi+Minh HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:30:56] "GET /api/chart_data HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:30:56] "GET /socket.io/?EIO=4&transport=polling&t=PyrUfzV HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:30:56] "GET /api/weather?loc=Ho+Chi+Minh HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:30:56] "GET /api/chart_data HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:30:56] "POST /socket.io/?EIO=4&transport=polling&t=PyrUfzg&sid=WlcCYiZL_FlsvRDrAAAM HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:30:56] "GET /socket.io/?EIO=4&transport=polling&t=PyrUfzi&sid=WlcCYiZL_FlsvRDrAAAM HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:30:56] "POST /socket.io/?EIO=4&transport=polling&t=PyrUf-5&sid=Ph9Kd_NZrUuI-CCYAAAN HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:30:56] "GET /socket.io/?EIO=4&transport=polling&t=PyrUf-6&sid=Ph9Kd_NZrUuI-CCYAAAN HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:30:56] "GET /socket.io/?EIO=4&transport=polling&t=PyrUf_0&sid=Ph9Kd_NZrUuI-CCYAAAN HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:30:56] "POST /socket.io/?EIO=4&transport=polling&t=PyrUf_2&sid=Ph9Kd_NZrUuI-CCYAAAN HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:30:56] "GET /socket.io/?EIO=4&transport=polling&t=PyrUf_O&sid=WlcCYiZL_FlsvRDrAAAM HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:30:56] "GET /socket.io/?EIO=4&transport=polling&t=PyrUg17&sid=WlcCYiZL_FlsvRDrAAAM HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:30:57] "GET /static/logo.png HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 10:30:57] "GET /static/logo.png HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 10:31:02] "GET /dashboard HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:31:02] "GET /socket.io/?EIO=4&transport=websocket&sid=WlcCYiZL_FlsvRDrAAAM HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:31:02] "GET /static/css/style.css?v=127 HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 10:31:02] "GET /static/js/app.js?v=820752 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:31:02] "GET /static/js/app.js?v=33376 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:31:02] "GET /static/logo.png HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 10:31:02] "GET /socket.io/?EIO=4&transport=polling&t=PyrUhWb HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:31:02] "GET /api/weather?loc=Ho+Chi+Minh HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:31:02] "GET /api/chart_data HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:31:02] "POST /socket.io/?EIO=4&transport=polling&t=PyrUhXD&sid=8VuNVfq5pGNY8lOcAAAQ HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:31:02] "GET /socket.io/?EIO=4&transport=polling&t=PyrUhXE&sid=8VuNVfq5pGNY8lOcAAAQ HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:31:03] "GET /static/logo.png HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 10:31:04] "GET /dashboard HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:31:04] "GET /socket.io/?EIO=4&transport=websocket&sid=Ph9Kd_NZrUuI-CCYAAAN HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:31:04] "GET /static/css/style.css?v=127 HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 10:31:04] "GET /static/js/app.js?v=387856 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:31:04] "GET /static/js/app.js?v=59895 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:31:04] "GET /static/logo.png HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 10:31:04] "GET /socket.io/?EIO=4&transport=polling&t=PyrUhuf HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:31:04] "GET /api/weather?loc=Ho+Chi+Minh HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:31:04] "GET /api/chart_data HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:31:04] "POST /socket.io/?EIO=4&transport=polling&t=PyrUhvF&sid=LFD19c-P_HfD4JWlAAAS HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:31:04] "GET /socket.io/?EIO=4&transport=polling&t=PyrUhvH&sid=LFD19c-P_HfD4JWlAAAS HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:31:04] "GET /socket.io/?EIO=4&transport=polling&t=PyrUhw3&sid=LFD19c-P_HfD4JWlAAAS HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:31:04] "GET /static/logo.png HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 10:34:23] "GET /dashboard HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:34:23] "GET /socket.io/?EIO=4&transport=websocket&sid=8VuNVfq5pGNY8lOcAAAQ HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:34:23] "GET /static/css/style.css?v=127 HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 10:34:23] "GET /static/js/app.js?v=825269 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:34:23] "GET /static/js/app.js?v=45941 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:34:23] "GET /static/logo.png HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 10:34:24] "GET /socket.io/?EIO=4&transport=polling&t=PyrVSfW HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:34:24] "GET /api/weather?loc=Ho+Chi+Minh HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:34:24] "POST /socket.io/?EIO=4&transport=polling&t=PyrVSgK&sid=tQwclMhx0QajyXB6AAAU HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:34:24] "GET /socket.io/?EIO=4&transport=polling&t=PyrVSgP&sid=tQwclMhx0QajyXB6AAAU HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:34:24] "GET /socket.io/?EIO=4&transport=polling&t=PyrVSgq&sid=tQwclMhx0QajyXB6AAAU HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:34:24] "GET /api/chart_data HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:34:25] "GET /static/logo.png HTTP/1.1" 304 -
+ * Detected change in 'D:\\Test\\b\u1ea3n chính th\u1ee9c\\app.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 116-611-258
+127.0.0.1 - - [06/Jul/2026 10:35:26] "GET /socket.io/?EIO=4&transport=polling&t=PyrVhOm HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:35:26] "GET /socket.io/?EIO=4&transport=polling&t=PyrVhTN HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:35:26] "GET /socket.io/?EIO=4&transport=polling&t=PyrVhqy&sid=TW3EPxayptDxAvtOAAAB HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:35:26] "GET /socket.io/?EIO=4&transport=polling&t=PyrVhqx&sid=l2wVzGfadvhANAJzAAAA HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:35:27] "POST /socket.io/?EIO=4&transport=polling&t=PyrVhqw&sid=TW3EPxayptDxAvtOAAAB HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:35:27] "POST /socket.io/?EIO=4&transport=polling&t=PyrVhqw&sid=l2wVzGfadvhANAJzAAAA HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:36:21] "GET /dashboard HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:36:21] "GET /socket.io/?EIO=4&transport=websocket&sid=TW3EPxayptDxAvtOAAAB HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:36:22] "GET /static/js/app.js?v=779482 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:36:22] "GET /static/css/style.css?v=127 HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 10:36:22] "GET /static/js/app.js?v=73066 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:36:22] "GET /static/logo.png HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 10:36:22] "GET /socket.io/?EIO=4&transport=polling&t=PyrVvV3 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:36:22] "POST /socket.io/?EIO=4&transport=polling&t=PyrVvVf&sid=3GOrSVQtIdmE_nV-AAAE HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:36:22] "GET /socket.io/?EIO=4&transport=polling&t=PyrVvVh&sid=3GOrSVQtIdmE_nV-AAAE HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:36:22] "GET /socket.io/?EIO=4&transport=polling&t=PyrVvVx&sid=3GOrSVQtIdmE_nV-AAAE HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:36:22] "POST /socket.io/?EIO=4&transport=polling&t=PyrVvV-&sid=3GOrSVQtIdmE_nV-AAAE HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:36:22] "GET /dashboard HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:36:22] "GET /socket.io/?EIO=4&transport=websocket&sid=l2wVzGfadvhANAJzAAAA HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:36:22] "GET /static/css/style.css?v=127 HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 10:36:22] "GET /static/js/app.js?v=143902 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:36:22] "GET /static/js/app.js?v=11191 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:36:22] "GET /static/logo.png HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 10:36:22] "GET /static/logo.png HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 10:36:23] "GET /socket.io/?EIO=4&transport=polling&t=PyrVvim HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:36:23] "POST /socket.io/?EIO=4&transport=polling&t=PyrVvjY&sid=_RcXKjyg9XiLoI2iAAAG HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:36:23] "GET /api/chart_data HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:36:23] "GET /socket.io/?EIO=4&transport=polling&t=PyrVvja&sid=_RcXKjyg9XiLoI2iAAAG HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:36:23] "GET /socket.io/?EIO=4&transport=polling&t=PyrVvkx&sid=_RcXKjyg9XiLoI2iAAAG HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:36:23] "GET /api/weather?loc=Ho+Chi+Minh HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:36:24] "GET /static/logo.png HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 10:36:24] "GET /api/chart_data HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:36:24] "GET /api/weather?loc=Ho+Chi+Minh HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:36:41] "GET /static/logo.png HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 10:36:45] "GET /static/logo.png HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 10:38:12] "GET /dashboard HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:38:12] "GET /socket.io/?EIO=4&transport=websocket&sid=_RcXKjyg9XiLoI2iAAAG HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:38:12] "GET /static/css/style.css?v=127 HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 10:38:12] "GET /static/js/app.js?v=302238 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:38:12] "GET /static/js/app.js?v=8855 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:38:12] "GET /static/logo.png HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 10:38:12] "GET /socket.io/?EIO=4&transport=polling&t=PyrWKP6 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:38:12] "GET /api/weather?loc=Ho+Chi+Minh HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:38:12] "GET /api/chart_data HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:38:12] "POST /socket.io/?EIO=4&transport=polling&t=PyrWKQ4&sid=FUJOtVxmh0BK_klQAAAI HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:38:12] "GET /socket.io/?EIO=4&transport=polling&t=PyrWKQ6&sid=FUJOtVxmh0BK_klQAAAI HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:38:12] "GET /socket.io/?EIO=4&transport=polling&t=PyrWKRG&sid=FUJOtVxmh0BK_klQAAAI HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:38:13] "GET /static/logo.png HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 10:38:28] "GET /static/logo.png HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 10:39:13] "GET /set-lang?lang=ja&next=/dashboard HTTP/1.1" 302 -
+127.0.0.1 - - [06/Jul/2026 10:39:22] "GET /dashboard HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:39:22] "GET /socket.io/?EIO=4&transport=websocket&sid=3GOrSVQtIdmE_nV-AAAE HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:39:22] "GET /static/css/style.css?v=127 HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 10:39:22] "GET /static/js/app.js?v=253702 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:39:22] "GET /static/js/app.js?v=3724 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:39:22] "GET /static/logo.png HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 10:39:22] "GET /socket.io/?EIO=4&transport=polling&t=PyrWbaL HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:39:22] "GET /api/weather?loc=Gifu HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:39:22] "GET /api/chart_data HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:39:22] "POST /socket.io/?EIO=4&transport=polling&t=PyrWbaz&sid=6PKZvLMp839eIKgZAAAK HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:39:22] "GET /socket.io/?EIO=4&transport=polling&t=PyrWba_&sid=6PKZvLMp839eIKgZAAAK HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:39:22] "POST /socket.io/?EIO=4&transport=polling&t=PyrWbcA&sid=6PKZvLMp839eIKgZAAAK HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:39:22] "GET /socket.io/?EIO=4&transport=polling&t=PyrWbc8&sid=6PKZvLMp839eIKgZAAAK HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:39:22] "POST /socket.io/?EIO=4&transport=polling&t=PyrWbd0&sid=6PKZvLMp839eIKgZAAAK HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:39:22] "GET /socket.io/?EIO=4&transport=polling&t=PyrWbd2&sid=6PKZvLMp839eIKgZAAAK HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:39:22] "GET /socket.io/?EIO=4&transport=polling&t=PyrWbdU&sid=6PKZvLMp839eIKgZAAAK HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:40:21] "GET /static/logo.png HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 10:40:39] "GET /dashboard HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:40:39] "GET /socket.io/?EIO=4&transport=websocket&sid=6PKZvLMp839eIKgZAAAK HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:40:39] "GET /static/css/style.css?v=127 HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 10:40:39] "GET /static/js/app.js?v=172282 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:40:39] "GET /static/js/app.js?v=93113 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:40:39] "GET /static/logo.png HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 10:40:39] "GET /socket.io/?EIO=4&transport=polling&t=PyrWuLU HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:40:39] "GET /api/weather?loc=Gifu HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:40:39] "GET /api/chart_data HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:40:39] "POST /socket.io/?EIO=4&transport=polling&t=PyrWuME&sid=fdNvQkMCKIuW5SK3AAAM HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:40:39] "GET /dashboard HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:40:39] "GET /socket.io/?EIO=4&transport=polling&t=PyrWuMF&sid=fdNvQkMCKIuW5SK3AAAM HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:40:39] "GET /socket.io/?EIO=4&transport=websocket&sid=FUJOtVxmh0BK_klQAAAI HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:40:39] "GET /static/css/style.css?v=127 HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 10:40:40] "GET /static/js/app.js?v=103713 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:40:40] "GET /static/js/app.js?v=13131 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:40:40] "GET /static/logo.png HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 10:40:40] "GET /static/logo.png HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 10:40:40] "GET /api/weather?loc=Ho+Chi+Minh HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:40:40] "GET /socket.io/?EIO=4&transport=polling&t=PyrWuWF HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:40:40] "GET /api/chart_data HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:40:40] "POST /socket.io/?EIO=4&transport=polling&t=PyrWuXf&sid=SgB3_5D2vNc0JbbxAAAO HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:40:40] "GET /socket.io/?EIO=4&transport=polling&t=PyrWuXh&sid=SgB3_5D2vNc0JbbxAAAO HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:40:40] "GET /socket.io/?EIO=4&transport=polling&t=PyrWuZJ&sid=SgB3_5D2vNc0JbbxAAAO HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:40:41] "GET /static/logo.png HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 10:40:44] "GET /dashboard HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:40:44] "GET /socket.io/?EIO=4&transport=websocket&sid=fdNvQkMCKIuW5SK3AAAM HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:40:44] "GET /static/css/style.css?v=127 HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 10:40:44] "GET /static/js/app.js?v=82980 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:40:44] "GET /static/js/app.js?v=919530 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:40:44] "GET /static/logo.png HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 10:40:44] "GET /socket.io/?EIO=4&transport=polling&t=PyrWvac HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:40:44] "GET /api/weather?loc=Gifu HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:40:44] "GET /api/chart_data HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:40:44] "POST /socket.io/?EIO=4&transport=polling&t=PyrWvbE&sid=e9X08y_LSCVlT3lHAAAQ HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:40:44] "GET /socket.io/?EIO=4&transport=polling&t=PyrWvbG&sid=e9X08y_LSCVlT3lHAAAQ HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:40:44] "GET /socket.io/?EIO=4&transport=polling&t=PyrWvc7&sid=e9X08y_LSCVlT3lHAAAQ HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:40:45] "GET /static/logo.png HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 10:40:52] "GET /static/logo.png HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 10:40:55] "GET /static/logo.png HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 10:41:42] "GET /dashboard HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:41:42] "GET /socket.io/?EIO=4&transport=websocket&sid=e9X08y_LSCVlT3lHAAAQ HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:41:42] "GET /static/css/style.css?v=127 HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 10:41:42] "GET /static/js/app.js?v=12531 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:41:42] "GET /static/js/app.js?v=61313 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:41:42] "GET /static/logo.png HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 10:41:42] "GET /socket.io/?EIO=4&transport=polling&t=PyrX7jQ HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:41:42] "GET /api/weather?loc=Gifu HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:41:42] "POST /socket.io/?EIO=4&transport=polling&t=PyrX7ju&sid=wR4EaOdDohI2JfipAAAS HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:41:42] "GET /socket.io/?EIO=4&transport=polling&t=PyrX7jv&sid=wR4EaOdDohI2JfipAAAS HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:41:42] "GET /socket.io/?EIO=4&transport=polling&t=PyrX7kE&sid=wR4EaOdDohI2JfipAAAS HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:41:43] "GET /api/chart_data HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:41:43] "GET /dashboard HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:41:43] "GET /socket.io/?EIO=4&transport=websocket&sid=SgB3_5D2vNc0JbbxAAAO HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:41:43] "GET /static/logo.png HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 10:41:43] "GET /static/css/style.css?v=127 HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 10:41:43] "GET /static/js/app.js?v=804646 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:41:43] "GET /static/js/app.js?v=7215 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:41:44] "GET /static/logo.png HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 10:41:44] "GET /socket.io/?EIO=4&transport=polling&t=PyrX84r HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:41:44] "GET /api/weather?loc=Ho+Chi+Minh HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:41:44] "GET /api/chart_data HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:41:44] "POST /socket.io/?EIO=4&transport=polling&t=PyrX85c&sid=SRjRHq7_5i6x1kUOAAAU HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:41:44] "GET /socket.io/?EIO=4&transport=polling&t=PyrX85g&sid=SRjRHq7_5i6x1kUOAAAU HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:41:44] "GET /socket.io/?EIO=4&transport=polling&t=PyrX86w&sid=SRjRHq7_5i6x1kUOAAAU HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:41:45] "GET /static/logo.png HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 10:41:51] "GET /static/logo.png HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 10:41:54] "GET /static/logo.png HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 10:44:07] "GET /socket.io/?EIO=4&transport=websocket&sid=wR4EaOdDohI2JfipAAAS HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 10:44:10] "GET /socket.io/?EIO=4&transport=websocket&sid=SRjRHq7_5i6x1kUOAAAU HTTP/1.1" 200 -
+ * Detected change in 'D:\\Test\\b\u1ea3n chính th\u1ee9c\\app.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 116-611-258
+ * Detected change in 'D:\\Test\\b\u1ea3n chính th\u1ee9c\\app.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 116-611-258
+ * Detected change in 'D:\\Test\\b\u1ea3n chính th\u1ee9c\\app.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 116-611-258
+ * Detected change in 'D:\\Test\\b\u1ea3n chính th\u1ee9c\\app.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 116-611-258
+ * Detected change in 'D:\\Test\\b\u1ea3n chính th\u1ee9c\\app.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 116-611-258
+ * Detected change in 'D:\\Test\\b\u1ea3n chính th\u1ee9c\\app.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 116-611-258
+ * Detected change in 'D:\\Test\\b\u1ea3n chính th\u1ee9c\\app.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 116-611-258
+ * Detected change in 'D:\\Test\\b\u1ea3n chính th\u1ee9c\\app.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 116-611-258
+ * Detected change in 'D:\\Test\\b\u1ea3n chính th\u1ee9c\\app.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 116-611-258
+127.0.0.1 - - [06/Jul/2026 11:16:56] "GET /api/drive/list?path= HTTP/1.1" 401 -
+ * Detected change in 'D:\\Test\\b\u1ea3n chính th\u1ee9c\\app.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 116-611-258
+ * Detected change in 'D:\\Test\\b\u1ea3n chính th\u1ee9c\\app.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 116-611-258
+ * Detected change in 'D:\\Test\\b\u1ea3n chính th\u1ee9c\\app.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 116-611-258
+ * Detected change in 'D:\\Test\\b\u1ea3n chính th\u1ee9c\\app.py', reloading
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 116-611-258

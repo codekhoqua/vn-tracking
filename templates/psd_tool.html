@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PSD Tool — VN-Tracking</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="icon" href="/static/logo.png" type="image/png">
+    <style>
+        /* ======================== VARIABLES ======================== */
+        :root {
+            --bg-page: #0b0f1a;
+            --surface: #141926;
+            --surface-2: #1c2236;
+            --surface-hover: #252d44;
+            --border: rgba(255,255,255,0.08);
+            --border-active: rgba(99,102,241,0.5);
+            --primary: #6366f1;
+            --primary-hover: #818cf8;
+            --primary-bg: rgba(99,102,241,0.15);
+            --secondary: #f59e0b;
+            --secondary-hover: #fbbf24;
+            --success: #10b981;
+            --success-bg: rgba(16,185,129,0.15);
+            --danger: #ef4444;
+            --danger-bg: rgba(239,68,68,0.15);
+            --warning: #f59e0b;
+            --warning-bg: rgba(245,158,11,0.15);
+            --text: #f1f5f9;
+            --text-2: #94a3b8;
+            --text-3: #64748b;
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --radius-xl: 24px;
+            --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+            --shadow-md: 0 4px 12px rgba(0,0,0,0.3);
+            --shadow-lg: 0 10px 30px rgba(0,0,0,0.5);
+            --shadow-glow: 0 0 30px rgba(99,102,241,0.15);
+            --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            --t-fast: 150ms ease;
+            --t-base: 250ms ease;
+            --t-smooth: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* ======================== RESET ======================== */
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: var(--font);
+            background: var(--bg-page);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            position: relative;
+        }
+
+        /* Animated background */
+        body::before {
+            content: '';
+            position: fixed;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(ellipse at 30% 20%, rgba(99,102,241,0.08) 0%, transparent 50%),
+                        radial-gradient(ellipse at 70% 80%, rgba(245,158,11,0.05) 0%, transparent 50%),
+                        radial-gradient(ellipse at 50% 50%, rgba(16,185,129,0.03) 0%, transparent 50%);
+            animation: bgShift 20s ease-in-out infinite alternate;
+            z-index: 0;
+            pointer-events: none;
+        }
+        @keyframes bgShift {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(-3%, 3%) scale(1.05); }
+        }
+
+        /* ======================== MAIN CONTAINER ======================== */
+        .tool-container {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 720px;
+        }
+
+        /* ======================== HEADER ======================== */
+        .tool-header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+        .tool-header .logo-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        .tool-header .logo-row img {
+            width: 36px;
+            height: 36px;
+            border-radius: var(--radius-sm);
+        }
+        .tool-header h1 {
+            font-size: 1.8rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #818cf8, #6366f1, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .tool-header .subtitle {
+            color: var(--text-3);
+            font-size: 0.9rem;
+            margin-top: 4px;
+        }
+
+        /* ======================== CARD ======================== */
+        .tool-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow-lg), var(--shadow-glow);
+            overflow: hidden;
+            animation: cardEntrance 0.6s cubic-bezier(0.4,0,0.2,1);
+        }
+        @keyframes cardEntrance {
+            from { opacity: 0; transform: translateY(20px) scale(0.98); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .card-section {
+            padding: 24px 32px;
+        }
+        .card-section + .card-section {
+            border-top: 1px solid var(--border);
+        }
+        .card-section.section-header {
+            padding: 28px 32px 12px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+        .section-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .section-icon.primary { background: var(--primary-bg); color: var(--primary); }
+        .section-icon.warning { background: var(--warning-bg); color: var(--warning); }
+        .section-title { font-size: 1.1rem; font-weight: 700; }
+        .section-desc { font-size: 0.82rem; color: var(--text-3); margin-top: 2px; }
+
+        /* ======================== FORM ======================== */
+        .form-group { margin-bottom: 24px; }
+        .form-group:last-child { margin-bottom: 0; }
+        .form-label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-2);
+            margin-bottom: 8px;
+        }
+        .form-input {
+            width: 100%;
+            padding: 12px 16px;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            color: var(--text);
+            font-family: var(--font);
+            font-size: 0.95rem;
+            transition: border-color var(--t-fast), box-shadow var(--t-fast);
+            outline: none;
+        }
+        .form-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
+        }
+        .form-input::placeholder { color: var(--text-3); }
+        .form-input:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* Picker button */
+        .picker-row {
+            display: flex;
+            gap: 10px;
+            align-items: stretch;
+        }
+        .picker-display {
+            flex: 1;
+            padding: 12px 16px;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            color: var(--text-3);
+            font-family: var(--font);
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-height: 46px;
+            transition: all var(--t-fast);
+            overflow: hidden;
+        }
+        .picker-display.has-value {
+            color: var(--text);
+            border-color: var(--border-active);
+        }
+        .picker-display .folder-icon { flex-shrink: 0; }
+        .picker-display .path-text {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .btn-picker {
+            padding: 0 18px;
+            background: var(--primary-bg);
+            color: var(--primary);
+            border: 1px solid rgba(99,102,241,0.25);
+            border-radius: var(--radius-md);
+            font-family: var(--font);
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all var(--t-fast);
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn-picker:hover {
+            background: rgba(99,102,241,0.25);
+            border-color: var(--primary);
+            transform: translateY(-1px);
+        }
+        .btn-picker:active { transform: translateY(0); }
+
+        /* ======================== BUTTONS ======================== */
+        .btn-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .btn {
+            flex: 1;
+            min-width: 0;
+            padding: 13px 20px;
+            border: none;
+            border-radius: var(--radius-md);
+            font-family: var(--font);
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all var(--t-base);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            position: relative;
+            overflow: hidden;
+        }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #6366f1, #4f46e5);
+            color: white;
+            box-shadow: 0 4px 14px rgba(99,102,241,0.3);
+        }
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(99,102,241,0.4);
+        }
+        .btn-secondary {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: white;
+            box-shadow: 0 4px 14px rgba(245,158,11,0.3);
+        }
+        .btn-secondary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(245,158,11,0.4);
+        }
+        .btn-outline {
+            background: transparent;
+            color: var(--text-2);
+            border: 1px solid var(--border);
+        }
+        .btn-outline:hover:not(:disabled) {
+            background: var(--surface-hover);
+            color: var(--text);
+        }
+
+        /* Spinner inside button */
+        .btn .spinner {
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ======================== LOG / RESULTS ======================== */
+        .log-area {
+            margin-top: 20px;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 16px;
+            max-height: 240px;
+            overflow-y: auto;
+            font-size: 0.82rem;
+            line-height: 1.7;
+            display: none;
+        }
+        .log-area.show { display: block; animation: fadeIn 0.3s ease; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .log-entry {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            padding: 3px 0;
+        }
+        .log-icon { flex-shrink: 0; margin-top: 2px; }
+        .log-success { color: var(--success); }
+        .log-error { color: var(--danger); }
+        .log-info { color: var(--text-3); }
+        .log-warn { color: var(--warning); }
+
+        /* ======================== BROWSER WARNING ======================== */
+        .browser-warning {
+            background: var(--danger-bg);
+            border: 1px solid rgba(239,68,68,0.3);
+            border-radius: var(--radius-md);
+            padding: 16px 20px;
+            margin-bottom: 24px;
+            display: none;
+            align-items: flex-start;
+            gap: 12px;
+            animation: fadeIn 0.3s ease;
+        }
+        .browser-warning.show { display: flex; }
+        .browser-warning .warn-icon {
+            flex-shrink: 0;
+            width: 36px;
+            height: 36px;
+            background: rgba(239,68,68,0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .browser-warning h4 { font-size: 0.95rem; color: var(--danger); margin-bottom: 4px; }
+        .browser-warning p { font-size: 0.82rem; color: var(--text-2); line-height: 1.5; }
+
+        /* ======================== STEPS INDICATOR ======================== */
+        .steps {
+            display: flex;
+            gap: 0;
+            margin-bottom: 4px;
+        }
+        .step {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 16px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-3);
+            position: relative;
+        }
+        .step .step-num {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: var(--surface-2);
+            border: 2px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.72rem;
+            font-weight: 700;
+            transition: all var(--t-base);
+            flex-shrink: 0;
+        }
+        .step.active .step-num {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: white;
+        }
+        .step.done .step-num {
+            background: var(--success);
+            border-color: var(--success);
+            color: white;
+        }
+        .step.active { color: var(--text); }
+        .step.done { color: var(--success); }
+        .step-connector {
+            position: absolute;
+            top: 50%;
+            right: -1px;
+            width: 20px;
+            height: 2px;
+            background: var(--border);
+            z-index: 1;
+        }
+        .step.done .step-connector { background: var(--success); }
+
+        /* ======================== BACK LINK ======================== */
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--text-3);
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: 500;
+            margin-bottom: 20px;
+            transition: color var(--t-fast);
+        }
+        .back-link:hover { color: var(--text); }
+
+        /* ======================== TOAST ======================== */
+        .toast-container { position: fixed; top: 24px; right: 24px; z-index: 100000; display: flex; flex-direction: column; gap: 12px; pointer-events: none; }
+        .toast { pointer-events: auto; background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow-lg); padding: 14px 18px; border-radius: var(--radius-md); display: flex; align-items: center; gap: 12px; min-width: 300px; max-width: 420px; animation: slideInRight 0.3s cubic-bezier(0.4,0,0.2,1); }
+        @keyframes slideInRight { from { opacity: 0; transform: translateX(60px); } to { opacity: 1; transform: translateX(0); } }
+        .toast-icon { flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; }
+        .toast-success { border-left: 4px solid var(--success); }
+        .toast-success .toast-icon { background: var(--success); color: #fff; }
+        .toast-error { border-left: 4px solid var(--danger); }
+        .toast-error .toast-icon { background: var(--danger); color: #fff; }
+
+        /* ======================== RESPONSIVE ======================== */
+        @media (max-width: 600px) {
+            body { padding: 12px; }
+            .card-section { padding: 20px; }
+            .tool-header h1 { font-size: 1.4rem; }
+            .step { padding: 10px 8px; font-size: 0.72rem; }
+            .btn { padding: 11px 14px; font-size: 0.82rem; }
+        }
+    </style>
+</head>
+<body>
+    <div id="toast-container" class="toast-container"></div>
+
+    <div class="tool-container">
+        <!-- Back link -->
+        <a href="/dashboard" class="back-link">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+            {{ 'Quay lại Dashboard' if lang == 'vi' else 'ダッシュボードに戻る' }}
+        </a>
+
+        <!-- Header -->
+        <div class="tool-header">
+            <div class="logo-row">
+                <img src="/static/logo.png" alt="Logo">
+                <h1>Prepare PSD Tool</h1>
+            </div>
+            <p class="subtitle">{{ 'Tạo cấu trúc thư mục & di chuyển file PSD — hoạt động offline' if lang == 'vi' else 'フォルダ構造の作成 & PSDファイルの移動 — オフライン対応' }}</p>
+        </div>
+
+        <!-- Browser Warning -->
+        <div id="browserWarning" class="browser-warning">
+            <div class="warn-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+            </div>
+            <div>
+                <h4>{{ 'Trình duyệt không hỗ trợ' if lang == 'vi' else '非対応ブラウザ' }}</h4>
+                <p>{{ 'File System Access API yêu cầu <strong>Google Chrome</strong> hoặc <strong>Microsoft Edge</strong> phiên bản 86 trở lên. Vui lòng mở trang này bằng Chrome/Edge để sử dụng.' if lang == 'vi' else 'File System Access APIは<strong>Google Chrome</strong>または<strong>Microsoft Edge</strong>バージョン86以上が必要です。Chrome/Edgeで開いてください。' }}</p>
+            </div>
+        </div>
+
+        <!-- Main Card -->
+        <div class="tool-card" id="mainCard">
+            <!-- Steps indicator -->
+            <div class="card-section" style="padding-bottom: 0;">
+                <div class="steps">
+                    <div class="step active" id="step1">
+                        <span class="step-num">1</span>
+                        {{ 'Chọn thư mục gốc' if lang == 'vi' else 'ルートフォルダ選択' }}
+                        <span class="step-connector"></span>
+                    </div>
+                    <div class="step" id="step2">
+                        <span class="step-num">2</span>
+                        {{ 'Tạo cấu trúc' if lang == 'vi' else '構造作成' }}
+                        <span class="step-connector"></span>
+                    </div>
+                    <div class="step" id="step3">
+                        <span class="step-num">3</span>
+                        {{ 'Di chuyển PSD' if lang == 'vi' else 'PSD移動' }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 1: Choose root folder & tap number -->
+            <div class="card-section section-header">
+                <div class="section-icon primary">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <div class="section-title">{{ 'Chọn thư mục & Nhập số tập' if lang == 'vi' else 'フォルダ選択 & 巻数入力' }}</div>
+                    <div class="section-desc">{{ 'Chọn thư mục gốc trên máy tính và nhập số tập cần tạo' if lang == 'vi' else 'PCのルートフォルダを選択し、作成する巻数を入力' }}</div>
+                </div>
+            </div>
+            <div class="card-section" style="padding-top: 0;">
+                <div class="form-group">
+                    <label class="form-label">{{ 'Thư mục gốc (Root Folder)' if lang == 'vi' else 'ルートフォルダ (Root Folder)' }}</label>
+                    <div class="picker-row">
+                        <div class="picker-display" id="rootFolderDisplay">
+                            <svg class="folder-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                            </svg>
+                            <span class="path-text">{{ 'Chưa chọn thư mục...' if lang == 'vi' else 'フォルダ未選択...' }}</span>
+                        </div>
+                        <button class="btn-picker" id="btnPickRoot" onclick="pickRootFolder()">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="17 8 12 3 7 8"></polyline>
+                                <line x1="12" y1="3" x2="12" y2="15"></line>
+                            </svg>
+                            {{ 'Chọn' if lang == 'vi' else '選択' }}
+                        </button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">{{ 'Tập số (巻数)' if lang == 'vi' else '巻数' }}</label>
+                    <input type="number" class="form-input" id="tapNumber" placeholder="{{ 'VD: 3' if lang == 'vi' else '例: 3' }}" min="1">
+                </div>
+            </div>
+
+            <!-- Action buttons: Prepare -->
+            <div class="card-section">
+                <div class="btn-row">
+                    <button class="btn btn-primary" id="btnPrepare" onclick="preparePsd()" disabled>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                            <line x1="12" y1="11" x2="12" y2="17"></line>
+                            <line x1="9" y1="14" x2="15" y2="14"></line>
+                        </svg>
+                        {{ 'Tạo thư mục (Prepare)' if lang == 'vi' else 'フォルダ作成 (Prepare)' }}
+                    </button>
+                </div>
+            </div>
+
+            <!-- Section 2: Compare PSD (optional) -->
+            <div class="card-section section-header" id="compareSection" style="opacity: 0.5; pointer-events: none;">
+                <div class="section-icon warning">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                    </svg>
+                </div>
+                <div>
+                    <div class="section-title">{{ 'Di chuyển PSD (Compare)' if lang == 'vi' else 'PSD移動 (Compare)' }}</div>
+                    <div class="section-desc">{{ 'Chọn thư mục chứa file PSD tải về để di chuyển vào thư mục đã tạo & tạo backup' if lang == 'vi' else 'ダウンロードしたPSDフォルダを選択し、作成したフォルダに移動 & バックアップ' }}</div>
+                </div>
+            </div>
+            <div class="card-section" id="compareSectionBody" style="padding-top: 0; opacity: 0.5; pointer-events: none;">
+                <div class="form-group">
+                    <label class="form-label">{{ 'Thư mục chứa PSD tải về' if lang == 'vi' else 'ダウンロードしたPSDフォルダ' }}</label>
+                    <div class="picker-row">
+                        <div class="picker-display" id="sourceFolderDisplay">
+                            <svg class="folder-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                <polyline points="14 2 14 8 20 8"></polyline>
+                            </svg>
+                            <span class="path-text">{{ 'Chưa chọn thư mục PSD...' if lang == 'vi' else 'PSDフォルダ未選択...' }}</span>
+                        </div>
+                        <button class="btn-picker" id="btnPickSource" onclick="pickSourceFolder()">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="17 8 12 3 7 8"></polyline>
+                                <line x1="12" y1="3" x2="12" y2="15"></line>
+                            </svg>
+                            {{ 'Chọn' if lang == 'vi' else '選択' }}
+                        </button>
+                    </div>
+                </div>
+                <div class="btn-row">
+                    <button class="btn btn-secondary" id="btnCompare" onclick="comparePsd()" disabled>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="16 16 12 12 8 16"></polyline>
+                            <line x1="12" y1="12" x2="12" y2="21"></line>
+                            <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"></path>
+                        </svg>
+                        {{ 'Di chuyển PSD & Backup' if lang == 'vi' else 'PSD移動 & バックアップ' }}
+                    </button>
+                </div>
+            </div>
+
+            <!-- Log area -->
+            <div class="card-section" style="padding-top: 0;">
+                <div class="log-area" id="logArea"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==================== LANG ====================
+        const LANG = '{{ lang }}';
+        const T = {
+            rootSelected: LANG === 'vi' ? '📂 Đã chọn thư mục gốc:' : '📂 ルートフォルダ選択済:',
+            sourceSelected: LANG === 'vi' ? '📂 Đã chọn thư mục PSD nguồn:' : '📂 PSDソースフォルダ選択済:',
+            errPickFolder: LANG === 'vi' ? 'Lỗi chọn thư mục: ' : 'フォルダ選択エラー: ',
+            creating: LANG === 'vi' ? 'Đang tạo...' : '作成中...',
+            startCreate: LANG === 'vi' ? '🔧 Bắt đầu tạo cấu trúc thư mục cho tập' : '🔧 巻のフォルダ構造を作成中',
+            createdFolder: LANG === 'vi' ? '✅ Tạo thư mục:' : '✅ フォルダ作成:',
+            createSuccess: LANG === 'vi' ? '🎉 <strong>Tạo cấu trúc thư mục thành công!</strong>' : '🎉 <strong>フォルダ構造の作成に成功しました！</strong>',
+            createSuccessToast: LANG === 'vi' ? 'Tạo cấu trúc thư mục thành công!' : 'フォルダ構造の作成に成功しました！',
+            createDone: LANG === 'vi' ? 'Đã tạo xong!' : '作成完了！',
+            errGeneric: LANG === 'vi' ? '❌ Lỗi: ' : '❌ エラー: ',
+            btnPrepare: LANG === 'vi' ? 'Tạo thư mục (Prepare)' : 'フォルダ作成 (Prepare)',
+            processing: LANG === 'vi' ? 'Đang xử lý...' : '処理中...',
+            startMove: LANG === 'vi' ? '🔄 Bắt đầu di chuyển file PSD...' : '🔄 PSDファイルの移動を開始...',
+            noPsdFound: LANG === 'vi' ? '⚠️ Không tìm thấy file .psd nào trong thư mục đã chọn!' : '⚠️ 選択したフォルダにPSDファイルが見つかりません！',
+            noPsdToast: LANG === 'vi' ? 'Không tìm thấy file .psd nào!' : 'PSDファイルが見つかりません！',
+            btnCompare: LANG === 'vi' ? 'Di chuyển PSD & Backup' : 'PSD移動 & バックアップ',
+            foundPsd: LANG === 'vi' ? '📋 Tìm thấy' : '📋 発見',
+            foundPsdSuffix: LANG === 'vi' ? 'file PSD' : '個のPSDファイル',
+            copied: LANG === 'vi' ? '📄 Đã copy:' : '📄 コピー済:',
+            creatingBackup: LANG === 'vi' ? '📦 Đang tạo thư mục 99_Backup...' : '📦 99_Backupフォルダを作成中...',
+            backupDone: LANG === 'vi' ? '✅ Đã tạo 99_Backup thành công' : '✅ 99_Backupの作成に成功しました',
+            cantDeleteSrc: LANG === 'vi' ? '⚠️ Không thể xóa file gốc:' : '⚠️ 元ファイルを削除できません:',
+            deletedSrc: LANG === 'vi' ? '🗑️ Đã xóa file PSD gốc từ thư mục nguồn' : '🗑️ ソースフォルダの元PSDファイルを削除しました',
+            doneMove: LANG === 'vi' ? 'Hoàn tất! Đã di chuyển' : '完了！移動済',
+            doneMoveSuffix: LANG === 'vi' ? 'file PSD và tạo backup!' : '個のPSDファイルをバックアップ済！',
+            doneMoveToast: LANG === 'vi' ? 'file PSD và tạo backup!' : '個のPSDファイルをバックアップ済！',
+            done: LANG === 'vi' ? 'Hoàn tất!' : '完了！',
+            networkErr: LANG === 'vi' ? 'Lỗi mạng: ' : 'ネットワークエラー: ',
+            fillAll: LANG === 'vi' ? 'Vui lòng nhập đầy đủ thông tin' : 'すべての情報を入力してください',
+        };
+
+        // ==================== STATE ====================
+        let rootDirHandle = null;   // FileSystemDirectoryHandle for root
+        let sourceDirHandle = null; // FileSystemDirectoryHandle for PSD source
+        let psdDirHandle = null;    // Handle to 01_★編集用PSD after prepare
+
+        // ==================== BROWSER CHECK ====================
+        (function checkBrowser() {
+            if (!('showDirectoryPicker' in window)) {
+                document.getElementById('browserWarning').classList.add('show');
+                document.getElementById('mainCard').style.opacity = '0.4';
+                document.getElementById('mainCard').style.pointerEvents = 'none';
+            }
+        })();
+
+        // ==================== TOAST ====================
+        function showToast(msg, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.innerHTML = `
+                <div class="toast-icon">${type === 'success' ? '✓' : '✕'}</div>
+                <div style="font-size: 0.88rem; color: var(--text);">${msg}</div>
+            `;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(60px)';
+                toast.style.transition = 'all 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
+        // ==================== LOGGING ====================
+        function log(msg, type = 'info') {
+            const area = document.getElementById('logArea');
+            area.classList.add('show');
+            const icons = {
+                success: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>`,
+                error: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`,
+                info: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`,
+                warn: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--warning)" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>`
+            };
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.innerHTML = `<span class="log-icon">${icons[type] || icons.info}</span><span class="log-${type}">${msg}</span>`;
+            area.appendChild(entry);
+            area.scrollTop = area.scrollHeight;
+        }
+
+        // ==================== STEP MANAGEMENT ====================
+        function setStep(n) {
+            for (let i = 1; i <= 3; i++) {
+                const el = document.getElementById('step' + i);
+                el.className = 'step';
+                if (i < n) el.classList.add('done');
+                if (i === n) el.classList.add('active');
+            }
+        }
+
+        function enableCompareSection() {
+            document.getElementById('compareSection').style.opacity = '1';
+            document.getElementById('compareSection').style.pointerEvents = 'auto';
+            document.getElementById('compareSectionBody').style.opacity = '1';
+            document.getElementById('compareSectionBody').style.pointerEvents = 'auto';
+        }
+
+        // ==================== VALIDATE ====================
+        function validatePrepare() {
+            const tap = document.getElementById('tapNumber').value.trim();
+            const btn = document.getElementById('btnPrepare');
+            btn.disabled = !(rootDirHandle && tap);
+        }
+
+        function validateCompare() {
+            const btn = document.getElementById('btnCompare');
+            btn.disabled = !(sourceDirHandle && psdDirHandle);
+        }
+
+        document.getElementById('tapNumber').addEventListener('input', validatePrepare);
+
+        // ==================== PICK ROOT FOLDER ====================
+        async function pickRootFolder() {
+            try {
+                rootDirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+                const display = document.getElementById('rootFolderDisplay');
+                display.querySelector('.path-text').textContent = rootDirHandle.name;
+                display.classList.add('has-value');
+                log(`${T.rootSelected} <strong>${rootDirHandle.name}</strong>`, 'success');
+                validatePrepare();
+            } catch (e) {
+                if (e.name !== 'AbortError') {
+                    log(T.errPickFolder + e.message, 'error');
+                }
+            }
+        }
+
+        // ==================== PICK SOURCE FOLDER ====================
+        async function pickSourceFolder() {
+            try {
+                sourceDirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+                const display = document.getElementById('sourceFolderDisplay');
+                display.querySelector('.path-text').textContent = sourceDirHandle.name;
+                display.classList.add('has-value');
+                log(`${T.sourceSelected} <strong>${sourceDirHandle.name}</strong>`, 'success');
+                validateCompare();
+            } catch (e) {
+                if (e.name !== 'AbortError') {
+                    log(T.errPickFolder + e.message, 'error');
+                }
+            }
+        }
+
+        // ==================== PREPARE PSD ====================
+        async function preparePsd() {
+            const tap = document.getElementById('tapNumber').value.trim();
+            if (!rootDirHandle || !tap) return;
+
+            const btn = document.getElementById('btnPrepare');
+            btn.disabled = true;
+            btn.innerHTML = `<span class="spinner"></span> ${T.creating}`;
+
+            try {
+                log(`${T.startCreate} ${tap}...`, 'info');
+
+                // Create: {tap}巻/01_レタッチ/01_★編集用PSD
+                const tapDir = await rootDirHandle.getDirectoryHandle(`${tap}巻`, { create: true });
+                log(`${T.createdFolder} <strong>${tap}巻</strong>`, 'success');
+
+                const retouchDir = await tapDir.getDirectoryHandle('01_レタッチ', { create: true });
+                log(`${T.createdFolder} <strong>${tap}巻/01_レタッチ</strong>`, 'success');
+
+                psdDirHandle = await retouchDir.getDirectoryHandle('01_★編集用PSD', { create: true });
+                log(`${T.createdFolder} <strong>${tap}巻/01_レタッチ/01_★編集用PSD</strong>`, 'success');
+
+                // Create: {tap}巻/01_レタッチ/02_写植・レタッチ時Mikan用jpg
+                const jpgDir = await retouchDir.getDirectoryHandle('02_写植・レタッチ時Mikan用jpg', { create: true });
+                log(`${T.createdFolder} <strong>${tap}巻/01_レタッチ/02_写植・レタッチ時Mikan用jpg</strong>`, 'success');
+
+                log(T.createSuccess, 'success');
+                showToast(T.createSuccessToast, 'success');
+
+                // Update UI
+                setStep(2);
+                enableCompareSection();
+
+                btn.innerHTML = `
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    ${T.createDone}
+                `;
+                btn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+
+            } catch (e) {
+                log(T.errGeneric + e.message, 'error');
+                showToast(T.errGeneric + e.message, 'error');
+                btn.disabled = false;
+                btn.innerHTML = `
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                        <line x1="12" y1="11" x2="12" y2="17"></line>
+                        <line x1="9" y1="14" x2="15" y2="14"></line>
+                    </svg>
+                    ${T.btnPrepare}
+                `;
+            }
+        }
+
+        // ==================== COMPARE PSD ====================
+        async function comparePsd() {
+            if (!sourceDirHandle || !psdDirHandle) return;
+
+            const btn = document.getElementById('btnCompare');
+            btn.disabled = true;
+            btn.innerHTML = `<span class="spinner"></span> ${T.processing}`;
+
+            try {
+                log(T.startMove, 'info');
+                setStep(3);
+
+                let movedCount = 0;
+                const psdFiles = [];
+
+                // Collect all .psd files from source
+                for await (const [name, handle] of sourceDirHandle.entries()) {
+                    if (handle.kind === 'file' && name.toLowerCase().endsWith('.psd')) {
+                        psdFiles.push({ name, handle });
+                    }
+                }
+
+                if (psdFiles.length === 0) {
+                    log(T.noPsdFound, 'warn');
+                    showToast(T.noPsdToast, 'error');
+                    btn.disabled = false;
+                    btn.innerHTML = `
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 16 12 12 8 16"></polyline><line x1="12" y1="12" x2="12" y2="21"></line><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"></path></svg>
+                        ${T.btnCompare}
+                    `;
+                    return;
+                }
+
+                log(`${T.foundPsd} <strong>${psdFiles.length}</strong> ${T.foundPsdSuffix}`, 'info');
+
+                // Copy each PSD file to target folder
+                for (const { name, handle } of psdFiles) {
+                    const file = await handle.getFile();
+                    const destFile = await psdDirHandle.getFileHandle(name, { create: true });
+                    const writable = await destFile.createWritable();
+                    await writable.write(file);
+                    await writable.close();
+                    movedCount++;
+                    log(`${T.copied} <strong>${name}</strong> (${(file.size / 1024 / 1024).toFixed(1)} MB)`, 'success');
+                }
+
+                // Create backup: 99_Backup
+                log(T.creatingBackup, 'info');
+                const retouchDir = await rootDirHandle
+                    .getDirectoryHandle(`${document.getElementById('tapNumber').value.trim()}巻`)
+                    .then(d => d.getDirectoryHandle('01_レタッチ'));
+
+                const backupDir = await retouchDir.getDirectoryHandle('99_Backup', { create: true });
+
+                // Copy all files from PSD dir to backup
+                for await (const [name, handle] of psdDirHandle.entries()) {
+                    if (handle.kind === 'file') {
+                        const file = await handle.getFile();
+                        const backupFile = await backupDir.getFileHandle(name, { create: true });
+                        const writable = await backupFile.createWritable();
+                        await writable.write(file);
+                        await writable.close();
+                    }
+                }
+                log(T.backupDone, 'success');
+
+                // Delete original files from source (simulating "move")
+                for (const { name } of psdFiles) {
+                    try {
+                        await sourceDirHandle.removeEntry(name);
+                    } catch (e) {
+                        log(`${T.cantDeleteSrc} ${name} — ${e.message}`, 'warn');
+                    }
+                }
+                log(T.deletedSrc, 'info');
+
+                log(`🎉 <strong>${T.doneMove} ${movedCount} ${T.doneMoveSuffix}</strong>`, 'success');
+                showToast(`${T.doneMove} ${movedCount} ${T.doneMoveToast}`, 'success');
+
+                // Update step
+                setStep(3);
+                document.getElementById('step3').classList.add('done');
+
+                btn.innerHTML = `
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    ${T.done}
+                `;
+                btn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+
+            } catch (e) {
+                log(T.errGeneric + e.message, 'error');
+                showToast(T.errGeneric + e.message, 'error');
+                btn.disabled = false;
+                btn.innerHTML = `
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 16 12 12 8 16"></polyline><line x1="12" y1="12" x2="12" y2="21"></line><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"></path></svg>
+                    ${T.btnCompare}
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,52 +1,7 @@
 {% extends "base.html" %}
-{% block title %}{{ t.title }} — VN-Tracking
-{% endblock %}
+{% block title %}{{ t.title }} — VN-Tracking{% endblock %}
 
 {% block body %}
-    <!-- Prepare PSD Modal -->
-    <div id="prepare-psd-overlay" class="cp-overlay" onclick="closePreparePsdModal()"></div>
-    <div id="prepare-psd-modal" class="cp-modal" style="max-width: 500px; width: 90%;">
-        <div class="modal-header">
-            <h3>{{ 'Tạo thư mục làm việc (Prepare PSD)' if lang == 'vi' else '作業フォルダ作成 (Prepare PSD)' }}</h3>
-            <button class="modal-close" onclick="closePreparePsdModal()">×</button>
-        </div>
-        <div class="modal-body">
-            <div class="form-group" style="margin-bottom: 15px; position: relative;">
-                <label style="display:block; margin-bottom: 5px;">{{ 'Đường dẫn thư mục gốc (Win/Mac)' if lang == 'vi' else 'ルートフォルダパス (Win/Mac)' }}</label>
-                <input type="text" id="psd-path" class="cp-input" style="width: 100%; padding-right: 35px;" placeholder="VD: C:\Users\Admin\Downloads\test">
-                <span id="psd-path-status" style="position: absolute; right: 10px; bottom: 8px; display: none;"></span>
-            </div>
-            <div class="form-group" style="position: relative;">
-                <label style="display:block; margin-bottom: 5px;">{{ 'Tập số' if lang == 'vi' else '巻数' }}</label>
-                <input type="number" id="psd-tap" class="cp-input" style="width: 100%; padding-right: 35px;" placeholder="VD: 3">
-                <span id="psd-tap-status" style="position: absolute; right: 10px; bottom: 8px; display: none;"></span>
-            </div>
-            <div class="form-group" style="margin-top: 15px; position: relative;">
-                <label style="display:block; margin-bottom: 5px;">{{ 'Đường dẫn thư mục chứa PSD tải về (Tùy chọn)' if lang == 'vi' else 'ダウンロードしたPSDフォルダのパス (任意)' }}</label>
-                <input type="text" id="psd-source-path" class="cp-input" style="width: 100%; padding-right: 35px;" placeholder="{{ 'VD: C:\\Users\\... hoặc /Users/...' if lang == 'vi' else '例: C:\\Users\\... または /Users/...' }}">
-                <span id="psd-source-path-status" style="position: absolute; right: 10px; bottom: 8px; display: none;"></span>
-            </div>
-        </div>
-        <div class="modal-footer" style="padding: 15px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: flex-end; gap: 10px;">
-            <button class="btn btn-outline" onclick="closePreparePsdModal()">{{ 'Hủy' if lang == 'vi' else 'キャンセル' }}</button>
-            <button class="btn btn-primary" style="background-color: var(--secondary); color: white;" onclick="submitComparePsd()">{{ 'Compare PSD' if lang == 'vi' else 'Compare PSD' }}</button>
-            <button class="btn btn-primary" onclick="submitPreparePsd()">{{ 'Tạo thư mục' if lang == 'vi' else 'フォルダを作成' }}</button>
-        </div>
-    </div>
-
-<!-- ============ LSA DRIVE MODAL ============ -->
-<style>#drive-modal.active { display: flex !important; }</style>
-<div id="drive-modal-overlay" class="cp-overlay" onclick="closeDriveModal()"></div>
-<div id="drive-modal" class="cp-modal" style="max-width: 95vw; height: 95vh; width: 100%; padding: 0; overflow: hidden; flex-direction: column;">
-    <div class="modal-header" style="padding: 15px 25px; border-bottom: 1px solid var(--border); background: var(--surface); flex-shrink: 0;">
-        <h3 style="margin: 0;">LSA Drive</h3>
-        <button class="modal-close" onclick="closeDriveModal()">✕</button>
-    </div>
-    <div class="modal-body" style="flex: 1; padding: 0; overflow: hidden;">
-        <iframe id="drive-iframe" src="" style="width: 100%; height: 100%; border: none; display: block;"></iframe>
-    </div>
-</div>
-
 <!-- ============ CHANGE PASS MODAL ============ -->
 <div id="changepass-overlay" class="cp-overlay" onclick="closeChangePassModal()"></div>
 <div id="changepass-modal" class="cp-modal">
@@ -183,10 +138,7 @@
     <div class="sidebar-logo">
         <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" width="32" height="32"
             style="border-radius: var(--radius-sm); margin-right: 8px;">
-        <div style="display: flex; flex-direction: column; justify-content: center;">
-            <span>VN-Tracking</span>
-            <sup style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.2.14</i></sup>
-        </div>
+        VN-Tracking
     </div>
 
     <div class="nav-label">MAIN</div>
@@ -215,30 +167,6 @@
             </svg>
             Data Table
         </div>
-    </div>
-    
-    <div class="nav-item" onclick="openDriveModal()">
-        <div class="nav-item-content">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
-            </svg>
-            LSA Drive
-        </div>
-    </div>
-    <div class="nav-item" onclick="window.open('/psd-tool', '_blank')">
-        <div class="nav-item-content">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
-            </svg>
-            Prepare PSD
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left: auto;">
-                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                <polyline points="15 3 21 3 21 9"></polyline>
-                <line x1="10" y1="14" x2="21" y2="3"></line>
-            </svg>
-        </div>
-    </div>
-
     </div>
 
     <div class="nav-label">{{ 'SETTINGS' if lang == 'vi' else '設定' }}</div>
@@ -290,15 +218,15 @@
     <div class="sidebar-footer">
         <!-- LOFI RADIO WIDGET (Apple Music Style) -->
         <div id="lofi-radio-widget"
-            style="position: relative; width: 100%; margin-bottom: 6px; border-radius: 16px; overflow: hidden; box-shadow: 0 8px 24px rgba(0,0,0,0.2); background: #1c1c1e; color: #fff; transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);">
+            style="position: relative; width: 100%; margin-bottom: 12px; border-radius: 16px; overflow: hidden; box-shadow: 0 8px 24px rgba(0,0,0,0.2); background: #1c1c1e; color: #fff; transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);">
 
             <!-- Blurred Background Cover -->
             <div id="radio-bg-blur"
                 style="position: absolute; inset: -20px; background-image: url('https://img.youtube.com/vi/4xDzrIxC4Dk/hqdefault.jpg'); background-size: cover; background-position: center; filter: blur(24px) brightness(0.35); z-index: 0; transition: background-image 0.8s ease;">
             </div>
 
-            <div id="lofi-inner-content"
-                style="position: relative; z-index: 1; padding: 12px; display: flex; flex-direction: column; gap: 8px;">
+            <div
+                style="position: relative; z-index: 1; padding: 16px; display: flex; flex-direction: column; gap: 14px;">
 
                 <!-- Header: Title & DJ Toggle -->
                 <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -311,7 +239,6 @@
                             <circle cx="18" cy="16" r="3"></circle>
                         </svg>
                         LSA MUSIC
-                        <div id="radio-listeners-container" style="display: flex; margin-left: 8px;"></div>
                     </div>
                     <!-- DJ Toggle (Apple iOS Style) -->
                     <label style="position: relative; display: flex; align-items: center; gap: 6px; cursor: pointer;">
@@ -329,23 +256,23 @@
                 </div>
 
                 <!-- Cover & Track Info -->
-                <div style="display: flex; align-items: center; gap: 10px;">
+                <div style="display: flex; align-items: center; gap: 12px;">
                     <img id="radio-cover" src="https://img.youtube.com/vi/4xDzrIxC4Dk/hqdefault.jpg"
-                        style="width: 44px; height: 44px; border-radius: 8px; object-fit: cover; box-shadow: 0 4px 12px rgba(0,0,0,0.4); transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), border-radius 0.4s; transform-origin: center;">
+                        style="width: 52px; height: 52px; border-radius: 8px; object-fit: cover; box-shadow: 0 4px 12px rgba(0,0,0,0.4); transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), border-radius 0.4s; transform-origin: center;">
 
                     <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center;">
                         <div id="radio-track-name"
-                            style="font-weight: 700; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #fff; line-height: 1.2; text-shadow: 0 1px 2px rgba(0,0,0,0.2);">
-                            {{ 'Đang chờ...' if lang == 'vi' else '待機中...' }}</div>
+                            style="font-weight: 700; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #fff; line-height: 1.2; text-shadow: 0 1px 2px rgba(0,0,0,0.2);">
+                            Đang chờ...</div>
                         <div id="radio-dj-name"
-                            style="font-size: 11px; color: rgba(255,255,255,0.7); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 2px rgba(0,0,0,0.2);">
-                            {{ 'Chưa tham gia' if lang == 'vi' else '未参加' }}</div>
+                            style="font-size: 12px; color: rgba(255,255,255,0.7); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 2px rgba(0,0,0,0.2);">
+                            Chưa tham gia</div>
                     </div>
                 </div>
 
                 <!-- YouTube Input (DJ Only) -->
                 <div id="radio-yt-input-container" style="display: none;">
-                    <input type="text" id="radio-yt-input" placeholder="{{ 'Dán link YouTube vào đây...' if lang == 'vi' else 'YouTubeのリンクをここに貼り付け...' }}"
+                    <input type="text" id="radio-yt-input" placeholder="Dán link YouTube vào đây..."
                         style="width: 100%; padding: 8px 12px; font-size: 11px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.25); color: #fff; outline: none; transition: background 0.2s;">
                 </div>
 
@@ -581,7 +508,7 @@
             <!-- Center-Right: Weather Inline -->
             <div class="header-center" id="inline-weather-container"
                 style="display: flex; align-items: center; margin-right: 24px; min-width: 250px;">
-                <span style="color: rgba(255,255,255,0.7); font-size: 0.9rem;">{{ 'Đang tải thời tiết...' if lang == 'vi' else '天気を読み込み中...' }}</span>
+                <span style="color: rgba(255,255,255,0.7); font-size: 0.9rem;">Đang tải thời tiết...</span>
             </div>
 
             <!-- Vertical Divider -->
@@ -619,21 +546,10 @@
 
         <!-- AI Insights integrated as a sleek bottom bar -->
         {% if ai_insights and ai_insights|length > 0 %}
-        <style>
-            @keyframes marqueeScroll {
-                0% { transform: translateX(0); }
-                100% { transform: translateX(-50%); }
-            }
-            .ai-insights-bar { position: relative; z-index: 3; background: rgba(0,0,0,0.3); border-top: 1px solid rgba(255,255,255,0.08); padding: 10px 0; display: flex; align-items: center; backdrop-filter: blur(10px); overflow: hidden; }
-            .ai-insights-label { color: #fbbf24; display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; text-shadow: 0 2px 4px rgba(0,0,0,0.5); padding: 0 20px; flex-shrink: 0; z-index: 2; background: rgba(0,0,0,0.3); backdrop-filter: blur(4px); padding-right: 24px; }
-            .ai-insights-track { flex: 1; overflow: hidden; position: relative; mask-image: linear-gradient(to right, transparent 0%, black 3%, black 97%, transparent 100%); -webkit-mask-image: linear-gradient(to right, transparent 0%, black 3%, black 97%, transparent 100%); }
-            .ai-insights-scroll { display: flex; gap: 48px; align-items: center; white-space: nowrap; width: max-content; animation: marqueeScroll var(--marquee-duration, 30s) linear infinite; }
-            .ai-insights-scroll:hover { animation-play-state: paused; }
-            .ai-insight-item { color: rgba(255,255,255,0.9); font-size: 0.9rem; font-weight: 500; display: flex; align-items: center; gap: 8px; white-space: nowrap; cursor: default; }
-            .ai-insight-dot { width: 4px; height: 4px; border-radius: 50%; background: #60a5fa; box-shadow: 0 0 8px #60a5fa; flex-shrink: 0; }
-        </style>
-        <div class="ai-insights-bar">
-            <div class="ai-insights-label">
+        <div
+            style="position: relative; z-index: 3; background: rgba(0,0,0,0.3); border-top: 1px solid rgba(255,255,255,0.08); padding: 10px 32px; display: flex; align-items: center; gap: 20px; backdrop-filter: blur(10px);">
+            <div
+                style="color: #fbbf24; display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; text-shadow: 0 2px 4px rgba(0,0,0,0.5);">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
                     stroke-linecap="round" stroke-linejoin="round">
                     <path d="M12 2v4"></path>
@@ -648,37 +564,18 @@
                 AI Insights
             </div>
 
-            <div class="ai-insights-track">
-                <div class="ai-insights-scroll" id="aiInsightsScroll">
-                    {% for insight in ai_insights %}
-                    <div class="ai-insight-item">
-                        <span class="ai-insight-dot"></span>
-                        {{ insight }}
-                    </div>
-                    {% endfor %}
-                    <!-- Duplicate for seamless loop -->
-                    {% for insight in ai_insights %}
-                    <div class="ai-insight-item">
-                        <span class="ai-insight-dot"></span>
-                        {{ insight }}
-                    </div>
-                    {% endfor %}
+            <div style="display: flex; gap: 32px; flex: 1; align-items: center;">
+                {% for insight in ai_insights %}
+                <div
+                    style="color: rgba(255,255,255,0.9); font-size: 0.9rem; font-weight: 500; display: flex; align-items: center; gap: 8px; white-space: nowrap;">
+                    <span
+                        style="width: 4px; height: 4px; border-radius: 50%; background: #60a5fa; box-shadow: 0 0 8px #60a5fa;"></span>
+                    {{ insight }}
                 </div>
+                {% endfor %}
             </div>
         </div>
-        <script>
-            // Auto-adjust marquee speed based on content width
-            requestAnimationFrame(() => {
-                const scroll = document.getElementById('aiInsightsScroll');
-                if (scroll) {
-                    const halfWidth = scroll.scrollWidth / 2;
-                    const duration = Math.max(15, halfWidth / 60); // ~60px/s
-                    scroll.style.setProperty('--marquee-duration', duration + 's');
-                }
-            });
-        </script>
         {% endif %}
-    </div>
 
 
         <div class="chart-section"
@@ -773,10 +670,10 @@
                 <span class="deadline-badge" id="deadline-nay-badge" style="cursor: pointer;"
                     onclick="toggleCalendarPopup('{{ weeks.nay.info.deadline }}')">{{ weeks.nay.info.deadline }}</span>
                 <div id="calendar-popup"
-                    style="display: none; position: absolute; top: 100%; right: 0; z-index: 999; margin-top: 10px; background: var(--surface); border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); border: 1px solid var(--border); overflow: hidden; width: max-content; backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); background-color: color-mix(in srgb, var(--surface) 60%, transparent);">
-                    <div style="display: flex; min-width: 460px;">
+                    style="display: none; position: absolute; top: 100%; right: 0; z-index: 999; margin-top: 10px; background: var(--bg-card); border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); border: 1px solid var(--border); overflow: hidden; width: max-content;">
+                    <div style="display: flex; min-width: 350px;">
                         <div
-                            style="padding: 20px; width: 140px; border-right: 1px solid var(--border); display: flex; flex-direction: column;">
+                            style="padding: 20px; width: 130px; border-right: 1px solid var(--border); display: flex; flex-direction: column;">
                             <div id="cal-left-dow"
                                 style="color: #ef4444; font-weight: 700; font-size: 0.75rem; text-transform: uppercase; margin-bottom: 2px;">
                             </div>
@@ -1128,38 +1025,6 @@
                 </table>
             </div>
         </div>
-
-        <!-- MINI CHAT BOX -->
-        <div id="mini-chat-widget" style="position: fixed; bottom: 20px; right: 20px; z-index: 9990; display: flex; flex-direction: column; align-items: flex-end;">
-            <!-- Chat Window -->
-            <div id="chat-window" style="display: none; width: 320px; height: 400px; background: var(--bg-card); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border-radius: 12px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5); border: 1px solid var(--border); flex-direction: column; margin-bottom: 10px; overflow: hidden; z-index: 10000;">
-                <div style="background: linear-gradient(135deg, #3b82f6, #8b5cf6); padding: 12px 16px; color: white; font-weight: 600; display: flex; justify-content: space-between; align-items: center;">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-                        Team Chat
-                    </div>
-                    <button onclick="toggleChat()" style="background: transparent; border: none; color: white; cursor: pointer; padding: 0;">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                    </button>
-                </div>
-                <div id="chat-messages" style="flex: 1; padding: 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; font-size: 13px;">
-                    <!-- Messages go here -->
-                    <div style="text-align: center; color: var(--text-3); font-size: 12px; margin-bottom: 10px;">{{ 'Chào mừng bạn đến với kênh chat chung!' if lang == 'vi' else 'グループチャットへようこそ！' }}</div>
-                </div>
-                <div style="padding: 10px; border-top: 1px solid var(--border); display: flex; gap: 8px; background: var(--bg-body);">
-                    <input type="text" id="chat-input" placeholder="{{ 'Nhập tin nhắn...' if lang == 'vi' else 'メッセージを入力...' }}" style="flex: 1; padding: 8px 12px; border-radius: 20px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text); outline: none;">
-                    <button onclick="sendChatMessage()" style="background: #3b82f6; color: white; border: none; border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left: -2px; margin-top: 2px;"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-                    </button>
-                </div>
-            </div>
-            
-            <!-- Chat Bubble -->
-            <button id="chat-bubble-btn" onclick="toggleChat()" style="width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, #3b82f6, #8b5cf6); color: white; border: none; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4); cursor: pointer; display: flex; align-items: center; justify-content: center; position: relative; transition: transform 0.2s;">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-                <div id="chat-badge" style="position: absolute; top: -5px; right: -5px; background: #ef4444; color: white; font-size: 11px; font-weight: bold; width: 20px; height: 20px; border-radius: 50%; display: none; align-items: center; justify-content: center; border: 2px solid var(--bg-body);">0</div>
-            </button>
-        </div>
 </main>
 
 <!-- ============ MODALS FOR LOGTIME / CHECKLIST ============ -->
@@ -1228,7 +1093,6 @@
 {% endfor %}
 {% endfor %}
 
-
 {% endblock %}
 
 {% block head %}
@@ -1242,7 +1106,7 @@
         background: transparent !important;
         box-shadow: none !important;
         border: none !important;
-        width: 310px !important;
+        width: 280px !important;
         padding: 0 !important;
     }
 
@@ -1290,8 +1154,8 @@
     }
 
     .flatpickr-monthDropdown-months option {
-        background-color: var(--surface) !important;
-        color: var(--text) !important;
+        background-color: #1e293b !important;
+        color: #ffffff !important;
     }
 
     .flatpickr-current-month svg {
@@ -1345,7 +1209,6 @@
         z-index: 3 !important;
     }
 </style>
-
 {% endblock %}
 
 {% block scripts %}
@@ -1371,5 +1234,4 @@
 <!-- Confetti Library for Celebration Effects -->
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 <script src="{{ url_for('static', filename='js/app.js') }}?v={{ range(1, 100000) | random }}"></script>
-
 {% endblock %}
