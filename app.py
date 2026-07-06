@@ -827,20 +827,155 @@ def lsa_drive():
 # =====================================================================
 # DRIVE APIs
 # =====================================================================
+# Supabase Storage: dùng khi có cấu hình env (vd trên Vercel). Nếu không có
+# thì Drive chạy trên filesystem local như cũ (thuận tiện cho dev).
+SUPABASE_URL = os.environ.get('SUPABASE_URL', '').rstrip('/')
+SUPABASE_SERVICE_KEY = os.environ.get('SUPABASE_SERVICE_KEY', '')
+SUPABASE_BUCKET = os.environ.get('SUPABASE_BUCKET', 'drive')
+USE_SUPABASE = bool(SUPABASE_URL and SUPABASE_SERVICE_KEY)
+
+# File placeholder để "giả lập" thư mục rỗng trên object storage.
+SB_KEEP = '.keep'
+
+
+def _sb_headers(extra=None):
+    h = {
+        'Authorization': f'Bearer {SUPABASE_SERVICE_KEY}',
+        'apikey': SUPABASE_SERVICE_KEY,
+    }
+    if extra:
+        h.update(extra)
+    return h
+
+
+def _sb_clean(path):
+    """Chuẩn hóa path, chặn traversal. Trả về path tương đối trong bucket."""
+    parts = [p for p in str(path or '').replace('\\', '/').split('/') if p and p != '.']
+    if any(p == '..' for p in parts):
+        return None
+    return '/'.join(parts)
+
+
+def sb_list(prefix):
+    """Liệt kê 1 cấp dưới prefix. Trả về list dict giống os: name/is_dir/size/modified/path."""
+    body = {
+        'prefix': f'{prefix}/' if prefix else '',
+        'limit': 1000,
+        'offset': 0,
+        'sortBy': {'column': 'name', 'order': 'asc'},
+    }
+    r = requests.post(
+        f'{SUPABASE_URL}/storage/v1/object/list/{SUPABASE_BUCKET}',
+        headers=_sb_headers({'Content-Type': 'application/json'}),
+        json=body, timeout=30,
+    )
+    r.raise_for_status()
+    items = []
+    for obj in r.json():
+        name = obj.get('name')
+        if not name or name == SB_KEEP:
+            continue
+        # Folder: entry không có metadata/id (Supabase trả id=None cho "thư mục" ảo).
+        is_dir = obj.get('id') is None
+        meta = obj.get('metadata') or {}
+        full = f'{prefix}/{name}'.strip('/') if prefix else name
+        items.append({
+            'name': name,
+            'is_dir': is_dir,
+            'size': meta.get('size', 0) if not is_dir else 0,
+            'modified': obj.get('updated_at') or obj.get('created_at') or '',
+            'path': full,
+        })
+    return items
+
+
+def sb_upload(path, data, content_type='application/octet-stream'):
+    r = requests.post(
+        f'{SUPABASE_URL}/storage/v1/object/{SUPABASE_BUCKET}/{path}',
+        headers=_sb_headers({'Content-Type': content_type, 'x-upsert': 'true'}),
+        data=data, timeout=120,
+    )
+    r.raise_for_status()
+
+
+def sb_list_recursive(prefix):
+    """Trả về tất cả file (không phải folder) dưới prefix, đệ quy."""
+    files = []
+    for it in sb_list(prefix):
+        if it['is_dir']:
+            files.extend(sb_list_recursive(it['path']))
+        else:
+            files.append(it['path'])
+    # gồm cả .keep để xóa sạch folder
+    body = {'prefix': f'{prefix}/' if prefix else '', 'limit': 1000, 'offset': 0}
+    r = requests.post(
+        f'{SUPABASE_URL}/storage/v1/object/list/{SUPABASE_BUCKET}',
+        headers=_sb_headers({'Content-Type': 'application/json'}),
+        json=body, timeout=30,
+    )
+    if r.ok:
+        for obj in r.json():
+            if obj.get('name') == SB_KEEP:
+                files.append(f'{prefix}/{SB_KEEP}'.strip('/'))
+    return files
+
+
+def sb_delete(paths):
+    """Xóa danh sách object theo đường dẫn đầy đủ."""
+    if not paths:
+        return
+    r = requests.delete(
+        f'{SUPABASE_URL}/storage/v1/object/{SUPABASE_BUCKET}',
+        headers=_sb_headers({'Content-Type': 'application/json'}),
+        json={'prefixes': paths}, timeout=60,
+    )
+    r.raise_for_status()
+
+
+def sb_download_bytes(path):
+    r = requests.get(
+        f'{SUPABASE_URL}/storage/v1/object/{SUPABASE_BUCKET}/{path}',
+        headers=_sb_headers(), timeout=120,
+    )
+    r.raise_for_status()
+    return r.content
+
+
+def sb_sign_url(path, expires=120):
+    r = requests.post(
+        f'{SUPABASE_URL}/storage/v1/object/sign/{SUPABASE_BUCKET}/{path}',
+        headers=_sb_headers({'Content-Type': 'application/json'}),
+        json={'expiresIn': expires}, timeout=30,
+    )
+    r.raise_for_status()
+    return SUPABASE_URL + '/storage/v1' + r.json()['signedURL']
+
+
 @app.route('/api/drive/list', methods=['GET'])
 def drive_list():
     if not session.get('logged_in'):
         return jsonify({'error': 'Unauthorized'}), 401
-    
+
     req_path = request.args.get('path', '')
+
+    if USE_SUPABASE:
+        clean = _sb_clean(req_path)
+        if clean is None:
+            return jsonify({'error': 'Invalid path'}), 400
+        try:
+            items = sb_list(clean)
+            return jsonify({'success': True, 'items': items, 'current_path': clean})
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+
     target_dir = os.path.join(DRIVE_ROOT, req_path.strip('/'))
-    
+
     if not os.path.abspath(target_dir).startswith(os.path.abspath(DRIVE_ROOT)):
         return jsonify({'error': 'Invalid path'}), 400
-        
+
     if not os.path.exists(target_dir):
         return jsonify({'error': 'Path not found'}), 404
-        
+
     items = []
     try:
         for filename in os.listdir(target_dir):
@@ -864,20 +999,43 @@ def drive_upload():
         return jsonify({'error': 'Unauthorized'}), 401
         
     req_path = request.form.get('path', '')
-    target_dir = os.path.join(DRIVE_ROOT, req_path.strip('/'))
-    
-    if not os.path.abspath(target_dir).startswith(os.path.abspath(DRIVE_ROOT)):
-        return jsonify({'error': 'Invalid path'}), 400
-        
-    os.makedirs(target_dir, exist_ok=True)
-    socketio.emit('drive_updated', {'path': req_path.strip('/')})
-    
+
     if 'file' not in request.files:
         return jsonify({'error': 'No file part'}), 400
-        
     files = request.files.getlist('file')
+
+    if USE_SUPABASE:
+        clean = _sb_clean(req_path)
+        if clean is None:
+            return jsonify({'error': 'Invalid path'}), 400
+        uploaded_files = []
+        try:
+            for file in files:
+                if file.filename == '':
+                    continue
+                # Giữ tên file gốc (kể cả unicode), chỉ bỏ ký tự tách đường dẫn.
+                filename = os.path.basename(file.filename.replace('\\', '/'))
+                if not filename:
+                    continue
+                obj_path = f'{clean}/{filename}'.strip('/')
+                sb_upload(obj_path, file.read(), file.mimetype or 'application/octet-stream')
+                uploaded_files.append(filename)
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+        if uploaded_files:
+            socketio.emit('drive_updated', {'path': clean})
+        return jsonify({'success': True, 'uploaded': uploaded_files})
+
+    target_dir = os.path.join(DRIVE_ROOT, req_path.strip('/'))
+
+    if not os.path.abspath(target_dir).startswith(os.path.abspath(DRIVE_ROOT)):
+        return jsonify({'error': 'Invalid path'}), 400
+
+    os.makedirs(target_dir, exist_ok=True)
+    socketio.emit('drive_updated', {'path': req_path.strip('/')})
+
     uploaded_files = []
-    
+
     for file in files:
         if file.filename == '':
             continue
@@ -890,7 +1048,7 @@ def drive_upload():
         uploaded_files.append(filename)
     if uploaded_files:
         socketio.emit('drive_updated', {'path': req_path.strip('/')})
-        
+
     return jsonify({'success': True, 'uploaded': uploaded_files})
 
 @app.route('/api/drive/create_folder', methods=['POST'])
@@ -904,12 +1062,27 @@ def drive_create_folder():
     
     if not folder_name:
         return jsonify({'error': 'Folder name required'}), 400
-        
+
+    if USE_SUPABASE:
+        base = _sb_clean(req_path)
+        # tên folder không được chứa dấu tách đường dẫn
+        safe_name = folder_name.replace('/', '').replace('\\', '')
+        if base is None or not safe_name or safe_name in ('.', '..'):
+            return jsonify({'error': 'Invalid path'}), 400
+        folder = f'{base}/{safe_name}'.strip('/')
+        try:
+            # Tạo folder ảo bằng file placeholder .keep
+            sb_upload(f'{folder}/{SB_KEEP}', b'', 'text/plain')
+            socketio.emit('drive_updated', {'path': base})
+            return jsonify({'success': True})
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+
     target_dir = os.path.join(DRIVE_ROOT, req_path.strip('/'), secure_filename(folder_name) or folder_name)
-    
+
     if not os.path.abspath(target_dir).startswith(os.path.abspath(DRIVE_ROOT)):
         return jsonify({'error': 'Invalid path'}), 400
-        
+
     try:
         os.makedirs(target_dir, exist_ok=True)
         socketio.emit('drive_updated', {'path': req_path.strip('/')})
@@ -927,12 +1100,26 @@ def drive_delete():
     
     if not req_path:
         return jsonify({'error': 'Path required'}), 400
-        
+
+    if USE_SUPABASE:
+        clean = _sb_clean(req_path)
+        if not clean:
+            return jsonify({'error': 'Invalid path'}), 400
+        try:
+            # Là folder nếu có object bên dưới prefix; luôn thử xóa cả chính path (file).
+            to_delete = sb_list_recursive(clean)
+            to_delete.append(clean)
+            sb_delete(list(set(to_delete)))
+            socketio.emit('drive_updated', {'path': clean.rsplit('/', 1)[0] if '/' in clean else ''})
+            return jsonify({'success': True})
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+
     target = os.path.join(DRIVE_ROOT, req_path.strip('/'))
-    
+
     if not os.path.abspath(target).startswith(os.path.abspath(DRIVE_ROOT)) or os.path.abspath(target) == os.path.abspath(DRIVE_ROOT):
         return jsonify({'error': 'Invalid path'}), 400
-        
+
     try:
         if os.path.isdir(target):
             shutil.rmtree(target)
@@ -953,15 +1140,25 @@ def drive_download():
     req_path = request.args.get('path', '')
     if not req_path:
         return "Path required", 400
-        
+
+    if USE_SUPABASE:
+        clean = _sb_clean(req_path)
+        if not clean:
+            return "Invalid path", 400
+        try:
+            # Redirect tới signed URL (hết hạn sau 2 phút) để trình duyệt tải trực tiếp.
+            return redirect(sb_sign_url(clean, expires=120))
+        except Exception:
+            return "File not found", 404
+
     target = os.path.join(DRIVE_ROOT, req_path.strip('/'))
-    
+
     if not os.path.abspath(target).startswith(os.path.abspath(DRIVE_ROOT)):
         return "Invalid path", 400
-        
+
     if not os.path.isfile(target):
         return "File not found", 404
-        
+
     directory = os.path.dirname(target)
     filename = os.path.basename(target)
     return send_from_directory(directory, filename, as_attachment=True)
@@ -976,16 +1173,43 @@ def drive_delete_multiple():
     
     if not paths or not isinstance(paths, list):
         return jsonify({'error': 'No paths provided'}), 400
-        
+
     errors = []
     success_count = 0
-    
+
+    if USE_SUPABASE:
+        all_objs = []
+        for req_path in paths:
+            clean = _sb_clean(req_path)
+            if not clean:
+                errors.append(f"Invalid path: {req_path}")
+                continue
+            try:
+                objs = sb_list_recursive(clean)
+                objs.append(clean)
+                all_objs.extend(objs)
+                success_count += 1
+            except Exception as e:
+                errors.append(f"Failed to delete {req_path}: {str(e)}")
+        try:
+            if all_objs:
+                sb_delete(list(set(all_objs)))
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+        if success_count > 0:
+            socketio.emit('drive_updated', {})
+        if errors and success_count == 0:
+            return jsonify({'error': 'Tất cả file/thư mục đều không thể xóa', 'details': errors}), 500
+        elif errors:
+            return jsonify({'success': True, 'warning': f'Đã xóa {success_count} mục, lỗi {len(errors)} mục.', 'details': errors})
+        return jsonify({'success': True})
+
     for req_path in paths:
         target = os.path.join(DRIVE_ROOT, req_path.strip('/'))
         if not os.path.abspath(target).startswith(os.path.abspath(DRIVE_ROOT)) or os.path.abspath(target) == os.path.abspath(DRIVE_ROOT):
             errors.append(f"Invalid path: {req_path}")
             continue
-            
+
         try:
             if os.path.isdir(target):
                 shutil.rmtree(target)
@@ -994,7 +1218,7 @@ def drive_delete_multiple():
             success_count += 1
         except Exception as e:
             errors.append(f"Failed to delete {req_path}: {str(e)}")
-            
+
     if success_count > 0:
         socketio.emit('drive_updated', {})
         
@@ -1014,15 +1238,44 @@ def drive_download_multiple():
     
     if not paths or not isinstance(paths, list):
         return "No paths provided", 400
-        
+
     memory_file = io.BytesIO()
-    
+
+    if USE_SUPABASE:
+        try:
+            with zipfile.ZipFile(memory_file, 'w', zipfile.ZIP_DEFLATED) as zf:
+                for req_path in paths:
+                    clean = _sb_clean(req_path)
+                    if not clean:
+                        continue
+                    files = sb_list_recursive(clean)
+                    if files:
+                        # Là folder: giữ cấu trúc tương đối so với thư mục cha.
+                        parent = clean.rsplit('/', 1)[0] if '/' in clean else ''
+                        for obj in files:
+                            if os.path.basename(obj) == SB_KEEP:
+                                continue
+                            arcname = obj[len(parent):].lstrip('/') if parent else obj
+                            zf.writestr(arcname, sb_download_bytes(obj))
+                    else:
+                        # Là file đơn.
+                        zf.writestr(os.path.basename(clean), sb_download_bytes(clean))
+        except Exception as e:
+            return f"Lỗi tải: {str(e)}", 500
+        memory_file.seek(0)
+        zip_name = "LSA_Drive_Download.zip"
+        if len(paths) == 1:
+            single = _sb_clean(paths[0])
+            if single and sb_list_recursive(single):
+                zip_name = f"{os.path.basename(single)}.zip"
+        return send_file(memory_file, download_name=zip_name, as_attachment=True, mimetype='application/zip')
+
     with zipfile.ZipFile(memory_file, 'w', zipfile.ZIP_DEFLATED) as zf:
         for req_path in paths:
             target = os.path.join(DRIVE_ROOT, req_path.strip('/'))
             if not os.path.abspath(target).startswith(os.path.abspath(DRIVE_ROOT)):
                 continue
-                
+
             if os.path.isfile(target):
                 zf.write(target, os.path.basename(target))
             elif os.path.isdir(target):
@@ -1031,9 +1284,9 @@ def drive_download_multiple():
                         file_path = os.path.join(root, file)
                         arcname = os.path.relpath(file_path, os.path.dirname(target))
                         zf.write(file_path, arcname)
-                        
+
     memory_file.seek(0)
-    
+
     # Download name
     zip_name = "LSA_Drive_Download.zip"
     if len(paths) == 1:
@@ -1041,7 +1294,7 @@ def drive_download_multiple():
         target = os.path.join(DRIVE_ROOT, req_path)
         if os.path.isdir(target):
             zip_name = f"{os.path.basename(target)}.zip"
-            
+
     return send_file(memory_file, download_name=zip_name, as_attachment=True, mimetype='application/zip')
 
 
