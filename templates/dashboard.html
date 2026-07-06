@@ -3,42 +3,58 @@
 {% endblock %}
 
 {% block body %}
-    <!-- Prepare PSD Modal -->
-    <div id="prepare-psd-overlay" class="cp-overlay" onclick="closePreparePsdModal()"></div>
-    <div id="prepare-psd-modal" class="cp-modal" style="max-width: 500px; width: 90%;">
-        <div class="modal-header">
-            <h3>{{ 'Tạo thư mục làm việc (Prepare PSD)' if lang == 'vi' else '作業フォルダ作成 (Prepare PSD)' }}</h3>
-            <button class="modal-close" onclick="closePreparePsdModal()">×</button>
+<!-- Prepare PSD Modal -->
+<div id="prepare-psd-overlay" class="cp-overlay" onclick="closePreparePsdModal()"></div>
+<div id="prepare-psd-modal" class="cp-modal" style="max-width: 500px; width: 90%;">
+    <div class="modal-header">
+        <h3>{{ 'Tạo thư mục làm việc (Prepare PSD)' if lang == 'vi' else '作業フォルダ作成 (Prepare PSD)' }}</h3>
+        <button class="modal-close" onclick="closePreparePsdModal()">×</button>
+    </div>
+    <div class="modal-body">
+        <div class="form-group" style="margin-bottom: 15px; position: relative;">
+            <label style="display:block; margin-bottom: 5px;">{{ 'Đường dẫn thư mục gốc (Win/Mac)' if lang == 'vi' else
+                'ルートフォルダパス (Win/Mac)' }}</label>
+            <input type="text" id="psd-path" class="cp-input" style="width: 100%; padding-right: 35px;"
+                placeholder="VD: C:\Users\Admin\Downloads\test">
+            <span id="psd-path-status" style="position: absolute; right: 10px; bottom: 8px; display: none;"></span>
         </div>
-        <div class="modal-body">
-            <div class="form-group" style="margin-bottom: 15px; position: relative;">
-                <label style="display:block; margin-bottom: 5px;">{{ 'Đường dẫn thư mục gốc (Win/Mac)' if lang == 'vi' else 'ルートフォルダパス (Win/Mac)' }}</label>
-                <input type="text" id="psd-path" class="cp-input" style="width: 100%; padding-right: 35px;" placeholder="VD: C:\Users\Admin\Downloads\test">
-                <span id="psd-path-status" style="position: absolute; right: 10px; bottom: 8px; display: none;"></span>
-            </div>
-            <div class="form-group" style="position: relative;">
-                <label style="display:block; margin-bottom: 5px;">{{ 'Tập số' if lang == 'vi' else '巻数' }}</label>
-                <input type="number" id="psd-tap" class="cp-input" style="width: 100%; padding-right: 35px;" placeholder="VD: 3">
-                <span id="psd-tap-status" style="position: absolute; right: 10px; bottom: 8px; display: none;"></span>
-            </div>
-            <div class="form-group" style="margin-top: 15px; position: relative;">
-                <label style="display:block; margin-bottom: 5px;">{{ 'Đường dẫn thư mục chứa PSD tải về (Tùy chọn)' if lang == 'vi' else 'ダウンロードしたPSDフォルダのパス (任意)' }}</label>
-                <input type="text" id="psd-source-path" class="cp-input" style="width: 100%; padding-right: 35px;" placeholder="{{ 'VD: C:\\Users\\... hoặc /Users/...' if lang == 'vi' else '例: C:\\Users\\... または /Users/...' }}">
-                <span id="psd-source-path-status" style="position: absolute; right: 10px; bottom: 8px; display: none;"></span>
-            </div>
+        <div class="form-group" style="position: relative;">
+            <label style="display:block; margin-bottom: 5px;">{{ 'Tập số' if lang == 'vi' else '巻数' }}</label>
+            <input type="number" id="psd-tap" class="cp-input" style="width: 100%; padding-right: 35px;"
+                placeholder="VD: 3">
+            <span id="psd-tap-status" style="position: absolute; right: 10px; bottom: 8px; display: none;"></span>
         </div>
-        <div class="modal-footer" style="padding: 15px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: flex-end; gap: 10px;">
-            <button class="btn btn-outline" onclick="closePreparePsdModal()">{{ 'Hủy' if lang == 'vi' else 'キャンセル' }}</button>
-            <button class="btn btn-primary" style="background-color: var(--secondary); color: white;" onclick="submitComparePsd()">{{ 'Compare PSD' if lang == 'vi' else 'Compare PSD' }}</button>
-            <button class="btn btn-primary" onclick="submitPreparePsd()">{{ 'Tạo thư mục' if lang == 'vi' else 'フォルダを作成' }}</button>
+        <div class="form-group" style="margin-top: 15px; position: relative;">
+            <label style="display:block; margin-bottom: 5px;">{{ 'Đường dẫn thư mục chứa PSD tải về (Tùy chọn)' if lang
+                == 'vi' else 'ダウンロードしたPSDフォルダのパス (任意)' }}</label>
+            <input type="text" id="psd-source-path" class="cp-input" style="width: 100%; padding-right: 35px;"
+                placeholder="{{ 'VD: C:\\Users\\... hoặc /Users/...' if lang == 'vi' else '例: C:\\Users\\... または /Users/...' }}">
+            <span id="psd-source-path-status"
+                style="position: absolute; right: 10px; bottom: 8px; display: none;"></span>
         </div>
     </div>
+    <div class="modal-footer"
+        style="padding: 15px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: flex-end; gap: 10px;">
+        <button class="btn btn-outline" onclick="closePreparePsdModal()">{{ 'Hủy' if lang == 'vi' else 'キャンセル'
+            }}</button>
+        <button class="btn btn-primary" style="background-color: var(--secondary); color: white;"
+            onclick="submitComparePsd()">{{ 'Compare PSD' if lang == 'vi' else 'Compare PSD' }}</button>
+        <button class="btn btn-primary" onclick="submitPreparePsd()">{{ 'Tạo thư mục' if lang == 'vi' else 'フォルダを作成'
+            }}</button>
+    </div>
+</div>
 
 <!-- ============ LSA DRIVE MODAL ============ -->
-<style>#drive-modal.active { display: flex !important; }</style>
+<style>
+    #drive-modal.active {
+        display: flex !important;
+    }
+</style>
 <div id="drive-modal-overlay" class="cp-overlay" onclick="closeDriveModal()"></div>
-<div id="drive-modal" class="cp-modal" style="max-width: 95vw; height: 95vh; width: 100%; padding: 0; overflow: hidden; flex-direction: column;">
-    <div class="modal-header" style="padding: 15px 25px; border-bottom: 1px solid var(--border); background: var(--surface); flex-shrink: 0;">
+<div id="drive-modal" class="cp-modal"
+    style="max-width: 95vw; height: 95vh; width: 100%; padding: 0; overflow: hidden; flex-direction: column;">
+    <div class="modal-header"
+        style="padding: 15px 25px; border-bottom: 1px solid var(--border); background: var(--surface); flex-shrink: 0;">
         <h3 style="margin: 0;">LSA Drive</h3>
         <button class="modal-close" onclick="closeDriveModal()">✕</button>
     </div>
@@ -185,7 +201,7 @@
             style="border-radius: var(--radius-sm); margin-right: 8px;">
         <div style="display: flex; flex-direction: column; justify-content: center;">
             <span>VN-Tracking</span>
-            <sup style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.2.15</i></sup>
+            <sup style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.2.14</i></sup>
         </div>
     </div>
 
@@ -216,10 +232,11 @@
             Data Table
         </div>
     </div>
-    
+
     <div class="nav-item" onclick="openDriveModal()">
         <div class="nav-item-content">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
                 <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
             </svg>
             LSA Drive
@@ -227,11 +244,14 @@
     </div>
     <div class="nav-item" onclick="window.open('/psd-tool', '_blank')">
         <div class="nav-item-content">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+                <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
             </svg>
             Prepare PSD
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left: auto;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round" style="margin-left: auto;">
                 <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
                 <polyline points="15 3 21 3 21 9"></polyline>
                 <line x1="10" y1="14" x2="21" y2="3"></line>
@@ -345,7 +365,8 @@
 
                 <!-- YouTube Input (DJ Only) -->
                 <div id="radio-yt-input-container" style="display: none;">
-                    <input type="text" id="radio-yt-input" placeholder="{{ 'Dán link YouTube vào đây...' if lang == 'vi' else 'YouTubeのリンクをここに貼り付け...' }}"
+                    <input type="text" id="radio-yt-input"
+                        placeholder="{{ 'Dán link YouTube vào đây...' if lang == 'vi' else 'YouTubeのリンクをここに貼り付け...' }}"
                         style="width: 100%; padding: 8px 12px; font-size: 11px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.25); color: #fff; outline: none; transition: background 0.2s;">
                 </div>
 
@@ -581,7 +602,8 @@
             <!-- Center-Right: Weather Inline -->
             <div class="header-center" id="inline-weather-container"
                 style="display: flex; align-items: center; margin-right: 24px; min-width: 250px;">
-                <span style="color: rgba(255,255,255,0.7); font-size: 0.9rem;">{{ 'Đang tải thời tiết...' if lang == 'vi' else '天気を読み込み中...' }}</span>
+                <span style="color: rgba(255,255,255,0.7); font-size: 0.9rem;">{{ 'Đang tải thời tiết...' if lang ==
+                    'vi' else '天気を読み込み中...' }}</span>
             </div>
 
             <!-- Vertical Divider -->
@@ -621,16 +643,85 @@
         {% if ai_insights and ai_insights|length > 0 %}
         <style>
             @keyframes marqueeScroll {
-                0% { transform: translateX(0); }
-                100% { transform: translateX(-50%); }
+                0% {
+                    transform: translateX(0);
+                }
+
+                100% {
+                    transform: translateX(-50%);
+                }
             }
-            .ai-insights-bar { position: relative; z-index: 3; background: rgba(0,0,0,0.3); border-top: 1px solid rgba(255,255,255,0.08); padding: 10px 0; display: flex; align-items: center; backdrop-filter: blur(10px); overflow: hidden; }
-            .ai-insights-label { color: #fbbf24; display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; text-shadow: 0 2px 4px rgba(0,0,0,0.5); padding: 0 20px; flex-shrink: 0; z-index: 2; background: rgba(0,0,0,0.3); backdrop-filter: blur(4px); padding-right: 24px; }
-            .ai-insights-track { flex: 1; overflow: hidden; position: relative; mask-image: linear-gradient(to right, transparent 0%, black 3%, black 97%, transparent 100%); -webkit-mask-image: linear-gradient(to right, transparent 0%, black 3%, black 97%, transparent 100%); }
-            .ai-insights-scroll { display: flex; gap: 48px; align-items: center; white-space: nowrap; width: max-content; animation: marqueeScroll var(--marquee-duration, 30s) linear infinite; }
-            .ai-insights-scroll:hover { animation-play-state: paused; }
-            .ai-insight-item { color: rgba(255,255,255,0.9); font-size: 0.9rem; font-weight: 500; display: flex; align-items: center; gap: 8px; white-space: nowrap; cursor: default; }
-            .ai-insight-dot { width: 4px; height: 4px; border-radius: 50%; background: #60a5fa; box-shadow: 0 0 8px #60a5fa; flex-shrink: 0; }
+
+            .ai-insights-bar {
+                position: relative;
+                z-index: 3;
+                background: rgba(0, 0, 0, 0.3);
+                border-top: 1px solid rgba(255, 255, 255, 0.08);
+                padding: 10px 0;
+                display: flex;
+                align-items: center;
+                backdrop-filter: blur(10px);
+                overflow: hidden;
+            }
+
+            .ai-insights-label {
+                color: #fbbf24;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                font-weight: 700;
+                font-size: 0.85rem;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+                padding: 0 20px;
+                flex-shrink: 0;
+                z-index: 2;
+                background: rgba(0, 0, 0, 0.3);
+                backdrop-filter: blur(4px);
+                padding-right: 24px;
+            }
+
+            .ai-insights-track {
+                flex: 1;
+                overflow: hidden;
+                position: relative;
+                mask-image: linear-gradient(to right, transparent 0%, black 3%, black 97%, transparent 100%);
+                -webkit-mask-image: linear-gradient(to right, transparent 0%, black 3%, black 97%, transparent 100%);
+            }
+
+            .ai-insights-scroll {
+                display: flex;
+                gap: 48px;
+                align-items: center;
+                white-space: nowrap;
+                width: max-content;
+                animation: marqueeScroll var(--marquee-duration, 30s) linear infinite;
+            }
+
+            .ai-insights-scroll:hover {
+                animation-play-state: paused;
+            }
+
+            .ai-insight-item {
+                color: rgba(255, 255, 255, 0.9);
+                font-size: 0.9rem;
+                font-weight: 500;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                white-space: nowrap;
+                cursor: default;
+            }
+
+            .ai-insight-dot {
+                width: 4px;
+                height: 4px;
+                border-radius: 50%;
+                background: #60a5fa;
+                box-shadow: 0 0 8px #60a5fa;
+                flex-shrink: 0;
+            }
         </style>
         <div class="ai-insights-bar">
             <div class="ai-insights-label">
@@ -681,485 +772,512 @@
     </div>
 
 
-        <div class="chart-section"
-            style="background: var(--bg-card); border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: 1px solid var(--border); width: 100%;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                <h3 style="color: var(--text); display: flex; align-items: center; gap: 8px; margin: 0;">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                        stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M3 3v18h18"></path>
-                        <path d="M18 17V9"></path>
-                        <path d="M13 17V5"></path>
-                        <path d="M8 17v-3"></path>
-                    </svg>
-                    {{ 'Tiến độ theo thời gian' if lang == 'vi' else '期間別タスク進捗' }}
-                </h3>
+    <div class="chart-section"
+        style="background: var(--bg-card); border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: 1px solid var(--border); width: 100%;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h3 style="color: var(--text); display: flex; align-items: center; gap: 8px; margin: 0;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 3v18h18"></path>
+                    <path d="M18 17V9"></path>
+                    <path d="M13 17V5"></path>
+                    <path d="M8 17v-3"></path>
+                </svg>
+                {{ 'Tiến độ theo thời gian' if lang == 'vi' else '期間別タスク進捗' }}
+            </h3>
 
-                <div id="custom-chart-legend"
-                    style="display: none; align-items: center; gap: 16px; font-size: 0.9rem; color: var(--text-2); margin-left: auto; margin-right: 20px;">
-                    <span style="display: flex; align-items: center; gap: 6px;">
-                        <span
-                            style="width: 12px; height: 12px; border-radius: 50%; background: rgba(96, 165, 250, 0.85);"></span>
-                        Retouch
-                    </span>
-                    <span style="display: flex; align-items: center; gap: 6px;">
-                        <span
-                            style="width: 12px; height: 12px; border-radius: 50%; background: rgba(167, 243, 208, 0.85);"></span>
-                        Lettering
-                    </span>
-                </div>
-
-                <div class="chart-time-controls" style="display: flex; gap: 5px;">
-                    <button class="btn btn-sm btn-primary active" data-period="week" onclick="setChartPeriod('week')">{{
-                        'Tuần' if lang == 'vi' else '週' }}</button>
-                    <div class="custom-lang-select" id="custom-week-select" style="display: none;"
-                        onclick="toggleWeekSelect(event)">
-                        <div class="lang-trigger" style="padding: 4px 12px; height: 100%;">
-                            <span id="week-text" style="font-size: 0.8rem; font-weight: 500;">{{ 'Tuần này' if lang ==
-                                'vi' else '今週' }}</span>
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lang-arrow">
-                                <polyline points="6 9 12 15 18 9"></polyline>
-                            </svg>
-                        </div>
-                        <div class="lang-dropdown" id="week-dropdown-list"
-                            style="min-width: 140px; max-height: 250px; overflow-y: auto;">
-                        </div>
-                    </div>
-                    <button class="btn btn-sm btn-outline" data-period="month" onclick="setChartPeriod('month')">{{
-                        'Tháng' if lang == 'vi' else '月' }}</button>
-
-                    <div class="custom-lang-select" id="custom-month-select" style="display: none;"
-                        onclick="toggleMonthSelect(event)">
-                        <div class="lang-trigger" style="padding: 4px 12px; height: 100%;">
-                            <span id="month-text" style="font-size: 0.8rem; font-weight: 500;">{{ 'Tháng' if lang ==
-                                'vi' else '月' }}</span>
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lang-arrow">
-                                <polyline points="6 9 12 15 18 9"></polyline>
-                            </svg>
-                        </div>
-                        <div class="lang-dropdown" id="month-dropdown-list"
-                            style="min-width: 140px; max-height: 250px; overflow-y: auto;">
-                        </div>
-                    </div>
-
-                    <button class="btn btn-sm btn-outline" data-period="year" onclick="setChartPeriod('year')">{{ 'Năm'
-                        if lang == 'vi' else '年' }}</button>
-                </div>
-            </div>
-            <div style="position: relative; height: 450px; width: 100%;">
-                <div id="chart-loader"
-                    style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(15, 23, 42, 0.5); z-index: 10; border-radius: 12px; backdrop-filter: blur(4px);">
-                    <div class="spinner"></div>
-                </div>
-                <canvas id="monthlyTaskChart"></canvas>
-            </div>
-        </div>
-
-        <div class="dashboard-controls">
-
-            <div class="tab-bar">
-                <button class="tab-btn" data-tab="truoc" onclick="switchTab('truoc')">{{ t.tab0 }}</button>
-                <button class="tab-btn active" data-tab="nay" onclick="switchTab('nay')">{{ t.tab1 }}</button>
-                <button class="tab-btn" data-tab="sau" onclick="switchTab('sau')">{{ t.tab2 }}</button>
-            </div>
-            <div class="info-banner" id="banner-truoc" style="display: none;">
-                <span>{{ weeks.truoc.info.start }} - {{ weeks.truoc.info.end }}</span>
-                <span class="deadline-badge">{{ 'Deadline đã qua' if lang == 'vi' else '期限切れ' }}</span>
-            </div>
-            <div class="info-banner" id="banner-nay" style="position: relative; z-index: 100;">
-                <span>{{ weeks.nay.info.start }} - {{ weeks.nay.info.end }}</span>
-                <span class="deadline-badge" id="deadline-nay-badge" style="cursor: pointer;"
-                    onclick="toggleCalendarPopup('{{ weeks.nay.info.deadline }}')">{{ weeks.nay.info.deadline }}</span>
-                <div id="calendar-popup"
-                    style="display: none; position: absolute; top: 100%; right: 0; z-index: 999; margin-top: 10px; background: var(--surface); border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); border: 1px solid var(--border); overflow: hidden; width: max-content; backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); background-color: color-mix(in srgb, var(--surface) 60%, transparent);">
-                    <div style="display: flex; min-width: 460px;">
-                        <div
-                            style="padding: 20px; width: 140px; border-right: 1px solid var(--border); display: flex; flex-direction: column;">
-                            <div id="cal-left-dow"
-                                style="color: #ef4444; font-weight: 700; font-size: 0.75rem; text-transform: uppercase; margin-bottom: 2px;">
-                            </div>
-                            <div id="cal-left-date"
-                                style="font-size: 3.5rem; font-weight: 400; line-height: 1.1; color: var(--text); margin-bottom: 15px; letter-spacing: -2px;">
-                            </div>
-                            <div id="cal-left-text" style="font-size: 0.8rem; color: var(--text-2); line-height: 1.4;">
-                                Hạn chót nộp tác phẩm tuần này</div>
-                        </div>
-                        <div style="padding: 10px 15px 15px 15px;">
-                            <div id="inline-calendar"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="info-banner" id="banner-sau" style="display: none;">
-                <span>{{ weeks.sau.info.start }} - {{ weeks.sau.info.end }}</span>
-                {% if weeks.sau.info.deadline and weeks.sau.info.deadline != t.not_update %}
-                <span class="deadline-badge" style="cursor: pointer;"
-                    onclick="toggleCalendarPopup('{{ weeks.sau.info.deadline }}')">{{ weeks.sau.info.deadline }}</span>
-                {% else %}
-                <span class="deadline-badge">{{ 'Chưa có thông tin deadline' if lang == 'vi' else '締め切りの情報がありません'
-                    }}</span>
-                {% endif %}
-            </div>
-        </div>
-
-        <!-- ==================== TAB: TUẦN TRƯỚC ==================== -->
-        <div class="tab-content" id="tab-truoc">
-            {% if weeks.truoc.tasks %}
-            <div class="metrics-row">
-                <div class="metric-card">
-                    <div class="metric-title">{{ t.metric_total }}</div>
-                    <div class="metric-value">{{ weeks.truoc.metrics.total }}</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-title">{{ t.metric_retouch }}</div>
-                    <div class="metric-value">{{ weeks.truoc.metrics.retouch }}</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-title">{{ t.metric_type }}</div>
-                    <div class="metric-value">{{ weeks.truoc.metrics.lettering }}</div>
-                </div>
-            </div>
-            <div class="kanban-board">
-                {% set statuses = [('not-started', 'To Do', weeks.truoc.dashboard|selectattr("status_class", "equalto",
-                "not-started")|list), ('in-progress', 'In Progress', weeks.truoc.dashboard|selectattr("status_class",
-                "equalto", "in-progress")|list), ('delivered', 'Completed',
-                weeks.truoc.dashboard|selectattr("status_class", "equalto", "delivered")|list)] %}
-                {% for status_id, status_name, cards in statuses %}
-                <div class="kanban-column" data-status="{{ status_id }}">
-                    <div class="kanban-header">
-                        <span>{{ status_name }}</span>
-                        <span class="count kanban-col-count">{{ cards|length }}</span>
-                    </div>
-                    <div class="kanban-cards">
-                        {% for card in cards %}
-                        <div class="progress-card status-{{ card.status_class }}" data-tp-key="{{ card.key }}"
-                            data-checked-ids="{{ card.checked_ids }}" onclick="openModal('truoc', '{{ card.key }}')">
-                            <div class="card-tags">
-                                {% set cv = card.name.split(' - ')[0] %}
-                                {% set tag_class = 'tag-lettering' if '写植' in cv or 'Lettering' in cv else
-                                ('tag-retouch' if 'レタッチ' in cv or 'Retouch' in cv else '') %}
-                                <span class="tag {{ tag_class }}">{{ cv }}</span>
-                            </div>
-                            <div class="card-title">{{ card.name }}</div>
-                            <div class="card-worker">
-                                <div class="worker-avatars-group" style="display: flex;">
-                                    {% set workers = card.worker.split(',') if card.worker else [] %}
-                                    {% for w in workers %}
-                                    {% set w_trim = w.strip() %}
-                                    {% set ns = namespace(found_avatar=none) %}
-                                    {% if user_profiles %}
-                                    {% for k, v in user_profiles.items() %}
-                                    {% if k|lower in w_trim|lower or w_trim|lower in k|lower %}
-                                    {% set ns.found_avatar = v.avatar %}
-                                    {% endif %}
-                                    {% endfor %}
-                                    {% endif %}
-                                    <span class="worker-avatar"
-                                        style="{% if not loop.first %}margin-left: -8px;{% endif %} border: 2px solid var(--bg-card); position: relative; z-index: {{ 10 - loop.index0 }};"
-                                        title="{{ w_trim }}">
-                                        {% if ns.found_avatar %}
-                                        <img src="{{ ns.found_avatar }}" alt="Avatar" class="avatar-img"
-                                            referrerpolicy="no-referrer"
-                                            onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                                        <span class="avatar-fallback" style="display:none;">{{ w_trim[0]|upper if w_trim
-                                            else 'U' }}</span>
-                                        {% else %}
-                                        {{ w_trim[0]|upper if w_trim else 'U' }}
-                                        {% endif %}
-                                    </span>
-                                    {% endfor %}
-                                </div>
-                                <span class="worker-name" style="margin-left: 8px;">{{ card.worker }}</span>
-                            </div>
-                            <div class="progress-info">
-                                <span class="status-text">
-                                    {% if card.status_class == 'not-started' %}
-                                    {{ 'To Do' if lang == 'vi' else '未着手' }}
-                                    {% elif card.status_class == 'delivered' %}
-                                    {{ 'Completed' if lang == 'vi' else '納品済み' }}
-                                    {% else %}
-                                    {{ 'In Progress' if lang == 'vi' else '進行中' }}
-                                    {% endif %}
-                                </span>
-                                <span>{{ card.progress }}%</span>
-                            </div>
-                            <div class="progress-track">
-                                <div class="progress-fill" style="width: {{ card.progress }}%"></div>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-            {% else %}
-            <p style="text-align: center; color: var(--text-4); padding: 40px;">{{ t.no_task }}</p>
-            {% endif %}
-        </div>
-
-        <!-- ==================== TAB: TUẦN NÀY ==================== -->
-        <div class="tab-content active" id="tab-nay">
-            {% if weeks.nay.tasks %}
-            <div class="metrics-row">
-                <div class="metric-card">
-                    <div class="metric-title">{{ t.metric_total }}</div>
-                    <div class="metric-value">{{ weeks.nay.metrics.total }}</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-title">{{ t.metric_retouch }}</div>
-                    <div class="metric-value">{{ weeks.nay.metrics.retouch }}</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-title">{{ t.metric_type }}</div>
-                    <div class="metric-value">{{ weeks.nay.metrics.lettering }}</div>
-                </div>
-            </div>
-            <div class="kanban-board">
-                {% set statuses = [('not-started', 'To Do' if lang == 'vi' else '未着手',
-                weeks.nay.dashboard|selectattr("status_class", "equalto", "not-started")|list), ('in-progress', 'In
-                Progress' if lang == 'vi' else '進行中', weeks.nay.dashboard|selectattr("status_class", "equalto",
-                "in-progress")|list), ('delivered', 'Completed' if lang == 'vi' else '納品済み',
-                weeks.nay.dashboard|selectattr("status_class", "equalto", "delivered")|list)] %}
-                {% for status_id, status_name, cards in statuses %}
-                <div class="kanban-column" data-status="{{ status_id }}">
-                    <div class="kanban-header">
-                        <span>{{ status_name }}</span>
-                        <span class="count kanban-col-count">{{ cards|length }}</span>
-                    </div>
-                    <div class="kanban-cards">
-                        {% for card in cards %}
-                        <div class="progress-card status-{{ card.status_class }}" data-tp-key="{{ card.key }}"
-                            data-checked-ids="{{ card.checked_ids }}" onclick="openModal('nay', '{{ card.key }}')">
-                            <div class="card-tags">
-                                {% set cv = card.name.split(' - ')[0] %}
-                                {% set tag_class = 'tag-lettering' if '写植' in cv or 'Lettering' in cv else
-                                ('tag-retouch' if 'レタッチ' in cv or 'Retouch' in cv else '') %}
-                                <span class="tag {{ tag_class }}">{{ cv }}</span>
-                            </div>
-                            <div class="card-title">{{ card.name }}</div>
-                            <div class="card-worker">
-                                <div class="worker-avatars-group" style="display: flex;">
-                                    {% set workers = card.worker.split(',') if card.worker else [] %}
-                                    {% for w in workers %}
-                                    {% set w_trim = w.strip() %}
-                                    {% set ns = namespace(found_avatar=none) %}
-                                    {% if user_profiles %}
-                                    {% for k, v in user_profiles.items() %}
-                                    {% if k|lower in w_trim|lower or w_trim|lower in k|lower %}
-                                    {% set ns.found_avatar = v.avatar %}
-                                    {% endif %}
-                                    {% endfor %}
-                                    {% endif %}
-                                    <span class="worker-avatar"
-                                        style="{% if not loop.first %}margin-left: -8px;{% endif %} border: 2px solid var(--bg-card); position: relative; z-index: {{ 10 - loop.index0 }};"
-                                        title="{{ w_trim }}">
-                                        {% if ns.found_avatar %}
-                                        <img src="{{ ns.found_avatar }}" alt="Avatar" class="avatar-img"
-                                            referrerpolicy="no-referrer"
-                                            onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                                        <span class="avatar-fallback" style="display:none;">{{ w_trim[0]|upper if w_trim
-                                            else 'U' }}</span>
-                                        {% else %}
-                                        {{ w_trim[0]|upper if w_trim else 'U' }}
-                                        {% endif %}
-                                    </span>
-                                    {% endfor %}
-                                </div>
-                                <span class="worker-name" style="margin-left: 8px;">{{ card.worker }}</span>
-                            </div>
-                            <div class="progress-info">
-                                <span class="status-text">
-                                    {% if card.status_class == 'not-started' %}
-                                    {{ 'To Do' if lang == 'vi' else '未着手' }}
-                                    {% elif card.status_class == 'delivered' %}
-                                    {{ 'Completed' if lang == 'vi' else '納品済み' }}
-                                    {% else %}
-                                    {{ 'In Progress' if lang == 'vi' else '進行中' }}
-                                    {% endif %}
-                                </span>
-                                <span>{{ card.progress }}%</span>
-                            </div>
-                            <div class="progress-track">
-                                <div class="progress-fill" style="width: {{ card.progress }}%"></div>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-            {% else %}
-            <p style="text-align: center; color: var(--text-4); padding: 40px;">{{ t.no_task }}</p>
-            {% endif %}
-        </div>
-
-        <!-- ==================== TAB: TUẦN SAU ==================== -->
-        <div class="tab-content" id="tab-sau">
-            {% if weeks.sau.tasks %}
-            <div class="metrics-row">
-                <div class="metric-card">
-                    <div class="metric-title">{{ t.metric_total }}</div>
-                    <div class="metric-value">{{ weeks.sau.metrics.total }}</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-title">{{ t.metric_retouch }}</div>
-                    <div class="metric-value">{{ weeks.sau.metrics.retouch }}</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-title">{{ t.metric_type }}</div>
-                    <div class="metric-value">{{ weeks.sau.metrics.lettering }}</div>
-                </div>
-            </div>
-            <div class="kanban-board">
-                {% set statuses = [('not-started', 'To Do' if lang == 'vi' else '未着手',
-                weeks.sau.dashboard|selectattr("status_class", "equalto", "not-started")|list), ('in-progress', 'In
-                Progress' if lang == 'vi' else '進行中', weeks.sau.dashboard|selectattr("status_class", "equalto",
-                "in-progress")|list), ('delivered', 'Completed' if lang == 'vi' else '納品済み',
-                weeks.sau.dashboard|selectattr("status_class", "equalto", "delivered")|list)] %}
-                {% for status_id, status_name, cards in statuses %}
-                <div class="kanban-column" data-status="{{ status_id }}">
-                    <div class="kanban-header">
-                        <span>{{ status_name }}</span>
-                        <span class="count kanban-col-count">{{ cards|length }}</span>
-                    </div>
-                    <div class="kanban-cards">
-                        {% for card in cards %}
-                        <div class="progress-card status-{{ card.status_class }}" data-tp-key="{{ card.key }}"
-                            data-checked-ids="{{ card.checked_ids }}" onclick="openModal('sau', '{{ card.key }}')">
-                            <div class="card-tags">
-                                {% set cv = card.name.split(' - ')[0] %}
-                                {% set tag_class = 'tag-lettering' if '写植' in cv or 'Lettering' in cv else
-                                ('tag-retouch' if 'レタッチ' in cv or 'Retouch' in cv else '') %}
-                                <span class="tag {{ tag_class }}">{{ cv }}</span>
-                            </div>
-                            <div class="card-title">{{ card.name }}</div>
-                            <div class="card-worker">
-                                <div class="worker-avatars-group" style="display: flex;">
-                                    {% set workers = card.worker.split(',') if card.worker else [] %}
-                                    {% for w in workers %}
-                                    {% set w_trim = w.strip() %}
-                                    {% set ns = namespace(found_avatar=none) %}
-                                    {% if user_profiles %}
-                                    {% for k, v in user_profiles.items() %}
-                                    {% if k|lower in w_trim|lower or w_trim|lower in k|lower %}
-                                    {% set ns.found_avatar = v.avatar %}
-                                    {% endif %}
-                                    {% endfor %}
-                                    {% endif %}
-                                    <span class="worker-avatar"
-                                        style="{% if not loop.first %}margin-left: -8px;{% endif %} border: 2px solid var(--bg-card); position: relative; z-index: {{ 10 - loop.index0 }};"
-                                        title="{{ w_trim }}">
-                                        {% if ns.found_avatar %}
-                                        <img src="{{ ns.found_avatar }}" alt="Avatar" class="avatar-img"
-                                            referrerpolicy="no-referrer"
-                                            onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                                        <span class="avatar-fallback" style="display:none;">{{ w_trim[0]|upper if w_trim
-                                            else 'U' }}</span>
-                                        {% else %}
-                                        {{ w_trim[0]|upper if w_trim else 'U' }}
-                                        {% endif %}
-                                    </span>
-                                    {% endfor %}
-                                </div>
-                                <span class="worker-name" style="margin-left: 8px;">{{ card.worker }}</span>
-                            </div>
-                            <div class="progress-info">
-                                <span class="status-text">
-                                    {% if card.status_class == 'not-started' %}
-                                    {{ 'To Do' if lang == 'vi' else '未着手' }}
-                                    {% elif card.status_class == 'delivered' %}
-                                    {{ 'Completed' if lang == 'vi' else '納品済み' }}
-                                    {% else %}
-                                    {{ 'In Progress' if lang == 'vi' else '進行中' }}
-                                    {% endif %}
-                                </span>
-                                <span>{{ card.progress }}%</span>
-                            </div>
-                            <div class="progress-track">
-                                <div class="progress-fill" style="width: {{ card.progress }}%"></div>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-            {% else %}
-            <p style="text-align: center; color: var(--text-4); padding: 40px;">{{ t.no_task }}</p>
-            {% endif %}
-        </div>
-
-        <!-- ============ DATA TABLE (COLLAPSIBLE) ============ -->
-        <div class="table-section">
-            <div class="table-header" onclick="toggleTable()">
-                <h3>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                        stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                        <line x1="3" y1="9" x2="21" y2="9"></line>
-                        <line x1="9" y1="21" x2="9" y2="9"></line>
-                    </svg>
-                    Data Table
-                </h3>
-                <span id="table-arrow">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                        stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="6 9 12 15 18 9"></polyline>
-                    </svg>
+            <div id="custom-chart-legend"
+                style="display: none; align-items: center; gap: 16px; font-size: 0.9rem; color: var(--text-2); margin-left: auto; margin-right: 20px;">
+                <span style="display: flex; align-items: center; gap: 6px;">
+                    <span
+                        style="width: 12px; height: 12px; border-radius: 50%; background: rgba(96, 165, 250, 0.85);"></span>
+                    Retouch
+                </span>
+                <span style="display: flex; align-items: center; gap: 6px;">
+                    <span
+                        style="width: 12px; height: 12px; border-radius: 50%; background: rgba(167, 243, 208, 0.85);"></span>
+                    Lettering
                 </span>
             </div>
-            <div class="table-wrapper open" id="table-wrapper">
-                <table class="data-table">
-                    <thead>
-                        <tr>{% for col in t.cols %}<th>{{ col }}</th>{% endfor %}</tr>
-                    </thead>
-                    <tbody id="combined-table-body">
-                        {% for tab_key in ['truoc', 'nay', 'sau'] %}
-                        {% for row in weeks[tab_key].tasks %}
-                        <tr class="table-row table-{{ tab_key }}">
-                            {% for col in cols_keys %}<td>{{ row[col] if row[col] is not none and row[col]|string !=
-                                'nan' else '' }}</td>{% endfor %}
-                        </tr>
-                        {% endfor %}
-                        {% endfor %}
-                    </tbody>
-                </table>
+
+            <div class="chart-time-controls" style="display: flex; gap: 5px;">
+                <button class="btn btn-sm btn-primary active" data-period="week" onclick="setChartPeriod('week')">{{
+                    'Tuần' if lang == 'vi' else '週' }}</button>
+                <div class="custom-lang-select" id="custom-week-select" style="display: none;"
+                    onclick="toggleWeekSelect(event)">
+                    <div class="lang-trigger" style="padding: 4px 12px; height: 100%;">
+                        <span id="week-text" style="font-size: 0.8rem; font-weight: 500;">{{ 'Tuần này' if lang ==
+                            'vi' else '今週' }}</span>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lang-arrow">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </div>
+                    <div class="lang-dropdown" id="week-dropdown-list"
+                        style="min-width: 140px; max-height: 250px; overflow-y: auto;">
+                    </div>
+                </div>
+                <button class="btn btn-sm btn-outline" data-period="month" onclick="setChartPeriod('month')">{{
+                    'Tháng' if lang == 'vi' else '月' }}</button>
+
+                <div class="custom-lang-select" id="custom-month-select" style="display: none;"
+                    onclick="toggleMonthSelect(event)">
+                    <div class="lang-trigger" style="padding: 4px 12px; height: 100%;">
+                        <span id="month-text" style="font-size: 0.8rem; font-weight: 500;">{{ 'Tháng' if lang ==
+                            'vi' else '月' }}</span>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lang-arrow">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </div>
+                    <div class="lang-dropdown" id="month-dropdown-list"
+                        style="min-width: 140px; max-height: 250px; overflow-y: auto;">
+                    </div>
+                </div>
+
+                <button class="btn btn-sm btn-outline" data-period="year" onclick="setChartPeriod('year')">{{ 'Năm'
+                    if lang == 'vi' else '年' }}</button>
+            </div>
+        </div>
+        <div style="position: relative; height: 450px; width: 100%;">
+            <div id="chart-loader"
+                style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(15, 23, 42, 0.5); z-index: 10; border-radius: 12px; backdrop-filter: blur(4px);">
+                <div class="spinner"></div>
+            </div>
+            <canvas id="monthlyTaskChart"></canvas>
+        </div>
+    </div>
+
+    <div class="dashboard-controls">
+
+        <div class="tab-bar">
+            <button class="tab-btn" data-tab="truoc" onclick="switchTab('truoc')">{{ t.tab0 }}</button>
+            <button class="tab-btn active" data-tab="nay" onclick="switchTab('nay')">{{ t.tab1 }}</button>
+            <button class="tab-btn" data-tab="sau" onclick="switchTab('sau')">{{ t.tab2 }}</button>
+        </div>
+        <div class="info-banner" id="banner-truoc" style="display: none;">
+            <span>{{ weeks.truoc.info.start }} - {{ weeks.truoc.info.end }}</span>
+            <span class="deadline-badge">{{ 'Deadline đã qua' if lang == 'vi' else '期限切れ' }}</span>
+        </div>
+        <div class="info-banner" id="banner-nay" style="position: relative; z-index: 100;">
+            <span>{{ weeks.nay.info.start }} - {{ weeks.nay.info.end }}</span>
+            <span class="deadline-badge" id="deadline-nay-badge" style="cursor: pointer;"
+                onclick="toggleCalendarPopup('{{ weeks.nay.info.deadline }}')">{{ weeks.nay.info.deadline }}</span>
+            <div id="calendar-popup"
+                style="display: none; position: absolute; top: 100%; right: 0; z-index: 999; margin-top: 10px; background: var(--surface); border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); border: 1px solid var(--border); overflow: hidden; width: max-content; backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); background-color: color-mix(in srgb, var(--surface) 60%, transparent);">
+                <div style="display: flex; min-width: 460px;">
+                    <div
+                        style="padding: 20px; width: 140px; border-right: 1px solid var(--border); display: flex; flex-direction: column;">
+                        <div id="cal-left-dow"
+                            style="color: #ef4444; font-weight: 700; font-size: 0.75rem; text-transform: uppercase; margin-bottom: 2px;">
+                        </div>
+                        <div id="cal-left-date"
+                            style="font-size: 3.5rem; font-weight: 400; line-height: 1.1; color: var(--text); margin-bottom: 15px; letter-spacing: -2px;">
+                        </div>
+                        <div id="cal-left-text" style="font-size: 0.8rem; color: var(--text-2); line-height: 1.4;">
+                            Hạn chót nộp tác phẩm tuần này</div>
+                    </div>
+                    <div style="padding: 10px 15px 15px 15px;">
+                        <div id="inline-calendar"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="info-banner" id="banner-sau" style="display: none;">
+            <span>{{ weeks.sau.info.start }} - {{ weeks.sau.info.end }}</span>
+            {% if weeks.sau.info.deadline and weeks.sau.info.deadline != t.not_update %}
+            <span class="deadline-badge" style="cursor: pointer;"
+                onclick="toggleCalendarPopup('{{ weeks.sau.info.deadline }}')">{{ weeks.sau.info.deadline }}</span>
+            {% else %}
+            <span class="deadline-badge">{{ 'Chưa có thông tin deadline' if lang == 'vi' else '締め切りの情報がありません'
+                }}</span>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- ==================== TAB: TUẦN TRƯỚC ==================== -->
+    <div class="tab-content" id="tab-truoc">
+        {% if weeks.truoc.tasks %}
+        <div class="metrics-row">
+            <div class="metric-card">
+                <div class="metric-title">{{ t.metric_total }}</div>
+                <div class="metric-value">{{ weeks.truoc.metrics.total }}</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-title">{{ t.metric_retouch }}</div>
+                <div class="metric-value">{{ weeks.truoc.metrics.retouch }}</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-title">{{ t.metric_type }}</div>
+                <div class="metric-value">{{ weeks.truoc.metrics.lettering }}</div>
+            </div>
+        </div>
+        <div class="kanban-board">
+            {% set statuses = [('not-started', 'To Do', weeks.truoc.dashboard|selectattr("status_class", "equalto",
+            "not-started")|list), ('in-progress', 'In Progress', weeks.truoc.dashboard|selectattr("status_class",
+            "equalto", "in-progress")|list), ('delivered', 'Completed',
+            weeks.truoc.dashboard|selectattr("status_class", "equalto", "delivered")|list)] %}
+            {% for status_id, status_name, cards in statuses %}
+            <div class="kanban-column" data-status="{{ status_id }}">
+                <div class="kanban-header">
+                    <span>{{ status_name }}</span>
+                    <span class="count kanban-col-count">{{ cards|length }}</span>
+                </div>
+                <div class="kanban-cards">
+                    {% for card in cards %}
+                    <div class="progress-card status-{{ card.status_class }}" data-tp-key="{{ card.key }}"
+                        data-checked-ids="{{ card.checked_ids }}" onclick="openModal('truoc', '{{ card.key }}')">
+                        <div class="card-tags">
+                            {% set cv = card.name.split(' - ')[0] %}
+                            {% set tag_class = 'tag-lettering' if '写植' in cv or 'Lettering' in cv else
+                            ('tag-retouch' if 'レタッチ' in cv or 'Retouch' in cv else '') %}
+                            <span class="tag {{ tag_class }}">{{ cv }}</span>
+                        </div>
+                        <div class="card-title">{{ card.name }}</div>
+                        <div class="card-worker">
+                            <div class="worker-avatars-group" style="display: flex;">
+                                {% set workers = card.worker.split(',') if card.worker else [] %}
+                                {% for w in workers %}
+                                {% set w_trim = w.strip() %}
+                                {% set ns = namespace(found_avatar=none) %}
+                                {% if user_profiles %}
+                                {% for k, v in user_profiles.items() %}
+                                {% if k|lower in w_trim|lower or w_trim|lower in k|lower %}
+                                {% set ns.found_avatar = v.avatar %}
+                                {% endif %}
+                                {% endfor %}
+                                {% endif %}
+                                <span class="worker-avatar"
+                                    style="{% if not loop.first %}margin-left: -8px;{% endif %} border: 2px solid var(--bg-card); position: relative; z-index: {{ 10 - loop.index0 }};"
+                                    title="{{ w_trim }}">
+                                    {% if ns.found_avatar %}
+                                    <img src="{{ ns.found_avatar }}" alt="Avatar" class="avatar-img"
+                                        referrerpolicy="no-referrer"
+                                        onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                    <span class="avatar-fallback" style="display:none;">{{ w_trim[0]|upper if w_trim
+                                        else 'U' }}</span>
+                                    {% else %}
+                                    {{ w_trim[0]|upper if w_trim else 'U' }}
+                                    {% endif %}
+                                </span>
+                                {% endfor %}
+                            </div>
+                            <span class="worker-name" style="margin-left: 8px;">{{ card.worker }}</span>
+                        </div>
+                        <div class="progress-info">
+                            <span class="status-text">
+                                {% if card.status_class == 'not-started' %}
+                                {{ 'To Do' if lang == 'vi' else '未着手' }}
+                                {% elif card.status_class == 'delivered' %}
+                                {{ 'Completed' if lang == 'vi' else '納品済み' }}
+                                {% else %}
+                                {{ 'In Progress' if lang == 'vi' else '進行中' }}
+                                {% endif %}
+                            </span>
+                            <span>{{ card.progress }}%</span>
+                        </div>
+                        <div class="progress-track">
+                            <div class="progress-fill" style="width: {{ card.progress }}%"></div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p style="text-align: center; color: var(--text-4); padding: 40px;">{{ t.no_task }}</p>
+        {% endif %}
+    </div>
+
+    <!-- ==================== TAB: TUẦN NÀY ==================== -->
+    <div class="tab-content active" id="tab-nay">
+        {% if weeks.nay.tasks %}
+        <div class="metrics-row">
+            <div class="metric-card">
+                <div class="metric-title">{{ t.metric_total }}</div>
+                <div class="metric-value">{{ weeks.nay.metrics.total }}</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-title">{{ t.metric_retouch }}</div>
+                <div class="metric-value">{{ weeks.nay.metrics.retouch }}</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-title">{{ t.metric_type }}</div>
+                <div class="metric-value">{{ weeks.nay.metrics.lettering }}</div>
+            </div>
+        </div>
+        <div class="kanban-board">
+            {% set statuses = [('not-started', 'To Do' if lang == 'vi' else '未着手',
+            weeks.nay.dashboard|selectattr("status_class", "equalto", "not-started")|list), ('in-progress', 'In
+            Progress' if lang == 'vi' else '進行中', weeks.nay.dashboard|selectattr("status_class", "equalto",
+            "in-progress")|list), ('delivered', 'Completed' if lang == 'vi' else '納品済み',
+            weeks.nay.dashboard|selectattr("status_class", "equalto", "delivered")|list)] %}
+            {% for status_id, status_name, cards in statuses %}
+            <div class="kanban-column" data-status="{{ status_id }}">
+                <div class="kanban-header">
+                    <span>{{ status_name }}</span>
+                    <span class="count kanban-col-count">{{ cards|length }}</span>
+                </div>
+                <div class="kanban-cards">
+                    {% for card in cards %}
+                    <div class="progress-card status-{{ card.status_class }}" data-tp-key="{{ card.key }}"
+                        data-checked-ids="{{ card.checked_ids }}" onclick="openModal('nay', '{{ card.key }}')">
+                        <div class="card-tags">
+                            {% set cv = card.name.split(' - ')[0] %}
+                            {% set tag_class = 'tag-lettering' if '写植' in cv or 'Lettering' in cv else
+                            ('tag-retouch' if 'レタッチ' in cv or 'Retouch' in cv else '') %}
+                            <span class="tag {{ tag_class }}">{{ cv }}</span>
+                        </div>
+                        <div class="card-title">{{ card.name }}</div>
+                        <div class="card-worker">
+                            <div class="worker-avatars-group" style="display: flex;">
+                                {% set workers = card.worker.split(',') if card.worker else [] %}
+                                {% for w in workers %}
+                                {% set w_trim = w.strip() %}
+                                {% set ns = namespace(found_avatar=none) %}
+                                {% if user_profiles %}
+                                {% for k, v in user_profiles.items() %}
+                                {% if k|lower in w_trim|lower or w_trim|lower in k|lower %}
+                                {% set ns.found_avatar = v.avatar %}
+                                {% endif %}
+                                {% endfor %}
+                                {% endif %}
+                                <span class="worker-avatar"
+                                    style="{% if not loop.first %}margin-left: -8px;{% endif %} border: 2px solid var(--bg-card); position: relative; z-index: {{ 10 - loop.index0 }};"
+                                    title="{{ w_trim }}">
+                                    {% if ns.found_avatar %}
+                                    <img src="{{ ns.found_avatar }}" alt="Avatar" class="avatar-img"
+                                        referrerpolicy="no-referrer"
+                                        onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                    <span class="avatar-fallback" style="display:none;">{{ w_trim[0]|upper if w_trim
+                                        else 'U' }}</span>
+                                    {% else %}
+                                    {{ w_trim[0]|upper if w_trim else 'U' }}
+                                    {% endif %}
+                                </span>
+                                {% endfor %}
+                            </div>
+                            <span class="worker-name" style="margin-left: 8px;">{{ card.worker }}</span>
+                        </div>
+                        <div class="progress-info">
+                            <span class="status-text">
+                                {% if card.status_class == 'not-started' %}
+                                {{ 'To Do' if lang == 'vi' else '未着手' }}
+                                {% elif card.status_class == 'delivered' %}
+                                {{ 'Completed' if lang == 'vi' else '納品済み' }}
+                                {% else %}
+                                {{ 'In Progress' if lang == 'vi' else '進行中' }}
+                                {% endif %}
+                            </span>
+                            <span>{{ card.progress }}%</span>
+                        </div>
+                        <div class="progress-track">
+                            <div class="progress-fill" style="width: {{ card.progress }}%"></div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p style="text-align: center; color: var(--text-4); padding: 40px;">{{ t.no_task }}</p>
+        {% endif %}
+    </div>
+
+    <!-- ==================== TAB: TUẦN SAU ==================== -->
+    <div class="tab-content" id="tab-sau">
+        {% if weeks.sau.tasks %}
+        <div class="metrics-row">
+            <div class="metric-card">
+                <div class="metric-title">{{ t.metric_total }}</div>
+                <div class="metric-value">{{ weeks.sau.metrics.total }}</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-title">{{ t.metric_retouch }}</div>
+                <div class="metric-value">{{ weeks.sau.metrics.retouch }}</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-title">{{ t.metric_type }}</div>
+                <div class="metric-value">{{ weeks.sau.metrics.lettering }}</div>
+            </div>
+        </div>
+        <div class="kanban-board">
+            {% set statuses = [('not-started', 'To Do' if lang == 'vi' else '未着手',
+            weeks.sau.dashboard|selectattr("status_class", "equalto", "not-started")|list), ('in-progress', 'In
+            Progress' if lang == 'vi' else '進行中', weeks.sau.dashboard|selectattr("status_class", "equalto",
+            "in-progress")|list), ('delivered', 'Completed' if lang == 'vi' else '納品済み',
+            weeks.sau.dashboard|selectattr("status_class", "equalto", "delivered")|list)] %}
+            {% for status_id, status_name, cards in statuses %}
+            <div class="kanban-column" data-status="{{ status_id }}">
+                <div class="kanban-header">
+                    <span>{{ status_name }}</span>
+                    <span class="count kanban-col-count">{{ cards|length }}</span>
+                </div>
+                <div class="kanban-cards">
+                    {% for card in cards %}
+                    <div class="progress-card status-{{ card.status_class }}" data-tp-key="{{ card.key }}"
+                        data-checked-ids="{{ card.checked_ids }}" onclick="openModal('sau', '{{ card.key }}')">
+                        <div class="card-tags">
+                            {% set cv = card.name.split(' - ')[0] %}
+                            {% set tag_class = 'tag-lettering' if '写植' in cv or 'Lettering' in cv else
+                            ('tag-retouch' if 'レタッチ' in cv or 'Retouch' in cv else '') %}
+                            <span class="tag {{ tag_class }}">{{ cv }}</span>
+                        </div>
+                        <div class="card-title">{{ card.name }}</div>
+                        <div class="card-worker">
+                            <div class="worker-avatars-group" style="display: flex;">
+                                {% set workers = card.worker.split(',') if card.worker else [] %}
+                                {% for w in workers %}
+                                {% set w_trim = w.strip() %}
+                                {% set ns = namespace(found_avatar=none) %}
+                                {% if user_profiles %}
+                                {% for k, v in user_profiles.items() %}
+                                {% if k|lower in w_trim|lower or w_trim|lower in k|lower %}
+                                {% set ns.found_avatar = v.avatar %}
+                                {% endif %}
+                                {% endfor %}
+                                {% endif %}
+                                <span class="worker-avatar"
+                                    style="{% if not loop.first %}margin-left: -8px;{% endif %} border: 2px solid var(--bg-card); position: relative; z-index: {{ 10 - loop.index0 }};"
+                                    title="{{ w_trim }}">
+                                    {% if ns.found_avatar %}
+                                    <img src="{{ ns.found_avatar }}" alt="Avatar" class="avatar-img"
+                                        referrerpolicy="no-referrer"
+                                        onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                    <span class="avatar-fallback" style="display:none;">{{ w_trim[0]|upper if w_trim
+                                        else 'U' }}</span>
+                                    {% else %}
+                                    {{ w_trim[0]|upper if w_trim else 'U' }}
+                                    {% endif %}
+                                </span>
+                                {% endfor %}
+                            </div>
+                            <span class="worker-name" style="margin-left: 8px;">{{ card.worker }}</span>
+                        </div>
+                        <div class="progress-info">
+                            <span class="status-text">
+                                {% if card.status_class == 'not-started' %}
+                                {{ 'To Do' if lang == 'vi' else '未着手' }}
+                                {% elif card.status_class == 'delivered' %}
+                                {{ 'Completed' if lang == 'vi' else '納品済み' }}
+                                {% else %}
+                                {{ 'In Progress' if lang == 'vi' else '進行中' }}
+                                {% endif %}
+                            </span>
+                            <span>{{ card.progress }}%</span>
+                        </div>
+                        <div class="progress-track">
+                            <div class="progress-fill" style="width: {{ card.progress }}%"></div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p style="text-align: center; color: var(--text-4); padding: 40px;">{{ t.no_task }}</p>
+        {% endif %}
+    </div>
+
+    <!-- ============ DATA TABLE (COLLAPSIBLE) ============ -->
+    <div class="table-section">
+        <div class="table-header" onclick="toggleTable()">
+            <h3>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="3" y1="9" x2="21" y2="9"></line>
+                    <line x1="9" y1="21" x2="9" y2="9"></line>
+                </svg>
+                Data Table
+            </h3>
+            <span id="table-arrow">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+            </span>
+        </div>
+        <div class="table-wrapper open" id="table-wrapper">
+            <table class="data-table">
+                <thead>
+                    <tr>{% for col in t.cols %}<th>{{ col }}</th>{% endfor %}</tr>
+                </thead>
+                <tbody id="combined-table-body">
+                    {% for tab_key in ['truoc', 'nay', 'sau'] %}
+                    {% for row in weeks[tab_key].tasks %}
+                    <tr class="table-row table-{{ tab_key }}">
+                        {% for col in cols_keys %}<td>{{ row[col] if row[col] is not none and row[col]|string !=
+                            'nan' else '' }}</td>{% endfor %}
+                    </tr>
+                    {% endfor %}
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- MINI CHAT BOX -->
+    <div id="mini-chat-widget"
+        style="position: fixed; bottom: 20px; right: 20px; z-index: 9990; display: flex; flex-direction: column; align-items: flex-end;">
+        <!-- Chat Window -->
+        <div id="chat-window"
+            style="display: none; width: 320px; height: 400px; background: var(--bg-card); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border-radius: 12px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5); border: 1px solid var(--border); flex-direction: column; margin-bottom: 10px; overflow: hidden; z-index: 10000;">
+            <div
+                style="background: linear-gradient(135deg, #3b82f6, #8b5cf6); padding: 12px 16px; color: white; font-weight: 600; display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                    Team Chat
+                </div>
+                <button onclick="toggleChat()"
+                    style="background: transparent; border: none; color: white; cursor: pointer; padding: 0;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            <div id="chat-messages"
+                style="flex: 1; padding: 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; font-size: 13px;">
+                <!-- Messages go here -->
+                <div style="text-align: center; color: var(--text-3); font-size: 12px; margin-bottom: 10px;">{{ 'Chào
+                    mừng bạn đến với kênh chat chung!' if lang == 'vi' else 'グループチャットへようこそ！' }}</div>
+            </div>
+            <div
+                style="padding: 10px; border-top: 1px solid var(--border); display: flex; gap: 8px; background: var(--bg-body);">
+                <input type="text" id="chat-input"
+                    placeholder="{{ 'Nhập tin nhắn...' if lang == 'vi' else 'メッセージを入力...' }}"
+                    style="flex: 1; padding: 8px 12px; border-radius: 20px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text); outline: none;">
+                <button onclick="sendChatMessage()"
+                    style="background: #3b82f6; color: white; border: none; border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round" style="margin-left: -2px; margin-top: 2px;">
+                        <line x1="22" y1="2" x2="11" y2="13"></line>
+                        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                    </svg>
+                </button>
             </div>
         </div>
 
-        <!-- MINI CHAT BOX -->
-        <div id="mini-chat-widget" style="position: fixed; bottom: 20px; right: 20px; z-index: 9990; display: flex; flex-direction: column; align-items: flex-end;">
-            <!-- Chat Window -->
-            <div id="chat-window" style="display: none; width: 320px; height: 400px; background: var(--bg-card); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border-radius: 12px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5); border: 1px solid var(--border); flex-direction: column; margin-bottom: 10px; overflow: hidden; z-index: 10000;">
-                <div style="background: linear-gradient(135deg, #3b82f6, #8b5cf6); padding: 12px 16px; color: white; font-weight: 600; display: flex; justify-content: space-between; align-items: center;">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-                        Team Chat
-                    </div>
-                    <button onclick="toggleChat()" style="background: transparent; border: none; color: white; cursor: pointer; padding: 0;">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                    </button>
-                </div>
-                <div id="chat-messages" style="flex: 1; padding: 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; font-size: 13px;">
-                    <!-- Messages go here -->
-                    <div style="text-align: center; color: var(--text-3); font-size: 12px; margin-bottom: 10px;">{{ 'Chào mừng bạn đến với kênh chat chung!' if lang == 'vi' else 'グループチャットへようこそ！' }}</div>
-                </div>
-                <div style="padding: 10px; border-top: 1px solid var(--border); display: flex; gap: 8px; background: var(--bg-body);">
-                    <input type="text" id="chat-input" placeholder="{{ 'Nhập tin nhắn...' if lang == 'vi' else 'メッセージを入力...' }}" style="flex: 1; padding: 8px 12px; border-radius: 20px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text); outline: none;">
-                    <button onclick="sendChatMessage()" style="background: #3b82f6; color: white; border: none; border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left: -2px; margin-top: 2px;"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-                    </button>
-                </div>
-            </div>
-            
-            <!-- Chat Bubble -->
-            <button id="chat-bubble-btn" onclick="toggleChat()" style="width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, #3b82f6, #8b5cf6); color: white; border: none; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4); cursor: pointer; display: flex; align-items: center; justify-content: center; position: relative; transition: transform 0.2s;">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-                <div id="chat-badge" style="position: absolute; top: -5px; right: -5px; background: #ef4444; color: white; font-size: 11px; font-weight: bold; width: 20px; height: 20px; border-radius: 50%; display: none; align-items: center; justify-content: center; border: 2px solid var(--bg-body);">0</div>
-            </button>
-        </div>
+        <!-- Chat Bubble -->
+        <button id="chat-bubble-btn" onclick="toggleChat()"
+            style="width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, #3b82f6, #8b5cf6); color: white; border: none; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4); cursor: pointer; display: flex; align-items: center; justify-content: center; position: relative; transition: transform 0.2s;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+            </svg>
+            <div id="chat-badge"
+                style="position: absolute; top: -5px; right: -5px; background: #ef4444; color: white; font-size: 11px; font-weight: bold; width: 20px; height: 20px; border-radius: 50%; display: none; align-items: center; justify-content: center; border: 2px solid var(--bg-body);">
+                0</div>
+        </button>
+    </div>
 </main>
 
 <!-- ============ MODALS FOR LOGTIME / CHECKLIST ============ -->
