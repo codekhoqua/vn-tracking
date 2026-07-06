@@ -1,0 +1,1699 @@
+{% extends "base.html" %}
+{% block title %}{{ t.title }} — VN-Tracking
+{% endblock %}
+
+{% block body %}
+    <!-- Prepare PSD Modal -->
+    <div id="prepare-psd-overlay" class="cp-overlay" onclick="closePreparePsdModal()"></div>
+    <div id="prepare-psd-modal" class="cp-modal" style="max-width: 500px; width: 90%;">
+        <div class="modal-header">
+            <h3>{{ 'Tạo thư mục làm việc (Prepare PSD)' if lang == 'vi' else '作業フォルダ作成 (Prepare PSD)' }}</h3>
+            <button class="modal-close" onclick="closePreparePsdModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group" style="margin-bottom: 15px; position: relative;">
+                <label style="display:block; margin-bottom: 5px;">{{ 'Đường dẫn thư mục gốc (Win/Mac)' if lang == 'vi' else 'ルートフォルダパス (Win/Mac)' }}</label>
+                <input type="text" id="psd-path" class="cp-input" style="width: 100%; padding-right: 35px;" placeholder="VD: C:\Users\Admin\Downloads\test">
+                <span id="psd-path-status" style="position: absolute; right: 10px; bottom: 8px; display: none;"></span>
+            </div>
+            <div class="form-group" style="position: relative;">
+                <label style="display:block; margin-bottom: 5px;">{{ 'Tập số' if lang == 'vi' else '巻数' }}</label>
+                <input type="number" id="psd-tap" class="cp-input" style="width: 100%; padding-right: 35px;" placeholder="VD: 3">
+                <span id="psd-tap-status" style="position: absolute; right: 10px; bottom: 8px; display: none;"></span>
+            </div>
+            <div class="form-group" style="margin-top: 15px; position: relative;">
+                <label style="display:block; margin-bottom: 5px;">{{ 'Đường dẫn thư mục chứa PSD tải về (Tùy chọn)' if lang == 'vi' else 'ダウンロードしたPSDフォルダのパス (任意)' }}</label>
+                <input type="text" id="psd-source-path" class="cp-input" style="width: 100%; padding-right: 35px;" placeholder="{{ 'VD: C:\\Users\\... hoặc /Users/...' if lang == 'vi' else '例: C:\\Users\\... または /Users/...' }}">
+                <span id="psd-source-path-status" style="position: absolute; right: 10px; bottom: 8px; display: none;"></span>
+            </div>
+        </div>
+        <div class="modal-footer" style="padding: 15px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: flex-end; gap: 10px;">
+            <button class="btn btn-outline" onclick="closePreparePsdModal()">{{ 'Hủy' if lang == 'vi' else 'キャンセル' }}</button>
+            <button class="btn btn-primary" style="background-color: var(--secondary); color: white;" onclick="submitComparePsd()">{{ 'Compare PSD' if lang == 'vi' else 'Compare PSD' }}</button>
+            <button class="btn btn-primary" onclick="submitPreparePsd()">{{ 'Tạo thư mục' if lang == 'vi' else 'フォルダを作成' }}</button>
+        </div>
+    </div>
+<!-- ============ CHANGE PASS MODAL ============ -->
+<div id="changepass-overlay" class="cp-overlay" onclick="closeChangePassModal()"></div>
+<div id="changepass-modal" class="cp-modal">
+    <div class="modal-header">
+        <h3>{{ 'Đổi mật khẩu' if lang == 'vi' else 'パスワード変更' }}</h3>
+        <button class="modal-close" onclick="closeChangePassModal()">✕</button>
+    </div>
+    <div class="modal-body">
+        <div style="margin-bottom: 15px;">
+            <label style="display:block; margin-bottom: 5px; color: var(--text-2); font-size: 0.9rem;">{{ 'Mật khẩu cũ'
+                if lang == 'vi' else '現在のパスワード' }}</label>
+            <input type="password" id="old-pass"
+                style="width: 100%; padding: 12px 16px; border-radius: 12px; border: 1px solid var(--border); background: var(--bg-page); color: var(--text); font-size: 0.95rem;">
+        </div>
+        <div style="margin-bottom: 15px;">
+            <label style="display:block; margin-bottom: 5px; color: var(--text-2); font-size: 0.9rem;">{{ 'Mật khẩu mới'
+                if lang == 'vi' else '新しいパスワード' }}</label>
+            <input type="password" id="new-pass"
+                style="width: 100%; padding: 12px 16px; border-radius: 12px; border: 1px solid var(--border); background: var(--bg-page); color: var(--text); font-size: 0.95rem;">
+        </div>
+        <div>
+            <label style="display:block; margin-bottom: 5px; color: var(--text-2); font-size: 0.9rem;">{{ 'Xác nhận mật
+                khẩu' if lang == 'vi' else '新しいパスワード（確認）' }}</label>
+            <input type="password" id="confirm-pass"
+                style="width: 100%; padding: 12px 16px; border-radius: 12px; border: 1px solid var(--border); background: var(--bg-page); color: var(--text); font-size: 0.95rem;">
+        </div>
+    </div>
+    <div class="modal-footer" style="display: flex; gap: 10px; justify-content: flex-end;">
+        <button class="btn btn-outline" onclick="closeChangePassModal()">{{ 'Hủy' if lang == 'vi' else 'キャンセル' }}</button>
+        <button class="btn btn-primary" onclick="submitChangePass()">{{ 'Lưu thay đổi' if lang == 'vi' else '保存する'
+            }}</button>
+    </div>
+</div>
+
+<!-- ============ ROLE MODAL ============ -->
+<div id="role-overlay" class="cp-overlay" onclick="closeRoleModal()"></div>
+<div id="role-modal" class="cp-modal" style="max-width: 600px;">
+    <div class="modal-header">
+        <h3>{{ 'Quản lý Phân quyền' if lang == 'vi' else '権限管理' }}</h3>
+        <button class="modal-close" onclick="closeRoleModal()">✕</button>
+    </div>
+    <div class="modal-body" style="max-height: 50vh; overflow-y: auto; padding-right: 10px;">
+        {% for uname, info in user_profiles.items() %}
+        <div
+            style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border);">
+            <div>
+                <div style="font-weight: 500;">{{ info.fullname or uname }}</div>
+                <div style="font-size: 0.85rem; color: var(--text-3);">@{{ uname }}</div>
+            </div>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <select id="role-select-{{ uname | replace(' ', '_') | replace('.', '_') }}"
+                    style="padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-page); color: var(--text);">
+                    <option value="admin" {% if info.role=='admin' %}selected{% endif %}>Admin</option>
+                    <option value="leader" {% if info.role=='leader' %}selected{% endif %}>Leader</option>
+                    <option value="member" {% if info.role=='member' %}selected{% endif %}>Member</option>
+                </select>
+                <button class="btn btn-primary"
+                    style="padding: 6px 12px; font-size: 0.85rem; display: flex; align-items: center; gap: 5px; min-width: 60px; justify-content: center;"
+                    onclick="updateRole('{{ uname }}', this)">{{ 'Lưu' if lang == 'vi' else '保存' }}</button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+
+
+{% if not is_modal %}
+<!-- ============ FILTER DRAWER (RIGHT SIDE) ============ -->
+{% if role in ['admin', 'manager', 'leader'] %}
+<div class="drawer-overlay" id="filter-overlay" onclick="toggleFilters()"></div>
+<div class="filter-drawer" id="filter-drawer">
+    <div class="drawer-header">
+        <h2>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+            </svg>
+            {{ t.filter_title }}
+        </h2>
+        <button class="close-btn" onclick="toggleFilters()">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+        </button>
+    </div>
+
+    <div class="filter-group">
+        <div class="filter-group-title">{{ t.cv_nay }}</div>
+        {% for cv in filter_cv_nay %}
+        <label class="filter-option">
+            <input type="checkbox" value="{{ cv }}" data-filter-group="cv-nay" onchange="applyFilters()">
+            <span>{{ cv }}</span>
+        </label>
+        {% endfor %}
+    </div>
+
+    <div class="filter-group">
+        <div class="filter-group-title">{{ t.nguoi_nay }}</div>
+        {% for u in users %}
+        <label class="filter-option">
+            <input type="checkbox" value="{{ u }}" data-filter-group="nguoi-nay" onchange="applyFilters()">
+            <span>{{ u }}</span>
+        </label>
+        {% endfor %}
+    </div>
+
+    <div class="filter-group" style="border-top: 1px solid var(--border); padding-top: 24px;">
+        <div class="filter-group-title">{{ t.cv_sau }}</div>
+        {% for cv in filter_cv_sau %}
+        <label class="filter-option">
+            <input type="checkbox" value="{{ cv }}" data-filter-group="cv-sau" onchange="applyFilters()">
+            <span>{{ cv }}</span>
+        </label>
+        {% endfor %}
+    </div>
+
+    <div class="filter-group">
+        <div class="filter-group-title">{{ t.nguoi_sau }}</div>
+        {% for u in users %}
+        <label class="filter-option">
+            <input type="checkbox" value="{{ u }}" data-filter-group="nguoi-sau" onchange="applyFilters()">
+            <span>{{ u }}</span>
+        </label>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- ============ SIDEBAR ============ -->
+<aside class="sidebar">
+    <div class="sidebar-logo">
+        <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" width="32" height="32"
+            style="border-radius: var(--radius-sm); margin-right: 8px;">
+        <div style="display: flex; flex-direction: column; justify-content: center;">
+            <span>VN-Tracking</span>
+            <sup style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.2.4</i></sup>
+        </div>
+    </div>
+
+    <div class="nav-label">MAIN</div>
+    <div class="nav-item" style="cursor: pointer;" onclick="window.location.href='/dashboard'" id="nav-dashboard">
+        <div class="nav-item-content">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="7" height="7"></rect>
+                <rect x="14" y="3" width="7" height="7"></rect>
+                <rect x="14" y="14" width="7" height="7"></rect>
+                <rect x="3" y="14" width="7" height="7"></rect>
+            </svg>
+            Dashboard
+        </div>
+    </div>
+    <div class="nav-item" onclick="window.location.href='/dashboard'">
+        <div class="nav-item-content">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <line x1="8" y1="6" x2="21" y2="6"></line>
+                <line x1="8" y1="12" x2="21" y2="12"></line>
+                <line x1="8" y1="18" x2="21" y2="18"></line>
+                <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                <line x1="3" y1="18" x2="3.01" y2="18"></line>
+            </svg>
+            Data Table
+        </div>
+    </div>
+    
+    <div class="nav-item active" id="nav-drive">
+        <div class="nav-item-content">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+            </svg>
+            LSA Drive
+        </div>
+    </div>
+    <div class="nav-item" onclick="openPreparePsdModal()">
+        <div class="nav-item-content">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+            </svg>
+            Prepare PSD
+        </div>
+    </div>
+
+    <div class="nav-label">{{ 'SETTINGS' if lang == 'vi' else '設定' }}</div>
+    <div class="nav-item" style="overflow: visible;">
+        <div class="nav-item-content">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="2" y1="12" x2="22" y2="12"></line>
+                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z">
+                </path>
+            </svg>
+            {{ 'Language' if lang == 'vi' else '言語' }}
+        </div>
+
+        <!-- Custom Language Select -->
+        <div class="custom-lang-select" id="custom-lang-select" onclick="toggleLangSelect(event)">
+            <div class="lang-trigger">
+                <span id="lang-text">{{ 'VN' if lang == 'vi' else 'JP' }}</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round" class="lang-arrow">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+            </div>
+            <div class="lang-dropdown">
+                <div class="lang-option {{ 'active' if lang == 'vi' }}" onclick="changeLang('vi', event)">VN</div>
+                <div class="lang-option {{ 'active' if lang == 'ja' }}" onclick="changeLang('ja', event)">JP</div>
+            </div>
+        </div>
+    </div>
+
+    {% if session.get('user') == 'Manager' or session.get('role') == 'admin' %}
+    <div class="nav-item" onclick="openRoleModal()" style="cursor: pointer;">
+        <div class="nav-item-content">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+            </svg>
+            {{ 'Phân quyền' if lang == 'vi' else '権限管理' }}
+        </div>
+    </div>
+    {% endif %}
+
+    <div style="flex-grow: 1;"></div>
+
+    <div class="sidebar-footer">
+        <!-- LOFI RADIO WIDGET (Apple Music Style) -->
+        <div id="lofi-radio-widget"
+            style="position: relative; width: 100%; margin-bottom: 6px; border-radius: 16px; overflow: hidden; box-shadow: 0 8px 24px rgba(0,0,0,0.2); background: #1c1c1e; color: #fff; transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);">
+
+            <!-- Blurred Background Cover -->
+            <div id="radio-bg-blur"
+                style="position: absolute; inset: -20px; background-image: url('https://img.youtube.com/vi/4xDzrIxC4Dk/hqdefault.jpg'); background-size: cover; background-position: center; filter: blur(24px) brightness(0.35); z-index: 0; transition: background-image 0.8s ease;">
+            </div>
+
+            <div id="lofi-inner-content"
+                style="position: relative; z-index: 1; padding: 12px; display: flex; flex-direction: column; gap: 8px;">
+
+                <!-- Header: Title & DJ Toggle -->
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div
+                        style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: rgba(255,255,255,0.7); display: flex; align-items: center; gap: 4px;">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M9 18V5l12-2v13"></path>
+                            <circle cx="6" cy="18" r="3"></circle>
+                            <circle cx="18" cy="16" r="3"></circle>
+                        </svg>
+                        LSA MUSIC
+                        <div id="radio-listeners-container" style="display: flex; margin-left: 8px;"></div>
+                    </div>
+                    <!-- DJ Toggle (Apple iOS Style) -->
+                    <label style="position: relative; display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                        <span style="font-size: 10px; color: rgba(255,255,255,0.6); font-weight: 500;">DJ</span>
+                        <div class="switch" style="position: relative; width: 32px; height: 18px;">
+                            <input type="checkbox" id="radio-dj-toggle" onchange="toggleDJMode()"
+                                style="opacity: 0; width: 0; height: 0;">
+                            <span class="slider round"
+                                style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(255,255,255,0.2); transition: .4s; border-radius: 34px;">
+                                <span
+                                    style="position: absolute; content: ''; height: 14px; width: 14px; left: 2px; bottom: 2px; background-color: white; transition: .4s; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"></span>
+                            </span>
+                        </div>
+                    </label>
+                </div>
+
+                <!-- Cover & Track Info -->
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <img id="radio-cover" src="https://img.youtube.com/vi/4xDzrIxC4Dk/hqdefault.jpg"
+                        style="width: 44px; height: 44px; border-radius: 8px; object-fit: cover; box-shadow: 0 4px 12px rgba(0,0,0,0.4); transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), border-radius 0.4s; transform-origin: center;">
+
+                    <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center;">
+                        <div id="radio-track-name"
+                            style="font-weight: 700; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #fff; line-height: 1.2; text-shadow: 0 1px 2px rgba(0,0,0,0.2);">
+                            Đang chờ...</div>
+                        <div id="radio-dj-name"
+                            style="font-size: 11px; color: rgba(255,255,255,0.7); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 2px rgba(0,0,0,0.2);">
+                            Chưa tham gia</div>
+                    </div>
+                </div>
+
+                <!-- YouTube Input (DJ Only) -->
+                <div id="radio-yt-input-container" style="display: none;">
+                    <input type="text" id="radio-yt-input" placeholder="Dán link YouTube vào đây..."
+                        style="width: 100%; padding: 8px 12px; font-size: 11px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.25); color: #fff; outline: none; transition: background 0.2s;">
+                </div>
+
+                <!-- Progress Bar -->
+                <div style="display: flex; align-items: center; gap: 8px; font-variant-numeric: tabular-nums;">
+                    <span id="radio-time-current"
+                        style="font-size: 9px; font-weight: 600; color: rgba(255,255,255,0.6); min-width: 26px; text-align: left;">0:00</span>
+                    <div style="flex-grow: 1; display: flex; align-items: center;">
+                        <input type="range" id="radio-progress" min="0" max="100" value="0" disabled
+                            style="width: 100%;">
+                    </div>
+                    <span id="radio-time-total"
+                        style="font-size: 9px; font-weight: 600; color: rgba(255,255,255,0.6); min-width: 26px; text-align: right;">0:00</span>
+                </div>
+
+                <!-- Controls -->
+                <div
+                    style="display: flex; align-items: center; justify-content: center; gap: 24px; padding-bottom: 4px;">
+                    <!-- Prev (Decorative) -->
+                    <button
+                        style="background: none; border: none; color: rgba(255,255,255,0.9); cursor: pointer; padding: 4px; opacity: 0.8; transition: opacity 0.2s;">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
+                        </svg>
+                    </button>
+
+                    <!-- Play/Pause -->
+                    <button id="radio-play-btn" onclick="radioTogglePlay()"
+                        style="background: rgba(255,255,255,0.2); border: none; color: white; border-radius: 50%; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.2s, transform 0.1s; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+                        <svg id="radio-icon-play" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"
+                            stroke="none" style="margin-left: 3px;">
+                            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                        </svg>
+                        <svg id="radio-icon-pause" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"
+                            stroke="none" style="display: none;">
+                            <rect x="6" y="4" width="4" height="16"></rect>
+                            <rect x="14" y="4" width="4" height="16"></rect>
+                        </svg>
+                    </button>
+
+                    <!-- Next (Decorative) -->
+                    <button
+                        style="background: none; border: none; color: rgba(255,255,255,0.9); cursor: pointer; padding: 4px; opacity: 0.8; transition: opacity 0.2s;">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Hidden YouTube Player -->
+            <div style="position: absolute; width: 0; height: 0; overflow: hidden; opacity: 0;">
+                <div id="lofi-youtube-player"></div>
+            </div>
+        </div>
+
+        <style>
+            .switch input:checked+.slider {
+                background-color: #34c759 !important;
+            }
+
+            .switch input:checked+.slider>span {
+                transform: translateX(14px);
+            }
+
+            #radio-progress {
+                -webkit-appearance: none;
+                appearance: none;
+                background: transparent;
+                height: 12px;
+                outline: none;
+                margin: 0;
+            }
+
+            #radio-progress::-webkit-slider-runnable-track {
+                width: 100%;
+                height: 4px;
+                background: rgba(255, 255, 255, 0.25);
+                border-radius: 2px;
+            }
+
+            #radio-progress::-webkit-slider-thumb {
+                -webkit-appearance: none;
+                appearance: none;
+                width: 12px;
+                height: 12px;
+                background: white;
+                border-radius: 50%;
+                cursor: pointer;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+                transition: transform 0.1s;
+                margin-top: -4px;
+            }
+
+            #radio-progress:not([disabled])::-webkit-slider-thumb:hover {
+                transform: scale(1.3);
+            }
+
+            #radio-progress:not([disabled])::-webkit-slider-thumb:active {
+                transform: scale(1.1);
+            }
+
+            #radio-progress[disabled]::-webkit-slider-thumb {
+                cursor: default;
+                background: rgba(255, 255, 255, 0.8);
+            }
+
+            #radio-play-btn:hover {
+                background: rgba(255, 255, 255, 0.3) !important;
+            }
+
+            #radio-play-btn:active {
+                transform: scale(0.92);
+            }
+
+            .apple-cover-paused {
+                transform: scale(0.85);
+                opacity: 0.8;
+                border-radius: 12px !important;
+            }
+
+            .apple-cover-playing {
+                transform: scale(1);
+                opacity: 1;
+                border-radius: 8px !important;
+            }
+        
+    .drive-checkbox {
+        position: absolute;
+        top: 12px;
+        left: 12px;
+        width: 20px;
+        height: 20px;
+        border-radius: 6px;
+        border: 2px solid var(--text-4);
+        background: rgba(0,0,0,0.2);
+        cursor: pointer;
+        opacity: 0;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: transparent;
+        z-index: 10;
+    }
+    .drive-item:hover .drive-checkbox, .drive-checkbox.checked {
+        opacity: 1;
+    }
+    .drive-checkbox.checked {
+        background: #3b82f6;
+        border-color: #3b82f6;
+        color: white;
+    }
+    .drive-item.selected {
+        border-color: #3b82f6;
+        background: rgba(59, 130, 246, 0.05);
+    }
+    
+    .floating-action-bar {
+        position: fixed;
+        bottom: 30px;
+        left: 50%;
+        transform: translateX(-50%) translateY(100px);
+        background: var(--surface);
+        padding: 12px 24px;
+        border-radius: 20px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        border: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        z-index: 999;
+        opacity: 0;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        pointer-events: none;
+    }
+    
+    .floating-action-bar.visible {
+        transform: translateX(-50%) translateY(0);
+        opacity: 1;
+        pointer-events: auto;
+    }
+    
+    .fab-count {
+        font-weight: 700;
+        color: #3b82f6;
+        background: rgba(59, 130, 246, 0.1);
+        padding: 4px 12px;
+        border-radius: 20px;
+    }
+
+</style>
+
+        <!-- Profile Slide-Up Panel -->
+        {% set p = user_profiles.get(user, {}) if user_profiles else {} %}
+        <div class="profile-panel" id="profile-panel">
+            <div class="profile-panel-inner">
+                <div class="profile-panel-avatar">
+                    {% if p.avatar %}
+                    <img src="{{ p.avatar }}" alt="Avatar" class="avatar-img" referrerpolicy="no-referrer"
+                        onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                    <div class="avatar-fallback" style="display:none;">{{ p.fullname[0]|upper if p.fullname else
+                        (user[0]|upper if user else 'U') }}</div>
+                    {% else %}
+                    {{ user[0]|upper if user else 'U' }}
+                    {% endif %}
+                </div>
+                <div class="profile-panel-name">{{ p.fullname or user }}</div>
+                <div class="profile-panel-team">@{{ user }} · {{ p.team or 'Member' }}</div>
+
+                <div class="profile-panel-details">
+                    <div class="profile-detail-row">
+                        <span>{{ 'Giới tính' if lang == 'vi' else '性別' }}</span>
+                        <span>{{ p.gender or '---' }}</span>
+                    </div>
+                    <div class="profile-detail-row">
+                        <span>{{ 'Năm sinh' if lang == 'vi' else '生年' }}</span>
+                        <span>{{ p.birth_year or '---' }}</span>
+                    </div>
+                </div>
+
+                <div class="profile-panel-actions">
+                    <button class="profile-action-btn"
+                        onclick="event.stopPropagation(); toggleProfilePanel(); openChangePassModal()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                        </svg>
+                        {{ 'Đổi mật khẩu' if lang == 'vi' else 'パスワード変更' }}
+                    </button>
+                    <button class="profile-action-btn profile-action-logout" onclick="window.location.href='/logout'">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                            <polyline points="16 17 21 12 16 7"></polyline>
+                            <line x1="21" y1="12" x2="9" y2="12"></line>
+                        </svg>
+                        {{ 'Đăng xuất' if lang == 'vi' else 'ログアウト' }}
+                    </button>
+                </div>
+                
+            </div>
+        </div>
+
+        <div class="user-card" onclick="toggleProfilePanel()"
+            title="{{ 'Thông tin cá nhân' if lang == 'vi' else 'プロフィール' }}">
+            <div class="user-avatar">
+                {% if p.avatar %}
+                <img src="{{ p.avatar }}" alt="Avatar" class="avatar-img" referrerpolicy="no-referrer"
+                    onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                <div class="avatar-fallback" style="display:none;">{{ p.fullname[0]|upper if p.fullname else
+                    (user[0]|upper if user else 'U') }}</div>
+                {% else %}
+                {{ user[0]|upper if user else 'U' }}
+                {% endif %}
+            </div>
+            <div class="user-info">
+                <div class="user-name">{{ user }}</div>
+                <div class="user-role">{{ role }}</div>
+            </div>
+            <svg class="profile-chevron" id="profile-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                style="color: var(--text-4); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);">
+                <polyline points="18 15 12 9 6 15"></polyline>
+            </svg>
+        </div>
+    </div>
+</aside>
+{% endif %}
+
+<!-- ============ MAIN AREA ============ -->
+<style>
+    /* Premium Drive Redesign */
+    .drive-container {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        padding: 30px;
+        background: var(--bg-body);
+        color: var(--text);
+        font-family: inherit;
+        overflow: hidden;
+    }
+    
+    .drive-toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 20px 30px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        margin-bottom: 30px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+    
+    .drive-breadcrumbs {
+        font-size: 1.2rem;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    
+    .breadcrumb-item {
+        cursor: pointer;
+        color: var(--text-2);
+        padding: 6px 14px;
+        border-radius: 12px;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        background: transparent;
+    }
+    
+    .breadcrumb-item:hover {
+        color: var(--text);
+        background: rgba(255, 255, 255, 0.05);
+        transform: translateY(-1px);
+    }
+    
+    .breadcrumb-item.active {
+        color: #fff;
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+    }
+    
+    .breadcrumb-separator {
+        color: var(--text-4);
+        font-weight: 300;
+    }
+    
+    .drive-actions {
+        display: flex;
+        gap: 16px;
+    }
+    
+    .btn-drive {
+        padding: 10px 20px;
+        border-radius: 14px;
+        border: none;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 0.95rem;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .btn-primary {
+        background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+        color: white;
+        box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+    }
+    
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(59, 130, 246, 0.5);
+    }
+    
+    .btn-secondary {
+        background: var(--bg-card);
+        color: var(--text);
+        border: 1px solid var(--border);
+    }
+    
+    .btn-secondary:hover {
+        background: var(--surface);
+        border-color: var(--text-3);
+        transform: translateY(-2px);
+    }
+    
+    .drive-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 24px;
+        overflow-y: auto;
+        padding: 10px 5px 40px 5px;
+        scrollbar-width: thin;
+        scrollbar-color: var(--border) transparent;
+    }
+    
+    .drive-grid::-webkit-scrollbar {
+        width: 6px;
+    }
+    .drive-grid::-webkit-scrollbar-thumb {
+        background: var(--border);
+        border-radius: 10px;
+    }
+    
+    .drive-item {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        padding: 24px 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        cursor: pointer;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        opacity: 0;
+        animation: fadeInUp 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    
+    .drive-item:hover {
+        border-color: #3b82f6;
+        background: var(--surface);
+        transform: translateY(-6px) scale(1.02);
+        box-shadow: 0 15px 35px rgba(0,0,0,0.25);
+    }
+    
+    @keyframes fadeInUp {
+        0% { opacity: 0; transform: translateY(20px); }
+        100% { opacity: 1; transform: translateY(0); }
+    }
+    
+    .drive-item-icon {
+        width: 80px;
+        height: 80px;
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: transform 0.3s ease;
+    }
+    
+    .drive-item:hover .drive-item-icon {
+        transform: scale(1.1);
+    }
+    
+    .drive-item-icon svg {
+        width: 100%;
+        height: 100%;
+        filter: drop-shadow(0 8px 16px rgba(0,0,0,0.2));
+    }
+    
+    .drive-item-name {
+        font-size: 0.95rem;
+        text-align: center;
+        width: 100%;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-weight: 600;
+        color: var(--text);
+    }
+    
+    .drive-item-size {
+        font-size: 0.8rem;
+        color: var(--text-3);
+        margin-top: 6px;
+    }
+    
+    .folder-icon { color: #60a5fa; }
+    .file-icon { color: #9ca3af; }
+    
+    .drive-item-actions {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        display: flex;
+        gap: 6px;
+        opacity: 0;
+        transform: translateX(10px);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .drive-item:hover .drive-item-actions {
+        opacity: 1;
+        transform: translateX(0);
+    }
+    
+    .action-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 10px;
+        background: rgba(30, 41, 59, 0.8);
+        backdrop-filter: blur(4px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        transition: all 0.2s;
+        border: 1px solid rgba(255,255,255,0.1);
+        cursor: pointer;
+    }
+    
+    .action-icon:hover { 
+        background: #3b82f6; 
+        transform: scale(1.1);
+    }
+    
+    .action-icon.danger:hover { 
+        background: #ef4444; 
+    }
+
+    #upload-progress {
+        display: none;
+        position: fixed;
+        bottom: 30px;
+        right: 30px;
+        background: var(--surface);
+        padding: 16px 24px;
+        border-radius: 14px;
+        border: 1px solid var(--border);
+        box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+        z-index: 1000;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    @keyframes slideUp {
+        0% { opacity: 0; transform: translateY(30px); }
+        100% { opacity: 1; transform: translateY(0); }
+    }
+    
+    .spinner {
+        width: 20px;
+        height: 20px;
+        border: 3px solid rgba(59, 130, 246, 0.3);
+        border-radius: 50%;
+        border-top-color: #3b82f6;
+        animation: spin 1s ease-in-out infinite;
+    }
+    
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+    
+    .empty-state {
+        grid-column: 1 / -1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 60px 20px;
+        color: var(--text-3);
+    }
+    
+    .empty-state svg {
+        width: 120px;
+        height: 120px;
+        margin-bottom: 20px;
+        opacity: 0.5;
+    }
+
+    .drive-checkbox {
+        position: absolute;
+        top: 12px;
+        left: 12px;
+        width: 20px;
+        height: 20px;
+        border-radius: 6px;
+        border: 2px solid var(--text-4);
+        background: rgba(0,0,0,0.2);
+        cursor: pointer;
+        opacity: 0;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: transparent;
+        z-index: 10;
+    }
+    .drive-item:hover .drive-checkbox, .drive-checkbox.checked {
+        opacity: 1;
+    }
+    .drive-checkbox.checked {
+        background: #3b82f6;
+        border-color: #3b82f6;
+        color: white;
+    }
+    .drive-item.selected {
+        border-color: #3b82f6;
+        background: rgba(59, 130, 246, 0.05);
+    }
+    
+    .floating-action-bar {
+        position: fixed;
+        bottom: 30px;
+        left: 50%;
+        transform: translateX(-50%) translateY(100px);
+        background: var(--surface);
+        padding: 12px 24px;
+        border-radius: 20px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        border: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        z-index: 999;
+        opacity: 0;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        pointer-events: none;
+    }
+    
+    .floating-action-bar.visible {
+        transform: translateX(-50%) translateY(0);
+        opacity: 1;
+        pointer-events: auto;
+    }
+    
+    .fab-count {
+        font-weight: 700;
+        color: #3b82f6;
+        background: rgba(59, 130, 246, 0.1);
+        padding: 4px 12px;
+        border-radius: 20px;
+    }
+
+</style>
+
+<main class="main-area drive-container" {% if is_modal %}style="margin-left: 0 !important; border-radius: 0; box-shadow: none;"{% endif %}>
+    <div class="drive-toolbar">
+        <div class="drive-breadcrumbs" id="breadcrumbs">
+            <!-- Breadcrumbs injected by JS -->
+        </div>
+        <div class="drive-actions">
+            <button class="btn-drive btn-secondary" onclick="promptCreateFolder()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path><line x1="12" y1="11" x2="12" y2="17"></line><line x1="9" y1="14" x2="15" y2="14"></line></svg>
+                {{ 'Thư mục mới' if lang == 'vi' else '新規フォルダ' }}
+            </button>
+            <button class="btn-drive btn-primary" onclick="document.getElementById('file-upload').click()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                {{ 'Tải lên file' if lang == 'vi' else 'アップロード' }}
+            </button>
+            <input type="file" id="file-upload" multiple style="display: none;" onchange="handleFileUpload(event)">
+        </div>
+    </div>
+    
+    <div class="drive-grid" id="drive-grid">
+        <!-- Items injected by JS -->
+    </div>
+    
+    
+    <div class="floating-action-bar" id="fab-multi-select">
+        <div class="fab-count" id="fab-count">0 {{ 'mục' if lang == 'vi' else 'アイテム' }}</div>
+        <div style="display: flex; gap: 10px;">
+            <button class="btn-drive btn-primary" onclick="downloadSelected()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                {{ 'Tải xuống' if lang == 'vi' else 'ダウンロード' }}
+            </button>
+            <button class="btn-drive btn-secondary" style="color: #ef4444; border-color: rgba(239, 68, 68, 0.3);" onclick="deleteSelected()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                {{ 'Xóa' if lang == 'vi' else '削除' }}
+            </button>
+            <button class="btn-drive btn-secondary" onclick="clearSelection()">{{ 'Hủy' if lang == 'vi' else 'キャンセル' }}</button>
+        </div>
+    </div>
+
+    
+</main>
+
+
+    
+    <!-- Custom Modals -->
+    <div id="drive-modal-overlay" class="cp-overlay" onclick="closeDriveModal()"></div>
+    <div id="drive-modal" class="cp-modal" style="max-width: 400px; width: 90%;">
+        <div class="modal-header">
+            <h3 id="drive-modal-title"></h3>
+            <button class="modal-close" onclick="closeDriveModal()">×</button>
+        </div>
+        <div class="modal-body" id="drive-modal-body">
+        </div>
+        <div class="modal-footer" style="display: flex; gap: 12px; justify-content: flex-end;">
+            <button class="btn-drive btn-secondary" onclick="closeDriveModal()">{{ 'Hủy' if lang == 'vi' else 'キャンセル' }}</button>
+            <button class="btn-drive btn-primary" id="drive-modal-confirm">{{ 'Xác nhận' if lang == 'vi' else '確認' }}</button>
+        </div>
+    </div>
+
+    
+
+<script>
+    
+    function formatSize(bytes) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    let selectedItems = new Set();
+
+    let currentPath = '';
+
+    function closeDriveModal() {
+        document.getElementById('drive-modal-overlay').classList.remove('active');
+        document.getElementById('drive-modal').classList.remove('active');
+    }
+
+    function showDrivePrompt(title, inputPlaceholder, onConfirm) {
+        document.getElementById('drive-modal-title').innerText = title;
+        document.getElementById('drive-modal-body').innerHTML = `<input type="text" id="drive-prompt-input" placeholder="${inputPlaceholder}" style="width: 100%; padding: 12px 16px; border-radius: 12px; border: 1px solid var(--border); background: var(--bg-page); color: var(--text); font-size: 0.95rem; outline: none; margin-top: 10px;">`;
+        document.getElementById('drive-modal-overlay').classList.add('active');
+        document.getElementById('drive-modal').classList.add('active');
+        
+        const input = document.getElementById('drive-prompt-input');
+        input.focus();
+        
+        const confirmBtn = document.getElementById('drive-modal-confirm');
+        confirmBtn.className = 'btn-drive btn-primary'; // reset class
+        
+        // Remove old event listeners by cloning
+        const newConfirmBtn = confirmBtn.cloneNode(true);
+        confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
+        
+        newConfirmBtn.onclick = () => {
+            const val = document.getElementById('drive-prompt-input').value.trim();
+            if (val) {
+                closeDriveModal();
+                onConfirm(val);
+            } else {
+                showToast("Vui lòng nhập giá trị hợp lệ!", 'error');
+            }
+        };
+        
+        input.onkeypress = (e) => {
+            if (e.key === 'Enter') newConfirmBtn.click();
+        };
+    }
+
+    function showDriveConfirm(title, message, onConfirm) {
+        document.getElementById('drive-modal-title').innerText = title;
+        document.getElementById('drive-modal-body').innerHTML = `<div style="color: var(--text-2);">${message}</div>`;
+        document.getElementById('drive-modal-overlay').classList.add('active');
+        document.getElementById('drive-modal').classList.add('active');
+        
+        const confirmBtn = document.getElementById('drive-modal-confirm');
+        confirmBtn.className = 'btn-drive btn-primary'; // reset class
+        confirmBtn.style.background = '#ef4444'; // Make it red for delete
+        
+        const newConfirmBtn = confirmBtn.cloneNode(true);
+        confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
+        
+        newConfirmBtn.onclick = () => {
+            closeDriveModal();
+            onConfirm();
+        };
+    }
+
+
+    
+    function toggleSelection(event, path) {
+        event.stopPropagation();
+        if (selectedItems.has(path)) {
+            selectedItems.delete(path);
+        } else {
+            selectedItems.add(path);
+        }
+        updateSelectionUI();
+    }
+    
+    function clearSelection() {
+        selectedItems.clear();
+        updateSelectionUI();
+    }
+    
+    function updateSelectionUI() {
+        const fab = document.getElementById('fab-multi-select');
+        const countEl = document.getElementById('fab-count');
+        
+        if (selectedItems.size > 0) {
+            fab.classList.add('visible');
+            countEl.innerText = `${selectedItems.size} {{ 'mục' if lang == 'vi' else 'アイテム' }}`;
+        } else {
+            fab.classList.remove('visible');
+        }
+        
+        // Update DOM elements manually instead of full re-render for performance
+        document.querySelectorAll('.drive-item').forEach(el => {
+            const path = el.getAttribute('data-path');
+            const checkbox = el.querySelector('.drive-checkbox');
+            if (selectedItems.has(path)) {
+                el.classList.add('selected');
+                checkbox.classList.add('checked');
+                checkbox.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+            } else {
+                el.classList.remove('selected');
+                checkbox.classList.remove('checked');
+                checkbox.innerHTML = '';
+            }
+        });
+    }
+    
+    async function downloadSelected() {
+        if (selectedItems.size === 0) return;
+        
+        const paths = Array.from(selectedItems);
+        showToast("{{ 'Đang chuẩn bị file nén...' if lang == 'vi' else 'ZIPファイルを準備中...' }}", "info");
+        
+        try {
+            const res = await fetch('/api/drive/download_multiple', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ paths: paths })
+            });
+            
+            if (res.ok) {
+                const blob = await res.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                
+                // Get filename from Content-Disposition if possible, else fallback
+                let filename = "LSA_Drive_Download.zip";
+                const disposition = res.headers.get('Content-Disposition');
+                if (disposition && disposition.indexOf('filename=') !== -1) {
+                    const matches = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(disposition);
+                    if (matches != null && matches[1]) filename = matches[1].replace(/['"]/g, '');
+                }
+                
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                clearSelection();
+                showToast("{{ 'Tải xuống' if lang == 'vi' else 'ダウンロード' }} thành công!", "success");
+            } else {
+                showToast("{{ 'Lỗi tải xuống nhiều file' if lang == 'vi' else 'ダウンロードエラー' }}", "error");
+            }
+        } catch(e) {
+            showToast("{{ 'Lỗi mạng: ' if lang == 'vi' else 'ネットワークエラー: ' }}" + e.message, "error");
+        }
+    }
+    
+    function deleteSelected() {
+        if (selectedItems.size === 0) return;
+        
+        showDriveConfirm("{{ 'Xác nhận xóa hàng loạt' if lang == 'vi' else '一括削除の確認' }}", `{{ 'Bạn có chắc chắn muốn xóa vĩnh viễn' if lang == 'vi' else '完全に削除してもよろしいですか？' }} ${selectedItems.size} {{ 'mục đã chọn không?' if lang == 'vi' else '個の選択されたアイテム' }}`, async () => {
+            const paths = Array.from(selectedItems);
+            try {
+                const res = await fetch('/api/drive/delete_multiple', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ paths: paths })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(data.warning || "{{ 'Đã xóa thành công các mục!' if lang == 'vi' else '削除に成功しました！' }}", "success");
+                    clearSelection();
+                    loadDrive(currentPath);
+                } else {
+                    showToast("{{ 'Lỗi xóa: ' if lang == 'vi' else '削除エラー: ' }}" + (data.error || "{{ 'Không xác định' if lang == 'vi' else '不明' }}"), "error");
+                }
+            } catch (e) {
+                showToast("{{ 'Lỗi mạng: ' if lang == 'vi' else 'ネットワークエラー: ' }}" + e.message, "error");
+            }
+        });
+    }
+
+    function renderBreadcrumbs() {
+        const parts = currentPath.split('/').filter(p => p);
+        let html = `<span class="breadcrumb-item ${parts.length === 0 ? 'active' : ''}" onclick="loadDrive('')">LSA Drive</span>`;
+        let accPath = '';
+        
+        parts.forEach((part, index) => {
+            accPath += '/' + part;
+            const clickPath = accPath.replace(/^\//, '');
+            const isActive = index === parts.length - 1 ? 'active' : '';
+            html += ` <span class="breadcrumb-separator">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                      </span> 
+                      <span class="breadcrumb-item ${isActive}" onclick="loadDrive('${clickPath}')">${part}</span>`;
+        });
+        
+        document.getElementById('breadcrumbs').innerHTML = html;
+    }
+
+    async function loadDrive(path = '') {
+        currentPath = path;
+        clearSelection();
+        renderBreadcrumbs();
+        const grid = document.getElementById('drive-grid');
+        grid.innerHTML = '<div style="color: var(--text-3); text-align: center; grid-column: 1 / -1;">Đang tải...</div>';
+        
+        try {
+            const res = await fetch(`/api/drive/list?path=${encodeURIComponent(path)}`);
+            const data = await res.json();
+            
+            if (data.error) {
+                grid.innerHTML = `<div style="color: #ef4444; grid-column: 1 / -1;">Lỗi: ${data.error}</div>`;
+                return;
+            }
+            
+            grid.innerHTML = '';
+            if (data.items.length === 0) {
+                grid.innerHTML = `
+                <div class="empty-state">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="8" x2="12" y2="12"></line>
+                        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                    </svg>
+                    <h3 style="margin-top: 0; color: var(--text-2);">{{ 'Thư mục trống' if lang == 'vi' else '空のフォルダ' }}</h3>
+                    <p style="margin-top: 8px;">{{ 'Chưa có file hoặc thư mục nào ở đây' if lang == 'vi' else 'ここにファイルやフォルダはありません' }}</p>
+                </div>
+            `;
+                return;
+            }
+            
+            // Sort folders first
+            data.items.sort((a, b) => {
+                if (a.is_dir === b.is_dir) return a.name.localeCompare(b.name);
+                return a.is_dir ? -1 : 1;
+            });
+            
+            data.items.forEach((item, idx) => {
+                const el = document.createElement('div');
+                el.className = 'drive-item';
+                el.style.animationDelay = `${idx * 0.05}s`; // Staggered animation
+                
+                // Beautiful multi-tone SVG icons
+                const folderSVG = `<svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M52 18H29.13l-4-6H12C8.69 12 6 14.69 6 18v28c0 3.31 2.69 6 6 6h40c3.31 0 6-2.69 6-6V24c0-3.31-2.69-6-6-6z" fill="#93C5FD"/>
+                    <path d="M52 22H12c-3.31 0-6 2.69-6 6v18c0 3.31 2.69 6 6 6h40c3.31 0 6-2.69 6-6V28c0-3.31-2.69-6-6-6z" fill="#3B82F6"/>
+                </svg>`;
+                
+                const fileSVG = `<svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M46 56H18c-3.31 0-6-2.69-6-6V14c0-3.31 2.69-6 6-6h16l18 18v24c0 3.31-2.69 6-6 6z" fill="#E2E8F0"/>
+                    <path d="M34 8v18h18L34 8z" fill="#CBD5E1"/>
+                    <path d="M22 36h20M22 44h12" stroke="#94A3B8" stroke-width="4" stroke-linecap="round"/>
+                </svg>`;
+
+                const iconHtml = item.is_dir ? folderSVG : fileSVG;
+                const sizeHtml = item.is_dir ? '' : `<div class="drive-item-size">${formatSize(item.size)}</div>`;
+                
+                el.setAttribute('data-path', item.path);
+                const isSelected = selectedItems.has(item.path);
+                if (isSelected) {
+                    el.classList.add('selected');
+                }
+                
+                el.innerHTML = `
+                    <div class="drive-checkbox ${isSelected ? 'checked' : ''}" onclick="toggleSelection(event, '${item.path.replace(/'/g, "\'")}')">
+                        ${isSelected ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>' : ''}
+                    </div>
+                    <div class="drive-item-icon" onclick="handleItemClick(${item.is_dir}, '${item.path.replace(/'/g, "\'")}')">
+                        ${iconHtml}
+                    </div>
+                    <div class="drive-item-name" title="${item.name}">${item.name}</div>
+                    ${sizeHtml}
+                    
+                    <div class="drive-item-actions">
+                        ${!item.is_dir ? `<button class="action-icon" title="{{ 'Tải xuống' if lang == 'vi' else 'ダウンロード' }}" onclick="event.stopPropagation(); downloadItem('${item.path.replace(/'/g, "\'")}')">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                        </button>` : ''}
+                        <button class="action-icon danger" title="{{ 'Xóa' if lang == 'vi' else '削除' }}" onclick="event.stopPropagation(); deleteItem('${item.path.replace(/'/g, "\'")}', ${item.is_dir})">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                        </button>
+                    </div>
+                `;
+                
+                grid.appendChild(el);
+            });
+            
+        } catch (e) {
+            grid.innerHTML = `<div style="color: #ef4444; grid-column: 1 / -1;">{{ 'Lỗi mạng: ' if lang == 'vi' else 'ネットワークエラー: ' }}${e.message}</div>`;
+        }
+    }
+
+    function handleItemClick(isDir, path) {
+        if (isDir) {
+            loadDrive(path);
+        } else {
+            // For files, download or preview? For now download.
+            // downloadItem(path); // Tắt tải trực tiếp theo yêu cầu
+        }
+    }
+
+    function promptCreateFolder() {
+        showDrivePrompt("{{ 'Thư mục mới' if lang == 'vi' else '新規フォルダ' }}", "Nhập tên thư mục mới...", async (name) => {
+            try {
+                const res = await fetch('/api/drive/create_folder', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ path: currentPath, folder_name: name })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast("{{ 'Tạo thư mục thành công' if lang == 'vi' else 'フォルダ作成成功' }}!", "success");
+                    loadDrive(currentPath);
+                } else {
+                    showToast("Lỗi: " + data.error, "error");
+                }
+            } catch (e) {
+                showToast("{{ 'Lỗi mạng: ' if lang == 'vi' else 'ネットワークエラー: ' }}" + e.message, "error");
+            }
+        });
+    }
+
+    async function handleFileUpload(event) {
+        const files = event.target.files;
+        if (files.length === 0) return;
+        
+        const formData = new FormData();
+        formData.append('path', currentPath);
+        for (let i = 0; i < files.length; i++) {
+            formData.append('file', files[i]);
+        }
+        
+        
+        
+        try {
+            const res = await fetch('/api/drive/upload', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await res.json();
+            if (data.success) {
+                loadDrive(currentPath);
+            } else {
+                showToast("{{ 'Lỗi tải lên: ' if lang == 'vi' else 'アップロードエラー: ' }}" + data.error, "error");
+            }
+        } catch (e) {
+            showToast("{{ 'Lỗi mạng: ' if lang == 'vi' else 'ネットワークエラー: ' }}" + e.message, "error");
+        } finally {
+            prog.style.display = 'none';
+            event.target.value = '';
+        }
+    }
+
+    function downloadItem(path) {
+        window.location.href = `/api/drive/download?path=${encodeURIComponent(path)}`;
+    }
+
+    function deleteItem(path, isDir) {
+        const confirmMsg = isDir 
+            ? "{{ 'Bạn có chắc chắn muốn xóa vĩnh viễn thư mục này không?' if lang == 'vi' else 'このフォルダを完全に削除してもよろしいですか？' }}"
+            : "{{ 'Bạn có chắc chắn muốn xóa vĩnh viễn file này không?' if lang == 'vi' else 'このファイルを完全に削除してもよろしいですか？' }}";
+        showDriveConfirm("{{ 'Xác nhận xóa' if lang == 'vi' else '削除の確認' }}", confirmMsg, async () => {
+            try {
+                const res = await fetch('/api/drive/delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ path: path })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast("{{ 'Xóa thành công!' if lang == 'vi' else '削除しました！' }}", "success");
+                    loadDrive(currentPath);
+                } else {
+                    showToast("{{ 'Lỗi xóa: ' if lang == 'vi' else '削除エラー: ' }}" + data.error, "error");
+                }
+            } catch (e) {
+                showToast("{{ 'Lỗi mạng: ' if lang == 'vi' else 'ネットワークエラー: ' }}" + e.message, "error");
+            }
+        });
+    }
+
+    
+    // Initialize SocketIO listeners for real-time drive updates
+    window.addEventListener('DOMContentLoaded', () => {
+        if (window.socket) {
+            window.socket.on('drive_updated', (data) => {
+                // If it's a generic update, or the update matches our current path, reload
+                if (!data || !data.path || data.path === currentPath || data.path === currentPath.replace(/^\//, '')) {
+                    loadDrive(currentPath);
+                    showToast("{{ 'Đã làm mới dữ liệu' if lang == 'vi' else 'データを更新しました' }}", "info");
+                }
+            });
+        }
+    });
+
+    // Initialize
+    window.addEventListener('DOMContentLoaded', () => {
+        loadDrive('');
+    });
+</script>
+
+
+<!-- ============ MODALS FOR LOGTIME / CHECKLIST ============ -->
+{% for tab_key in ['truoc', 'nay', 'sau'] %}
+{% for row in weeks[tab_key].tasks %}
+{% set tp_key = row['tp_key'] %}
+{% set tp_name_display = row['tp_name'] %}
+{% set worker = row['Người thực hiện']|string|trim %}
+<div class="modal-overlay" id="modal-{{ tab_key }}-{{ loop.index0 }}">
+    <div class="modal-content">
+        <div class="modal-header">
+            <div>
+                <div class="modal-title">{{ tp_name_display }}</div>
+                <div class="modal-worker" style="display: flex; align-items: center;">
+                    <div class="worker-avatars-group" style="display: flex;">
+                        {% set workers = worker.split(',') if worker else [] %}
+                        {% for w in workers %}
+                        {% set w_trim = w.strip() %}
+                        {% set ns = namespace(found_avatar=none) %}
+                        {% if user_profiles %}
+                        {% for k, v in user_profiles.items() %}
+                        {% if k|lower in w_trim|lower or w_trim|lower in k|lower %}
+                        {% set ns.found_avatar = v.avatar %}
+                        {% endif %}
+                        {% endfor %}
+                        {% endif %}
+                        <span class="worker-avatar"
+                            style="{% if not loop.first %}margin-left: -8px;{% endif %} border: 2px solid var(--bg-card); position: relative; z-index: {{ 10 - loop.index0 }};"
+                            title="{{ w_trim }}">
+                            {% if ns.found_avatar %}
+                            <img src="{{ ns.found_avatar }}" alt="Avatar" class="avatar-img"
+                                referrerpolicy="no-referrer"
+                                onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                            <span class="avatar-fallback" style="display:none;">{{ w_trim[0]|upper if w_trim else 'U'
+                                }}</span>
+                            {% else %}
+                            {{ w_trim[0]|upper if w_trim else 'U' }}
+                            {% endif %}
+                        </span>
+                        {% endfor %}
+                    </div>
+                    <span style="margin-left: 8px;">{{ worker }}</span>
+                </div>
+            </div>
+
+            <!-- GHOST AVATARS CONTAINER -->
+            <div class="ghost-avatars" data-tp-key="{{ tp_key }}"
+                style="display: flex; gap: -5px; align-items: center; margin-right: 10px;">
+                <!-- Avatars injected by JS -->
+            </div>
+
+            <button class="close-btn" onclick="closeModal('{{ tab_key }}-{{ loop.index0 }}', '{{ tp_key }}')">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            {{ render_checklist(tp_key, tab_key ~ '_' ~ loop.index0, lang, checklist_api, checked_ids_dict) }}
+            {{ render_logtime_form(row, tab_key ~ '_' ~ loop.index0, t, users, lang) }}
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endfor %}
+
+
+{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://npmcdn.com/flatpickr/dist/l10n/vn.js"></script>
+<script src="https://npmcdn.com/flatpickr/dist/l10n/ja.js"></script>
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<style>
+    .flatpickr-calendar {
+        background: transparent !important;
+        box-shadow: none !important;
+        border: none !important;
+        width: 310px !important;
+        padding: 0 !important;
+    }
+
+    .flatpickr-day.is-deadline {
+        background: #ef4444 !important;
+        /* Red background */
+        border-color: #ef4444 !important;
+        color: white !important;
+    }
+
+    .flatpickr-month {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        height: 35px !important;
+        margin-bottom: 10px;
+        position: relative;
+    }
+
+    .flatpickr-current-month {
+        font-size: 0.9rem !important;
+        color: #ef4444 !important;
+        font-weight: 700 !important;
+        padding: 0 !important;
+        text-transform: uppercase;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        height: 100% !important;
+        position: static !important;
+        flex: 1;
+    }
+
+    .flatpickr-monthDropdown-months {
+        appearance: none !important;
+        -webkit-appearance: none !important;
+        background: transparent !important;
+        border: none !important;
+        color: inherit !important;
+        font-weight: inherit !important;
+        cursor: pointer;
+        padding: 2px 5px !important;
+        height: auto !important;
+        line-height: 1.2 !important;
+    }
+
+    .flatpickr-monthDropdown-months option {
+        background-color: var(--surface) !important;
+        color: var(--text) !important;
+    }
+
+    .flatpickr-current-month svg {
+        display: none !important;
+        /* Hide dropdown arrow */
+    }
+
+    .flatpickr-current-month .numInputWrapper {
+        display: none;
+    }
+
+    .flatpickr-current-month input.cur-year {
+        display: none;
+    }
+
+    .flatpickr-prev-month svg,
+    .flatpickr-next-month svg {
+        fill: var(--text) !important;
+    }
+
+    .flatpickr-prev-month:hover svg,
+    .flatpickr-next-month:hover svg {
+        fill: #ef4444 !important;
+    }
+
+    .flatpickr-weekday {
+        color: var(--text) !important;
+        font-weight: 700 !important;
+        font-size: 0.7rem !important;
+    }
+
+    .flatpickr-day {
+        color: var(--text) !important;
+        font-weight: 500 !important;
+        border-radius: 50% !important;
+    }
+
+    .flatpickr-day.flatpickr-disabled {
+        color: var(--text-2) !important;
+        opacity: 0.3;
+    }
+
+    .flatpickr-prev-month,
+    .flatpickr-next-month {
+        position: static !important;
+        height: 100% !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        padding: 0 15px !important;
+        z-index: 3 !important;
+    }
+
+    .drive-checkbox {
+        position: absolute;
+        top: 12px;
+        left: 12px;
+        width: 20px;
+        height: 20px;
+        border-radius: 6px;
+        border: 2px solid var(--text-4);
+        background: rgba(0,0,0,0.2);
+        cursor: pointer;
+        opacity: 0;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: transparent;
+        z-index: 10;
+    }
+    .drive-item:hover .drive-checkbox, .drive-checkbox.checked {
+        opacity: 1;
+    }
+    .drive-checkbox.checked {
+        background: #3b82f6;
+        border-color: #3b82f6;
+        color: white;
+    }
+    .drive-item.selected {
+        border-color: #3b82f6;
+        background: rgba(59, 130, 246, 0.05);
+    }
+    
+    .floating-action-bar {
+        position: fixed;
+        bottom: 30px;
+        left: 50%;
+        transform: translateX(-50%) translateY(100px);
+        background: var(--surface);
+        padding: 12px 24px;
+        border-radius: 20px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        border: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        z-index: 999;
+        opacity: 0;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        pointer-events: none;
+    }
+    
+    .floating-action-bar.visible {
+        transform: translateX(-50%) translateY(0);
+        opacity: 1;
+        pointer-events: auto;
+    }
+    
+    .fab-count {
+        font-weight: 700;
+        color: #3b82f6;
+        background: rgba(59, 130, 246, 0.1);
+        padding: 4px 12px;
+        border-radius: 20px;
+    }
+
+</style>
+
+{% endblock %}
+
+{% block scripts %}
+
+    
+    <!-- Custom Modals -->
+    <div id="drive-modal-overlay" class="cp-overlay" onclick="closeDriveModal()"></div>
+    <div id="drive-modal" class="cp-modal" style="max-width: 400px; width: 90%;">
+        <div class="modal-header">
+            <h3 id="drive-modal-title"></h3>
+            <button class="modal-close" onclick="closeDriveModal()">×</button>
+        </div>
+        <div class="modal-body" id="drive-modal-body">
+        </div>
+        <div class="modal-footer" style="display: flex; gap: 12px; justify-content: flex-end;">
+            <button class="btn-drive btn-secondary" onclick="closeDriveModal()">{{ 'Hủy' if lang == 'vi' else 'キャンセル' }}</button>
+            <button class="btn-drive btn-primary" id="drive-modal-confirm">{{ 'Xác nhận' if lang == 'vi' else '確認' }}</button>
+        </div>
+    </div>
+
+    
+
+<script>
+    const CHECKLIST_API = "{{ checklist_api }}";
+    const CURRENT_LANG = "{{ lang }}";
+    window.socket = typeof io !== 'undefined' ? io() : null;
+
+    // Inject Detailed Task Data
+    let vntaskDataList = [];
+    const userProfilesDB = {{ user_profiles | tojson }};
+
+    // Store mappings from card name to modal ID
+    const modalMap = {};
+    {% for tab_key in ['truoc', 'nay', 'sau'] %}
+    modalMap['{{ tab_key }}'] = {};
+    {% for row in weeks[tab_key].tasks %}
+    {% set tp_key = row['tp_key'] %}
+    modalMap['{{ tab_key }}']["{{ tp_key }}"] = "{{ tab_key }}-{{ loop.index0 }}";
+    {% endfor %}
+    {% endfor %}
+</script>
+<!-- Confetti Library for Celebration Effects -->
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}?v={{ range(1, 100000) | random }}"></script>
+
+{% endblock %}
