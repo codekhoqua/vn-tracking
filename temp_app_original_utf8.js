@@ -1,0 +1,1309 @@
+﻿/* ================================================================
+   VN-TRACKING DASHBOARD ΓÇö FRONTEND LOGIC v3 (Kanban)
+   ================================================================ */
+
+// ===================== TOAST =====================
+function showToast(message, type = 'info') {
+    let container = document.getElementById('toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'toast-container';
+        container.className = 'toast-container';
+        document.body.appendChild(container);
+    }
+    const icons = { success: 'Γ£ô', error: 'Γ£ò', warning: 'ΓÜá', info: 'Γä╣' };
+    const icon = icons[type] || icons.info;
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.innerHTML = `<span class="toast-icon">${icon}</span><span class="toast-msg">${message}</span><button class="toast-close" onclick="this.parentElement.remove()">Γ£ò</button>`;
+    container.appendChild(toast);
+    setTimeout(() => { if (toast.parentElement) toast.remove(); }, 4000);
+}
+
+// ===================== TAB MANAGEMENT =====================
+function switchTab(tabId) {
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tabId));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.toggle('active', c.id === `tab-${tabId}`));
+    document.querySelectorAll('.info-banner').forEach(b => b.style.display = b.id === `banner-${tabId}` ? 'flex' : 'none');
+
+    // Show only table rows for active tab
+    document.querySelectorAll('.table-row').forEach(row => {
+        row.style.display = row.classList.contains(`table-${tabId}`) ? '' : 'none';
+    });
+
+    sessionStorage.setItem('activeTab', tabId);
+}
+
+// ===================== DRAWER FILTER =====================
+function toggleFilters() {
+    const drawer = document.getElementById('filter-drawer');
+    const overlay = document.getElementById('filter-overlay');
+    if (drawer) drawer.classList.toggle('open');
+    if (overlay) overlay.classList.toggle('open');
+}
+
+function applyFilters() {
+    const getChecked = (group) => Array.from(document.querySelectorAll(`[data-filter-group="${group}"]:checked`)).map(cb => cb.value.trim());
+
+    const cvNay = getChecked('cv-nay');
+    const nguoiNay = getChecked('nguoi-nay');
+    const cvSau = getChecked('cv-sau');
+    const nguoiSau = getChecked('nguoi-sau');
+
+    filterSection('nay', cvNay, nguoiNay);
+    filterSection('sau', cvSau, nguoiSau);
+}
+
+function filterSection(tabKey, cvFilter, workerFilter) {
+    const tab = document.getElementById(`tab-${tabKey}`);
+    if (!tab) return;
+
+    let colCounts = [0, 0, 0]; // not-started, in-progress, delivered
+
+    tab.querySelectorAll('.kanban-column').forEach((col, idx) => {
+        let count = 0;
+        col.querySelectorAll('.progress-card').forEach(card => {
+            const cvPart = (card.querySelector('.tag')?.textContent || '').trim();
+            const worker = (card.querySelector('.worker-name')?.textContent || '').trim();
+
+            const cvOk = cvFilter.length === 0 || cvFilter.includes(cvPart);
+            const wOk = workerFilter.length === 0 || workerFilter.some(w => worker.includes(w));
+
+            if (cvOk && wOk) {
+                card.style.display = '';
+                count++;
+            } else {
+                card.style.display = 'none';
+            }
+        });
+
+        // Update column count
+        const countBadge = col.querySelector('.kanban-col-count');
+        if (countBadge) countBadge.textContent = count;
+    });
+}
+
+// ===================== NAVIGATION & SCROLLING =====================
+function updateSidebarActiveState(isTableVisible) {
+    const navItems = document.querySelectorAll('.sidebar .nav-item');
+    if (navItems.length < 2) return;
+
+    navItems.forEach(item => item.classList.remove('active'));
+    if (isTableVisible) {
+        navItems[1].classList.add('active'); // Data Table
+    } else {
+        navItems[0].classList.add('active'); // Dashboard
+    }
+}
+
+function scrollToTable() {
+    const tableWrapper = document.getElementById('table-wrapper');
+    const tableSection = document.querySelector('.table-section');
+    if (tableWrapper && tableSection) {
+        if (!tableWrapper.classList.contains('open')) {
+            toggleTable();
+        }
+        tableSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        updateSidebarActiveState(true);
+    }
+}
+
+// Scroll spy using Intersection Observer
+document.addEventListener('DOMContentLoaded', () => {
+    const tableSection = document.querySelector('.table-section');
+    if (tableSection) {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                // If table is at least 30% visible on screen, highlight Data Table
+                updateSidebarActiveState(entry.isIntersecting);
+            });
+        }, { threshold: 0.3 });
+
+        observer.observe(tableSection);
+    }
+
+    // Fallback for Dashboard click
+    const navItems = document.querySelectorAll('.sidebar .nav-item');
+    if (navItems.length > 0) {
+        navItems[0].addEventListener('click', () => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            updateSidebarActiveState(false);
+        });
+    }
+});
+
+// ===================== LANGUAGE SWITCHING =====================
+function toggleLangSelect(event) {
+    if (event) event.stopPropagation();
+    document.getElementById('custom-lang-select').classList.toggle('open');
+}
+
+function changeLang(lang, event) {
+    if (event) event.stopPropagation();
+    document.getElementById('custom-lang-select').classList.remove('open');
+
+    // The backend uses a GET route for /set-lang which redirects back to dashboard
+    window.location.href = '/set-lang?lang=' + lang;
+}
+
+// Close language dropdown on outside click
+document.addEventListener('click', function (e) {
+    const langSelect = document.getElementById('custom-lang-select');
+    if (langSelect && langSelect.classList.contains('open')) {
+        langSelect.classList.remove('open');
+    }
+});
+
+// ===================== DATA TABLE =====================
+function toggleTable() {
+    const wrapper = document.getElementById('table-wrapper');
+    const arrow = document.getElementById('table-arrow');
+    if (wrapper) {
+        const isOpen = wrapper.classList.toggle('open');
+        if (arrow) arrow.textContent = isOpen ? 'Γû▓' : 'Γû╝';
+        if (isOpen) {
+            wrapper.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+    }
+}
+
+function scrollToTable() {
+    const wrapper = document.getElementById('table-wrapper');
+    if (wrapper) {
+        if (!wrapper.classList.contains('open')) {
+            wrapper.classList.add('open');
+            const arrow = document.getElementById('table-arrow');
+            if (arrow) arrow.textContent = 'Γû▓';
+        }
+        wrapper.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+}
+
+// ===================== WEATHER & TIME =====================
+function initWeatherTime() {
+    const el = document.getElementById('weather-time');
+    if (!el) return;
+    const isVN = (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi');
+    const locQuery = isVN ? "Ho+Chi+Minh" : "Gifu";
+    const locName = isVN ? "TP. Hß╗ô Ch├¡ Minh" : "Gifu, Japan";
+
+    const updateTime = () => {
+        const now = new Date();
+        const timeZone = isVN ? 'Asia/Ho_Chi_Minh' : 'Asia/Tokyo';
+        const timeStr = now.toLocaleTimeString(isVN ? 'vi-VN' : 'ja-JP', { timeZone, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const dateStr = now.toLocaleDateString(isVN ? 'vi-VN' : 'ja-JP', { timeZone, weekday: 'short', month: 'short', day: 'numeric' });
+
+        const timeSpan = document.getElementById('wt-time');
+        if (timeSpan) timeSpan.innerHTML = `${dateStr} - ${timeStr}`;
+    };
+
+    setInterval(updateTime, 1000);
+
+    fetch(`https://wttr.in/${locQuery}?format=j1`)
+        .then(r => r.json())
+        .then(data => {
+            const temp = data.current_condition[0].temp_C;
+            el.innerHTML = `
+                <span id="wt-loc" style="font-weight: 500;">≡ƒôì ${locName}</span>
+                <span id="wt-temp" style="margin-left: 12px; font-weight: bold; color: var(--primary);"> ≡ƒîÑ∩╕Å${temp}┬░C</span>
+                <span id="wt-time" style="margin-left: 12px; font-variant-numeric: tabular-nums;"></span>
+            `;
+            updateTime();
+        }).catch(err => {
+            console.error("Weather err:", err);
+            el.innerHTML = `<span id="wt-time"></span>`;
+            updateTime();
+        });
+}
+
+// ===================== MODAL =====================
+function openModal(tabKey, cardName) {
+    if (typeof modalMap === 'undefined') return;
+    const modalId = modalMap[tabKey] && modalMap[tabKey][cardName];
+    if (modalId) {
+        const modal = document.getElementById(`modal-${modalId}`);
+        if (modal) {
+            modal.classList.add('open');
+            document.body.style.overflow = 'hidden';
+            initChecklistInContainer(modal.querySelector('.modal-body'));
+        }
+    }
+}
+
+function closeModal(modalId) {
+    const modal = document.getElementById(`modal-${modalId}`);
+    if (modal) {
+        modal.classList.remove('open');
+        document.body.style.overflow = '';
+    }
+}
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        document.querySelectorAll('.modal-overlay.open').forEach(m => {
+            m.classList.remove('open');
+            document.body.style.overflow = '';
+        });
+        const drawer = document.getElementById('filter-drawer');
+        if (drawer && drawer.classList.contains('open')) toggleFilters();
+    }
+});
+
+// Close modal when clicking overlay
+document.addEventListener('click', (e) => {
+    if (e.target.classList.contains('modal-overlay')) {
+        e.target.classList.remove('open');
+        document.body.style.overflow = '';
+    }
+});
+
+// ===================== CHECKLIST =====================
+function initChecklistInContainer(container) {
+    if (!container || container.dataset.checklistInit) return;
+    container.dataset.checklistInit = 'true';
+
+    const grids = container.querySelectorAll('.checklist-grid');
+    grids.forEach(grid => {
+        const tpKey = grid.dataset.tpKey || '';
+        const checkboxes = grid.querySelectorAll('input[data-checklist]');
+
+        checkboxes.forEach(cb => {
+            const rawId = cb.dataset.checkId;
+
+            cb.addEventListener('change', (e) => {
+                cb.dataset.userModified = 'true';
+
+                // Keep the card's local checked_ids up to date
+                const card = document.querySelector(`.progress-card[data-tp-key="${tpKey}"]`);
+                if (card) {
+                    let checkedIds = (card.dataset.checkedIds || '').split(',').filter(Boolean);
+                    if (e.target.checked) {
+                        if (!checkedIds.includes(rawId)) checkedIds.push(rawId);
+                    } else {
+                        checkedIds = checkedIds.filter(id => id !== rawId);
+                    }
+                    card.dataset.checkedIds = checkedIds.join(',');
+                }
+
+                if (typeof CHECKLIST_API !== 'undefined' && CHECKLIST_API.startsWith('http')) {
+                    fetch(CHECKLIST_API, {
+                        method: 'POST', mode: 'no-cors',
+                        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                        body: JSON.stringify({ tac_pham: tpKey, checkbox_id: rawId, status: e.target.checked })
+                    }).catch(() => { });
+                }
+                updateTaskProgressLocally(tpKey, container);
+            });
+        });
+
+        // 1. FAST LOCAL RENDER FROM CARD DATA (Injected by Python)
+        const card = document.querySelector(`.progress-card[data-tp-key="${tpKey}"]`);
+        if (card) {
+            const checkedIds = (card.dataset.checkedIds || '').split(',').filter(Boolean);
+            checkboxes.forEach(cb => {
+                const rawId = cb.dataset.checkId;
+                cb.checked = checkedIds.includes(rawId);
+            });
+            updateTaskProgressLocally(tpKey, container);
+        }
+
+        // 2. BACKGROUND FETCH FOR FRESHNESS (Optional but good for multi-device sync)
+        if (tpKey && typeof CHECKLIST_API !== 'undefined' && CHECKLIST_API.startsWith('http')) {
+            fetch(`${CHECKLIST_API}?tac_pham=${encodeURIComponent(tpKey)}&_t=${Date.now()}`)
+                .then(r => r.json())
+                .then(data => {
+                    checkboxes.forEach(cb => {
+                        if (cb.dataset.userModified !== 'true') {
+                            const rawId = cb.dataset.checkId;
+                            cb.checked = (data[rawId] === true || data[rawId] === 'true');
+                        }
+                    });
+                    updateTaskProgressLocally(tpKey, container);
+                }).catch(() => { });
+        }
+    });
+}
+
+function updateTaskProgressLocally(tpKey, modalBody) {
+    const checkboxes = modalBody.querySelectorAll('input[data-checklist]');
+    const total = checkboxes.length;
+    if (total === 0) return;
+    const checkedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
+    const progress = Math.round((checkedCount / total) * 100);
+
+    // Find the card for this task across all tabs
+    document.querySelectorAll('.progress-card').forEach(card => {
+        if (card.dataset.tpKey === tpKey) {
+            // Update progress text
+            const infoSpans = card.querySelectorAll('.progress-info span');
+            if (infoSpans.length > 1) {
+                infoSpans[1].textContent = `${progress}%`;
+            }
+            // Update progress bar width
+            const fill = card.querySelector('.progress-fill');
+            if (fill) {
+                fill.style.width = `${progress}%`;
+            }
+
+            // Move card to correct column
+            const newStatusClass = checkedCount === 0 ? 'not-started' : (checkedCount >= total ? 'delivered' : 'in-progress');
+            const currentStatusClass = Array.from(card.classList).find(c => c.startsWith('status-'));
+
+            if (currentStatusClass !== `status-${newStatusClass}`) {
+                card.classList.remove(currentStatusClass);
+                card.classList.add(`status-${newStatusClass}`);
+
+                // Update status text
+                const statusSpan = card.querySelector('.status-text');
+                if (statusSpan) {
+                    const isVN = (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi');
+                    if (newStatusClass === 'not-started') statusSpan.textContent = isVN ? 'To Do' : 'µ£¬τ¥Çµëï';
+                    else if (newStatusClass === 'delivered') statusSpan.textContent = isVN ? 'Completed' : 'τ┤ìσôüµ╕êπü┐';
+                    else statusSpan.textContent = isVN ? 'In Progress' : 'ΘÇ▓ΦíîΣ╕¡';
+                }
+
+                const tab = card.closest('.tab-content');
+                if (tab) {
+                    const targetCol = tab.querySelector(`.kanban-column[data-status="${newStatusClass}"] .kanban-cards`);
+                    if (targetCol) {
+                        targetCol.appendChild(card);
+                    }
+
+                    // Update column badges
+                    tab.querySelectorAll('.kanban-column').forEach(col => {
+                        const count = Array.from(col.querySelectorAll('.progress-card')).filter(c => c.style.display !== 'none').length;
+                        const badge = col.querySelector('.kanban-col-count');
+                        if (badge) badge.textContent = count;
+                    });
+                }
+            }
+        }
+    });
+}
+
+
+// ===================== CELEBRATION EFFECTS =====================
+function triggerCelebration() {
+    // 1. Play "Ting" sound using Web Audio API
+    try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (AudioContext) {
+            const ctx = new AudioContext();
+            const playNote = (freq, startTime, duration) => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(freq, ctx.currentTime + startTime);
+                gain.gain.setValueAtTime(0, ctx.currentTime + startTime);
+                gain.gain.linearRampToValueAtTime(0.3, ctx.currentTime + startTime + 0.05);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + startTime + duration);
+                osc.start(ctx.currentTime + startTime);
+                osc.stop(ctx.currentTime + startTime + duration);
+            };
+            playNote(880, 0, 0.4);      // A5 note
+            playNote(1108.73, 0.1, 0.6); // C#6 note
+        }
+    } catch (e) {
+        console.log("Audio not supported or blocked");
+    }
+
+    // 2. Fire Confetti
+    if (typeof confetti === 'function') {
+        const duration = 2000;
+        const end = Date.now() + duration;
+        (function frame() {
+            confetti({
+                particleCount: 5, angle: 60, spread: 55, origin: { x: 0 }, zIndex: 9999,
+                colors: ['#26ccff', '#a25afd', '#ff5e7e', '#88ff5a', '#fcff42', '#ffa62d', '#ff36ff']
+            });
+            confetti({
+                particleCount: 5, angle: 120, spread: 55, origin: { x: 1 }, zIndex: 9999,
+                colors: ['#26ccff', '#a25afd', '#ff5e7e', '#88ff5a', '#fcff42', '#ffa62d', '#ff36ff']
+            });
+            if (Date.now() < end) { requestAnimationFrame(frame); }
+        }());
+    }
+}
+
+// ===================== LOGTIME SUCCESS MODAL =====================
+function showSuccessModal() {
+    triggerCelebration();
+
+    let overlay = document.getElementById('success-modal-overlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'success-modal-overlay';
+        overlay.className = 'modal-overlay';
+
+        // Use Japanese text if language is JA, else Vietnamese
+        const isJa = (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'ja');
+        const titleText = isJa ? 'πüèτû▓πéîµºÿπüºπüùπüƒ∩╝ü' : 'πüèτû▓πéîµºÿπüºπüùπüƒ∩╝ü';
+        const bodyText = isJa ? 'ΘÇ▓µìùπüîµ¡úσ╕╕πü½Φ¿ÿΘî▓πüòπéîπü╛πüùπüƒπÇé' : 'Logtime cß╗ºa bß║ín ─æ├ú ─æ╞░ß╗úc ghi nhß║¡n th├ánh c├┤ng.';
+
+        overlay.innerHTML = `
+            <div class="modal-content success-content" style="max-width: 400px; text-align: center; padding: 40px; animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
+                <div class="success-icon" style="font-size: 80px; color: var(--primary); margin-bottom: 20px;">
+                    <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" width="100" height="100" style="display: inline-block;">
+                        <circle cx="50" cy="50" r="50" fill="currentColor"/>
+                        <path d="M30 50L45 65L70 35" stroke="white" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" style="stroke-dasharray: 100; animation: drawCheck 0.5s ease-out forwards 0.2s; stroke-dashoffset: 100;"/>
+                    </svg>
+                </div>
+                <h2 style="font-size: 1.5rem; font-weight: 800; margin-bottom: 12px; color: var(--text);">${titleText}</h2>
+                <p style="color: var(--text-3); font-size: 0.95rem; margin-bottom: 30px; line-height: 1.5;">${bodyText}</p>
+                <button onclick="document.getElementById('success-modal-overlay').classList.remove('open')" style="background: var(--primary); color: white; border: none; padding: 12px 32px; border-radius: 100px; font-weight: bold; cursor: pointer; transition: 0.2s; font-size: 1rem;">Continue</button>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+
+        // Add animation styles if not present
+        if (!document.getElementById('success-style')) {
+            const style = document.createElement('style');
+            style.id = 'success-style';
+            style.innerHTML = `
+                @keyframes popIn { 0% { transform: scale(0.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+                @keyframes drawCheck { to { stroke-dashoffset: 0; } }
+                .success-content button:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(99,102,241,0.4); }
+            `;
+            document.head.appendChild(style);
+        }
+    }
+    overlay.classList.add('open');
+}
+
+// ===================== LOGTIME FORM =====================
+const logtimeCooldowns = {};
+
+function handleLogtime(event, formId) {
+    event.preventDefault();
+    const form = document.getElementById(formId);
+    if (!form) return;
+
+    const now = Date.now();
+    const lastTime = logtimeCooldowns[formId] || 0;
+    const diff = (now - lastTime) / 1000;
+
+    if (diff < 300) {
+        const rem = 300 - Math.floor(diff);
+        showToast(`ΓÅ│ Vui l├▓ng chß╗¥ ${Math.floor(rem / 60)}p ${rem % 60}s nß╗»a!`, 'warning');
+        return;
+    }
+
+    const data = Object.fromEntries(new FormData(form).entries());
+    const hours = parseFloat(data.so_gio) || 0;
+    const pages = parseInt(data.so_page) || 0;
+
+    if (hours === 0 && pages === 0) { showToast('ΓÜá∩╕Å Vui l├▓ng nhß║¡p sß╗æ giß╗¥ hoß║╖c sß╗æ trang!', 'warning'); return; }
+
+    const btn = form.querySelector('button[type="submit"]');
+    const orig = btn.textContent;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="loading-spinner" style="width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-radius: 50%; border-top-color: #fff; animation: spin 1s linear infinite; display: inline-block; margin-right: 8px;"></span>─ÉANG L╞»U...';
+
+    fetch('/api/logtime', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
+        .then(r => r.json())
+        .then(result => {
+            if (result.status === 'success') {
+                logtimeCooldowns[formId] = Date.now();
+                showSuccessModal();
+            } else {
+                showToast('Γ¥î ' + (result.message || 'C├│ lß╗ùi xß║úy ra.'), 'error');
+            }
+        })
+        .catch(() => showToast('Γ¥î Lß╗ùi kß║┐t nß╗æi!', 'error'))
+        .finally(() => { btn.disabled = false; btn.textContent = orig; });
+}
+
+// ===================== UTILS =====================
+function changeLang(lang) { window.location.href = `/set-lang?lang=${lang}&next=${encodeURIComponent(window.location.pathname)}`; }
+function refreshData() { window.location.reload(); }
+
+function copyText(btn, elementId) {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+    navigator.clipboard.writeText(el.textContent).then(() => {
+        const old = btn.innerHTML;
+        btn.innerHTML = 'Γ£à ─É├ú Copy';
+        setTimeout(() => { btn.innerHTML = old; }, 2000);
+    }).catch(() => showToast('Copy thß║Ñt bß║íi!', 'error'));
+}
+
+function toggleAskTask(el) {
+    const content = el.nextElementSibling;
+    if (content) content.classList.toggle('open');
+}
+
+// ===================== THEME TOGGLE =====================
+function toggleTheme() {
+    const body = document.body;
+    body.classList.toggle('dark-theme');
+    const isDark = body.classList.contains('dark-theme');
+    localStorage.setItem('vn_tracking_theme', isDark ? 'dark' : 'light');
+    
+    // Redraw chart to apply new theme colors
+    if (typeof updateAreaChart === 'function') {
+        const activeBtn = document.querySelector('.chart-time-controls button.active');
+        if (activeBtn) updateAreaChart(activeBtn.dataset.period);
+    }
+}
+
+// ===================== BACKGROUND SYNC =====================
+function backgroundSyncChecklist() {
+    if (typeof CHECKLIST_API !== 'undefined' && CHECKLIST_API.startsWith('http')) {
+        const cacheBuster = CHECKLIST_API.includes('?') ? `&_t=${Date.now()}` : `?_t=${Date.now()}`;
+        fetch(CHECKLIST_API + cacheBuster)
+            .then(r => r.json())
+            .then(data => {
+                if (!Array.isArray(data)) return;
+
+                // Group data by T├¬n T├íc Phß║⌐m
+                const checkedMap = {};
+                data.forEach(item => {
+                    const tpKey = item['T├¬n T├íc Phß║⌐m'];
+                    const cbId = item['Checkbox ID'];
+                    const status = item['Trß║íng Th├íi'];
+                    const isChecked = (status === true || status === 'true' || status === 'TRUE' || status === 1);
+
+                    if (!checkedMap[tpKey]) checkedMap[tpKey] = {};
+                    checkedMap[tpKey][cbId] = isChecked;
+                });
+
+                // Update all cards on the page
+                document.querySelectorAll('.progress-card').forEach(card => {
+                    const tpKey = card.dataset.tpKey;
+                    if (!tpKey) return;
+
+                    // Count how many are checked for this tpKey in the fetched data
+                    let localCheckedCount = 0;
+                    for (let i = 1; i <= 9; i++) {
+                        if (checkedMap[tpKey] && checkedMap[tpKey][`t${i}`]) {
+                            localCheckedCount++;
+                        }
+                    }
+
+                    const progress = Math.round((localCheckedCount / 9) * 100);
+
+                    // Update progress UI
+                    const infoSpans = card.querySelectorAll('.progress-info span');
+                    if (infoSpans.length > 1) infoSpans[1].textContent = `${progress}%`;
+                    const fill = card.querySelector('.progress-fill');
+                    if (fill) fill.style.width = `${progress}%`;
+
+                    // Move card to correct column
+                    const newStatusClass = localCheckedCount === 0 ? 'not-started' : (localCheckedCount >= 9 ? 'delivered' : 'in-progress');
+                    const currentStatusClass = Array.from(card.classList).find(c => c.startsWith('status-'));
+
+                    if (currentStatusClass !== `status-${newStatusClass}`) {
+                        card.classList.remove(currentStatusClass);
+                        card.classList.add(`status-${newStatusClass}`);
+
+                        // Update status text
+                        const statusSpan = card.querySelector('.status-text');
+                        if (statusSpan) {
+                            const isVN = (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi');
+                            if (newStatusClass === 'not-started') statusSpan.textContent = isVN ? 'To Do' : 'µ£¬τ¥Çµëï';
+                            else if (newStatusClass === 'delivered') statusSpan.textContent = isVN ? 'Completed' : 'τ┤ìσôüµ╕êπü┐';
+                            else statusSpan.textContent = isVN ? 'In Progress' : 'ΘÇ▓ΦíîΣ╕¡';
+                        }
+
+                        const tab = card.closest('.tab-content');
+                        if (tab) {
+                            const targetCol = tab.querySelector(`.kanban-column[data-status="${newStatusClass}"] .kanban-cards`);
+                            if (targetCol) targetCol.appendChild(card);
+
+                            // Update column badges
+                            tab.querySelectorAll('.kanban-column').forEach(col => {
+                                const count = Array.from(col.querySelectorAll('.progress-card')).filter(c => c.style.display !== 'none').length;
+                                const badge = col.querySelector('.kanban-col-count');
+                                if (badge) badge.textContent = count;
+                            });
+                        }
+                    }
+                });
+            }).catch(() => { });
+    }
+}
+
+// ===================== INIT =====================
+document.addEventListener('DOMContentLoaded', () => {
+    // Init Tab
+    const lastTab = sessionStorage.getItem('activeTab') || 'nay';
+    switchTab(lastTab);
+
+    // Init Theme
+    const savedTheme = localStorage.getItem('vn_tracking_theme');
+    if (savedTheme === 'dark') {
+        document.body.classList.add('dark-theme');
+    }
+
+    // Init Weather & Time
+    initWeatherTime();
+
+    // Background Sync for Server Truth
+    backgroundSyncChecklist();
+
+    // Init Area Chart
+    if (typeof vntaskDataList !== 'undefined') {
+        setChartPeriod('week');
+    }
+});
+
+// ===================== IDLE TIMEOUT =====================
+let idleTimer;
+const IDLE_LIMIT = 30 * 60 * 1000; // 30 minutes
+
+function resetIdleTimer() {
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => {
+        const overlay = document.createElement('div');
+        overlay.style.position = 'fixed';
+        overlay.style.inset = '0';
+        overlay.style.background = 'rgba(15, 23, 42, 0.9)';
+        overlay.style.backdropFilter = 'blur(10px)';
+        overlay.style.zIndex = '99999';
+        overlay.style.display = 'flex';
+        overlay.style.alignItems = 'center';
+        overlay.style.justifyContent = 'center';
+        overlay.style.flexDirection = 'column';
+        overlay.style.color = 'white';
+        overlay.innerHTML = `
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 24px; color: #cbd5e1;"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+            <h2 style="margin-bottom: 12px; font-weight: 800; font-size: 1.5rem;">Phi├¬n l├ám viß╗çc tß║ím dß╗½ng</h2>
+            <p style="margin-bottom: 24px; color: #94a3b8; text-align: center;">Trang ─æ├ú kh├┤ng thao t├íc trong mß╗Öt thß╗¥i gian d├ái.<br>─Éß╗â ─æß║úm bß║úo dß╗» liß╗çu mß╗¢i nhß║Ñt (kh├┤ng bß╗ï lß╗ùi ─æß╗ông bß╗Ö), vui l├▓ng tß║úi lß║íi trang.</p>
+            <button onclick="location.reload()" style="padding: 12px 24px; border-radius: 8px; border: none; background: #6366f1; color: white; cursor: pointer; font-weight: bold; font-size: 1rem;">Tß║úi lß║íi trang (Refresh)</button>
+        `;
+        document.body.appendChild(overlay);
+    }, IDLE_LIMIT);
+}
+
+// Reset timer on user interaction
+['mousemove', 'keydown', 'click', 'scroll', 'touchstart'].forEach(evt => {
+    window.addEventListener(evt, resetIdleTimer, { passive: true });
+});
+resetIdleTimer();
+
+// ===================== PROFILE PANEL (SLIDE-UP) =====================
+function toggleProfilePanel() {
+    const panel = document.getElementById('profile-panel');
+    const chevron = document.getElementById('profile-chevron');
+    if (panel) {
+        panel.classList.toggle('open');
+    }
+    if (chevron) {
+        chevron.classList.toggle('rotated');
+    }
+}
+
+// Close profile panel when clicking outside sidebar
+document.addEventListener('click', function (e) {
+    const panel = document.getElementById('profile-panel');
+    const sidebar = document.querySelector('.sidebar');
+    if (panel && panel.classList.contains('open') && sidebar && !sidebar.contains(e.target)) {
+        panel.classList.remove('open');
+        const chevron = document.getElementById('profile-chevron');
+        if (chevron) chevron.classList.remove('rotated');
+    }
+});
+
+
+// ===================== CHANGE PASSWORD MODAL =====================
+function openChangePassModal() {
+    const overlay = document.getElementById('changepass-overlay');
+    const modal = document.getElementById('changepass-modal');
+    if (overlay && modal) {
+        overlay.classList.add('active');
+        modal.classList.add('active');
+    }
+}
+
+function closeChangePassModal() {
+    const overlay = document.getElementById('changepass-overlay');
+    const modal = document.getElementById('changepass-modal');
+    if (overlay && modal) {
+        overlay.classList.remove('active');
+        modal.classList.remove('active');
+    }
+}
+
+function submitChangePass() {
+    const oldPass = document.getElementById('old-pass').value.trim();
+    const newPass = document.getElementById('new-pass').value.trim();
+    const confirmPass = document.getElementById('confirm-pass').value.trim();
+
+    if (!oldPass || !newPass || !confirmPass) {
+        showToast('Vui l├▓ng nhß║¡p ─æß║ºy ─æß╗º th├┤ng tin!', 'error');
+        return;
+    }
+    if (newPass !== confirmPass) {
+        showToast('Mß║¡t khß║⌐u mß╗¢i kh├┤ng khß╗¢p!', 'error');
+        return;
+    }
+
+    const btn = document.querySelector('.cp-modal .btn-primary');
+    const origText = btn.innerHTML;
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner" style="width: 14px; height: 14px; border-width: 2px; margin-right: 8px; display: inline-block;"></span> ─Éang l╞░u...';
+    }
+
+    fetch('/api/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ old_password: oldPass, new_password: newPass })
+    })
+        .then(r => r.json())
+        .then(res => {
+            if (res.status === 'success') {
+                showToast('─Éß╗òi mß║¡t khß║⌐u th├ánh c├┤ng!', 'success');
+                closeChangePassModal();
+                document.getElementById('old-pass').value = '';
+                document.getElementById('new-pass').value = '';
+                document.getElementById('confirm-pass').value = '';
+            } else {
+                showToast('Lß╗ùi: ' + res.message, 'error');
+            }
+        })
+        .catch(() => showToast('Lß╗ùi kß║┐t nß╗æi!', 'error'))
+        .finally(() => {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = origText;
+            }
+        });
+}
+
+// ===================== TASK AREA CHART =====================
+let taskChartInstance = null;
+
+function setChartPeriod(period) {
+    document.querySelectorAll('.chart-time-controls button').forEach(btn => {
+        if(btn.dataset.period === period) {
+            btn.classList.add('active', 'btn-primary');
+            btn.classList.remove('btn-outline');
+        } else {
+            btn.classList.remove('active', 'btn-primary');
+            btn.classList.add('btn-outline');
+        }
+    });
+    updateAreaChart(period);
+}
+
+const avatarCache = {};
+const avatarPlugin = {
+    id: 'avatarPlugin',
+    afterDatasetsDraw(chart, args, options) {
+        if (!options.avatars) return;
+        const ctx = chart.ctx;
+        const xAxis = chart.scales.x;
+        const yAxis = chart.scales.y;
+        
+        chart.data.labels.forEach((label, index) => {
+            const avatarUrl = options.avatars[label];
+            if (!avatarUrl) return;
+
+            const x = xAxis.getPixelForTick(index);
+            let maxYPixel = yAxis.bottom;
+            
+            for (let i = 0; i < chart.data.datasets.length; i++) {
+                const meta = chart.getDatasetMeta(i);
+                if (!meta.hidden && meta.data[index]) {
+                    const yPixel = meta.data[index].y;
+                    if (yPixel < maxYPixel) {
+                        maxYPixel = yPixel;
+                    }
+                }
+            }
+            
+            const imgSize = 28;
+            const drawY = maxYPixel - imgSize/2 - 8;
+            if (drawY - imgSize/2 < 0) return; // Only skip if it goes off the canvas
+
+            let img = avatarCache[avatarUrl];
+            if (!img) {
+                img = new Image();
+                img.src = avatarUrl;
+                avatarCache[avatarUrl] = img;
+                img.onload = () => chart.draw();
+            }
+
+            if (img.complete && img.naturalHeight !== 0) {
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(x, drawY, imgSize/2, 0, Math.PI * 2);
+                ctx.closePath();
+                ctx.clip();
+                ctx.drawImage(img, x - imgSize/2, drawY - imgSize/2, imgSize, imgSize);
+                ctx.restore();
+                
+                ctx.beginPath();
+                ctx.arc(x, drawY, imgSize/2, 0, Math.PI * 2);
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = '#fff';
+                ctx.stroke();
+            }
+        });
+    }
+};
+
+Chart.defaults.font.family = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+
+function updateAreaChart(period) {
+    if (typeof vntaskDataList === 'undefined' || !document.getElementById('monthlyTaskChart')) return;
+    
+    const customLegend = document.getElementById('custom-chart-legend');
+    if (customLegend) {
+        customLegend.style.display = period === 'week' ? 'flex' : 'none';
+        const legendOther = document.getElementById('legend-other-text');
+        if (legendOther) {
+            legendOther.textContent = typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi' ? 'Kh├íc' : 'πü¥πü«Σ╗û';
+        }
+    }
+    
+    const now = new Date();
+    let groupedData = {};
+    let labels = [];
+    let isBarChart = false;
+    let titleX = '';
+    
+    let chartDatasets = [];
+    let chartDetailsMap = [];
+    let chartAvatars = null;
+    
+    const getWeekNumber = (d) => {
+        const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+        const dayNum = date.getUTCDay() || 7;
+        date.setUTCDate(date.getUTCDate() + 4 - dayNum);
+        const yearStart = new Date(Date.UTC(date.getUTCFullYear(),0,1));
+        return Math.ceil((((date - yearStart) / 86400000) + 1)/7);
+    };
+
+    const isVi = typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi';
+
+    if (period === 'week') {
+        isBarChart = true;
+        titleX = isVi ? 'Ng╞░ß╗¥i thß╗▒c hiß╗çn' : 'µïàσ╜ôΦÇà';
+        const txtOtherWorker = isVi ? 'Kh├íc' : 'πü¥πü«Σ╗û';
+        
+        let targetWeek = getWeekNumber(now);
+        let targetYear = now.getFullYear();
+        const hasDataThisWeek = vntaskDataList.some(item => getWeekNumber(new Date(item.date)) === targetWeek && new Date(item.date).getFullYear() === targetYear);
+        
+        if (!hasDataThisWeek && vntaskDataList.length > 0) {
+            const maxDate = new Date(Math.max(...vntaskDataList.map(item => new Date(item.date))));
+            targetWeek = getWeekNumber(maxDate);
+            targetYear = maxDate.getFullYear();
+        }
+
+        const currentWeekTasks = vntaskDataList.filter(item => {
+            const d = new Date(item.date);
+            return getWeekNumber(d) === targetWeek && d.getFullYear() === targetYear;
+        });
+
+        const workerTasks = {};
+        currentWeekTasks.forEach(item => {
+            if (item.worker) {
+                const workers = item.worker.split(',').map(w => w.trim());
+                workers.forEach(w => {
+                    const shortName = w;
+                    if (!workerTasks[shortName]) workerTasks[shortName] = [];
+                    workerTasks[shortName].push(item);
+                });
+            } else {
+                if (!workerTasks[txtOtherWorker]) workerTasks[txtOtherWorker] = [];
+                workerTasks[txtOtherWorker].push(item);
+            }
+        });
+        
+        labels = Object.keys(workerTasks);
+        
+        let dataRetouch = [];
+        let dataLettering = [];
+        let dataOther = [];
+        let detailRetouch = [];
+        let detailLettering = [];
+        let detailOther = [];
+        
+        labels.forEach(w => {
+            const tasks = workerTasks[w];
+            let rTasks = tasks.filter(t => t.jobType === 'Retouch');
+            let lTasks = tasks.filter(t => t.jobType === 'Lettering');
+            let oTasks = tasks.filter(t => t.jobType !== 'Retouch' && t.jobType !== 'Lettering');
+            
+            dataRetouch.push(rTasks.length);
+            dataLettering.push(lTasks.length);
+            dataOther.push(oTasks.length);
+            
+            detailRetouch.push(rTasks);
+            detailLettering.push(lTasks);
+            detailOther.push(oTasks);
+        });
+
+        chartDatasets = [
+            {
+                label: 'Retouch',
+                data: dataRetouch,
+                backgroundColor: 'rgba(96, 165, 250, 0.85)', // Pastel Blue
+                hoverBackgroundColor: 'rgba(59, 130, 246, 0.9)',
+                borderRadius: 20,
+                borderSkipped: false,
+                maxBarThickness: 32,
+                details: detailRetouch
+            },
+            {
+                label: 'Lettering',
+                data: dataLettering,
+                backgroundColor: 'rgba(167, 243, 208, 0.85)', // Pastel Green
+                hoverBackgroundColor: 'rgba(52, 211, 153, 0.9)',
+                borderRadius: 20,
+                borderSkipped: false,
+                maxBarThickness: 32,
+                details: detailLettering
+            },
+            {
+                label: txtOtherWorker,
+                data: dataOther,
+                backgroundColor: 'rgba(209, 213, 219, 0.85)', // Pastel Gray
+                hoverBackgroundColor: 'rgba(156, 163, 175, 0.9)',
+                borderRadius: 20,
+                borderSkipped: false,
+                maxBarThickness: 32,
+                details: detailOther
+            }
+        ].filter(d => d.data.some(v => v > 0));
+        
+        chartAvatars = {};
+        if (typeof userProfilesDB !== 'undefined') {
+            labels.forEach(w => {
+                const dbKey = Object.keys(userProfilesDB).find(k => w.toLowerCase().includes(k.toLowerCase()));
+                if (dbKey && userProfilesDB[dbKey]) {
+                    chartAvatars[w] = userProfilesDB[dbKey].avatar || userProfilesDB[dbKey].profile_picture;
+                }
+            });
+        }
+        
+    } else {
+        // Month or Year Mode (Area Chart)
+        if (period === 'month') {
+            labels = isVi ? ['Tuß║ºn 1', 'Tuß║ºn 2', 'Tuß║ºn 3', 'Tuß║ºn 4', 'Tuß║ºn 5'] : ['τ¼¼1ΘÇ▒', 'τ¼¼2ΘÇ▒', 'τ¼¼3ΘÇ▒', 'τ¼¼4ΘÇ▒', 'τ¼¼5ΘÇ▒'];
+            labels.forEach(l => groupedData[l] = []);
+            
+            let targetMonth = now.getMonth();
+            let targetYear = now.getFullYear();
+            const hasDataThisMonth = vntaskDataList.some(item => {
+                const d = new Date(item.date);
+                return d.getMonth() === targetMonth && d.getFullYear() === targetYear;
+            });
+
+            if (!hasDataThisMonth && vntaskDataList.length > 0) {
+                const maxDate = new Date(Math.max(...vntaskDataList.map(item => new Date(item.date))));
+                targetMonth = maxDate.getMonth();
+                targetYear = maxDate.getFullYear();
+            }
+
+            vntaskDataList.forEach(item => {
+                const d = new Date(item.date);
+                if (d.getMonth() === targetMonth && d.getFullYear() === targetYear) {
+                    const firstDayOfMonth = new Date(targetYear, targetMonth, 1).getDay();
+                    const adjustedDate = d.getDate() + (firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1);
+                    const weekIdx = Math.floor((adjustedDate - 1) / 7);
+                    if (weekIdx < 5) {
+                        groupedData[labels[weekIdx]].push(item);
+                    } else {
+                        groupedData[labels[4]].push(item);
+                    }
+                }
+            });
+            
+        } else if (period === 'year') {
+            labels = isVi ? 
+                ['Th├íng 1', 'Th├íng 2', 'Th├íng 3', 'Th├íng 4', 'Th├íng 5', 'Th├íng 6', 'Th├íng 7', 'Th├íng 8', 'Th├íng 9', 'Th├íng 10', 'Th├íng 11', 'Th├íng 12'] : 
+                ['1µ£ê', '2µ£ê', '3µ£ê', '4µ£ê', '5µ£ê', '6µ£ê', '7µ£ê', '8µ£ê', '9µ£ê', '10µ£ê', '11µ£ê', '12µ£ê'];
+            labels.forEach(l => groupedData[l] = []);
+            
+            let targetYear = now.getFullYear();
+            const hasDataThisYear = vntaskDataList.some(item => new Date(item.date).getFullYear() === targetYear);
+            if (!hasDataThisYear && vntaskDataList.length > 0) {
+                targetYear = new Date(Math.max(...vntaskDataList.map(item => new Date(item.date)))).getFullYear();
+            }
+
+            vntaskDataList.forEach(item => {
+                const d = new Date(item.date);
+                if (d.getFullYear() === targetYear) {
+                    groupedData[labels[d.getMonth()]].push(item);
+                }
+            });
+        }
+        
+        const dataPoints = labels.map(l => groupedData[l].length);
+        chartDetailsMap = labels.map(l => groupedData[l]);
+        
+        const ctx = document.getElementById('monthlyTaskChart').getContext('2d');
+        let gradient = ctx.createLinearGradient(0, 0, 0, 400);
+        gradient.addColorStop(0, 'rgba(16, 185, 129, 0.6)');
+        gradient.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
+        
+        chartDatasets = [{
+            label: isVi ? 'Sß╗æ Task' : 'πé┐πé╣πé»µò░',
+            data: dataPoints,
+            borderColor: '#10b981',
+            backgroundColor: gradient,
+            borderWidth: 3,
+            fill: true,
+            tension: 0.4,
+            pointBackgroundColor: '#10b981',
+            pointBorderColor: '#fff',
+            pointHoverBorderColor: '#10b981',
+            pointRadius: 4,
+            pointHoverRadius: 6
+        }];
+    }
+
+    if (taskChartInstance) {
+        taskChartInstance.destroy();
+    }
+    
+    const ctx = document.getElementById('monthlyTaskChart').getContext('2d');
+    const isDark = document.body.classList.contains('dark-theme');
+    const textColor = isDark ? '#f1f5f9' : '#1e293b';
+    const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)';
+    
+    taskChartInstance = new Chart(ctx, {
+        type: isBarChart ? 'bar' : 'line',
+        data: {
+            labels: labels,
+            datasets: chartDatasets
+        },
+        plugins: isBarChart ? [avatarPlugin] : [],
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            layout: {
+                padding: {
+                    top: isBarChart ? 40 : 10 // Leave extra space for avatars
+                }
+            },
+            plugins: {
+                legend: { 
+                    display: false
+                },
+                avatarPlugin: {
+                    avatars: chartAvatars
+                },
+                tooltip: {
+                    backgroundColor: isDark ? 'rgba(15, 23, 42, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+                    titleColor: isDark ? '#fff' : '#000',
+                    bodyColor: isDark ? '#cbd5e1' : '#334155',
+                    borderColor: isDark ? '#334155' : '#e2e8f0',
+                    borderWidth: 1,
+                    padding: 12,
+                    boxPadding: 4,
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) label += ': ' + context.parsed.y;
+                            return label;
+                        },
+                        afterBody: function(context) {
+                            if (isBarChart) {
+                                // For Week mode
+                                let lines = [isVi ? '\n--- Chi tiß║┐t ---' : '\n--- Φ⌐│τ┤░ ---'];
+                                context.forEach(c => {
+                                    const ds = c.chart.data.datasets[c.datasetIndex];
+                                    const tasks = ds.details[c.dataIndex];
+                                    if (tasks && tasks.length > 0) {
+                                        lines.push(`${ds.label}:`);
+                                        tasks.forEach(t => lines.push(`  ΓÇó ${t.taskName}`));
+                                    }
+                                });
+                                return lines;
+                            } else {
+                                // For Month/Year mode
+                                const idx = context[0].dataIndex;
+                                const tasks = chartDetailsMap[idx];
+                                if (!tasks || tasks.length === 0) return '';
+                                
+                                const txtOtherJob = isVi ? 'Kh├íc' : 'πü¥πü«Σ╗û';
+                                let jobCounts = {};
+                                tasks.forEach(t => {
+                                    let jt = t.jobType || 'Kh├íc';
+                                    if (jt === 'Kh├íc') jt = txtOtherJob;
+                                    jobCounts[jt] = (jobCounts[jt] || 0) + 1;
+                                });
+                                
+                                let lines = [isVi ? '\n--- Ph├ón loß║íi ---' : '\n--- σêåΘí₧ ---'];
+                                for (let [job, count] of Object.entries(jobCounts)) {
+                                    lines.push(`ΓÇó ${job}: ${count}`);
+                                }
+                                return lines;
+                            }
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    stacked: isBarChart,
+                    beginAtZero: true,
+                    ticks: { color: textColor, stepSize: 1 },
+                    grid: { color: gridColor, drawBorder: false }
+                },
+                x: {
+                    stacked: isBarChart,
+                    title: {
+                        display: isBarChart,
+                        text: titleX,
+                        color: textColor,
+                        font: {
+                            weight: 'bold',
+                            size: 14
+                        }
+                    },
+                    ticks: { color: textColor },
+                    grid: { display: false, drawBorder: false }
+                }
+            },
+            interaction: {
+                intersect: false,
+                mode: isBarChart ? 'index' : 'index',
+            },
+        }
+    });
+}
+
+// Calendar Popup logic
+let calendarInstance = null;
+
+function toggleCalendarPopup(deadlineText) {
+    const popup = document.getElementById('calendar-popup');
+    if (!popup) return;
+    
+    if (popup.style.display === 'block') {
+        popup.style.display = 'none';
+        return;
+    }
+    
+    popup.style.display = 'block';
+    
+    let targetDate = new Date(deadlineText);
+    if (isNaN(targetDate.getTime())) {
+        targetDate = new Date(); // fallback
+    }
+    
+    // Calculate countdown
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const targetDateOnly = new Date(targetDate);
+    targetDateOnly.setHours(0, 0, 0, 0);
+    const diffDays = Math.round((targetDateOnly - today) / (1000 * 60 * 60 * 24));
+    
+    let isVi = typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi';
+    let countdownText = "";
+    if (isVi) {
+        if (diffDays > 0) countdownText = `C├▓n ${diffDays} ng├áy nß╗»a tß╗¢i deadline`;
+        else if (diffDays === 0) countdownText = "Deadline l├á h├┤m nay!";
+        else countdownText = `─É├ú qu├í hß║ín ${Math.abs(diffDays)} ng├áy`;
+    } else {
+        if (diffDays > 0) countdownText = `τ╖áπéüσêçπéèπü╛πüºπüéπü¿${diffDays}µùÑ`;
+        else if (diffDays === 0) countdownText = "Σ╗èµùÑπüîτ╖áπéüσêçπéèπüºπüÖ∩╝ü";
+        else countdownText = `τ╖áπéüσêçπéèπüïπéë${Math.abs(diffDays)}µùÑτ╡îΘüÄ`;
+    }
+    
+    // Show TODAY on the left panel
+    document.getElementById('cal-left-dow').textContent = isVi ? "H├öM NAY" : "Σ╗èµùÑ";
+    document.getElementById('cal-left-date').textContent = new Date().getDate();
+    document.getElementById('cal-left-text').textContent = countdownText;
+
+    if (typeof flatpickr !== 'undefined' && flatpickr.l10ns && flatpickr.l10ns.vn) {
+        flatpickr.l10ns.vn.months.longhand = ["TH├üNG 1", "TH├üNG 2", "TH├üNG 3", "TH├üNG 4", "TH├üNG 5", "TH├üNG 6", "TH├üNG 7", "TH├üNG 8", "TH├üNG 9", "TH├üNG 10", "TH├üNG 11", "TH├üNG 12"];
+        flatpickr.l10ns.vn.months.shorthand = ["TH├üNG 1", "TH├üNG 2", "TH├üNG 3", "TH├üNG 4", "TH├üNG 5", "TH├üNG 6", "TH├üNG 7", "TH├üNG 8", "TH├üNG 9", "TH├üNG 10", "TH├üNG 11", "TH├üNG 12"];
+    }
+
+    if (!calendarInstance) {
+        calendarInstance = flatpickr("#inline-calendar", {
+            inline: true,
+            locale: isVi ? "vn" : "ja", // Automatically starts on Monday (t2)
+            defaultDate: targetDate,
+            onDayCreate: function(dObj, dStr, fp, dayElem) {
+                if (dayElem.dateObj.getDate() === targetDate.getDate() &&
+                    dayElem.dateObj.getMonth() === targetDate.getMonth() &&
+                    dayElem.dateObj.getFullYear() === targetDate.getFullYear()) {
+                    dayElem.classList.add('is-deadline');
+                }
+            }
+        });
+    } else {
+        calendarInstance.setDate(targetDate);
+        calendarInstance.redraw();
+    }
+}
+
+document.addEventListener('click', function(e) {
+    const popup = document.getElementById('calendar-popup');
+    const badge = document.getElementById('deadline-nay-badge');
+    if (popup && popup.style.display === 'block') {
+        if (!popup.contains(e.target) && e.target !== badge) {
+            popup.style.display = 'none';
+        }
+    }
+});
+
+// ======================================
+// ROLE MODAL (Popup Ph├ón Quyß╗ün)
+// ======================================
+function openRoleModal() {
+    const overlay = document.getElementById('role-overlay');
+    const modal = document.getElementById('role-modal');
+    if (overlay && modal) {
+        overlay.classList.add('active');
+        modal.classList.add('active');
+    }
+}
+
+function closeRoleModal() {
+    const overlay = document.getElementById('role-overlay');
+    const modal = document.getElementById('role-modal');
+    if (overlay && modal) {
+        overlay.classList.remove('active');
+        modal.classList.remove('active');
+    }
+}
+
+function updateRole(username, btn) {
+    // Replace spaces and dots to match the ID logic
+    const selectId = 'role-select-' + username.replace(/ /g, '_').replace(/\./g, '_');
+    const selectElem = document.getElementById(selectId);
+    if (!selectElem) {
+        showToast('Kh├┤ng t├¼m thß║Ñy th├┤ng tin quyß╗ün!', 'error');
+        return;
+    }
+    const newRole = selectElem.value;
+    
+    // Set loading state
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<span class="loading-spinner" style="width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-radius: 50%; border-top-color: #fff; animation: spin 1s linear infinite; display: inline-block;"></span>';
+    btn.disabled = true;
+    
+    fetch('/api/roles', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username: username, role: newRole })
+    })
+    .then(response => response.json())
+    .then(data => {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+        if (data.success) {
+            showToast('Cß║¡p nhß║¡t th├ánh c├┤ng quyß╗ün cho: ' + username, 'success');
+        } else {
+            showToast('Lß╗ùi: ' + (data.message || 'Kh├┤ng thß╗â cß║¡p nhß║¡t quyß╗ün'), 'error');
+        }
+    })
+    .catch(error => {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+        showToast('Lß╗ùi kß║┐t nß╗æi!', 'error');
+    });
+}

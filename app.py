@@ -813,6 +813,14 @@ def logout():
     session.clear()
     return redirect('/')
 
+@app.route('/psd-tool')
+def psd_tool():
+    if not session.get('logged_in'):
+        return redirect('/')
+    lang = session.get('lang', 'vi')
+    return render_template('psd_tool.html', lang=lang)
+
+
 @app.route('/drive')
 def lsa_drive():
     if not session.get('logged_in'):
