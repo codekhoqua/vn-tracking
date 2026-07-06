@@ -1,4 +1,10 @@
 import os
+import zipfile
+import io
+from flask import send_file
+import shutil
+from werkzeug.utils import secure_filename
+from flask import send_from_directory
 import time
 import threading
 import hashlib
@@ -19,6 +25,9 @@ from flask_socketio import SocketIO, emit, join_room, leave_room
 # 1. CẤU HÌNH FLASK & SOCKETIO
 # =====================================================================
 app = Flask(__name__)
+
+DRIVE_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "drive_data")
+os.makedirs(DRIVE_ROOT, exist_ok=True)
 app.config['TEMPLATES_AUTO_RELOAD'] = True
 app.secret_key = os.environ.get('SECRET_KEY', 'vn-tracking-secret-' + hashlib.md5(b'vn-tracking-2024').hexdigest())
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading', manage_session=False)
@@ -60,6 +69,29 @@ def cached(ttl=60):
             return result
         return wrapper
     return decorator
+
+# =====================================================================
+# 3.1 BOT DỊCH THUẬT (TRANSLATION AI)
+# =====================================================================
+def is_japanese(text):
+    # Matches Hiragana, Katakana, and common Kanji ranges
+    return bool(re.search(r'[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]', text))
+
+def translate_text(text, target_lang):
+    url = "https://translate.googleapis.com/translate_a/single"
+    params = {
+        "client": "gtx",
+        "sl": "auto",
+        "tl": target_lang,
+        "dt": "t",
+        "q": text
+    }
+    try:
+        res = requests.get(url, params=params, timeout=5)
+        data = res.json()
+        return "".join([x[0] for x in data[0]])
+    except Exception as e:
+        return f"[Lỗi hệ thống dịch thuật: {str(e)}]"
 
 def clear_cache(func_name=None):
     global _cache
@@ -694,7 +726,12 @@ def api_weather():
         # Return empty or fallback
         if loc in weather_cache:
             return jsonify(weather_cache[loc]['data'])
-        return jsonify({"error": str(e)}), 500
+        # Fallback dummy data if wttr.in fails completely
+        dummy_data = {
+            "current_condition": [{"temp_C": "28", "FeelsLikeC": "30", "weatherCode": "113"}],
+            "weather": [{"maxtempC": "32", "mintempC": "25"}]
+        }
+        return jsonify(dummy_data)
 
 @app.route('/api/chart_data')
 def api_chart_data():
@@ -768,6 +805,239 @@ def update_roles():
 def logout():
     session.clear()
     return redirect('/')
+
+@app.route('/drive')
+def lsa_drive():
+    if not session.get('logged_in'):
+        return redirect('/')
+        
+    data = process_dashboard_data()
+    if data is None:
+        return "Lỗi tải dữ liệu. Vui lòng kiểm tra lại link Google Sheets.", 500
+    is_modal = request.args.get('modal') == '1'
+    return render_template('drive.html', is_modal=is_modal, **data)
+
+# =====================================================================
+# DRIVE APIs
+# =====================================================================
+@app.route('/api/drive/list', methods=['GET'])
+def drive_list():
+    if not session.get('logged_in'):
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    req_path = request.args.get('path', '')
+    target_dir = os.path.join(DRIVE_ROOT, req_path.strip('/'))
+    
+    if not os.path.abspath(target_dir).startswith(os.path.abspath(DRIVE_ROOT)):
+        return jsonify({'error': 'Invalid path'}), 400
+        
+    if not os.path.exists(target_dir):
+        return jsonify({'error': 'Path not found'}), 404
+        
+    items = []
+    try:
+        for filename in os.listdir(target_dir):
+            filepath = os.path.join(target_dir, filename)
+            is_dir = os.path.isdir(filepath)
+            stats = os.stat(filepath)
+            items.append({
+                'name': filename,
+                'is_dir': is_dir,
+                'size': stats.st_size if not is_dir else 0,
+                'modified': stats.st_mtime,
+                'path': f"{req_path.strip('/')}/{filename}".strip('/')
+            })
+        return jsonify({'success': True, 'items': items, 'current_path': req_path.strip('/')})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/drive/upload', methods=['POST'])
+def drive_upload():
+    if not session.get('logged_in'):
+        return jsonify({'error': 'Unauthorized'}), 401
+        
+    req_path = request.form.get('path', '')
+    target_dir = os.path.join(DRIVE_ROOT, req_path.strip('/'))
+    
+    if not os.path.abspath(target_dir).startswith(os.path.abspath(DRIVE_ROOT)):
+        return jsonify({'error': 'Invalid path'}), 400
+        
+    os.makedirs(target_dir, exist_ok=True)
+    socketio.emit('drive_updated', {'path': req_path.strip('/')})
+    
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file part'}), 400
+        
+    files = request.files.getlist('file')
+    uploaded_files = []
+    
+    for file in files:
+        if file.filename == '':
+            continue
+        filename = secure_filename(file.filename)
+        # If secure_filename returns empty (e.g. for pure unicode filenames), fallback to original
+        if not filename:
+            filename = file.filename
+        file_path = os.path.join(target_dir, filename)
+        file.save(file_path)
+        uploaded_files.append(filename)
+    if uploaded_files:
+        socketio.emit('drive_updated', {'path': req_path.strip('/')})
+        
+    return jsonify({'success': True, 'uploaded': uploaded_files})
+
+@app.route('/api/drive/create_folder', methods=['POST'])
+def drive_create_folder():
+    if not session.get('logged_in'):
+        return jsonify({'error': 'Unauthorized'}), 401
+        
+    data = request.json or {}
+    req_path = data.get('path', '')
+    folder_name = data.get('folder_name', '').strip()
+    
+    if not folder_name:
+        return jsonify({'error': 'Folder name required'}), 400
+        
+    target_dir = os.path.join(DRIVE_ROOT, req_path.strip('/'), secure_filename(folder_name) or folder_name)
+    
+    if not os.path.abspath(target_dir).startswith(os.path.abspath(DRIVE_ROOT)):
+        return jsonify({'error': 'Invalid path'}), 400
+        
+    try:
+        os.makedirs(target_dir, exist_ok=True)
+        socketio.emit('drive_updated', {'path': req_path.strip('/')})
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/drive/delete', methods=['POST'])
+def drive_delete():
+    if not session.get('logged_in'):
+        return jsonify({'error': 'Unauthorized'}), 401
+        
+    data = request.json or {}
+    req_path = data.get('path', '')
+    
+    if not req_path:
+        return jsonify({'error': 'Path required'}), 400
+        
+    target = os.path.join(DRIVE_ROOT, req_path.strip('/'))
+    
+    if not os.path.abspath(target).startswith(os.path.abspath(DRIVE_ROOT)) or os.path.abspath(target) == os.path.abspath(DRIVE_ROOT):
+        return jsonify({'error': 'Invalid path'}), 400
+        
+    try:
+        if os.path.isdir(target):
+            shutil.rmtree(target)
+        elif os.path.exists(target):
+            os.remove(target)
+        else:
+            return jsonify({'error': 'File not found'}), 404
+        socketio.emit('drive_updated', {'path': os.path.dirname(req_path.strip('/'))})
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/drive/download')
+def drive_download():
+    if not session.get('logged_in'):
+        return redirect('/')
+        
+    req_path = request.args.get('path', '')
+    if not req_path:
+        return "Path required", 400
+        
+    target = os.path.join(DRIVE_ROOT, req_path.strip('/'))
+    
+    if not os.path.abspath(target).startswith(os.path.abspath(DRIVE_ROOT)):
+        return "Invalid path", 400
+        
+    if not os.path.isfile(target):
+        return "File not found", 404
+        
+    directory = os.path.dirname(target)
+    filename = os.path.basename(target)
+    return send_from_directory(directory, filename, as_attachment=True)
+
+@app.route('/api/drive/delete_multiple', methods=['POST'])
+def drive_delete_multiple():
+    if not session.get('logged_in'):
+        return jsonify({'error': 'Unauthorized'}), 401
+        
+    data = request.json or {}
+    paths = data.get('paths', [])
+    
+    if not paths or not isinstance(paths, list):
+        return jsonify({'error': 'No paths provided'}), 400
+        
+    errors = []
+    success_count = 0
+    
+    for req_path in paths:
+        target = os.path.join(DRIVE_ROOT, req_path.strip('/'))
+        if not os.path.abspath(target).startswith(os.path.abspath(DRIVE_ROOT)) or os.path.abspath(target) == os.path.abspath(DRIVE_ROOT):
+            errors.append(f"Invalid path: {req_path}")
+            continue
+            
+        try:
+            if os.path.isdir(target):
+                shutil.rmtree(target)
+            elif os.path.exists(target):
+                os.remove(target)
+            success_count += 1
+        except Exception as e:
+            errors.append(f"Failed to delete {req_path}: {str(e)}")
+            
+    if success_count > 0:
+        socketio.emit('drive_updated', {})
+        
+    if errors and success_count == 0:
+        return jsonify({'error': 'Tất cả file/thư mục đều không thể xóa', 'details': errors}), 500
+    elif errors:
+        return jsonify({'success': True, 'warning': f'Đã xóa {success_count} mục, lỗi {len(errors)} mục.', 'details': errors})
+    return jsonify({'success': True})
+
+@app.route('/api/drive/download_multiple', methods=['POST'])
+def drive_download_multiple():
+    if not session.get('logged_in'):
+        return "Unauthorized", 401
+        
+    data = request.json or {}
+    paths = data.get('paths', [])
+    
+    if not paths or not isinstance(paths, list):
+        return "No paths provided", 400
+        
+    memory_file = io.BytesIO()
+    
+    with zipfile.ZipFile(memory_file, 'w', zipfile.ZIP_DEFLATED) as zf:
+        for req_path in paths:
+            target = os.path.join(DRIVE_ROOT, req_path.strip('/'))
+            if not os.path.abspath(target).startswith(os.path.abspath(DRIVE_ROOT)):
+                continue
+                
+            if os.path.isfile(target):
+                zf.write(target, os.path.basename(target))
+            elif os.path.isdir(target):
+                for root, dirs, files in os.walk(target):
+                    for file in files:
+                        file_path = os.path.join(root, file)
+                        arcname = os.path.relpath(file_path, os.path.dirname(target))
+                        zf.write(file_path, arcname)
+                        
+    memory_file.seek(0)
+    
+    # Download name
+    zip_name = "LSA_Drive_Download.zip"
+    if len(paths) == 1:
+        req_path = paths[0].strip('/')
+        target = os.path.join(DRIVE_ROOT, req_path)
+        if os.path.isdir(target):
+            zip_name = f"{os.path.basename(target)}.zip"
+            
+    return send_file(memory_file, download_name=zip_name, as_attachment=True, mimetype='application/zip')
+
+
 
 @app.route('/dashboard')
 def dashboard():
@@ -950,6 +1220,14 @@ def handle_request_radio_state():
     state = radio_state.copy()
     if state['is_playing']:
         state['current_time'] += (time.time() - state['last_update'])
+        
+    username = session.get('user', 'Guest')
+    if username != 'Guest' and state.get('dj_username') == username:
+        radio_state['dj_sid'] = request.sid
+        state['you_are_dj'] = True
+    else:
+        state['you_are_dj'] = False
+        
     emit('radio_sync', state)
 
 @socketio.on('radio_sync')
@@ -967,9 +1245,12 @@ def handle_radio_sync(data):
 def handle_claim_dj():
     global radio_state
     if radio_state.get('dj_sid') is None or radio_state.get('dj_sid') not in online_users:
+        # Bắt đầu phiên DJ mới với danh sách người nghe trống, chỉ còn host
+        radio_listeners.clear()
         radio_state['dj_sid'] = request.sid
         radio_state['dj_username'] = session.get('user', 'Guest')
         emit('radio_sync', radio_state, broadcast=True)
+        emit('radio_listeners_update', get_radio_listener_profiles(), broadcast=True)
         return {'success': True}
     else:
         return {'success': False, 'dj_name': radio_state['dj_username']}
@@ -983,18 +1264,15 @@ def handle_release_dj():
         radio_state['is_playing'] = False
         radio_state['youtube_id'] = '4xDzrIxC4Dk'
         radio_state['current_time'] = 0
+        # Tắt DJ: xóa toàn bộ người nghe, mở lại sẽ không còn ai join
+        radio_listeners.clear()
         emit('radio_sync', radio_state, broadcast=True)
+        emit('radio_listeners_update', get_radio_listener_profiles(), broadcast=True)
 
 @socketio.on('disconnect')
 def handle_disconnect():
     global radio_state
-    if request.sid == radio_state.get('dj_sid'):
-        radio_state['dj_sid'] = None
-        radio_state['dj_username'] = None
-        radio_state['is_playing'] = False
-        radio_state['youtube_id'] = '4xDzrIxC4Dk'
-        radio_state['current_time'] = 0
-        emit('radio_sync', radio_state, broadcast=True)
+    # Do not reset DJ state on disconnect so it survives page reloads
 
     if request.sid in radio_listeners:
         radio_listeners.discard(request.sid)
@@ -1047,6 +1325,25 @@ def handle_chat_message(data):
             'msg': msg,
             'time': pd.Timestamp.now().strftime("%H:%M")
         }, broadcast=True)
+        
+        # --- Xử lý Bot Dịch Thuật ---
+        if msg.lower().startswith('@bot '):
+            text_to_translate = msg[5:].strip()
+            if text_to_translate:
+                # Tự động nhận diện nếu có tiếng Nhật -> Dịch sang Tiếng Việt. Nếu không -> Dịch sang Tiếng Nhật
+                target_lang = 'vi' if is_japanese(text_to_translate) else 'ja'
+                translated_text = translate_text(text_to_translate, target_lang)
+                
+                lang_name = "Tiếng Việt" if target_lang == 'vi' else "Tiếng Nhật"
+                
+                # Bot trả lời vào chat
+                emit('chat_message', {
+                    'username': 'bot',
+                    'fullname': '🤖 Bot Dịch Thuật',
+                    'avatar': 'https://api.dicebear.com/7.x/bottts/svg?seed=TranslateBot',
+                    'msg': f"**[Dịch sang {lang_name}]:**\n{translated_text}",
+                    'time': pd.Timestamp.now().strftime("%H:%M")
+                }, broadcast=True)
 
 @socketio.on('cursor_move')
 def handle_cursor_move(data):
@@ -1069,6 +1366,97 @@ def preload_data():
         load_sheet_data(csv_url_truoc)
     except Exception as e:
         print("Preload error:", e)
+
+
+@app.route('/api/prepare_psd', methods=['POST'])
+def prepare_psd():
+    if not session.get('logged_in'):
+        return jsonify({'error': 'Unauthorized'}), 401
+        
+    data = request.json or {}
+    base_path = data.get('path', '').strip()
+    tap_str = data.get('tap', '').strip()
+    
+    if not base_path or not tap_str:
+        return jsonify({'error': 'Vui lòng cung cấp đường dẫn và số tập.'}), 400
+        
+    # We allow any valid absolute path on the machine for this utility
+    if not (os.path.isabs(base_path) or base_path.startswith('/')):
+        return jsonify({'error': 'Vui lòng cung cấp đường dẫn tuyệt đối hợp lệ (VD: C:\\Users\\...).'}), 400
+        
+    try:
+        # Create {tap}巻/01_レタッチ/01_★編集用PSD
+        folder_psd = os.path.join(base_path, f"{tap_str}巻", "01_レタッチ", "01_★編集用PSD")
+        # Create {tap}巻/01_レタッチ/02_写植・レタッチ時Mikan用jpg
+        folder_jpg = os.path.join(base_path, f"{tap_str}巻", "01_レタッチ", "02_写植・レタッチ時Mikan用jpg")
+        
+        os.makedirs(folder_psd, exist_ok=True)
+        os.makedirs(folder_jpg, exist_ok=True)
+        
+        return jsonify({'success': True, 'message': 'Tạo cấu trúc thư mục thành công!'})
+    except Exception as e:
+        return jsonify({'error': f'Không thể tạo thư mục: {str(e)}'}), 500
+
+
+@app.route('/api/compare_psd', methods=['POST'])
+def compare_psd():
+    if not session.get('logged_in'):
+        return jsonify({'error': 'Unauthorized'}), 401
+        
+    data = request.json or {}
+    base_path = data.get('path', '').strip()
+    tap_str = data.get('tap', '').strip()
+    source_path = data.get('source_path', '').strip()
+    
+    if not base_path or not tap_str or not source_path:
+        return jsonify({'error': 'Vui lòng cung cấp đầy đủ đường dẫn gốc, số tập và đường dẫn chứa PSD tải về.'}), 400
+        
+    if not (os.path.isabs(base_path) or base_path.startswith('/')):
+        return jsonify({'error': 'Đường dẫn gốc không hợp lệ.'}), 400
+        
+    if not (os.path.isabs(source_path) or source_path.startswith('/')):
+        return jsonify({'error': 'Đường dẫn chứa PSD tải về không hợp lệ.'}), 400
+        
+    if not os.path.exists(source_path):
+        return jsonify({'error': 'Thư mục chứa PSD tải về không tồn tại!'}), 400
+        
+    try:
+        import shutil
+        import glob
+        
+        # Target folder: [path]/[tap]巻/01_レタッチ/01_★編集用PSD
+        folder_psd = os.path.join(base_path, f"{tap_str}巻", "01_レタッチ", "01_★編集用PSD")
+        
+        if not os.path.exists(folder_psd):
+            return jsonify({'error': f'Thư mục đích không tồn tại: {folder_psd}. Vui lòng Tạo thư mục trước!'}), 400
+            
+        # Find all .psd files in source_path
+        psd_files = glob.glob(os.path.join(source_path, '*.psd'))
+        if not psd_files:
+            return jsonify({'error': 'Không tìm thấy file .psd nào trong thư mục tải về!'}), 400
+            
+        # Move all .psd files to folder_psd
+        moved_count = 0
+        for psd_file in psd_files:
+            dest_file = os.path.join(folder_psd, os.path.basename(psd_file))
+            # Move and overwrite if exists
+            if os.path.exists(dest_file):
+                os.remove(dest_file)
+            shutil.move(psd_file, dest_file)
+            moved_count += 1
+            
+        # Duplicate 01_★編集用PSD to 99_Backup
+        folder_backup = os.path.join(base_path, f"{tap_str}巻", "01_レタッチ", "99_Backup")
+        
+        if os.path.exists(folder_backup):
+            # If backup already exists, we might want to remove it or merge. Let's just remove old backup to replace with new one.
+            shutil.rmtree(folder_backup)
+            
+        shutil.copytree(folder_psd, folder_backup)
+        
+        return jsonify({'success': True, 'message': f'Đã chuyển {moved_count} file PSD và tạo thư mục 99_Backup thành công!'})
+    except Exception as e:
+        return jsonify({'error': f'Có lỗi xảy ra: {str(e)}'}), 500
 
 if __name__ == '__main__':
     threading.Thread(target=preload_data, daemon=True).start()
