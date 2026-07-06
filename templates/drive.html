@@ -1341,14 +1341,14 @@
             });
             const data = await res.json();
             if (data.success) {
-                loadDrive(currentPath);
+                showToast("{{ 'Tải lên thành công' if lang == 'vi' else 'アップロード成功' }}!", "success");
+                await loadDrive(currentPath);
             } else {
                 showToast("{{ 'Lỗi tải lên: ' if lang == 'vi' else 'アップロードエラー: ' }}" + data.error, "error");
             }
         } catch (e) {
             showToast("{{ 'Lỗi mạng: ' if lang == 'vi' else 'ネットワークエラー: ' }}" + e.message, "error");
         } finally {
-            prog.style.display = 'none';
             event.target.value = '';
         }
     }
@@ -1386,8 +1386,13 @@
     window.addEventListener('DOMContentLoaded', () => {
         if (window.socket) {
             window.socket.on('drive_updated', (data) => {
-                // If it's a generic update, or the update matches our current path, reload
-                if (!data || !data.path || data.path === currentPath || data.path === currentPath.replace(/^\//, '')) {
+                // Chuẩn hóa path để so sánh (bỏ dấu / thừa hai đầu).
+                const norm = (p) => (p || '').replace(/^\/+|\/+$/g, '');
+                const cur = norm(currentPath);
+                const changed = data ? norm(data.path) : null;
+                // Reload khi: update chung (không kèm path), hoặc thư mục thay đổi
+                // chính là thư mục ta đang xem.
+                if (!data || data.path === undefined || data.path === null || changed === cur) {
                     loadDrive(currentPath);
                     showToast("{{ 'Đã làm mới dữ liệu' if lang == 'vi' else 'データを更新しました' }}", "info");
                 }
