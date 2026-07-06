@@ -1004,31 +1004,10 @@ function updateAreaChart(period) {
             targetYear = targetDate.getFullYear();
         }
 
-        let currentWeekTasks = vntaskDataList.filter(item => {
+        const currentWeekTasks = vntaskDataList.filter(item => {
             const d = new Date(item.date);
             return getWeekNumber(d) === targetWeek && d.getFullYear() === targetYear;
         });
-
-        // Auto-fallback to the latest available week if current week is empty and no explicit offset is set
-        if (currentWeekTasks.length === 0 && (!weekText || !weekText.dataset.weekOffset)) {
-            if (vntaskDataList.length > 0) {
-                let latestDate = new Date(0);
-                vntaskDataList.forEach(item => {
-                    const d = new Date(item.date);
-                    if (d > latestDate) latestDate = d;
-                });
-                
-                if (latestDate.getTime() > 0) {
-                    targetWeek = getWeekNumber(latestDate);
-                    targetYear = latestDate.getFullYear();
-                    
-                    currentWeekTasks = vntaskDataList.filter(item => {
-                        const d = new Date(item.date);
-                        return getWeekNumber(d) === targetWeek && d.getFullYear() === targetYear;
-                    });
-                }
-            }
-        }
 
         const workerTasks = {};
         currentWeekTasks.forEach(item => {
