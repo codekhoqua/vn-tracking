@@ -27,7 +27,14 @@ from flask_socketio import SocketIO, emit, join_room, leave_room
 app = Flask(__name__)
 
 DRIVE_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "drive_data")
-os.makedirs(DRIVE_ROOT, exist_ok=True)
+# Vercel (và các môi trường serverless) có filesystem chỉ đọc, chỉ /tmp ghi được.
+if os.environ.get('VERCEL') or not os.access(os.path.dirname(DRIVE_ROOT), os.W_OK):
+    DRIVE_ROOT = os.path.join('/tmp', 'drive_data')
+try:
+    os.makedirs(DRIVE_ROOT, exist_ok=True)
+except OSError:
+    # Filesystem chỉ đọc: bỏ qua để app vẫn import được, tính năng drive sẽ báo lỗi khi dùng.
+    pass
 app.config['TEMPLATES_AUTO_RELOAD'] = True
 app.secret_key = os.environ.get('SECRET_KEY', 'vn-tracking-secret-' + hashlib.md5(b'vn-tracking-2024').hexdigest())
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading', manage_session=False)
