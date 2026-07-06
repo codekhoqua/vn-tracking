@@ -699,3 +699,16 @@ Press CTRL+C to quit
 127.0.0.1 - - [06/Jul/2026 14:00:43] "GET /api/chart_data HTTP/1.1" 200 -
 127.0.0.1 - - [06/Jul/2026 14:00:43] "GET /static/logo.png HTTP/1.1" 304 -
 127.0.0.1 - - [06/Jul/2026 14:00:44] "GET /static/logo.png HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 14:02:32] "GET /dashboard HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 14:02:32] "GET /socket.io/?EIO=4&transport=websocket&sid=UxV3oJaI-PaEANgLAAAi HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 14:02:32] "GET /static/css/style.css?v=127 HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 14:02:32] "GET /static/js/app.js?v=197355 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 14:02:32] "GET /socket.io/?EIO=4&transport=polling&t=PysF5Z1 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 14:02:32] "POST /socket.io/?EIO=4&transport=polling&t=PysF5bf&sid=CGiMtQvPJo7JDTuBAAAk HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 14:02:32] "GET /socket.io/?EIO=4&transport=polling&t=PysF5bg&sid=CGiMtQvPJo7JDTuBAAAk HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 14:02:32] "GET /static/logo.png HTTP/1.1" 304 -
+127.0.0.1 - - [06/Jul/2026 14:02:32] "GET /static/js/app.js?v=2697 HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 14:02:32] "GET /socket.io/?EIO=4&transport=polling&t=PysF5dw&sid=CGiMtQvPJo7JDTuBAAAk HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 14:02:33] "GET /api/weather?loc=Ho+Chi+Minh HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 14:02:33] "GET /api/chart_data HTTP/1.1" 200 -
+127.0.0.1 - - [06/Jul/2026 14:02:33] "GET /static/logo.png HTTP/1.1" 304 -
