@@ -197,12 +197,12 @@ function initWeatherTime() {
             const maxTemp = weather.maxtempC;
             const minTemp = weather.mintempC;
             const wCode = parseInt(cc.weatherCode);
-            
+
             let desc = isVN ? "Nhiều mây" : "曇り";
             let bgUrl = "https://images.unsplash.com/photo-1501630834273-4b5604d2ee31?q=80&w=1200";
             let iconSvg = `<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.5 19A4.5 4.5 0 0 0 18 10c-1-5-8.5-5-10-1.5A5 5 0 1 0 8 19h9.5z"></path></svg>`; // Cloud
             let iconColor = "#94a3b8";
-            
+
             if (wCode === 113) {
                 desc = isVN ? "Nắng đẹp" : "晴れ";
                 bgUrl = "https://images.unsplash.com/photo-1601297183305-6df142704ea2?q=80&w=1200";
@@ -239,7 +239,7 @@ function initWeatherTime() {
             if (bgEl) {
                 bgEl.style.backgroundImage = `url('${bgUrl}')`;
             }
-            
+
             const inlineContainer = document.getElementById('inline-weather-container');
             if (inlineContainer) {
                 inlineContainer.innerHTML = `
@@ -260,7 +260,8 @@ function initWeatherTime() {
             console.error("Weather err:", err);
             const inlineContainer = document.getElementById('inline-weather-container');
             if (inlineContainer) {
-                inlineContainer.innerHTML = `<span style="color:#ef4444; font-weight: bold;">Lỗi tải dữ liệu</span>`;
+                inlineContainer.innerHTML = '';
+                inlineContainer.style.display = 'none';
             }
         });
 }
@@ -287,10 +288,32 @@ function closeModal(modalId) {
     }
 }
 
+function closeDriveModal() {
+    const overlay = document.getElementById('drive-modal-overlay');
+    const modal = document.getElementById('drive-modal');
+    if (overlay) overlay.classList.remove('active');
+    if (modal) modal.classList.remove('active');
+    document.body.style.overflow = '';
+}
+
+function openDriveModal() {
+    const overlay = document.getElementById('drive-modal-overlay');
+    const modal = document.getElementById('drive-modal');
+    const iframe = document.getElementById('drive-iframe');
+
+    if (iframe && (!iframe.src || iframe.src === window.location.href)) {
+        iframe.src = '/drive?modal=1';
+    }
+
+    if (overlay) overlay.classList.add('active');
+    if (modal) modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
-        document.querySelectorAll('.modal-overlay.open').forEach(m => {
-            m.classList.remove('open');
+        document.querySelectorAll('.cp-overlay.active, .cp-modal.active').forEach(m => {
+            m.classList.remove('active');
             document.body.style.overflow = '';
         });
         const drawer = document.getElementById('filter-drawer');
@@ -578,7 +601,7 @@ function toggleTheme() {
     body.classList.toggle('dark-theme');
     const isDark = body.classList.contains('dark-theme');
     localStorage.setItem('vn_tracking_theme', isDark ? 'dark' : 'light');
-    
+
     // Redraw chart to apply new theme colors
     if (typeof updateAreaChart === 'function') {
         const activeBtn = document.querySelector('.chart-time-controls button.active');
@@ -611,7 +634,7 @@ function backgroundSyncChecklist() {
                 document.querySelectorAll('.progress-card').forEach(card => {
                     const tpKey = card.dataset.tpKey;
                     if (!tpKey) return;
-                    
+
                     const tpKeyParts = tpKey.split(' - ');
                     const oldTpKey = tpKeyParts.length > 1 ? tpKeyParts.slice(1).join(' - ') : tpKey;
 
@@ -742,11 +765,20 @@ resetIdleTimer();
 function toggleProfilePanel() {
     const panel = document.getElementById('profile-panel');
     const chevron = document.getElementById('profile-chevron');
+    const lofi = document.getElementById('lofi-radio-widget');
     if (panel) {
         panel.classList.toggle('open');
     }
     if (chevron) {
         chevron.classList.toggle('rotated');
+    }
+    if (lofi) {
+        // Toggle a compact mode when the profile panel opens to save space
+        if (panel.classList.contains('open')) {
+            lofi.classList.add('compact-mode');
+        } else {
+            lofi.classList.remove('compact-mode');
+        }
     }
 }
 
@@ -833,7 +865,7 @@ let taskChartInstance = null;
 
 function setChartPeriod(period) {
     document.querySelectorAll('.chart-time-controls button').forEach(btn => {
-        if(btn.dataset.period === period) {
+        if (btn.dataset.period === period) {
             btn.classList.add('active', 'btn-primary');
             btn.classList.remove('btn-outline');
         } else {
@@ -841,12 +873,12 @@ function setChartPeriod(period) {
             btn.classList.add('btn-outline');
         }
     });
-    
+
     const weekSelect = document.getElementById('custom-week-select');
     const monthSelect = document.getElementById('custom-month-select');
     if (weekSelect) weekSelect.style.display = period === 'week' ? 'block' : 'none';
     if (monthSelect) monthSelect.style.display = period === 'month' ? 'block' : 'none';
-    
+
     updateAreaChart(period);
 }
 
@@ -858,14 +890,14 @@ const avatarPlugin = {
         const ctx = chart.ctx;
         const xAxis = chart.scales.x;
         const yAxis = chart.scales.y;
-        
+
         chart.data.labels.forEach((label, index) => {
             const avatarUrl = options.avatars[label];
             if (!avatarUrl) return;
 
             const x = xAxis.getPixelForTick(index);
             let maxYPixel = yAxis.bottom;
-            
+
             for (let i = 0; i < chart.data.datasets.length; i++) {
                 const meta = chart.getDatasetMeta(i);
                 if (!meta.hidden && meta.data[index]) {
@@ -875,10 +907,10 @@ const avatarPlugin = {
                     }
                 }
             }
-            
+
             const imgSize = 28;
-            const drawY = maxYPixel - imgSize/2 - 8;
-            if (drawY - imgSize/2 < 0) return; // Only skip if it goes off the canvas
+            const drawY = maxYPixel - imgSize / 2 - 8;
+            if (drawY - imgSize / 2 < 0) return; // Only skip if it goes off the canvas
 
             let img = avatarCache[avatarUrl];
             if (!img) {
@@ -891,14 +923,14 @@ const avatarPlugin = {
             if (img.complete && img.naturalHeight !== 0) {
                 ctx.save();
                 ctx.beginPath();
-                ctx.arc(x, drawY, imgSize/2, 0, Math.PI * 2);
+                ctx.arc(x, drawY, imgSize / 2, 0, Math.PI * 2);
                 ctx.closePath();
                 ctx.clip();
-                ctx.drawImage(img, x - imgSize/2, drawY - imgSize/2, imgSize, imgSize);
+                ctx.drawImage(img, x - imgSize / 2, drawY - imgSize / 2, imgSize, imgSize);
                 ctx.restore();
-                
+
                 ctx.beginPath();
-                ctx.arc(x, drawY, imgSize/2, 0, Math.PI * 2);
+                ctx.arc(x, drawY, imgSize / 2, 0, Math.PI * 2);
                 ctx.lineWidth = 2;
                 ctx.strokeStyle = '#fff';
                 ctx.stroke();
@@ -911,7 +943,7 @@ Chart.defaults.font.family = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe
 
 function updateAreaChart(period) {
     if (typeof vntaskDataList === 'undefined' || !document.getElementById('monthlyTaskChart')) return;
-    
+
     const customLegend = document.getElementById('custom-chart-legend');
     if (customLegend) {
         customLegend.style.display = period === 'week' ? 'flex' : 'none';
@@ -920,23 +952,23 @@ function updateAreaChart(period) {
             legendOther.textContent = typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi' ? 'Khác' : 'その他';
         }
     }
-    
+
     const now = new Date();
     let groupedData = {};
     let labels = [];
     let isBarChart = false;
     let titleX = '';
-    
+
     let chartDatasets = [];
     let chartDetailsMap = [];
     let chartAvatars = null;
-    
+
     const getWeekNumber = (d) => {
         const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
         const dayNum = date.getUTCDay() || 7;
         date.setUTCDate(date.getUTCDate() + 4 - dayNum);
-        const yearStart = new Date(Date.UTC(date.getUTCFullYear(),0,1));
-        return Math.ceil((((date - yearStart) / 86400000) + 1)/7);
+        const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+        return Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
     };
 
     const isVi = typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi';
@@ -960,7 +992,7 @@ function updateAreaChart(period) {
             dropdownList.innerHTML = optionsHtml;
         }
 
-        
+
         let targetWeek = getWeekNumber(now);
         let targetYear = now.getFullYear();
         const weekText = document.getElementById('week-text');
@@ -991,26 +1023,26 @@ function updateAreaChart(period) {
                 workerTasks[txtOtherWorker].push({ ...item, weight: 1.0 });
             }
         });
-        
+
         labels = Object.keys(workerTasks);
-        
+
         let dataRetouch = [];
         let dataLettering = [];
         let dataOther = [];
         let detailRetouch = [];
         let detailLettering = [];
         let detailOther = [];
-        
+
         labels.forEach(w => {
             const tasks = workerTasks[w];
             let rTasks = tasks.filter(t => t.jobType === 'Retouch');
             let lTasks = tasks.filter(t => t.jobType === 'Lettering');
             let oTasks = tasks.filter(t => t.jobType !== 'Retouch' && t.jobType !== 'Lettering');
-            
+
             dataRetouch.push(rTasks.reduce((sum, t) => sum + t.weight, 0));
             dataLettering.push(lTasks.reduce((sum, t) => sum + t.weight, 0));
             dataOther.push(oTasks.reduce((sum, t) => sum + t.weight, 0));
-            
+
             detailRetouch.push(rTasks);
             detailLettering.push(lTasks);
             detailOther.push(oTasks);
@@ -1048,7 +1080,7 @@ function updateAreaChart(period) {
                 details: detailOther
             }
         ].filter(d => d.data.some(v => v > 0));
-        
+
         chartAvatars = {};
         if (typeof userProfilesDB !== 'undefined') {
             labels.forEach(w => {
@@ -1058,7 +1090,7 @@ function updateAreaChart(period) {
                 }
             });
         }
-        
+
     } else {
         // Month or Year Mode (Area Chart)
         if (period === 'month') {
@@ -1074,7 +1106,7 @@ function updateAreaChart(period) {
 
             labels = isVi ? ['Tuần 1', 'Tuần 2', 'Tuần 3', 'Tuần 4', 'Tuần 5'] : ['第1週', '第2週', '第3週', '第4週', '第5週'];
             labels.forEach(l => groupedData[l] = []);
-            
+
             let targetMonth = now.getMonth();
             let targetYear = now.getFullYear();
             const monthText = document.getElementById('month-text');
@@ -1095,13 +1127,13 @@ function updateAreaChart(period) {
                     }
                 }
             });
-            
+
         } else if (period === 'year') {
-            labels = isVi ? 
-                ['Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6', 'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'] : 
+            labels = isVi ?
+                ['Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6', 'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'] :
                 ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
             labels.forEach(l => groupedData[l] = []);
-            
+
             let targetYear = now.getFullYear();
 
             vntaskDataList.forEach(item => {
@@ -1111,15 +1143,15 @@ function updateAreaChart(period) {
                 }
             });
         }
-        
+
         const dataPoints = labels.map(l => groupedData[l].length);
         chartDetailsMap = labels.map(l => groupedData[l]);
-        
+
         const ctx = document.getElementById('monthlyTaskChart').getContext('2d');
         let gradient = ctx.createLinearGradient(0, 0, 0, 400);
         gradient.addColorStop(0, 'rgba(16, 185, 129, 0.6)');
         gradient.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
-        
+
         chartDatasets = [{
             label: isVi ? 'Số Task' : 'タスク数',
             data: dataPoints,
@@ -1139,12 +1171,12 @@ function updateAreaChart(period) {
     if (taskChartInstance) {
         taskChartInstance.destroy();
     }
-    
+
     const ctx = document.getElementById('monthlyTaskChart').getContext('2d');
     const isDark = document.body.classList.contains('dark-theme');
     const textColor = isDark ? '#f1f5f9' : '#1e293b';
     const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)';
-    
+
     taskChartInstance = new Chart(ctx, {
         type: isBarChart ? 'bar' : 'line',
         data: {
@@ -1172,7 +1204,7 @@ function updateAreaChart(period) {
                 }
             },
             plugins: {
-                legend: { 
+                legend: {
                     display: false
                 },
                 avatarPlugin: {
@@ -1187,12 +1219,12 @@ function updateAreaChart(period) {
                     padding: 12,
                     boxPadding: 4,
                     callbacks: {
-                        label: function(context) {
+                        label: function (context) {
                             let label = context.dataset.label || '';
                             if (label) label += ': ' + context.parsed.y;
                             return label;
                         },
-                        afterBody: function(context) {
+                        afterBody: function (context) {
                             if (isBarChart) {
                                 // For Week mode
                                 let lines = [isVi ? '\n--- Chi tiết ---' : '\n--- 詳細 ---'];
@@ -1210,7 +1242,7 @@ function updateAreaChart(period) {
                                 const idx = context[0].dataIndex;
                                 const tasks = chartDetailsMap[idx];
                                 if (!tasks || tasks.length === 0) return '';
-                                
+
                                 const txtOtherJob = isVi ? 'Khác' : 'その他';
                                 let jobCounts = {};
                                 tasks.forEach(t => {
@@ -1218,7 +1250,7 @@ function updateAreaChart(period) {
                                     if (jt === 'Khác') jt = txtOtherJob;
                                     jobCounts[jt] = (jobCounts[jt] || 0) + 1;
                                 });
-                                
+
                                 let lines = [isVi ? '\n--- Phân loại ---' : '\n--- 分類 ---'];
                                 for (let [job, count] of Object.entries(jobCounts)) {
                                     lines.push(`• ${job}: ${count}`);
@@ -1265,26 +1297,26 @@ let calendarInstance = null;
 function toggleCalendarPopup(deadlineText) {
     const popup = document.getElementById('calendar-popup');
     if (!popup) return;
-    
+
     if (popup.style.display === 'block') {
         popup.style.display = 'none';
         return;
     }
-    
+
     popup.style.display = 'block';
-    
+
     let targetDate = new Date(deadlineText);
     if (isNaN(targetDate.getTime())) {
         targetDate = new Date(); // fallback
     }
-    
+
     // Calculate countdown
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const targetDateOnly = new Date(targetDate);
     targetDateOnly.setHours(0, 0, 0, 0);
     const diffDays = Math.round((targetDateOnly - today) / (1000 * 60 * 60 * 24));
-    
+
     let isVi = typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi';
     let countdownText = "";
     if (isVi) {
@@ -1296,7 +1328,7 @@ function toggleCalendarPopup(deadlineText) {
         else if (diffDays === 0) countdownText = "今日が締め切りです！";
         else countdownText = `締め切りから${Math.abs(diffDays)}日経過`;
     }
-    
+
     // Show TODAY on the left panel
     document.getElementById('cal-left-dow').textContent = isVi ? "HÔM NAY" : "今日";
     document.getElementById('cal-left-date').textContent = new Date().getDate();
@@ -1312,7 +1344,7 @@ function toggleCalendarPopup(deadlineText) {
             inline: true,
             locale: isVi ? "vn" : "ja", // Automatically starts on Monday (t2)
             defaultDate: targetDate,
-            onDayCreate: function(dObj, dStr, fp, dayElem) {
+            onDayCreate: function (dObj, dStr, fp, dayElem) {
                 if (dayElem.dateObj.getDate() === targetDate.getDate() &&
                     dayElem.dateObj.getMonth() === targetDate.getMonth() &&
                     dayElem.dateObj.getFullYear() === targetDate.getFullYear()) {
@@ -1326,7 +1358,7 @@ function toggleCalendarPopup(deadlineText) {
     }
 }
 
-document.addEventListener('click', function(e) {
+document.addEventListener('click', function (e) {
     const popup = document.getElementById('calendar-popup');
     const badge = document.getElementById('deadline-nay-badge');
     if (popup && popup.style.display === 'block') {
@@ -1366,12 +1398,12 @@ function updateRole(username, btn) {
         return;
     }
     const newRole = selectElem.value;
-    
+
     // Set loading state
     const originalText = btn.innerHTML;
     btn.innerHTML = '<span class="loading-spinner" style="width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-radius: 50%; border-top-color: #fff; animation: spin 1s linear infinite; display: inline-block;"></span>';
     btn.disabled = true;
-    
+
     fetch('/api/roles', {
         method: 'POST',
         headers: {
@@ -1379,21 +1411,21 @@ function updateRole(username, btn) {
         },
         body: JSON.stringify({ username: username, role: newRole })
     })
-    .then(response => response.json())
-    .then(data => {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-        if (data.success) {
-            showToast('Cập nhật thành công quyền cho: ' + username, 'success');
-        } else {
-            showToast('Lỗi: ' + (data.message || 'Không thể cập nhật quyền'), 'error');
-        }
-    })
-    .catch(error => {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-        showToast('Lỗi kết nối!', 'error');
-    });
+        .then(response => response.json())
+        .then(data => {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+            if (data.success) {
+                showToast('Cập nhật thành công quyền cho: ' + username, 'success');
+            } else {
+                showToast('Lỗi: ' + (data.message || 'Không thể cập nhật quyền'), 'error');
+            }
+        })
+        .catch(error => {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+            showToast('Lỗi kết nối!', 'error');
+        });
 }
 
 
@@ -1446,7 +1478,7 @@ function selectMonth(monthVal, text, e) {
 }
 
 // Close dropdowns when clicking outside
-document.addEventListener('click', function(e) {
+document.addEventListener('click', function (e) {
     if (!e.target.closest('#custom-week-select')) {
         const dWeek = document.getElementById('custom-week-select');
         if (dWeek) dWeek.classList.remove('open');
@@ -1462,19 +1494,19 @@ document.addEventListener('click', function(e) {
 // ======================================
 document.addEventListener('DOMContentLoaded', () => {
     if (typeof socket !== 'undefined' && socket) {
-        socket.on('online_users_update', function(users) {
+        socket.on('online_users_update', function (users) {
             console.log("Online users updated:", users);
             const container = document.getElementById('global-online-users');
             if (!container) return;
-            
+
             const MAX_VISIBLE = 4;
             let html = '';
-            
+
             users.forEach((u, idx) => {
                 if (idx >= MAX_VISIBLE) return;
                 const zIndex = 100 - idx;
                 const initial = u.fullname ? u.fullname.charAt(0).toUpperCase() : 'U';
-                
+
                 html += `
                     <span class="worker-avatar global-avatar" style="margin-left: ${idx > 0 ? '-8px' : '0'}; position: relative; z-index: ${zIndex}; border: 2px solid var(--bg-body);" title="${u.fullname}">
                         ${u.avatar ? `<img src="${u.avatar}" alt="Avatar" class="avatar-img" referrerpolicy="no-referrer" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
@@ -1482,7 +1514,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     </span>
                 `;
             });
-            
+
             if (users.length > MAX_VISIBLE) {
                 const extraCount = users.length - MAX_VISIBLE;
                 html += `
@@ -1491,7 +1523,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     </span>
                 `;
             }
-            
+
             container.innerHTML = html;
         });
 
@@ -1509,11 +1541,11 @@ document.addEventListener('DOMContentLoaded', () => {
 let unreadChatCount = 0;
 let isChatOpen = false;
 
-window.toggleChat = function() {
+window.toggleChat = function () {
     const win = document.getElementById('chat-window');
     const badge = document.getElementById('chat-badge');
     if (!win) return;
-    
+
     isChatOpen = win.style.display === 'flex';
     if (isChatOpen) {
         win.style.display = 'none';
@@ -1522,17 +1554,17 @@ window.toggleChat = function() {
         win.style.display = 'flex';
         isChatOpen = true;
         unreadChatCount = 0;
-        if(badge) badge.style.display = 'none';
+        if (badge) badge.style.display = 'none';
         const input = document.getElementById('chat-input');
-        if(input) input.focus();
-        
+        if (input) input.focus();
+
         // Scroll to bottom
         const msgs = document.getElementById('chat-messages');
-        if(msgs) msgs.scrollTop = msgs.scrollHeight;
+        if (msgs) msgs.scrollTop = msgs.scrollHeight;
     }
 };
 
-window.sendChatMessage = function() {
+window.sendChatMessage = function () {
     const input = document.getElementById('chat-input');
     if (!input || !window.socket) return;
     const msg = input.value.trim();
@@ -1545,18 +1577,18 @@ window.sendChatMessage = function() {
 document.addEventListener('DOMContentLoaded', () => {
     const input = document.getElementById('chat-input');
     if (input) {
-        input.addEventListener('keypress', function(e) {
+        input.addEventListener('keypress', function (e) {
             if (e.key === 'Enter') sendChatMessage();
         });
     }
 
     if (typeof window.socket !== 'undefined' && window.socket) {
-        window.socket.on('chat_message', function(data) {
+        window.socket.on('chat_message', function (data) {
             const msgs = document.getElementById('chat-messages');
             if (!msgs) return;
-            
+
             const isMe = data.username === (document.querySelector('.user-name')?.innerText || '');
-            
+
             let html = `
                 <div style="display: flex; flex-direction: column; align-items: ${isMe ? 'flex-end' : 'flex-start'}; margin-bottom: 4px;">
                     <span style="font-size: 10px; color: var(--text-3); margin-bottom: 2px;">${isMe ? 'Bạn' : data.fullname} - ${data.time}</span>
@@ -1565,10 +1597,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 </div>
             `;
-            
+
             msgs.innerHTML += html;
             msgs.scrollTop = msgs.scrollHeight;
-            
+
             if (!isChatOpen) {
                 unreadChatCount++;
                 const badge = document.getElementById('chat-badge');
@@ -1586,6 +1618,8 @@ document.addEventListener('DOMContentLoaded', () => {
 // ======================================
 const cursors = {};
 let lastMouseMove = 0;
+const isDashboard = window.location.pathname === '/dashboard' || window.location.pathname === '/';
+
 
 function getColorForUser(str) {
     let hash = 0;
@@ -1598,7 +1632,7 @@ function getColorForUser(str) {
 }
 
 document.addEventListener('mousemove', (e) => {
-    if (!window.socket) return;
+    if (!isDashboard || !window.socket) return;
     const now = Date.now();
     if (now - lastMouseMove > 50) { // 20fps
         const x = (e.clientX / window.innerWidth) * 100;
@@ -1611,7 +1645,9 @@ document.addEventListener('mousemove', (e) => {
 document.addEventListener('DOMContentLoaded', () => {
     if (window.socket) {
         window.socket.on('cursor_move', (data) => {
-            let cursorEl = cursors[data.sid];
+            if (!isDashboard) return;
+            const uid = data.username; // Key by username to prevent duplicates
+            let cursorEl = cursors[uid];
             if (!cursorEl) {
                 const userColor = getColorForUser(data.username);
                 cursorEl = document.createElement('div');
@@ -1632,26 +1668,26 @@ document.addEventListener('DOMContentLoaded', () => {
                     alignItems: 'flex-start'
                 });
                 document.body.appendChild(cursorEl);
-                cursors[data.sid] = cursorEl;
+                cursors[uid] = cursorEl;
             }
             cursorEl.style.left = data.x + 'vw';
             cursorEl.style.top = data.y + 'vh';
-            
+
             clearTimeout(cursorEl.timeoutId);
             cursorEl.timeoutId = setTimeout(() => {
                 cursorEl.remove();
-                delete cursors[data.sid];
+                delete cursors[uid];
             }, 300000); // 5 mins
         });
-        
+
         window.socket.on('online_users_update', (users) => {
             // Remove offline cursors
             const onlineUsernames = users.map(u => u.username);
-            for (let sid in cursors) {
-                const uname = cursors[sid].dataset.username;
+            for (let uid in cursors) {
+                const uname = cursors[uid].dataset.username;
                 if (!onlineUsernames.includes(uname)) {
-                    cursors[sid].remove();
-                    delete cursors[sid];
+                    cursors[uid].remove();
+                    delete cursors[uid];
                 }
             }
         });
@@ -1678,7 +1714,7 @@ tag.src = "https://www.youtube.com/iframe_api";
 const firstScriptTag = document.getElementsByTagName('script')[0];
 firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 
-window.onYouTubeIframeAPIReady = function() {
+window.onYouTubeIframeAPIReady = function () {
     ytPlayer = new YT.Player('lofi-youtube-player', {
         height: '0',
         width: '0',
@@ -1694,22 +1730,71 @@ window.onYouTubeIframeAPIReady = function() {
 function onPlayerReady(event) {
     if (!window.socket) return;
     window.socket.emit('request_radio_state');
-    
+
+    // Khi socket (re)connect lại: đồng bộ lại trạng thái radio.
+    // - Nếu là DJ: server sẽ gán lại dj_sid mới (nếu không sẽ bị chặn ở handle_radio_sync -> user kẹt "Đang đồng bộ...")
+    // - Nếu đang nghe: join_radio lại vì sid cũ đã bị xóa khỏi radio_listeners khi disconnect
+    window.socket.on('connect', () => {
+        // request_radio_state đã tự re-bind dj_sid theo username nếu ta là DJ.
+        // Listener cần join_radio lại vì sid cũ đã bị xóa khỏi radio_listeners khi disconnect.
+        window.socket.emit('request_radio_state');
+        if (isListening && !isRadioDJ) {
+            window.socket.emit('join_radio');
+        }
+    });
+
     window.socket.on('radio_sync', (state) => {
+        // Auto-reclaim DJ mode if server says we are the DJ
+        if (state.you_are_dj && !isRadioDJ) {
+            isRadioDJ = true;
+            const toggle = document.getElementById('radio-dj-toggle');
+            if (toggle) toggle.checked = true;
+
+            const inputContainer = document.getElementById('radio-yt-input-container');
+            if (inputContainer) inputContainer.style.display = 'block';
+
+            const progressEl = document.getElementById('radio-progress');
+            if (progressEl) progressEl.disabled = false;
+
+            if (!djSyncInterval) {
+                djSyncInterval = setInterval(() => {
+                    if (window.syncRadioToServer) window.syncRadioToServer();
+                }, 1000);
+            }
+
+            if (ytPlayer && ytPlayer.loadVideoById) {
+                ytPlayer.loadVideoById(state.youtube_id, state.current_time);
+                if (state.is_playing) ytPlayer.playVideo();
+            }
+            radioState.youtube_id = state.youtube_id;
+            radioState.is_playing = state.is_playing;
+            radioState.current_time = state.current_time;
+
+            if (window.updateRadioUI) window.updateRadioUI();
+        }
+
         if (isRadioDJ) return;
-        
+
         // Nếu DJ tắt, các máy đang nghe (listener) tự động bị văng khỏi chế độ nghe
-        if (!state.dj_username && isListening) {
-            isListening = false;
-            if (ytPlayer && ytPlayer.pauseVideo) {
-                ytPlayer.pauseVideo();
+        if (!state.dj_username) {
+            const container = document.getElementById('radio-listeners-container');
+            if (container) container.innerHTML = '';
+
+            if (isListening) {
+                isListening = false;
+                if (ytPlayer && ytPlayer.pauseVideo) {
+                    ytPlayer.pauseVideo();
+                }
+                if (window.showToast) {
+                    showToast(CURRENT_LANG === 'vi' ? 'Host đã tắt DJ, bạn đã ngắt kết nối' : 'ホストがDJを終了したため、切断されました', 'info');
+                }
             }
         }
-        
+
         radioState.youtube_id = state.youtube_id;
         radioState.current_time = state.current_time;
         radioState.is_playing = state.is_playing;
-        
+
         if (isListening && ytPlayer && ytPlayer.loadVideoById) {
             const currentVideo = ytPlayer.getVideoData()?.video_id;
             if (currentVideo !== state.youtube_id) {
@@ -1717,7 +1802,7 @@ function onPlayerReady(event) {
             } else if (Math.abs(ytPlayer.getCurrentTime() - state.current_time) > 0.5) {
                 ytPlayer.seekTo(state.current_time, true);
             }
-            
+
             const playerState = ytPlayer.getPlayerState();
             if (state.is_playing && playerState !== YT.PlayerState.PLAYING) {
                 ytPlayer.playVideo();
@@ -1725,17 +1810,17 @@ function onPlayerReady(event) {
                 ytPlayer.pauseVideo();
             }
         }
-        
+
         updateRadioUI();
         const statusText = document.getElementById('radio-status');
-        if(statusText) statusText.innerHTML = `DJ: ${state.dj_username || 'Ai đó'}`;
+        if (statusText) statusText.innerHTML = `DJ: ${state.dj_username || 'Ai đó'}`;
     });
 
-    window.socket.on('radio_listeners_update', function(listeners) {
+    window.socket.on('radio_listeners_update', function (listeners) {
         const container = document.getElementById('radio-listeners-container');
         if (!container) return;
         container.innerHTML = '';
-        
+
         listeners.forEach((user, index) => {
             const img = document.createElement('img');
             img.src = user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.fullname)}&background=random&color=fff`;
@@ -1774,9 +1859,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const ytInput = document.getElementById('radio-yt-input');
     const ytInputContainer = document.getElementById('radio-yt-input-container');
 
-    window.radioTogglePlay = function() {
+    window.radioTogglePlay = function () {
         if (!ytPlayer || !ytPlayer.getPlayerState) return;
-        
+
         if (isRadioDJ) {
             const state = ytPlayer.getPlayerState();
             if (state === YT.PlayerState.PLAYING) {
@@ -1799,7 +1884,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else {
                     ytPlayer.seekTo(radioState.current_time, true);
                 }
-                
+
                 if (radioState.is_playing) ytPlayer.playVideo();
                 else ytPlayer.pauseVideo();
             } else {
@@ -1811,23 +1896,23 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    window.toggleDJMode = function() {
+    window.toggleDJMode = function () {
         const toggleEl = document.getElementById('radio-dj-toggle');
         const isChecked = toggleEl.checked;
         const progressEl = document.getElementById('radio-progress');
-        
+
         if (isChecked) {
             // Attempt to claim DJ role
-            if(window.socket) {
+            if (window.socket) {
                 window.socket.emit('claim_dj', (response) => {
                     if (response && response.success) {
                         isRadioDJ = true;
                         isListening = true;
                         if (window.socket) window.socket.emit('join_radio');
-                        if(djBadge) djBadge.style.display = 'block';
-                        if(statusText) statusText.innerHTML = `Bạn đang là DJ 🎧`;
-                        if(ytInputContainer) ytInputContainer.style.display = 'block';
-                        if(progressEl) progressEl.disabled = false;
+                        if (djBadge) djBadge.style.display = 'block';
+                        if (statusText) statusText.innerHTML = `Bạn đang là DJ 🎧`;
+                        if (ytInputContainer) ytInputContainer.style.display = 'block';
+                        if (progressEl) progressEl.disabled = false;
                         djSyncInterval = setInterval(syncRadioToServer, 1000);
                         syncRadioToServer();
                         updateRadioUI();
@@ -1843,26 +1928,26 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } else {
             isRadioDJ = false;
-            if(djBadge) djBadge.style.display = 'none';
-            if(ytInputContainer) ytInputContainer.style.display = 'none';
-            if(progressEl) progressEl.disabled = true;
+            if (djBadge) djBadge.style.display = 'none';
+            if (ytInputContainer) ytInputContainer.style.display = 'none';
+            if (progressEl) progressEl.disabled = true;
             clearInterval(djSyncInterval);
-            if(window.socket) {
+            if (window.socket) {
                 window.socket.emit('release_dj');
                 window.socket.emit('request_radio_state');
             }
             updateRadioUI();
         }
     };
-    
-    if(ytInput) {
-        ytInput.addEventListener('change', function(e) {
+
+    if (ytInput) {
+        ytInput.addEventListener('change', function (e) {
             if (!isRadioDJ || !ytPlayer) return;
             const url = e.target.value;
             const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
             const match = url.match(regExp);
             const videoId = (match && match[2].length === 11) ? match[2] : null;
-            
+
             if (videoId) {
                 radioState.youtube_id = videoId;
                 ytPlayer.loadVideoById(videoId);
@@ -1877,10 +1962,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    window.syncRadioToServer = function() {
+    window.syncRadioToServer = function () {
         if (!isRadioDJ || !ytPlayer || !window.socket || !ytPlayer.getCurrentTime) return;
         let time = 0;
-        try { time = ytPlayer.getCurrentTime() || 0; } catch(e) {}
+        try { time = ytPlayer.getCurrentTime() || 0; } catch (e) { }
         window.socket.emit('radio_sync', {
             is_playing: radioState.is_playing,
             youtube_id: radioState.youtube_id,
@@ -1888,11 +1973,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
-    window.updateRadioUI = function() {
-        if(!playIcon || !pauseIcon || !trackName) return;
-        
+    window.updateRadioUI = function () {
+        if (!playIcon || !pauseIcon || !trackName) return;
+
         const displayPlaying = isRadioDJ ? radioState.is_playing : isListening;
-        
+
         if (displayPlaying) {
             playIcon.style.display = 'none';
             pauseIcon.style.display = 'block';
@@ -1900,7 +1985,7 @@ document.addEventListener('DOMContentLoaded', () => {
             playIcon.style.display = 'block';
             pauseIcon.style.display = 'none';
         }
-        
+
         if (isRadioDJ || isListening) {
             if (!radioUpdateInterval) radioUpdateInterval = setInterval(updateRadioProgress, 1000);
         } else {
@@ -1908,26 +1993,42 @@ document.addEventListener('DOMContentLoaded', () => {
                 clearInterval(radioUpdateInterval);
                 radioUpdateInterval = null;
             }
+            const currentEl = document.getElementById('radio-time-current');
+            const totalEl = document.getElementById('radio-time-total');
+            const progressEl = document.getElementById('radio-progress');
+            if (currentEl) currentEl.innerText = "0:00";
+            if (totalEl) totalEl.innerText = "0:00";
+            if (progressEl) progressEl.value = 0;
         }
-        
+
         if (ytPlayer && ytPlayer.getVideoData) {
             const data = ytPlayer.getVideoData();
-            if (data && data.title) {
+            if (data && data.title && (isListening || isRadioDJ)) {
                 trackName.innerText = data.title;
             } else {
-                trackName.innerText = (isListening || isRadioDJ) ? "Chờ kết nối Youtube..." : "Nhấn Play để tham gia";
+                trackName.innerText = (isListening || isRadioDJ)
+                    ? (CURRENT_LANG === 'vi' ? "Chờ kết nối Youtube..." : "YouTube接続待ち...")
+                    : (CURRENT_LANG === 'vi' ? "Nhấn Play để tham gia" : "再生して参加する");
             }
-            if (data && data.video_id) {
+
+            const coverImg = document.getElementById('radio-cover');
+            const bgBlur = document.getElementById('radio-bg-blur');
+
+            if (data && data.video_id && (isListening || isRadioDJ)) {
                 const coverUrl = `https://img.youtube.com/vi/${data.video_id}/hqdefault.jpg`;
-                const coverImg = document.getElementById('radio-cover');
-                const bgBlur = document.getElementById('radio-bg-blur');
                 if (coverImg && coverImg.src !== coverUrl) coverImg.src = coverUrl;
+                if (bgBlur) bgBlur.style.backgroundImage = `url('${coverUrl}')`;
+            } else if (!isListening && !isRadioDJ) {
+                const coverUrl = 'https://img.youtube.com/vi/4xDzrIxC4Dk/hqdefault.jpg';
+                if (coverImg && !coverImg.src.includes('4xDzrIxC4Dk')) coverImg.src = coverUrl;
                 if (bgBlur) bgBlur.style.backgroundImage = `url('${coverUrl}')`;
             }
         } else {
-            trackName.innerText = (isListening || isRadioDJ) ? "Đang tải..." : "Nhấn Play để tham gia";
+            trackName.innerText = (isListening || isRadioDJ)
+                ? (CURRENT_LANG === 'vi' ? "Đang tải..." : "読み込み中...")
+                : (CURRENT_LANG === 'vi' ? "Nhấn Play để tham gia" : "再生して参加する");
         }
-        
+
         const coverImg = document.getElementById('radio-cover');
         if (coverImg) {
             if (displayPlaying) {
@@ -1938,16 +2039,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 coverImg.classList.remove('apple-cover-playing');
             }
         }
-        
+
         const djNameEl = document.getElementById('radio-dj-name');
         if (djNameEl) {
             if (isRadioDJ) {
-                djNameEl.innerText = radioState.is_playing ? "Bạn đang phát nhạc" : "Bạn đang tạm dừng";
+                djNameEl.innerText = radioState.is_playing
+                    ? (CURRENT_LANG === 'vi' ? "Bạn đang phát nhạc" : "再生中")
+                    : (CURRENT_LANG === 'vi' ? "Bạn đang tạm dừng" : "一時停止中");
             } else {
                 if (isListening) {
-                    djNameEl.innerText = radioState.is_playing ? "Đang đồng bộ..." : "DJ đang tạm dừng...";
+                    djNameEl.innerText = radioState.is_playing
+                        ? (CURRENT_LANG === 'vi' ? "Đang đồng bộ..." : "同期中...")
+                        : (CURRENT_LANG === 'vi' ? "DJ đang tạm dừng..." : "DJ一時停止中...");
                 } else {
-                    djNameEl.innerText = "Chưa tham gia";
+                    djNameEl.innerText = CURRENT_LANG === 'vi' ? "Chưa tham gia" : "未参加";
                 }
             }
         }
@@ -1957,17 +2062,17 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!ytPlayer || !ytPlayer.getCurrentTime) return;
         const current = ytPlayer.getCurrentTime();
         const duration = ytPlayer.getDuration();
-        
+
         const currentEl = document.getElementById('radio-time-current');
         const totalEl = document.getElementById('radio-time-total');
         const progressEl = document.getElementById('radio-progress');
-        
+
         // If duration is extremely large (e.g. > 24 hours), it's likely a live stream
         const isLive = duration > 86400;
-        
+
         if (currentEl) currentEl.innerText = isLive ? "LIVE" : formatTime(current);
         if (totalEl) totalEl.innerText = isLive ? "LIVE" : formatTime(duration);
-        
+
         if (progressEl && duration > 0 && !progressEl.matches(':active')) {
             progressEl.value = isLive ? 100 : (current / duration) * 100;
             if (isLive) progressEl.disabled = true; // Disable seeking for live streams
@@ -1988,7 +2093,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const progressEl = document.getElementById('radio-progress');
     if (progressEl) {
-        progressEl.addEventListener('input', function(e) {
+        progressEl.addEventListener('input', function (e) {
             if (!isRadioDJ || !ytPlayer) return;
             const duration = ytPlayer.getDuration();
             if (duration > 0) {
@@ -1998,9 +2103,112 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (currentEl) currentEl.innerText = formatTime(seekTo);
             }
         });
-        progressEl.addEventListener('change', function(e) {
+        progressEl.addEventListener('change', function (e) {
             if (!isRadioDJ || !ytPlayer) return;
             syncRadioToServer();
         });
     }
 });
+
+// Prepare PSD Modal logic
+function openPreparePsdModal() {
+    document.getElementById('prepare-psd-modal').classList.add('active');
+    document.getElementById('prepare-psd-overlay').classList.add('active');
+}
+
+function closePreparePsdModal() {
+    document.getElementById('prepare-psd-modal').classList.remove('active');
+    document.getElementById('prepare-psd-overlay').classList.remove('active');
+}
+
+function setInputStatus(id, state) {
+    const el = document.getElementById(id + '-status');
+    if (!el) return;
+    el.style.display = 'block';
+    if (state === 'loading') {
+        el.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="animation: spin 1s linear infinite;"><line x1="12" y1="2" x2="12" y2="6"></line><line x1="12" y1="18" x2="12" y2="22"></line><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line><line x1="2" y1="12" x2="6" y2="12"></line><line x1="18" y1="12" x2="22" y2="12"></line><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line></svg>';
+    } else if (state === 'success') {
+        el.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+    } else if (state === 'error') {
+        el.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
+    } else {
+        el.style.display = 'none';
+        el.innerHTML = '';
+    }
+}
+
+async function submitPreparePsd() {
+    setInputStatus('psd-path', 'none');
+    setInputStatus('psd-tap', 'none');
+
+    const path = document.getElementById('psd-path').value.trim();
+    const tap = document.getElementById('psd-tap').value.trim();
+
+    if (!path || !tap) {
+        showToast("Vui lòng nhập đầy đủ thông tin", "error");
+        return;
+    }
+
+    setInputStatus('psd-path', 'loading');
+    setInputStatus('psd-tap', 'loading');
+
+    try {
+        const res = await fetch('/api/prepare_psd', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path: path, tap: tap })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            setInputStatus('psd-path', 'success');
+            setInputStatus('psd-tap', 'success');
+            showToast(data.message, "success");
+            // Do not close modal so user can continue with Compare PSD
+        } else {
+            setInputStatus('psd-path', 'error');
+            setInputStatus('psd-tap', 'error');
+            showToast(data.error || "Có lỗi xảy ra", "error");
+        }
+    } catch (e) {
+        setInputStatus('psd-path', 'error');
+        setInputStatus('psd-tap', 'error');
+        showToast("Lỗi mạng: " + e.message, "error");
+    }
+}
+
+async function submitComparePsd() {
+    setInputStatus('psd-source-path', 'none');
+
+    const path = document.getElementById('psd-path').value.trim();
+    const tap = document.getElementById('psd-tap').value.trim();
+    const sourcePath = document.getElementById('psd-source-path').value.trim();
+
+    if (!path || !tap || !sourcePath) {
+        showToast("Vui lòng nhập đầy đủ đường dẫn gốc, số tập và đường dẫn tải về", "error");
+        return;
+    }
+
+    setInputStatus('psd-source-path', 'loading');
+
+    try {
+        const res = await fetch('/api/compare_psd', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path: path, tap: tap, source_path: sourcePath })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            setInputStatus('psd-source-path', 'success');
+            showToast(data.message, "success");
+            // Do not close modal automatically
+        } else {
+            setInputStatus('psd-source-path', 'error');
+            showToast(data.error || "Có lỗi xảy ra", "error");
+        }
+    } catch (e) {
+        setInputStatus('psd-source-path', 'error');
+        showToast("Lỗi mạng: " + e.message, "error");
+    }
+}
