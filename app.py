@@ -830,7 +830,11 @@ def lsa_drive():
 # Supabase Storage: dùng khi có cấu hình env (vd trên Vercel). Nếu không có
 # thì Drive chạy trên filesystem local như cũ (thuận tiện cho dev).
 SUPABASE_URL = os.environ.get('SUPABASE_URL', '').rstrip('/')
-SUPABASE_SERVICE_KEY = os.environ.get('SUPABASE_SERVICE_KEY', '')
+# Hỗ trợ cả tên biến mới (SUPABASE_SECRET_KEY / sb_secret_...) lẫn cũ (service_role JWT).
+SUPABASE_SERVICE_KEY = (
+    os.environ.get('SUPABASE_SECRET_KEY')
+    or os.environ.get('SUPABASE_SERVICE_KEY', '')
+)
 SUPABASE_BUCKET = os.environ.get('SUPABASE_BUCKET', 'drive')
 USE_SUPABASE = bool(SUPABASE_URL and SUPABASE_SERVICE_KEY)
 
@@ -856,8 +860,31 @@ def _sb_clean(path):
     return '/'.join(parts)
 
 
+_sb_bucket_ready = False
+
+
+def sb_ensure_bucket():
+    """Tạo bucket private nếu chưa tồn tại. Chỉ chạy 1 lần mỗi tiến trình."""
+    global _sb_bucket_ready
+    if _sb_bucket_ready:
+        return
+    try:
+        r = requests.post(
+            f'{SUPABASE_URL}/storage/v1/bucket',
+            headers=_sb_headers({'Content-Type': 'application/json'}),
+            json={'id': SUPABASE_BUCKET, 'name': SUPABASE_BUCKET, 'public': False},
+            timeout=30,
+        )
+        # 200 = tạo mới, 400/409 = đã tồn tại -> đều coi là sẵn sàng.
+        _sb_bucket_ready = True
+    except Exception:
+        # Không chặn request nếu bước này lỗi; thao tác sau sẽ báo lỗi cụ thể.
+        pass
+
+
 def sb_list(prefix):
     """Liệt kê 1 cấp dưới prefix. Trả về list dict giống os: name/is_dir/size/modified/path."""
+    sb_ensure_bucket()
     body = {
         'prefix': f'{prefix}/' if prefix else '',
         'limit': 1000,
@@ -890,6 +917,7 @@ def sb_list(prefix):
 
 
 def sb_upload(path, data, content_type='application/octet-stream'):
+    sb_ensure_bucket()
     r = requests.post(
         f'{SUPABASE_URL}/storage/v1/object/{SUPABASE_BUCKET}/{path}',
         headers=_sb_headers({'Content-Type': content_type, 'x-upsert': 'true'}),
