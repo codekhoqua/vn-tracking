@@ -662,6 +662,7 @@ function backgroundSyncChecklist() {
 
                     // Count how many are checked for this tpKey in the fetched data
                     let localCheckedCount = 0;
+                    let freshCheckedIds = [];
                     for (let i = 1; i <= 9; i++) {
                         const checkId = `t${i}`;
                         const isCheckedNew = checkedMap[tpKey] && checkedMap[tpKey][checkId];
@@ -669,6 +670,7 @@ function backgroundSyncChecklist() {
                         const finalChecked = Boolean(isCheckedNew || isCheckedOld);
                         if (finalChecked) {
                             localCheckedCount++;
+                            freshCheckedIds.push(checkId);
                         }
                         
                         // Update checkboxes inside the modal
@@ -678,6 +680,9 @@ function backgroundSyncChecklist() {
                             cb.checked = finalChecked;
                         });
                     }
+
+                    // Keep card.dataset.checkedIds in sync so modal reads fresh data
+                    card.dataset.checkedIds = freshCheckedIds.join(',');
 
                     const progress = Math.round((localCheckedCount / 9) * 100);
 
