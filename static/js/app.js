@@ -666,9 +666,17 @@ function backgroundSyncChecklist() {
                         const checkId = `t${i}`;
                         const isCheckedNew = checkedMap[tpKey] && checkedMap[tpKey][checkId];
                         const isCheckedOld = checkedMap[oldTpKey] && checkedMap[oldTpKey][checkId];
-                        if (isCheckedNew || isCheckedOld) {
+                        const finalChecked = Boolean(isCheckedNew || isCheckedOld);
+                        if (finalChecked) {
                             localCheckedCount++;
                         }
+                        
+                        // Update checkboxes inside the modal
+                        const escapedTpKey = tpKey.replace(/"/g, '\\"');
+                        const checkboxes = document.querySelectorAll(`.checklist-grid[data-tp-key="${escapedTpKey}"] input[data-check-id="${checkId}"]`);
+                        checkboxes.forEach(cb => {
+                            cb.checked = finalChecked;
+                        });
                     }
 
                     const progress = Math.round((localCheckedCount / 9) * 100);
@@ -1759,30 +1767,16 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
+        let syncTimeout = null;
         window.socket.on('checklist_updated', (data) => {
             if (!isDashboard) return;
-            const escapedTpKey = data.tp_key.replace(/"/g, '\\"');
-            const checkboxes = document.querySelectorAll(`.checklist-grid[data-tp-key="${escapedTpKey}"] input[data-check-id="${data.cb_id}"]`);
-            
-            if (checkboxes.length > 0) {
-                checkboxes.forEach(cb => {
-                    cb.checked = data.status;
-                    const container = cb.closest('.checklist-grid').parentElement;
-                    updateTaskProgressLocally(data.tp_key, container);
-                });
-
-                // Update checkedIds on cards to keep local dataset fresh
-                document.querySelectorAll(`.progress-card[data-tp-key="${escapedTpKey}"]`).forEach(card => {
-                    let checkedIds = (card.dataset.checkedIds || '').toLowerCase().split(',').filter(Boolean);
-                    const rawId = data.cb_id.toLowerCase();
-                    if (data.status) {
-                        if (!checkedIds.includes(rawId)) checkedIds.push(rawId);
-                    } else {
-                        checkedIds = checkedIds.filter(id => id !== rawId);
-                    }
-                    card.dataset.checkedIds = checkedIds.join(',');
-                });
-            }
+            // Debounce to prevent spam fetching if many checkboxes clicked at once
+            clearTimeout(syncTimeout);
+            syncTimeout = setTimeout(() => {
+                if (typeof backgroundSyncChecklist === 'function') {
+                    backgroundSyncChecklist();
+                }
+            }, 300);
         });
 
 
