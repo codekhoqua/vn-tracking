@@ -45,7 +45,7 @@ socketio = SocketIO(app, cors_allowed_origins="*", async_mode=_SOCKETIO_ASYNC_MO
 # 2. CƠ SỞ DỮ LIỆU TÀI KHOẢN VÀ LINK DỮ LIỆU
 # =====================================================================
 USER_SHEET_URL = "https://docs.google.com/spreadsheets/d/1VLlDF5XoXt0Rz0ACZ3EZRKcKWFnIRXptMPbQthimNE0/export?format=csv&gid=0"
-CHECKLIST_API_URL = "https://script.google.com/macros/s/AKfycbyguXQno1gohakWqgfTwd0uP-b9BNkkExBcXIe23O267Jr2cXBX2JDSuS0_EVu_uv-7/exec"
+
 CHANGE_PASS_API = "https://script.google.com/macros/s/AKfycbzf59j11q0IfvgjRkhvUx6EhnSdssGbvpp3PnKQGL4JUmJC2w2uidZi0BKygpriqMVB/exec"
 LOGTIME_API_URL = "https://script.google.com/macros/s/AKfycbwRgcwRvxBZPOMEyfKbWCDXpLsY1H5edxQtxF4xihgaVIJn-eiqbuDB_2yCU9XYR_MwAQ/exec"
 
@@ -551,7 +551,7 @@ def process_dashboard_data():
         df_tuan_truoc = df_tuan_truoc[df_tuan_truoc["Người thực hiện"].astype(str).str.contains(user, na=False, regex=False)]
 
     # Checklist data for dashboard progress
-    df_check = load_checklist_data(CHECKLIST_API_URL)
+    df_check = load_checklist_data()
     check_counts = {}
     checked_ids_dict = {}
     if not df_check.empty:
@@ -693,6 +693,24 @@ def process_dashboard_data():
     dash_sau = build_dashboard(df_tuan_sau)
     ai_insights = generate_ai_insights(dash_nay, dash_truoc, lang)
 
+    # Garbage Collect Checklists
+    active_keys = set()
+    for row in dash_nay + dash_truoc + dash_sau:
+        active_keys.add(row['key'])
+
+    try:
+        with checklist_lock:
+            chk_data = get_supabase_checklists()
+            if chk_data:
+                keys_to_delete = [k for k in chk_data.keys() if k not in active_keys]
+                if keys_to_delete:
+                    for k in keys_to_delete:
+                        del chk_data[k]
+                    json_data = json.dumps(chk_data, ensure_ascii=False).encode('utf-8')
+                    sb_upload('_system/checklists.json', json_data, content_type='application/json')
+    except Exception as e:
+        print("Cleanup checklist error:", e)
+
     return {
         'user': user,
         'role': role,
@@ -701,7 +719,7 @@ def process_dashboard_data():
         'users': users,
         'user_profiles': USER_DB,
         'cols_keys': COLS,
-        'checklist_api': CHECKLIST_API_URL,
+        'checklist_api': '',
         'checked_ids_dict': checked_ids_dict,
         'filter_cv_nay': list(df_tuan_nay["Công việc"].dropna().unique()) if not df_tuan_nay.empty else [],
         'filter_cv_sau': list(df_tuan_sau["Công việc"].dropna().unique()) if not df_tuan_sau.empty else [],
@@ -771,6 +789,13 @@ def api_checklist_sync():
                 # Upload to Supabase
                 json_data = json.dumps(data, ensure_ascii=False).encode('utf-8')
                 sb_upload('_system/checklists.json', json_data, content_type='application/json')
+        
+        # Broadcast to other clients
+        socketio.emit('checklist_updated', {
+            'tp_key': tp_key,
+            'cb_id': cb_id,
+            'status': bool(status)
+        }, broadcast=True, include_self=False)
         
         return jsonify({"status": "success"})
     except Exception as e:
@@ -1426,6 +1451,10 @@ def api_logtime():
     
     data = request.get_json()
     if save_logtime(data):
+        socketio.emit('logtime_updated', {
+            'tp_key': data.get('tac_pham'),
+            'user': session.get('user', '')
+        }, broadcast=True, include_self=False)
         return jsonify({"status": "success"})
     else:
         return jsonify({"status": "error", "message": "Lỗi khi lưu logtime"}), 500
@@ -2027,7 +2056,7 @@ def handle_cursor_move(data):
 # =====================================================================
 def preload_data():
     try:
-        load_checklist_data(CHECKLIST_API_URL)
+        load_checklist_data()
         load_sheet_data(csv_url)
         load_sheet_data(csv_url_truoc)
     except Exception as e:
