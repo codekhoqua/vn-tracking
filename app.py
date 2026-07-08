@@ -1557,6 +1557,8 @@ _DEFAULT_RADIO_STATE = {
     'current_time': 0,
     'last_update': 0,
     'dj_username': None,
+    'allow_requests': False,
+    'queue': []
 }
 
 
@@ -1715,6 +1717,8 @@ def api_radio_sync():
     state['is_playing'] = data.get('is_playing', state.get('is_playing', False))
     state['youtube_id'] = data.get('youtube_id', state.get('youtube_id'))
     state['current_time'] = data.get('current_time', 0)
+    if 'next_title' in data:
+        state['next_title'] = data['next_title']
     _radio_write_state(state)
     return jsonify({'success': True})
 
@@ -1758,10 +1762,29 @@ def api_radio_release():
         state['is_playing'] = False
         state['youtube_id'] = '4xDzrIxC4Dk'
         state['current_time'] = 0
+        state['allow_requests'] = False
+        state['queue'] = []
         _radio_write_state(state)
         _radio_write_listeners([])
 
     return jsonify({'success': True})
+
+
+@app.route('/api/youtube_title')
+def api_youtube_title():
+    video_id = request.args.get('id')
+    if not video_id:
+        return jsonify({'error': 'No ID'}), 400
+    try:
+        url = f"https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v={video_id}&format=json"
+        import requests
+        r = requests.get(url, timeout=5)
+        if r.status_code == 200:
+            data = r.json()
+            return jsonify({'title': data.get('title')})
+        return jsonify({'error': 'Not found'}), 404
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/radio/join', methods=['POST'])
@@ -1858,8 +1881,11 @@ radio_state = {
     'current_time': 0,
     'last_update': time.time(),
     'dj_username': None,
-    'dj_sid': None
+    'dj_sid': None,
+    'allow_requests': False
 }
+
+radio_queue = []
 
 def get_unique_online_users():
     unique_users = {}
@@ -1870,6 +1896,22 @@ def get_unique_online_users():
 def get_radio_listener_profiles():
     listeners = []
     seen = set()
+    
+    # Add DJ to the top of the listener list
+    dj_sid = radio_state.get('dj_sid')
+    if dj_sid and dj_sid in online_users:
+        u = online_users[dj_sid]
+        seen.add(u['username'])
+        listeners.append(u)
+
+    # Add listeners from polling
+    polling_listeners = _presence_read_dir(RADIO_LISTENERS_DIR)
+    for u in polling_listeners:
+        if u['username'] not in seen:
+            seen.add(u['username'])
+            listeners.append(u)
+            
+    # Add listeners from socketio
     for sid in list(radio_listeners):
         if sid in online_users:
             u = online_users[sid]
@@ -1917,6 +1959,7 @@ def handle_request_online_users():
 @socketio.on('request_radio_state')
 def handle_request_radio_state():
     state = radio_state.copy()
+    state['queue'] = radio_queue
     if state['is_playing']:
         state['current_time'] += (time.time() - state['last_update'])
         
@@ -1937,8 +1980,12 @@ def handle_radio_sync(data):
     radio_state['is_playing'] = data.get('is_playing', False)
     radio_state['youtube_id'] = data.get('youtube_id', radio_state['youtube_id'])
     radio_state['current_time'] = data.get('current_time', 0)
+    if 'next_title' in data:
+        radio_state['next_title'] = data['next_title']
     radio_state['last_update'] = time.time()
-    emit('radio_sync', radio_state, broadcast=True, include_self=False)
+    state = radio_state.copy()
+    state['queue'] = radio_queue
+    emit('radio_sync', state, broadcast=True, include_self=False)
 
 @socketio.on('claim_dj')
 def handle_claim_dj():
@@ -1948,7 +1995,9 @@ def handle_claim_dj():
         radio_listeners.clear()
         radio_state['dj_sid'] = request.sid
         radio_state['dj_username'] = session.get('user', 'Guest')
-        emit('radio_sync', radio_state, broadcast=True)
+        state = radio_state.copy()
+        state['queue'] = radio_queue
+        emit('radio_sync', state, broadcast=True)
         emit('radio_listeners_update', get_radio_listener_profiles(), broadcast=True)
         return {'success': True}
     else:
@@ -1963,9 +2012,13 @@ def handle_release_dj():
         radio_state['is_playing'] = False
         radio_state['youtube_id'] = '4xDzrIxC4Dk'
         radio_state['current_time'] = 0
+        radio_state['allow_requests'] = False
+        radio_queue.clear()
         # Tắt DJ: xóa toàn bộ người nghe, mở lại sẽ không còn ai join
         radio_listeners.clear()
-        emit('radio_sync', radio_state, broadcast=True)
+        state = radio_state.copy()
+        state['queue'] = radio_queue
+        emit('radio_sync', state, broadcast=True)
         emit('radio_listeners_update', get_radio_listener_profiles(), broadcast=True)
 
 @socketio.on('disconnect')
@@ -1980,6 +2033,60 @@ def handle_disconnect():
     if request.sid in online_users:
         del online_users[request.sid]
         emit('online_users_update', get_unique_online_users(), broadcast=True)
+
+@socketio.on('toggle_allow_requests')
+def handle_toggle_allow_requests(data):
+    if radio_state.get('dj_sid') == request.sid:
+        radio_state['allow_requests'] = data.get('allow_requests', False)
+        emit('radio_sync', radio_state, broadcast=True)
+
+@socketio.on('queue_add')
+def handle_queue_add(data):
+    if not radio_state.get('allow_requests') and radio_state.get('dj_sid') != request.sid:
+        return
+    import uuid
+    username = session.get('user', 'Guest')
+    avatar = ""
+    if username != 'Guest':
+        try:
+            USER_DB = load_users_from_sheet(USER_SHEET_URL)
+            avatar = USER_DB.get(username, {}).get("avatar", "")
+        except:
+            pass
+
+    item = {
+        'queue_id': str(uuid.uuid4()),
+        'youtube_id': data.get('youtube_id'),
+        'title': data.get('title'),
+        'added_by': username,
+        'avatar': avatar
+    }
+    radio_queue.append(item)
+    emit('radio_queue_update', radio_queue, broadcast=True)
+
+@socketio.on('queue_remove')
+def handle_queue_remove(data):
+    if radio_state.get('dj_sid') == request.sid:
+        queue_id = data.get('queue_id')
+        global radio_queue
+        radio_queue = [item for item in radio_queue if item['queue_id'] != queue_id]
+        emit('radio_queue_update', radio_queue, broadcast=True)
+
+@socketio.on('queue_reorder')
+def handle_queue_reorder(data):
+    if radio_state.get('dj_sid') == request.sid:
+        global radio_queue
+        radio_queue = data.get('queue', radio_queue)
+        emit('radio_queue_update', radio_queue, broadcast=True)
+
+@socketio.on('queue_pop')
+def handle_queue_pop():
+    if radio_state.get('dj_sid') == request.sid:
+        if radio_queue:
+            item = radio_queue.pop(0)
+            emit('radio_queue_update', radio_queue, broadcast=True)
+            return item
+        return None
 
 @socketio.on('sync_checkbox')
 def on_sync_checkbox(data):
