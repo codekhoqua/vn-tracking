@@ -364,14 +364,14 @@ CHECKLIST_TEXT = {
     'vi': {
         'step1': 'STEP 1: CHUẨN BỊ', 'step2': 'STEP 2: BẮT ĐẦU', 'step3': 'STEP 3: GIAO HÀNG',
         't1': 'Tạo Task DB_工程管理', 't2': 'N: notion済', 't3': 'Báo bắt đầu', 't4': 'O: 開始 (Bắt đầu)', 't5': 'Not Started → In Progress',
-        't6': 'Báo hoàn thành', 't7': 'N: 納品済み', 't8': 'Trạng thái: Delivered', 't9': 'Chú ý comment',
+        't6': 'Báo hoàn thành', 't7': 'N: 納品済み', 't8': 'Trạng thái: Delivered', 't9': 'Tick comment & Tick checklist in Mikan',
         'copy_start': '📋 Copy Báo Bắt Đầu', 'ask_task': 'Trễ chỉ thị? (Hỏi Task)', 'copy_ask': '📋 Copy Hỏi Task',
         'copy_done': '📋 Copy Báo Hoàn Thành', 'copied': '✅ Đã Copy', 'copy_deliver': '📋 Copy Báo Giao Hàng'
     },
     'ja': {
         'step1': 'STEP 1: 準備', 'step2': 'STEP 2: 着手', 'step3': 'STEP 3: 納品',
         't1': 'DB_工程管理に作成', 't2': 'N列：notion済', 't3': '着手報告 (Asana)', 't4': 'O列：開始', 't5': 'Not Started → In Progress',
-        't6': '完了報告 (Asana)', 't7': 'N列：納品済み', 't8': 'ステータス：Delivered', 't9': 'コメント注意',
+        't6': '完了報告 (Asana)', 't7': 'N列：納品済み', 't8': 'ステータス：Delivered', 't9': 'Mikanでコメント＆チェックリストをTick',
         'copy_start': '📋 着手報告コピー', 'ask_task': '指示遅れ？', 'copy_ask': '📋 確認文コピー',
         'copy_done': '📋 完了報告コピー', 'copied': '✅ コピー完了', 'copy_deliver': '📋 納品メッセージコピー'
     }
