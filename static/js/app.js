@@ -234,6 +234,14 @@ function initWeatherTime() {
                 iconSvg = `<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 16.9A5 5 0 0 0 18 7h-1.26a8 8 0 1 0-11.62 9"></path><polyline points="13 11 9 17 15 17 11 23"></polyline></svg>`;
                 iconColor = "#fcd34d";
             }
+            
+            // Realtime Rain Effect
+            const isRainy = ((wCode >= 263 && wCode <= 314) || [353, 356, 359, 200, 386, 389, 392, 395].includes(wCode));
+            if (isRainy) {
+                if (window.startRainEffect) window.startRainEffect();
+            } else {
+                if (window.stopRainEffect) window.stopRainEffect();
+            }
 
             const bgEl = document.getElementById('hero-weather-bg');
             if (bgEl) {
@@ -2697,7 +2705,7 @@ function setInputStatus(id, state) {
     const el = document.getElementById(id + '-status');
     if (!el) return;
     el.style.display = 'block';
-    if (state === 'loading') {
+        if (state === 'loading') {
         el.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="animation: spin 1s linear infinite;"><line x1="12" y1="2" x2="12" y2="6"></line><line x1="12" y1="18" x2="12" y2="22"></line><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line><line x1="2" y1="12" x2="6" y2="12"></line><line x1="18" y1="12" x2="22" y2="12"></line><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line></svg>';
     } else if (state === 'success') {
         el.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
@@ -2708,6 +2716,92 @@ function setInputStatus(id, state) {
         el.innerHTML = '';
     }
 }
+
+    // Format Date helpers
+    function formatDateVietnamese(date) {
+        const days = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
+        const dayName = days[date.getDay()];
+        const dd = String(date.getDate()).padStart(2, '0');
+        const mm = String(date.getMonth() + 1).padStart(2, '0');
+        const yyyy = date.getFullYear();
+        return `${dayName}, ${dd}/${mm}/${yyyy}`;
+    }
+
+    function formatDateJapanese(date) {
+        const days = ['日', '月', '火', '水', '木', '金', '土'];
+        const dayName = days[date.getDay()];
+        const yyyy = date.getFullYear();
+        const mm = date.getMonth() + 1;
+        const dd = date.getDate();
+        return `${yyyy}年${mm}月${dd}日 (${dayName})`;
+    }
+    
+    // Realtime Rain Effect Global Functions
+    let rainInterval = null;
+
+    window.startRainEffect = function() {
+        let overlay = document.getElementById('rain-overlay');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = 'rain-overlay';
+            overlay.style.position = 'fixed';
+            overlay.style.top = '0';
+            overlay.style.left = '0';
+            overlay.style.width = '100vw';
+            overlay.style.height = '100vh';
+            overlay.style.pointerEvents = 'none';
+            overlay.style.zIndex = '9999';
+            overlay.style.overflow = 'hidden';
+            document.body.appendChild(overlay);
+            
+            if (!document.getElementById('rain-css')) {
+                const style = document.createElement('style');
+                style.id = 'rain-css';
+                style.innerHTML = `
+                    .raindrop {
+                        position: absolute;
+                        background: linear-gradient(transparent, rgba(255, 255, 255, 0.4));
+                        width: 1px;
+                        height: 50px;
+                        bottom: 100%;
+                        animation: fall linear infinite;
+                    }
+                    @keyframes fall {
+                        to { transform: translateY(100vh); }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+        }
+        
+        if (rainInterval) return;
+        overlay.style.display = 'block';
+        
+        rainInterval = setInterval(() => {
+            const drop = document.createElement('div');
+            drop.className = 'raindrop';
+            drop.style.left = Math.random() * 100 + 'vw';
+            drop.style.animationDuration = (Math.random() * 0.5 + 0.5) + 's';
+            drop.style.opacity = Math.random() * 0.5 + 0.2;
+            overlay.appendChild(drop);
+            
+            setTimeout(() => {
+                if (drop.parentNode) drop.parentNode.removeChild(drop);
+            }, 1000);
+        }, 50);
+    };
+
+    window.stopRainEffect = function() {
+        const overlay = document.getElementById('rain-overlay');
+        if (overlay) {
+            overlay.style.display = 'none';
+            overlay.innerHTML = '';
+        }
+        if (rainInterval) {
+            clearInterval(rainInterval);
+            rainInterval = null;
+        }
+    };
 
 async function submitPreparePsd() {
     setInputStatus('psd-path', 'none');
