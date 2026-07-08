@@ -727,39 +727,39 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 });
 
-// ===================== IDLE TIMEOUT =====================
-let idleTimer;
-const IDLE_LIMIT = 30 * 60 * 1000; // 30 minutes
-
-function resetIdleTimer() {
-    clearTimeout(idleTimer);
-    idleTimer = setTimeout(() => {
-        const overlay = document.createElement('div');
-        overlay.style.position = 'fixed';
-        overlay.style.inset = '0';
-        overlay.style.background = 'rgba(15, 23, 42, 0.9)';
-        overlay.style.backdropFilter = 'blur(10px)';
-        overlay.style.zIndex = '99999';
-        overlay.style.display = 'flex';
-        overlay.style.alignItems = 'center';
-        overlay.style.justifyContent = 'center';
-        overlay.style.flexDirection = 'column';
-        overlay.style.color = 'white';
-        overlay.innerHTML = `
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 24px; color: #cbd5e1;"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-            <h2 style="margin-bottom: 12px; font-weight: 800; font-size: 1.5rem;">Phiên làm việc tạm dừng</h2>
-            <p style="margin-bottom: 24px; color: #94a3b8; text-align: center;">Trang đã không thao tác trong một thời gian dài.<br>Để đảm bảo dữ liệu mới nhất (không bị lỗi đồng bộ), vui lòng tải lại trang.</p>
-            <button onclick="location.reload()" style="padding: 12px 24px; border-radius: 8px; border: none; background: #6366f1; color: white; cursor: pointer; font-weight: bold; font-size: 1rem;">Tải lại trang (Refresh)</button>
-        `;
-        document.body.appendChild(overlay);
-    }, IDLE_LIMIT);
-}
-
-// Reset timer on user interaction
-['mousemove', 'keydown', 'click', 'scroll', 'touchstart'].forEach(evt => {
-    window.addEventListener(evt, resetIdleTimer, { passive: true });
-});
-resetIdleTimer();
+// ===================== IDLE TIMEOUT (DISABLED) =====================
+// Tính năng popup refresh khi không thao tác đã được tắt.
+// let idleTimer;
+// const IDLE_LIMIT = 30 * 60 * 1000; // 30 minutes
+//
+// function resetIdleTimer() {
+//     clearTimeout(idleTimer);
+//     idleTimer = setTimeout(() => {
+//         const overlay = document.createElement('div');
+//         overlay.style.position = 'fixed';
+//         overlay.style.inset = '0';
+//         overlay.style.background = 'rgba(15, 23, 42, 0.9)';
+//         overlay.style.backdropFilter = 'blur(10px)';
+//         overlay.style.zIndex = '99999';
+//         overlay.style.display = 'flex';
+//         overlay.style.alignItems = 'center';
+//         overlay.style.justifyContent = 'center';
+//         overlay.style.flexDirection = 'column';
+//         overlay.style.color = 'white';
+//         overlay.innerHTML = `
+//             <svg>...</svg>
+//             <h2>Phiên làm việc tạm dừng</h2>
+//             <p>Trang đã không thao tác trong một thời gian dài.</p>
+//             <button onclick="location.reload()">Tải lại trang (Refresh)</button>
+//         `;
+//         document.body.appendChild(overlay);
+//     }, IDLE_LIMIT);
+// }
+//
+// ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'].forEach(evt => {
+//     window.addEventListener(evt, resetIdleTimer, { passive: true });
+// });
+// resetIdleTimer();
 
 // ===================== PROFILE PANEL (SLIDE-UP) =====================
 function toggleProfilePanel() {
