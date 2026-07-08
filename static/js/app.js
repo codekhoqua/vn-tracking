@@ -1767,18 +1767,25 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        let syncTimeout = null;
-        window.socket.on('checklist_updated', (data) => {
-            if (!isDashboard) return;
-            // Debounce to prevent spam fetching if many checkboxes clicked at once
-            clearTimeout(syncTimeout);
-            syncTimeout = setTimeout(() => {
-                if (typeof backgroundSyncChecklist === 'function') {
-                    backgroundSyncChecklist();
-                }
-            }, 300);
-        });
-
+        // Realtime Checklist Sync via version polling
+        // Only fetches full data when something actually changed
+        if (isDashboard) {
+            let _lastChecklistVersion = -1;
+            setInterval(() => {
+                fetch('/api/checklist_version?_t=' + Date.now())
+                    .then(r => r.json())
+                    .then(d => {
+                        if (_lastChecklistVersion === -1) {
+                            // First load, just store the version
+                            _lastChecklistVersion = d.v;
+                        } else if (d.v !== _lastChecklistVersion) {
+                            _lastChecklistVersion = d.v;
+                            backgroundSyncChecklist();
+                        }
+                    })
+                    .catch(() => {});
+            }, 3000);
+        }
 
     }
 });

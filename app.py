@@ -178,6 +178,8 @@ def load_users_from_sheet(url):
 
 _checklist_cache = None
 checklist_lock = threading.Lock()
+checklist_version = 0
+
 
 def get_supabase_checklists():
     global _checklist_cache
@@ -751,6 +753,10 @@ def process_dashboard_data():
 # =====================================================================
 weather_cache = {}
 
+@app.route('/api/checklist_version', methods=['GET'])
+def api_checklist_version():
+    return jsonify({"v": checklist_version})
+
 @app.route('/api/checklist_sync_get', methods=['GET'])
 def api_checklist_sync_get():
     data = get_supabase_checklists()
@@ -789,6 +795,8 @@ def api_checklist_sync():
                 # Upload to Supabase
                 json_data = json.dumps(data, ensure_ascii=False).encode('utf-8')
                 sb_upload('_system/checklists.json', json_data, content_type='application/json')
+                global checklist_version
+                checklist_version += 1
         
         # Broadcast to other clients
         socketio.emit('checklist_updated', {
