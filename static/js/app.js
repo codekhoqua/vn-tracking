@@ -357,12 +357,12 @@ function initChecklistInContainer(container) {
                     card.dataset.checkedIds = checkedIds.join(',');
                 }
 
-                if (typeof CHECKLIST_API !== 'undefined' && CHECKLIST_API.startsWith('http')) {
-                    fetch(CHECKLIST_API, {
-                        method: 'POST', mode: 'no-cors',
-                        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                if (true) {
+                    fetch('/api/checklist_sync', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ tac_pham: tpKey, checkbox_id: rawId, status: e.target.checked })
-                    }).catch(() => { });
+                    });
                 }
                 updateTaskProgressLocally(tpKey, container);
             });
@@ -633,9 +633,9 @@ function toggleTheme() {
 
 // ===================== BACKGROUND SYNC =====================
 function backgroundSyncChecklist() {
-    if (typeof CHECKLIST_API !== 'undefined' && CHECKLIST_API.startsWith('http')) {
-        const cacheBuster = CHECKLIST_API.includes('?') ? `&_t=${Date.now()}` : `?_t=${Date.now()}`;
-        fetch(CHECKLIST_API + cacheBuster)
+    if (true) {
+        const cacheBuster = `?_t=${Date.now()}`;
+        fetch('/api/checklist_sync_get' + cacheBuster)
             .then(r => r.json())
             .then(data => {
                 if (!Array.isArray(data)) return;

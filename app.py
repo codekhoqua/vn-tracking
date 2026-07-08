@@ -176,22 +176,37 @@ def load_users_from_sheet(url):
     except Exception:
         return {}
 
-@cached(ttl=180)
-def load_checklist_data(api_url):
+_checklist_cache = None
+checklist_lock = threading.Lock()
+
+def get_supabase_checklists():
+    global _checklist_cache
+    if _checklist_cache is not None:
+        return _checklist_cache
     try:
-        if api_url == "" or "DÁN_LINK" in api_url:
-            return pd.DataFrame()
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36',
-            'Accept': 'application/json, text/plain, */*'
-        }
-        res = requests.get(api_url, headers=headers, timeout=10)
-        data = res.json()
-        if isinstance(data, list) and len(data) > 0:
-            return pd.DataFrame(data)
-        return pd.DataFrame(columns=['Tên Tác Phẩm', 'Checkbox ID', 'Trạng Thái', 'Thời Gian'])
+        data = sb_download_bytes('_system/checklists.json')
+        if data:
+            _checklist_cache = json.loads(data.decode('utf-8'))
+        else:
+            _checklist_cache = {}
     except Exception:
-        return pd.DataFrame(columns=['Tên Tác Phẩm', 'Checkbox ID', 'Trạng Thái', 'Thời Gian'])
+        _checklist_cache = {}
+    return _checklist_cache
+
+def load_checklist_data(api_url=None):
+    data = get_supabase_checklists()
+    rows = []
+    for tp_key, cbs in data.items():
+        for cb_id, status in cbs.items():
+            rows.append({
+                'Tên Tác Phẩm': tp_key,
+                'Checkbox ID': cb_id,
+                'Trạng Thái': status,
+                'Thời Gian': ''
+            })
+    if rows:
+        return pd.DataFrame(rows)
+    return pd.DataFrame(columns=['Tên Tác Phẩm', 'Checkbox ID', 'Trạng Thái', 'Thời Gian'])
 
 @cached(ttl=180)
 def load_sheet_data(url):
@@ -717,6 +732,50 @@ def process_dashboard_data():
 # 9. ROUTES
 # =====================================================================
 weather_cache = {}
+
+@app.route('/api/checklist_sync_get', methods=['GET'])
+def api_checklist_sync_get():
+    data = get_supabase_checklists()
+    rows = []
+    for tp_key, cbs in data.items():
+        for cb_id, status in cbs.items():
+            rows.append({
+                'Tên Tác Phẩm': tp_key,
+                'Checkbox ID': cb_id,
+                'Trạng Thái': status,
+                'Thời Gian': ''
+            })
+    return jsonify(rows)
+
+@app.route('/api/checklist_sync', methods=['POST'])
+def api_checklist_sync():
+    if not session.get('logged_in'):
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+    try:
+        if request.is_json:
+            req_data = request.get_json()
+        else:
+            req_data = json.loads(request.data)
+        
+        tp_key = req_data.get('tac_pham')
+        cb_id = req_data.get('checkbox_id')
+        status = req_data.get('status')
+        
+        if tp_key and cb_id:
+            with checklist_lock:
+                data = get_supabase_checklists()
+                if tp_key not in data:
+                    data[tp_key] = {}
+                data[tp_key][cb_id] = bool(status)
+                
+                # Upload to Supabase
+                json_data = json.dumps(data, ensure_ascii=False).encode('utf-8')
+                sb_upload('_system/checklists.json', json_data, content_type='application/json')
+        
+        return jsonify({"status": "success"})
+    except Exception as e:
+        print("Error saving checklist:", e)
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route('/api/weather')
 def api_weather():
