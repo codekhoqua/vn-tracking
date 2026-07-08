@@ -819,8 +819,29 @@ def api_weather():
         return jsonify(weather_cache[loc]['data'])
         
     try:
-        r = requests.get(f'https://wttr.in/{loc}?format=j1', timeout=10)
-        data = r.json()
+        lat, lon = (10.823, 106.6296) if loc == 'Ho+Chi+Minh' else (35.4233, 136.7607)
+        url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=temperature_2m,apparent_temperature,weather_code&daily=temperature_2m_max,temperature_2m_min&timezone=Asia%2FBangkok"
+        r = requests.get(url, timeout=5)
+        om_data = r.json()
+        
+        wmo_code = om_data['current']['weather_code']
+        if wmo_code == 0: wwo = "113"
+        elif wmo_code in [1, 2]: wwo = "116"
+        elif wmo_code == 3: wwo = "122"
+        elif wmo_code in [45, 48]: wwo = "143"
+        elif wmo_code in [51, 53, 55, 56, 57]: wwo = "266"
+        elif wmo_code in [61, 63, 65, 66, 67, 80, 81, 82]: wwo = "302"
+        elif wmo_code in [95, 96, 99]: wwo = "386"
+        else: wwo = "113"
+        
+        data = {
+            "current_condition": [{"temp_C": str(int(om_data['current']['temperature_2m'])), 
+                                   "FeelsLikeC": str(int(om_data['current']['apparent_temperature'])), 
+                                   "weatherCode": wwo}],
+            "weather": [{"maxtempC": str(int(om_data['daily']['temperature_2m_max'][0])), 
+                         "mintempC": str(int(om_data['daily']['temperature_2m_min'][0]))}]
+        }
+        
         weather_cache[loc] = {'time': now, 'data': data}
         return jsonify(data)
     except Exception as e:
@@ -828,7 +849,7 @@ def api_weather():
         # Return empty or fallback
         if loc in weather_cache:
             return jsonify(weather_cache[loc]['data'])
-        # Fallback dummy data if wttr.in fails completely
+        # Fallback dummy data if Open-Meteo fails completely
         dummy_data = {
             "current_condition": [{"temp_C": "28", "FeelsLikeC": "30", "weatherCode": "113"}],
             "weather": [{"maxtempC": "32", "mintempC": "25"}]
@@ -1549,7 +1570,7 @@ RADIO_STATE_FILE = '_system/radio_state.json'
 # nhiều người ghi chung 1 file -> trước đây bị "kẹt ở 3 người").
 RADIO_LISTENERS_DIR = '_system/radio_listeners'
 ONLINE_USERS_DIR = '_system/online_users'
-PRESENCE_TTL = 15  # giây: quá hạn không heartbeat coi như offline
+PRESENCE_TTL = 45  # giây: quá hạn không heartbeat coi như offline
 
 _DEFAULT_RADIO_STATE = {
     'is_playing': False,
