@@ -1752,15 +1752,36 @@ document.addEventListener('DOMContentLoaded', () => {
             // Remove offline cursors
             const onlineUsernames = users.map(u => u.username);
             for (let uid in cursors) {
-                const uname = cursors[uid].dataset.username;
-                if (!onlineUsernames.includes(uname)) {
+                if (!onlineUsernames.includes(uid)) {
                     cursors[uid].remove();
                     delete cursors[uid];
                 }
             }
         });
+
+        window.socket.on('checklist_updated', (data) => {
+            if (!isDashboard) return;
+            const cb = document.querySelector(`.checklist-grid[data-tp-key="${data.tp_key}"] input[data-check-id="${data.cb_id}"]`);
+            if (cb) {
+                cb.checked = data.status;
+                const container = cb.closest('.checklist-grid').parentElement;
+                updateTaskProgressLocally(data.tp_key, container);
+            }
+        });
+
+        window.socket.on('logtime_updated', (data) => {
+            if (!isDashboard) return;
+            if (window.showToast) {
+                const isVi = typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi';
+                const msg = isVi 
+                    ? `Task "${data.tp_key}" vừa được cập nhật bởi ${data.user}. Dữ liệu sẽ được làm mới ở lần tải lại trang!` 
+                    : `Task "${data.tp_key}" was updated by ${data.user}. Data will refresh on next reload!`;
+                showToast(msg, 'info');
+            }
+        });
     }
 });
+
 
 // ======================================
 // YOUTUBE RADIO SYNC
