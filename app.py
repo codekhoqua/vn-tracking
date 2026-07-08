@@ -1443,6 +1443,211 @@ def api_avatar_proxy():
 
 
 # =====================================================================
+# 10b. RADIO REST API (Serverless-compatible — dùng trên Vercel)
+# =====================================================================
+# Trên Vercel, Socket.IO không hoạt động vì serverless không giữ persistent
+# connection. Các endpoint REST này cho phép client polling để đồng bộ DJ state.
+# State được lưu dưới dạng file JSON trên Supabase Storage.
+
+RADIO_STATE_FILE = '_system/radio_state.json'
+RADIO_LISTENERS_FILE = '_system/radio_listeners.json'
+
+_DEFAULT_RADIO_STATE = {
+    'is_playing': False,
+    'youtube_id': '4xDzrIxC4Dk',
+    'current_time': 0,
+    'last_update': 0,
+    'dj_username': None,
+}
+
+
+def _radio_read_state():
+    """Đọc radio state từ Supabase Storage. Trả về default nếu chưa có."""
+    if not USE_SUPABASE:
+        return radio_state.copy()
+    try:
+        data = sb_download_bytes(RADIO_STATE_FILE)
+        state = json.loads(data)
+        # Auto-release DJ nếu không sync > 30s (DJ đã tắt tab/mất kết nối)
+        if state.get('dj_username') and state.get('last_update'):
+            if time.time() - state['last_update'] > 30:
+                state['dj_username'] = None
+                state['is_playing'] = False
+                _radio_write_state(state)
+        return state
+    except Exception:
+        return _DEFAULT_RADIO_STATE.copy()
+
+
+def _radio_write_state(state):
+    """Ghi radio state vào Supabase Storage."""
+    if not USE_SUPABASE:
+        return
+    try:
+        state['last_update'] = time.time()
+        sb_upload(RADIO_STATE_FILE, json.dumps(state).encode('utf-8'), 'application/json')
+    except Exception:
+        pass
+
+
+def _radio_read_listeners():
+    """Đọc danh sách listeners từ Supabase Storage."""
+    if not USE_SUPABASE:
+        return []
+    try:
+        data = sb_download_bytes(RADIO_LISTENERS_FILE)
+        listeners = json.loads(data)
+        # Lọc bỏ listener hết hạn (> 15s không heartbeat)
+        now = time.time()
+        active = [l for l in listeners if now - l.get('last_seen', 0) < 15]
+        if len(active) != len(listeners):
+            _radio_write_listeners(active)
+        return active
+    except Exception:
+        return []
+
+
+def _radio_write_listeners(listeners):
+    """Ghi danh sách listeners vào Supabase Storage."""
+    if not USE_SUPABASE:
+        return
+    try:
+        sb_upload(RADIO_LISTENERS_FILE, json.dumps(listeners).encode('utf-8'), 'application/json')
+    except Exception:
+        pass
+
+
+@app.route('/api/radio/state', methods=['GET'])
+def api_radio_state():
+    """Trả về trạng thái DJ hiện tại."""
+    if not session.get('logged_in'):
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    state = _radio_read_state()
+    # Tính current_time dựa trên thời gian đã trôi qua
+    if state.get('is_playing') and state.get('last_update'):
+        elapsed = time.time() - state['last_update']
+        state['current_time'] = state.get('current_time', 0) + elapsed
+
+    username = session.get('user', '')
+    state['you_are_dj'] = (username == state.get('dj_username'))
+    state['listeners'] = _radio_read_listeners()
+    return jsonify(state)
+
+
+@app.route('/api/radio/sync', methods=['POST'])
+def api_radio_sync():
+    """DJ cập nhật trạng thái phát nhạc."""
+    if not session.get('logged_in'):
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    username = session.get('user', '')
+    state = _radio_read_state()
+
+    if state.get('dj_username') != username:
+        return jsonify({'error': 'Not the DJ'}), 403
+
+    data = request.get_json(silent=True) or {}
+    state['is_playing'] = data.get('is_playing', state.get('is_playing', False))
+    state['youtube_id'] = data.get('youtube_id', state.get('youtube_id'))
+    state['current_time'] = data.get('current_time', 0)
+    _radio_write_state(state)
+    return jsonify({'success': True})
+
+
+@app.route('/api/radio/claim', methods=['POST'])
+def api_radio_claim():
+    """Claim vai trò DJ."""
+    if not session.get('logged_in'):
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    username = session.get('user', '')
+    state = _radio_read_state()
+
+    current_dj = state.get('dj_username')
+    if current_dj and current_dj != username:
+        # Kiểm tra DJ hiện tại còn active không (đã sync gần đây?)
+        if state.get('last_update') and time.time() - state['last_update'] < 30:
+            return jsonify({'success': False, 'dj_name': current_dj})
+
+    # Claim DJ
+    state['dj_username'] = username
+    state['is_playing'] = False
+    state['current_time'] = 0
+    _radio_write_state(state)
+    # Xóa listeners cũ khi có DJ mới
+    _radio_write_listeners([])
+    return jsonify({'success': True})
+
+
+@app.route('/api/radio/release', methods=['POST'])
+def api_radio_release():
+    """Release vai trò DJ."""
+    if not session.get('logged_in'):
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    username = session.get('user', '')
+    state = _radio_read_state()
+
+    if state.get('dj_username') == username:
+        state['dj_username'] = None
+        state['is_playing'] = False
+        state['youtube_id'] = '4xDzrIxC4Dk'
+        state['current_time'] = 0
+        _radio_write_state(state)
+        _radio_write_listeners([])
+
+    return jsonify({'success': True})
+
+
+@app.route('/api/radio/join', methods=['POST'])
+def api_radio_join():
+    """Listener tham gia radio (heartbeat)."""
+    if not session.get('logged_in'):
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    username = session.get('user', '')
+    try:
+        USER_DB = load_users_from_sheet(USER_SHEET_URL)
+        avatar = USER_DB.get(username, {}).get("avatar", "")
+        fullname = USER_DB.get(username, {}).get("fullname", username)
+    except Exception:
+        avatar = ""
+        fullname = username
+
+    listeners = _radio_read_listeners()
+    # Cập nhật hoặc thêm mới
+    found = False
+    for l in listeners:
+        if l.get('username') == username:
+            l['last_seen'] = time.time()
+            found = True
+            break
+    if not found:
+        listeners.append({
+            'username': username,
+            'fullname': fullname,
+            'avatar': avatar,
+            'last_seen': time.time()
+        })
+    _radio_write_listeners(listeners)
+    return jsonify({'success': True})
+
+
+@app.route('/api/radio/leave', methods=['POST'])
+def api_radio_leave():
+    """Listener rời radio."""
+    if not session.get('logged_in'):
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    username = session.get('user', '')
+    listeners = _radio_read_listeners()
+    listeners = [l for l in listeners if l.get('username') != username]
+    _radio_write_listeners(listeners)
+    return jsonify({'success': True})
+
+
+# =====================================================================
 # =====================================================================
 # 11. SOCKETIO EVENTS
 # =====================================================================
