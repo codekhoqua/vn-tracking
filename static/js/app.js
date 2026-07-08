@@ -1761,11 +1761,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
         window.socket.on('checklist_updated', (data) => {
             if (!isDashboard) return;
-            const cb = document.querySelector(`.checklist-grid[data-tp-key="${data.tp_key}"] input[data-check-id="${data.cb_id}"]`);
-            if (cb) {
-                cb.checked = data.status;
-                const container = cb.closest('.checklist-grid').parentElement;
-                updateTaskProgressLocally(data.tp_key, container);
+            const escapedTpKey = data.tp_key.replace(/"/g, '\\"');
+            const checkboxes = document.querySelectorAll(`.checklist-grid[data-tp-key="${escapedTpKey}"] input[data-check-id="${data.cb_id}"]`);
+            
+            if (checkboxes.length > 0) {
+                checkboxes.forEach(cb => {
+                    cb.checked = data.status;
+                    const container = cb.closest('.checklist-grid').parentElement;
+                    updateTaskProgressLocally(data.tp_key, container);
+                });
+
+                // Update checkedIds on cards to keep local dataset fresh
+                document.querySelectorAll(`.progress-card[data-tp-key="${escapedTpKey}"]`).forEach(card => {
+                    let checkedIds = (card.dataset.checkedIds || '').toLowerCase().split(',').filter(Boolean);
+                    const rawId = data.cb_id.toLowerCase();
+                    if (data.status) {
+                        if (!checkedIds.includes(rawId)) checkedIds.push(rawId);
+                    } else {
+                        checkedIds = checkedIds.filter(id => id !== rawId);
+                    }
+                    card.dataset.checkedIds = checkedIds.join(',');
+                });
             }
         });
 
