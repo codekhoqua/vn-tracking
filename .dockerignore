@@ -1,0 +1,19 @@
+# Không đưa vào container image
+.git
+.gitignore
+.env
+.env.*
+.vercel
+vercel.json
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+env/
+node_modules/
+drive_data/
+.DS_Store
+Thumbs.db
+*.log
+templates/dashboard_cleaned.html
