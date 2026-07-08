@@ -1904,7 +1904,22 @@ function handleRadioStateFromPolling(state) {
     if (statusText) statusText.innerHTML = `DJ: ${state.dj_username || 'Ai đó'}`;
 }
 
+let previousRadioListeners = [];
+const radioJoinSound = new Audio('/static/audio/join.wav');
+const radioLeaveSound = new Audio('/static/audio/leave.wav');
+
 function handleRadioListenersUpdate(listeners) {
+    if (isListening || isRadioDJ) {
+        if (previousRadioListeners.length > 0 || listeners.length > 0) {
+            if (listeners.length > previousRadioListeners.length) {
+                radioJoinSound.play().catch(e => console.log('Audio play error:', e));
+            } else if (listeners.length < previousRadioListeners.length) {
+                radioLeaveSound.play().catch(e => console.log('Audio play error:', e));
+            }
+        }
+    }
+    previousRadioListeners = listeners;
+
     const container = document.getElementById('radio-listeners-container');
     if (!container) return;
     container.innerHTML = '';
