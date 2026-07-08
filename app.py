@@ -1450,7 +1450,11 @@ def api_avatar_proxy():
 # State được lưu dưới dạng file JSON trên Supabase Storage.
 
 RADIO_STATE_FILE = '_system/radio_state.json'
-RADIO_LISTENERS_FILE = '_system/radio_listeners.json'
+# Mỗi listener/user online là MỘT file riêng trong folder (tránh race khi
+# nhiều người ghi chung 1 file -> trước đây bị "kẹt ở 3 người").
+RADIO_LISTENERS_DIR = '_system/radio_listeners'
+ONLINE_USERS_DIR = '_system/online_users'
+PRESENCE_TTL = 15  # giây: quá hạn không heartbeat coi như offline
 
 _DEFAULT_RADIO_STATE = {
     'is_playing': False,
@@ -1490,31 +1494,96 @@ def _radio_write_state(state):
         pass
 
 
-def _radio_read_listeners():
-    """Đọc danh sách listeners từ Supabase Storage."""
+def _presence_key(username):
+    """Tên file an toàn cho 1 user (dùng cho cả listeners và online users)."""
+    h = hashlib.md5(username.encode('utf-8')).hexdigest()[:16]
+    return f'{h}.json'
+
+
+def _presence_read_dir(dir_path):
+    """Đọc tất cả presence file trong 1 folder, lọc bỏ entry hết hạn.
+
+    Mỗi user = 1 file nên nhiều người join/heartbeat song song không ghi đè
+    lên nhau. Entry quá hạn (>PRESENCE_TTL) được coi là offline (lười xóa)."""
     if not USE_SUPABASE:
         return []
+    now = time.time()
+    result = []
+    seen = set()
     try:
-        data = sb_download_bytes(RADIO_LISTENERS_FILE)
-        listeners = json.loads(data)
-        # Lọc bỏ listener hết hạn (> 15s không heartbeat)
-        now = time.time()
-        active = [l for l in listeners if now - l.get('last_seen', 0) < 15]
-        if len(active) != len(listeners):
-            _radio_write_listeners(active)
-        return active
+        for it in sb_list(dir_path):
+            if it.get('is_dir'):
+                continue
+            try:
+                data = sb_download_bytes(it['path'])
+                entry = json.loads(data)
+            except Exception:
+                continue
+            if now - entry.get('last_seen', 0) >= PRESENCE_TTL:
+                # Hết hạn -> dọn file (best effort), bỏ qua
+                try:
+                    sb_delete([it['path']])
+                except Exception:
+                    pass
+                continue
+            uname = entry.get('username')
+            if uname in seen:
+                continue
+            seen.add(uname)
+            result.append(entry)
     except Exception:
         return []
+    return result
 
 
-def _radio_write_listeners(listeners):
-    """Ghi danh sách listeners vào Supabase Storage."""
+def _presence_write(dir_path, username, profile):
+    """Ghi/refresh presence cho 1 user vào file riêng của user đó."""
+    if not USE_SUPABASE or not username:
+        return
+    try:
+        entry = dict(profile or {})
+        entry['username'] = username
+        entry['last_seen'] = time.time()
+        sb_upload(f'{dir_path}/{_presence_key(username)}',
+                  json.dumps(entry).encode('utf-8'), 'application/json')
+    except Exception:
+        pass
+
+
+def _presence_remove(dir_path, username):
+    """Xóa presence file của 1 user."""
+    if not USE_SUPABASE or not username:
+        return
+    try:
+        sb_delete([f'{dir_path}/{_presence_key(username)}'])
+    except Exception:
+        pass
+
+
+def _presence_clear(dir_path):
+    """Xóa toàn bộ presence trong folder (dùng khi đổi/ tắt DJ)."""
     if not USE_SUPABASE:
         return
     try:
-        sb_upload(RADIO_LISTENERS_FILE, json.dumps(listeners).encode('utf-8'), 'application/json')
+        paths = [it['path'] for it in sb_list(dir_path) if not it.get('is_dir')]
+        if paths:
+            sb_delete(paths)
     except Exception:
         pass
+
+
+def _radio_read_listeners():
+    """Đọc danh sách listeners (mỗi user 1 file)."""
+    return _presence_read_dir(RADIO_LISTENERS_DIR)
+
+
+def _radio_write_listeners(listeners):
+    """Kept for compatibility: reset toàn bộ listeners.
+
+    Chỉ dùng để CLEAR (list rỗng) khi đổi/tắt DJ; các nhánh khác giờ
+    ghi trực tiếp từng user qua _presence_write."""
+    if not listeners:
+        _presence_clear(RADIO_LISTENERS_DIR)
 
 
 @app.route('/api/radio/state', methods=['GET'])
@@ -1615,22 +1684,12 @@ def api_radio_join():
         avatar = ""
         fullname = username
 
-    listeners = _radio_read_listeners()
-    # Cập nhật hoặc thêm mới
-    found = False
-    for l in listeners:
-        if l.get('username') == username:
-            l['last_seen'] = time.time()
-            found = True
-            break
-    if not found:
-        listeners.append({
-            'username': username,
-            'fullname': fullname,
-            'avatar': avatar,
-            'last_seen': time.time()
-        })
-    _radio_write_listeners(listeners)
+    # Mỗi user ghi vào file riêng -> không đè lên người khác (fix "kẹt 3 người")
+    _presence_write(RADIO_LISTENERS_DIR, username, {
+        'username': username,
+        'fullname': fullname,
+        'avatar': avatar,
+    })
     return jsonify({'success': True})
 
 
@@ -1641,9 +1700,53 @@ def api_radio_leave():
         return jsonify({'error': 'Unauthorized'}), 401
 
     username = session.get('user', '')
-    listeners = _radio_read_listeners()
-    listeners = [l for l in listeners if l.get('username') != username]
-    _radio_write_listeners(listeners)
+    _presence_remove(RADIO_LISTENERS_DIR, username)
+    return jsonify({'success': True})
+
+
+@app.route('/api/presence/ping', methods=['POST'])
+def api_presence_ping():
+    """Heartbeat cho biết user đang online (dùng khi chạy trên Vercel, không
+    có Socket.IO). Mỗi user ghi file riêng -> hiển thị đủ mọi người, không
+    còn phụ thuộc RAM của 1 instance."""
+    if not session.get('logged_in'):
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    username = session.get('user', '')
+    try:
+        USER_DB = load_users_from_sheet(USER_SHEET_URL)
+        avatar = USER_DB.get(username, {}).get("avatar", "")
+        fullname = USER_DB.get(username, {}).get("fullname", username)
+    except Exception:
+        avatar = ""
+        fullname = username
+
+    _presence_write(ONLINE_USERS_DIR, username, {
+        'username': username,
+        'fullname': fullname,
+        'avatar': avatar,
+    })
+    return jsonify({'success': True})
+
+
+@app.route('/api/presence/list', methods=['GET'])
+def api_presence_list():
+    """Danh sách user đang online (unique theo username)."""
+    if not session.get('logged_in'):
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    users = _presence_read_dir(ONLINE_USERS_DIR)
+    users.sort(key=lambda u: u.get('fullname', ''))
+    return jsonify({'users': users})
+
+
+@app.route('/api/presence/leave', methods=['POST'])
+def api_presence_leave():
+    """Rời khỏi danh sách online (đóng tab)."""
+    if not session.get('logged_in'):
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    _presence_remove(ONLINE_USERS_DIR, session.get('user', ''))
     return jsonify({'success': True})
 
 

@@ -1514,39 +1514,76 @@ document.addEventListener('click', function (e) {
 // ======================================
 // GLOBAL SOCKET LISTENERS
 // ======================================
+function renderOnlineUsers(users) {
+    const container = document.getElementById('global-online-users');
+    if (!container) return;
+
+    const MAX_VISIBLE = 4;
+    let html = '';
+
+    users.forEach((u, idx) => {
+        if (idx >= MAX_VISIBLE) return;
+        const zIndex = 100 - idx;
+        const initial = u.fullname ? u.fullname.charAt(0).toUpperCase() : 'U';
+
+        html += `
+            <span class="worker-avatar global-avatar" style="margin-left: ${idx > 0 ? '-8px' : '0'}; position: relative; z-index: ${zIndex}; border: 2px solid var(--bg-body);" title="${u.fullname}">
+                ${u.avatar ? `<img src="${u.avatar}" alt="Avatar" class="avatar-img" referrerpolicy="no-referrer" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                <span class="avatar-fallback" style="display:none;">${initial}</span>` : initial}
+            </span>
+        `;
+    });
+
+    if (users.length > MAX_VISIBLE) {
+        const extraCount = users.length - MAX_VISIBLE;
+        html += `
+            <span class="worker-avatar global-avatar" style="margin-left: -8px; position: relative; z-index: 90; background: var(--bg-card); color: var(--text-2); font-size: 12px; border: 2px solid var(--bg-body);" title="+${extraCount} người nữa">
+                +${extraCount}
+            </span>
+        `;
+    }
+
+    container.innerHTML = html;
+}
+
+// ---- REST presence fallback (Vercel: không có Socket.IO) ----
+let presencePingInterval = null;
+let presenceListInterval = null;
+
+async function presencePing() {
+    try {
+        await fetch('/api/presence/ping', { method: 'POST', credentials: 'same-origin' });
+    } catch (e) { /* ignore */ }
+}
+
+async function presenceRefreshList() {
+    try {
+        const r = await fetch('/api/presence/list', { credentials: 'same-origin' });
+        if (!r.ok) return;
+        const data = await r.json();
+        if (data && data.users) renderOnlineUsers(data.users);
+    } catch (e) { /* ignore */ }
+}
+
+function startPresencePolling() {
+    if (presencePingInterval) return;
+    presencePing();
+    presenceRefreshList();
+    presencePingInterval = setInterval(presencePing, 10000);   // heartbeat 10s
+    presenceListInterval = setInterval(presenceRefreshList, 5000); // refresh list 5s
+    // Rời danh sách khi đóng tab (best effort)
+    window.addEventListener('beforeunload', () => {
+        try {
+            navigator.sendBeacon('/api/presence/leave');
+        } catch (e) { /* ignore */ }
+    });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     if (typeof socket !== 'undefined' && socket) {
         socket.on('online_users_update', function (users) {
             console.log("Online users updated:", users);
-            const container = document.getElementById('global-online-users');
-            if (!container) return;
-
-            const MAX_VISIBLE = 4;
-            let html = '';
-
-            users.forEach((u, idx) => {
-                if (idx >= MAX_VISIBLE) return;
-                const zIndex = 100 - idx;
-                const initial = u.fullname ? u.fullname.charAt(0).toUpperCase() : 'U';
-
-                html += `
-                    <span class="worker-avatar global-avatar" style="margin-left: ${idx > 0 ? '-8px' : '0'}; position: relative; z-index: ${zIndex}; border: 2px solid var(--bg-body);" title="${u.fullname}">
-                        ${u.avatar ? `<img src="${u.avatar}" alt="Avatar" class="avatar-img" referrerpolicy="no-referrer" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                        <span class="avatar-fallback" style="display:none;">${initial}</span>` : initial}
-                    </span>
-                `;
-            });
-
-            if (users.length > MAX_VISIBLE) {
-                const extraCount = users.length - MAX_VISIBLE;
-                html += `
-                    <span class="worker-avatar global-avatar" style="margin-left: -8px; position: relative; z-index: 90; background: var(--bg-card); color: var(--text-2); font-size: 12px; border: 2px solid var(--bg-body);" title="+${extraCount} người nữa">
-                        +${extraCount}
-                    </span>
-                `;
-            }
-
-            container.innerHTML = html;
+            renderOnlineUsers(users);
         });
 
         // Request initial list
@@ -1555,6 +1592,15 @@ document.addEventListener('DOMContentLoaded', () => {
             socket.emit('request_online_users');
         });
     }
+
+    // Fallback: nếu sau 4s vẫn không có Socket.IO kết nối (Vercel serverless),
+    // chuyển sang REST presence để danh sách người online hiển thị đầy đủ.
+    setTimeout(() => {
+        if (typeof socket === 'undefined' || !socket || !socket.connected) {
+            console.log('[Presence] Socket.IO not available, using REST presence polling');
+            startPresencePolling();
+        }
+    }, 4000);
 });
 
 // ======================================
