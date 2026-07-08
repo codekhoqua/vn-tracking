@@ -37,7 +37,10 @@ except OSError:
     pass
 app.config['TEMPLATES_AUTO_RELOAD'] = True
 app.secret_key = os.environ.get('SECRET_KEY', 'vn-tracking-secret-' + hashlib.md5(b'vn-tracking-2024').hexdigest())
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading', manage_session=False)
+# async_mode: local dùng 'threading' (Werkzeug dev server); trên Cloud Run/gunicorn
+# đặt SOCKETIO_ASYNC_MODE=eventlet để WebSocket hoạt động chuẩn.
+_SOCKETIO_ASYNC_MODE = os.environ.get('SOCKETIO_ASYNC_MODE', 'threading')
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode=_SOCKETIO_ASYNC_MODE, manage_session=False)
 # =====================================================================
 # 2. CƠ SỞ DỮ LIỆU TÀI KHOẢN VÀ LINK DỮ LIỆU
 # =====================================================================
