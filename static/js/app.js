@@ -580,6 +580,28 @@ function handleLogtime(event, formId) {
 function changeLang(lang) { window.location.href = `/set-lang?lang=${lang}&next=${encodeURIComponent(window.location.pathname)}`; }
 function refreshData() { window.location.reload(); }
 
+function softRefreshChecklist(btn) {
+    const icon = document.getElementById('refresh-icon');
+    const text = document.getElementById('refresh-text');
+    if (btn) btn.disabled = true;
+    if (icon) icon.style.animation = 'spin 0.8s linear infinite';
+    if (text) text.textContent = '...';
+
+    // backgroundSyncChecklist returns void but uses fetch internally
+    // We call it and set a timeout to restore UI
+    backgroundSyncChecklist();
+
+    setTimeout(() => {
+        if (icon) icon.style.animation = '';
+        if (text) text.textContent = (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi') ? 'Refresh' : '更新';
+        if (btn) btn.disabled = false;
+        if (window.showToast) showToast(
+            (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi') ? 'Đã tải lại checklist!' : 'チェックリストを更新しました！',
+            'success'
+        );
+    }, 2000);
+}
+
 function copyText(btn, elementId) {
     const el = document.getElementById(elementId);
     if (!el) return;
@@ -1707,6 +1729,9 @@ let radioState = {
 };
 let djSyncInterval = null;
 let radioUpdateInterval = null;
+let radioPollingInterval = null;
+// Detect serverless: Socket.IO không khả dụng hoặc không thể kết nối
+let useRadioPolling = false;
 
 // Dynamically load YouTube Iframe API
 const tag = document.createElement('script');
@@ -1727,8 +1752,209 @@ window.onYouTubeIframeAPIReady = function () {
     });
 };
 
+// ---- REST API helpers ----
+async function radioApiGet(path) {
+    try {
+        const r = await fetch(path, { credentials: 'same-origin' });
+        if (!r.ok) return null;
+        return await r.json();
+    } catch (e) { return null; }
+}
+
+async function radioApiPost(path, body) {
+    try {
+        const r = await fetch(path, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: body ? JSON.stringify(body) : '{}'
+        });
+        if (!r.ok) return null;
+        return await r.json();
+    } catch (e) { return null; }
+}
+
+// ---- Polling: xử lý radio_sync nhận từ REST ----
+function handleRadioStateFromPolling(state) {
+    if (!state) return;
+
+    // Auto-reclaim DJ mode if server says we are the DJ
+    if (state.you_are_dj && !isRadioDJ) {
+        isRadioDJ = true;
+        const toggle = document.getElementById('radio-dj-toggle');
+        if (toggle) toggle.checked = true;
+
+        const inputContainer = document.getElementById('radio-yt-input-container');
+        if (inputContainer) inputContainer.style.display = 'block';
+
+        const progressEl = document.getElementById('radio-progress');
+        if (progressEl) progressEl.disabled = false;
+
+        if (!djSyncInterval) {
+            djSyncInterval = setInterval(() => {
+                if (window.syncRadioToServer) window.syncRadioToServer();
+            }, 3000);
+        }
+
+        if (ytPlayer && ytPlayer.loadVideoById) {
+            const currentVideo = ytPlayer.getVideoData?.()?.video_id;
+            if (currentVideo !== state.youtube_id) {
+                ytPlayer.loadVideoById(state.youtube_id, state.current_time);
+            }
+            if (state.is_playing) ytPlayer.playVideo();
+        }
+        radioState.youtube_id = state.youtube_id;
+        radioState.is_playing = state.is_playing;
+        radioState.current_time = state.current_time;
+
+        if (window.updateRadioUI) window.updateRadioUI();
+    }
+
+    if (isRadioDJ) return;
+
+    // Nếu DJ tắt, các máy đang nghe (listener) tự động bị văng khỏi chế độ nghe
+    if (!state.dj_username) {
+        const container = document.getElementById('radio-listeners-container');
+        if (container) container.innerHTML = '';
+
+        if (isListening) {
+            isListening = false;
+            if (ytPlayer && ytPlayer.pauseVideo) {
+                ytPlayer.pauseVideo();
+            }
+            if (window.showToast) {
+                showToast(CURRENT_LANG === 'vi' ? 'Host đã tắt DJ, bạn đã ngắt kết nối' : 'ホストがDJを終了したため、切断されました', 'info');
+            }
+        }
+    }
+
+    radioState.youtube_id = state.youtube_id;
+    radioState.current_time = state.current_time;
+    radioState.is_playing = state.is_playing;
+
+    if (isListening && ytPlayer && ytPlayer.loadVideoById) {
+        const currentVideo = ytPlayer.getVideoData?.()?.video_id;
+        if (currentVideo !== state.youtube_id) {
+            ytPlayer.loadVideoById(state.youtube_id, state.current_time);
+        } else if (Math.abs((ytPlayer.getCurrentTime?.() || 0) - state.current_time) > 3) {
+            ytPlayer.seekTo(state.current_time, true);
+        }
+
+        const playerState = ytPlayer.getPlayerState?.();
+        if (state.is_playing && playerState !== YT.PlayerState.PLAYING) {
+            ytPlayer.playVideo();
+        } else if (!state.is_playing && playerState === YT.PlayerState.PLAYING) {
+            ytPlayer.pauseVideo();
+        }
+    }
+
+    // Cập nhật listener avatars từ REST response
+    if (state.listeners) {
+        handleRadioListenersUpdate(state.listeners);
+    }
+
+    updateRadioUI();
+    const statusText = document.getElementById('radio-status');
+    if (statusText) statusText.innerHTML = `DJ: ${state.dj_username || 'Ai đó'}`;
+}
+
+function handleRadioListenersUpdate(listeners) {
+    const container = document.getElementById('radio-listeners-container');
+    if (!container) return;
+    container.innerHTML = '';
+
+    const MAX_SHOW = 5;
+    listeners.forEach((user, index) => {
+        if (index >= MAX_SHOW) return;
+        const img = document.createElement('img');
+        img.src = user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.fullname)}&background=random&color=fff`;
+        img.style.width = '18px';
+        img.style.height = '18px';
+        img.style.borderRadius = '50%';
+        img.style.border = '1px solid rgba(255,255,255,0.2)';
+        img.style.marginLeft = index === 0 ? '0' : '-6px';
+        img.style.objectFit = 'cover';
+        img.title = user.fullname;
+        container.appendChild(img);
+    });
+
+    if (listeners.length > MAX_SHOW) {
+        const extra = document.createElement('span');
+        extra.textContent = `+${listeners.length - MAX_SHOW}`;
+        Object.assign(extra.style, {
+            width: '18px', height: '18px', borderRadius: '50%',
+            background: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.9)',
+            fontSize: '9px', fontWeight: '700', display: 'flex',
+            alignItems: 'center', justifyContent: 'center',
+            marginLeft: '-6px', border: '1px solid rgba(255,255,255,0.2)',
+            flexShrink: '0'
+        });
+        extra.title = listeners.slice(MAX_SHOW).map(u => u.fullname).join(', ');
+        container.appendChild(extra);
+    }
+}
+
+// ---- Polling loop cho listener ----
+function startRadioPolling() {
+    stopRadioPolling();
+    // Poll ngay lập tức
+    pollRadioState();
+    radioPollingInterval = setInterval(pollRadioState, 3000);
+}
+
+function stopRadioPolling() {
+    if (radioPollingInterval) {
+        clearInterval(radioPollingInterval);
+        radioPollingInterval = null;
+    }
+}
+
+async function pollRadioState() {
+    const state = await radioApiGet('/api/radio/state');
+    if (state) handleRadioStateFromPolling(state);
+}
+
+// ---- Listener heartbeat (chỉ khi polling) ----
+let listenerHeartbeatInterval = null;
+function startListenerHeartbeat() {
+    stopListenerHeartbeat();
+    radioApiPost('/api/radio/join');
+    listenerHeartbeatInterval = setInterval(() => {
+        radioApiPost('/api/radio/join');
+    }, 10000); // heartbeat mỗi 10s
+}
+function stopListenerHeartbeat() {
+    if (listenerHeartbeatInterval) {
+        clearInterval(listenerHeartbeatInterval);
+        listenerHeartbeatInterval = null;
+    }
+}
+
 function onPlayerReady(event) {
+    // Detect nếu Socket.IO không khả dụng → dùng REST polling
+    const socketAvailable = window.socket && window.socket.connected;
+
+    if (!socketAvailable) {
+        // Chờ thêm 3s cho socket reconnect, nếu vẫn không có thì dùng polling
+        setTimeout(() => {
+            if (!window.socket || !window.socket.connected) {
+                console.log('[Radio] Socket.IO not available, using REST polling');
+                useRadioPolling = true;
+                // Bắt đầu polling state
+                startRadioPolling();
+            } else {
+                setupSocketRadio();
+            }
+        }, 3000);
+    } else {
+        setupSocketRadio();
+    }
+}
+
+// ---- Socket.IO radio setup (local dev) ----
+function setupSocketRadio() {
     if (!window.socket) return;
+    useRadioPolling = false;
     window.socket.emit('request_radio_state');
 
     // Khi socket (re)connect lại: đồng bộ lại trạng thái radio.
@@ -1817,22 +2043,7 @@ function onPlayerReady(event) {
     });
 
     window.socket.on('radio_listeners_update', function (listeners) {
-        const container = document.getElementById('radio-listeners-container');
-        if (!container) return;
-        container.innerHTML = '';
-
-        listeners.forEach((user, index) => {
-            const img = document.createElement('img');
-            img.src = user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.fullname)}&background=random&color=fff`;
-            img.style.width = '18px';
-            img.style.height = '18px';
-            img.style.borderRadius = '50%';
-            img.style.border = '1px solid rgba(255,255,255,0.2)';
-            img.style.marginLeft = index === 0 ? '0' : '-6px';
-            img.style.objectFit = 'cover';
-            img.title = user.fullname;
-            container.appendChild(img);
-        });
+        handleRadioListenersUpdate(listeners);
     });
 }
 
@@ -1877,7 +2088,13 @@ document.addEventListener('DOMContentLoaded', () => {
             isListening = !isListening;
             if (isListening) {
                 // Join radio
-                if (window.socket) window.socket.emit('join_radio');
+                if (useRadioPolling) {
+                    radioApiPost('/api/radio/join');
+                    startListenerHeartbeat();
+                    startRadioPolling();
+                } else if (window.socket) {
+                    window.socket.emit('join_radio');
+                }
                 const currentVideo = ytPlayer.getVideoData()?.video_id;
                 if (currentVideo !== radioState.youtube_id) {
                     ytPlayer.loadVideoById(radioState.youtube_id, radioState.current_time);
@@ -1889,7 +2106,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 else ytPlayer.pauseVideo();
             } else {
                 // Leave radio
-                if (window.socket) window.socket.emit('leave_radio');
+                if (useRadioPolling) {
+                    radioApiPost('/api/radio/leave');
+                    stopListenerHeartbeat();
+                    stopRadioPolling();
+                } else if (window.socket) {
+                    window.socket.emit('leave_radio');
+                }
                 ytPlayer.pauseVideo();
             }
             updateRadioUI();
@@ -1903,7 +2126,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (isChecked) {
             // Attempt to claim DJ role
-            if (window.socket) {
+            if (useRadioPolling) {
+                // REST API claim
+                radioApiPost('/api/radio/claim').then(response => {
+                    if (response && response.success) {
+                        isRadioDJ = true;
+                        isListening = true;
+                        radioApiPost('/api/radio/join');
+                        startListenerHeartbeat();
+                        if (djBadge) djBadge.style.display = 'block';
+                        if (statusText) statusText.innerHTML = `Bạn đang là DJ 🎧`;
+                        if (ytInputContainer) ytInputContainer.style.display = 'block';
+                        if (progressEl) progressEl.disabled = false;
+                        djSyncInterval = setInterval(syncRadioToServer, 3000);
+                        syncRadioToServer();
+                        // Bắt đầu polling để nhận listener updates
+                        startRadioPolling();
+                        updateRadioUI();
+                    } else {
+                        const djName = (response && response.dj_name) ? response.dj_name : 'Ai đó';
+                        showToast(`Đã có người làm DJ rồi! (${djName} đang host). Vui lòng đợi họ tắt DJ.`, 'error');
+                        toggleEl.checked = false;
+                        isRadioDJ = false;
+                    }
+                });
+            } else if (window.socket) {
+                // Socket.IO claim
                 window.socket.emit('claim_dj', (response) => {
                     if (response && response.success) {
                         isRadioDJ = true;
@@ -1932,7 +2180,13 @@ document.addEventListener('DOMContentLoaded', () => {
             if (ytInputContainer) ytInputContainer.style.display = 'none';
             if (progressEl) progressEl.disabled = true;
             clearInterval(djSyncInterval);
-            if (window.socket) {
+            if (useRadioPolling) {
+                radioApiPost('/api/radio/release');
+                stopListenerHeartbeat();
+                stopRadioPolling();
+                // Poll state một lần cuối
+                pollRadioState();
+            } else if (window.socket) {
                 window.socket.emit('release_dj');
                 window.socket.emit('request_radio_state');
             }
@@ -1963,14 +2217,25 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     window.syncRadioToServer = function () {
-        if (!isRadioDJ || !ytPlayer || !window.socket || !ytPlayer.getCurrentTime) return;
+        if (!isRadioDJ || !ytPlayer || !ytPlayer.getCurrentTime) return;
         let time = 0;
         try { time = ytPlayer.getCurrentTime() || 0; } catch (e) { }
-        window.socket.emit('radio_sync', {
-            is_playing: radioState.is_playing,
-            youtube_id: radioState.youtube_id,
-            current_time: time
-        });
+
+        if (useRadioPolling) {
+            // REST API sync
+            radioApiPost('/api/radio/sync', {
+                is_playing: radioState.is_playing,
+                youtube_id: radioState.youtube_id,
+                current_time: time
+            });
+        } else if (window.socket) {
+            // Socket.IO sync
+            window.socket.emit('radio_sync', {
+                is_playing: radioState.is_playing,
+                youtube_id: radioState.youtube_id,
+                current_time: time
+            });
+        }
     };
 
     window.updateRadioUI = function () {
