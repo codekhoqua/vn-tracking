@@ -1451,10 +1451,6 @@ def api_logtime():
     
     data = request.get_json()
     if save_logtime(data):
-        socketio.emit('logtime_updated', {
-            'tp_key': data.get('tac_pham'),
-            'user': session.get('user', '')
-        }, broadcast=True, include_self=False)
         return jsonify({"status": "success"})
     else:
         return jsonify({"status": "error", "message": "Lỗi khi lưu logtime"}), 500

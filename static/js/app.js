@@ -1769,16 +1769,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        window.socket.on('logtime_updated', (data) => {
-            if (!isDashboard) return;
-            if (window.showToast) {
-                const isVi = typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi';
-                const msg = isVi 
-                    ? `Task "${data.tp_key}" vừa được cập nhật bởi ${data.user}. Dữ liệu sẽ được làm mới ở lần tải lại trang!` 
-                    : `Task "${data.tp_key}" was updated by ${data.user}. Data will refresh on next reload!`;
-                showToast(msg, 'info');
-            }
-        });
+
     }
 });
 
