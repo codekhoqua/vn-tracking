@@ -1515,6 +1515,35 @@ def api_change_password():
     except Exception:
         return jsonify({"status": "error", "message": "Lỗi kết nối!"})
 
+# =====================================================================
+# CALENDAR ROUTES
+# =====================================================================
+@app.route('/calendar')
+def calendar_view():
+    if not session.get('logged_in'):
+        return redirect('/')
+    embed_url = os.environ.get('GOOGLE_CALENDAR_EMBED_URL', '').strip()
+    
+    # Đọc thủ công từ .env.local nếu chạy local không dùng dotenv
+    if not embed_url and os.path.exists('.env.local'):
+        try:
+            with open('.env.local', 'r', encoding='utf-8') as f:
+                for line in f:
+                    if line.startswith('GOOGLE_CALENDAR_EMBED_URL='):
+                        embed_url = line.split('=', 1)[1].strip()
+                        break
+        except Exception:
+            pass
+
+    if embed_url:
+        import re
+        if 'src="' in embed_url:
+            match = re.search(r'src="([^"]+)"', embed_url)
+            if match:
+                embed_url = match.group(1)
+        return redirect(embed_url)
+    return "<h3 style='color: #cbd5e1; font-family: sans-serif; text-align: center; margin-top: 50px;'>Vui lòng dán mã nhúng vào biến GOOGLE_CALENDAR_EMBED_URL trong file .env.local</h3>", 200
+
 @app.route('/api/data')
 def api_data():
     if not session.get('logged_in'):
