@@ -1537,10 +1537,12 @@ def calendar_view():
 
     if embed_url:
         import re
-        if 'src="' in embed_url:
-            match = re.search(r'src="([^"]+)"', embed_url)
+        if 'src=' in embed_url:
+            match = re.search(r'src=["\']([^"\']+)["\']', embed_url)
             if match:
                 embed_url = match.group(1)
+        # Sửa lỗi url có chứa ký tự như &amp; thay vì &
+        embed_url = embed_url.replace('&amp;', '&')
         return redirect(embed_url)
     return "<h3 style='color: #cbd5e1; font-family: sans-serif; text-align: center; margin-top: 50px;'>Vui lòng dán mã nhúng vào biến GOOGLE_CALENDAR_EMBED_URL trong file .env.local</h3>", 200
 
