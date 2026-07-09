@@ -63,6 +63,25 @@
     </div>
 </div>
 
+<!-- ============ CALENDAR MODAL ============ -->
+<style>
+    #calendar-modal.active {
+        display: flex !important;
+    }
+</style>
+<div id="calendar-modal-overlay" class="cp-overlay" onclick="closeCalendarModal()"></div>
+<div id="calendar-modal" class="cp-modal"
+    style="max-width: 95vw; height: 95vh; width: 100%; padding: 0; overflow: hidden; flex-direction: column;">
+    <div class="modal-header"
+        style="padding: 15px 25px; border-bottom: 1px solid var(--border); background: var(--surface); flex-shrink: 0;">
+        <h3 style="margin: 0;">Lịch Team</h3>
+        <button class="modal-close" onclick="closeCalendarModal()">&times;</button>
+    </div>
+    <div class="modal-body" style="flex: 1; padding: 0; overflow: hidden;">
+        <iframe id="calendar-iframe" src="" style="width: 100%; height: 100%; border: none; display: block;"></iframe>
+    </div>
+</div>
+
 <!-- ============ CHANGE PASS MODAL ============ -->
 <div id="changepass-overlay" class="cp-overlay" onclick="closeChangePassModal()"></div>
 <div id="changepass-modal" class="cp-modal">
@@ -201,7 +220,7 @@
             style="border-radius: var(--radius-sm); margin-right: 8px;">
         <div style="display: flex; flex-direction: column; justify-content: center;">
             <span>VN-Tracking</span>
-            <sup style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.2.39</i></sup>
+            <sup style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.2.44</i></sup>
         </div>
     </div>
 
@@ -240,6 +259,18 @@
                 <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
             </svg>
             LSA Drive
+        </div>
+    </div>
+    <div class="nav-item" onclick="openCalendarModal()" style="cursor: pointer;">
+        <div class="nav-item-content">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+            Lịch Team
         </div>
     </div>
     <a href="/psd-tool" target="_blank" class="nav-item" style="text-decoration: none; color: inherit;">
@@ -1503,6 +1534,7 @@
 <script>
     const CHECKLIST_API = "{{ checklist_api }}";
     const CURRENT_LANG = "{{ lang }}";
+    const CURRENT_USER = "{{ user }}";
     window.socket = typeof io !== 'undefined' ? io() : null;
 
     // Inject Detailed Task Data
@@ -1521,6 +1553,5 @@
 </script>
 <!-- Confetti Library for Celebration Effects -->
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-<script src="{{ url_for('static', filename='js/app.js') }}?v={{ range(1, 100000) | random }}"></script>
 
 {% endblock %}

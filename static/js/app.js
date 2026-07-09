@@ -296,6 +296,30 @@ function closeModal(modalId) {
     }
 }
 
+// CALENDAR
+function openCalendarModal() {
+    const overlay = document.getElementById('calendar-modal-overlay');
+    const modal = document.getElementById('calendar-modal');
+    const iframe = document.getElementById('calendar-iframe');
+
+    if (iframe && (!iframe.src || iframe.src === window.location.href)) {
+        iframe.src = '/calendar';
+    }
+
+    if (overlay) overlay.classList.add('active');
+    if (modal) modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeCalendarModal() {
+    const overlay = document.getElementById('calendar-modal-overlay');
+    const modal = document.getElementById('calendar-modal');
+    if (overlay) overlay.classList.remove('active');
+    if (modal) modal.classList.remove('active');
+    document.body.style.overflow = '';
+}
+
+// DRIVES
 function closeDriveModal() {
     const overlay = document.getElementById('drive-modal-overlay');
     const modal = document.getElementById('drive-modal');
@@ -1736,6 +1760,7 @@ document.addEventListener('DOMContentLoaded', () => {
         window.socket.on('cursor_move', (data) => {
             if (!isDashboard) return;
             const uid = data.username; // Key by username to prevent duplicates
+            if (typeof CURRENT_USER !== 'undefined' && uid === CURRENT_USER) return;
             let cursorEl = cursors[uid];
             if (!cursorEl) {
                 const userColor = getColorForUser(data.username);
@@ -1956,14 +1981,25 @@ function handleRadioStateFromPolling(state) {
 let previousRadioListeners = [];
 const radioJoinSound = new Audio('/static/audio/join.wav');
 const radioLeaveSound = new Audio('/static/audio/leave.wav');
+let radioLeaveTimeout = null;
 
 function handleRadioListenersUpdate(listeners) {
     if (isListening || isRadioDJ) {
         if (previousRadioListeners.length > 0 || listeners.length > 0) {
             if (listeners.length > previousRadioListeners.length) {
-                radioJoinSound.play().catch(e => console.log('Audio play error:', e));
+                if (radioLeaveTimeout) {
+                    clearTimeout(radioLeaveTimeout);
+                    radioLeaveTimeout = null;
+                } else {
+                    radioJoinSound.play().catch(e => console.log('Audio play error:', e));
+                }
             } else if (listeners.length < previousRadioListeners.length) {
-                radioLeaveSound.play().catch(e => console.log('Audio play error:', e));
+                if (!radioLeaveTimeout) {
+                    radioLeaveTimeout = setTimeout(() => {
+                        radioLeaveSound.play().catch(e => console.log('Audio play error:', e));
+                        radioLeaveTimeout = null;
+                    }, 2000);
+                }
             }
         }
     }

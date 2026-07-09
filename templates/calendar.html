@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    
+    <!-- FullCalendar CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --surface-hover: #334155;
+            --text: #f8fafc;
+            --text-2: #cbd5e1;
+            --text-3: #94a3b8;
+            --border: #334155;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            height: 100vh;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #calendar {
+            flex: 1;
+            background: var(--surface);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        /* FullCalendar Customization */
+        .fc-theme-standard .fc-scrollgrid { border-color: var(--border); }
+        .fc-theme-standard th, .fc-theme-standard td { border-color: var(--border); }
+        .fc-col-header-cell { background-color: var(--bg); padding: 10px 0; }
+        .fc-daygrid-day-number { color: var(--text-2); padding: 8px !important; }
+        .fc-day-today { background-color: rgba(99, 102, 241, 0.1) !important; }
+        
+        .fc-button-primary {
+            background-color: var(--primary) !important;
+            border-color: var(--primary) !important;
+            text-transform: capitalize;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-weight: 600;
+        }
+        .fc-button-primary:hover {
+            background-color: var(--primary-hover) !important;
+            border-color: var(--primary-hover) !important;
+        }
+        .fc-button-primary:not(:disabled):active, .fc-button-primary:not(:disabled).fc-button-active {
+            background-color: var(--primary-hover) !important;
+            border-color: var(--primary-hover) !important;
+        }
+        
+        .fc-event {
+            border: none;
+            border-radius: 4px;
+            padding: 2px 4px;
+            font-size: 0.85em;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+        .fc-event:hover {
+            transform: scale(1.02);
+        }
+
+        /* Modal Customization */
+        .event-modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+        .event-modal.show {
+            display: flex;
+            opacity: 1;
+        }
+        .event-modal-content {
+            background: var(--surface);
+            border-radius: 12px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+            transform: scale(0.95);
+            transition: transform 0.2s ease;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+        .event-modal.show .event-modal-content {
+            transform: scale(1);
+        }
+        .event-modal-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .event-modal-header h3 {
+            margin: 0;
+            font-size: 1.25rem;
+            color: var(--text);
+        }
+        .close-btn {
+            background: none;
+            border: none;
+            color: var(--text-3);
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        .close-btn:hover { color: var(--text); }
+        .event-modal-body {
+            padding: 20px;
+        }
+        .event-detail {
+            display: flex;
+            margin-bottom: 15px;
+            color: var(--text-2);
+            font-size: 0.95rem;
+        }
+        .event-detail svg {
+            width: 20px; height: 20px;
+            margin-right: 12px;
+            color: var(--text-3);
+            flex-shrink: 0;
+        }
+        .join-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            padding: 12px;
+            background: var(--primary);
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            margin-top: 10px;
+            transition: background 0.2s;
+        }
+        .join-btn:hover {
+            background: var(--primary-hover);
+        }
+        
+        .loading-overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: var(--bg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+        .spinner {
+            width: 40px; height: 40px;
+            border: 4px solid var(--surface);
+            border-top: 4px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <div id="calendar-container" style="position: relative; height: 100%; display: flex; flex-direction: column;">
+        <div id="loading" class="loading-overlay">
+            <div class="spinner"></div>
+        </div>
+        <div id="calendar"></div>
+    </div>
+
+    <!-- Event Modal -->
+    <div id="eventModal" class="event-modal">
+        <div class="event-modal-content">
+            <div class="event-modal-header">
+                <h3 id="modalTitle">Event Title</h3>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="event-modal-body">
+                <div class="event-detail">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                    <span id="modalTime">Time</span>
+                </div>
+                <div class="event-detail" id="descContainer" style="display: none;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                    <div id="modalDesc" style="white-space: pre-line;"></div>
+                </div>
+                <div class="event-detail" id="locationContainer" style="display: none;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                    <span id="modalLocation">Location</span>
+                </div>
+                
+                <a id="modalJoinLink" href="#" target="_blank" class="join-btn" style="display: none;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px; margin-right: 8px;"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
+                    Tham gia họp (Join Meeting)
+                </a>
+                
+                <a id="modalHtmlLink" href="#" target="_blank" class="join-btn" style="background: var(--surface-hover); color: var(--text); display: none; margin-top: 10px;">
+                    Xem trên Google Calendar
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- FullCalendar JS -->
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+    <script>
+        let calendar;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const calendarEl = document.getElementById('calendar');
+            
+            fetch('/api/calendar/events')
+                .then(res => res.json())
+                .then(data => {
+                    document.getElementById('loading').style.display = 'none';
+                    
+                    if (data.length === 0) {
+                        // Handle empty or unconfigured
+                        console.log("No events or API not configured yet.");
+                    }
+
+                    // Map Google Calendar data to FullCalendar format
+                    const events = data.map(item => {
+                        let color = '#6366f1';
+                        // Simple logic to color-code based on keywords
+                        if (item.title.toLowerCase().includes('họp') || item.title.toLowerCase().includes('sync') || item.title.toLowerCase().includes('meeting')) {
+                            color = '#10b981'; // Green
+                        } else if (item.title.toLowerCase().includes('deadline')) {
+                            color = '#ef4444'; // Red
+                        }
+                        
+                        return {
+                            id: item.id,
+                            title: item.title,
+                            start: item.start,
+                            end: item.end,
+                            backgroundColor: color,
+                            extendedProps: {
+                                description: item.description,
+                                location: item.location,
+                                hangoutLink: item.hangoutLink,
+                                htmlLink: item.htmlLink
+                            }
+                        };
+                    });
+
+                    calendar = new FullCalendar.Calendar(calendarEl, {
+                        initialView: 'dayGridMonth',
+                        headerToolbar: {
+                            left: 'prev,next today',
+                            center: 'title',
+                            right: 'dayGridMonth,timeGridWeek,listWeek'
+                        },
+                        events: events,
+                        eventClick: function(info) {
+                            openModal(info.event);
+                        },
+                        height: '100%',
+                        nowIndicator: true,
+                        eventTimeFormat: {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            meridiem: false
+                        }
+                    });
+                    
+                    calendar.render();
+                })
+                .catch(err => {
+                    console.error('Error fetching calendar:', err);
+                    document.getElementById('loading').innerHTML = '<div style="color: #ef4444; text-align: center; margin-top: 50px; font-weight: bold;">Lỗi tải dữ liệu. Vui lòng kiểm tra API Key và Calendar ID.</div>';
+                });
+        });
+
+        // Modal Logic
+        const modal = document.getElementById('eventModal');
+        
+        function openModal(event) {
+            document.getElementById('modalTitle').textContent = event.title;
+            
+            // Format time
+            let timeStr = '';
+            if (event.allDay) {
+                timeStr = 'All Day: ' + event.start.toLocaleDateString();
+            } else {
+                timeStr = event.start.toLocaleString() + ' - ' + (event.end ? event.end.toLocaleString() : '');
+            }
+            document.getElementById('modalTime').textContent = timeStr;
+            
+            const props = event.extendedProps;
+            
+            if (props.description) {
+                document.getElementById('descContainer').style.display = 'flex';
+                // Very simple HTML stripping for security, though FullCalendar escapes by default
+                let safeDesc = props.description.replace(/<[^>]*>?/gm, '');
+                // Find links and make them clickable (basic)
+                const urlRegex = /(https?:\/\/[^\s]+)/g;
+                safeDesc = safeDesc.replace(urlRegex, function(url) {
+                    return '<a href="' + url + '" target="_blank" style="color: var(--primary);">' + url + '</a>';
+                });
+                document.getElementById('modalDesc').innerHTML = safeDesc;
+            } else {
+                document.getElementById('descContainer').style.display = 'none';
+            }
+            
+            if (props.location) {
+                document.getElementById('locationContainer').style.display = 'flex';
+                document.getElementById('modalLocation').textContent = props.location;
+            } else {
+                document.getElementById('locationContainer').style.display = 'none';
+            }
+            
+            const joinBtn = document.getElementById('modalJoinLink');
+            if (props.hangoutLink) {
+                joinBtn.style.display = 'inline-flex';
+                joinBtn.href = props.hangoutLink;
+                joinBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px; margin-right: 8px;"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg> Tham gia Google Meet';
+            } else {
+                // Sometimes Zoom links are in location or description
+                const zoomRegex = /(https?:\/\/[^\s]*zoom\.us[^\s]*)/i;
+                let match = null;
+                if (props.location) match = props.location.match(zoomRegex);
+                if (!match && props.description) match = props.description.match(zoomRegex);
+                
+                if (match) {
+                    joinBtn.style.display = 'inline-flex';
+                    joinBtn.href = match[0];
+                    joinBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px; margin-right: 8px;"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg> Tham gia Zoom';
+                } else {
+                    joinBtn.style.display = 'none';
+                }
+            }
+            
+            const htmlLinkBtn = document.getElementById('modalHtmlLink');
+            if (props.htmlLink) {
+                htmlLinkBtn.style.display = 'inline-flex';
+                htmlLinkBtn.href = props.htmlLink;
+            } else {
+                htmlLinkBtn.style.display = 'none';
+            }
+            
+            modal.classList.add('show');
+        }
+        
+        function closeModal() {
+            modal.classList.remove('show');
+        }
+        
+        // Close modal when clicking outside
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                closeModal();
+            }
+        });
+    </script>
+</body>
+</html>
