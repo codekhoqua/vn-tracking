@@ -2882,9 +2882,15 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     function updateRadioProgress() {
-        if (!ytPlayer || !ytPlayer.getCurrentTime) return;
-        const current = ytPlayer.getCurrentTime();
-        const duration = ytPlayer.getDuration();
+        let activePlayer = isCrossfading && ytPlayer2 ? ytPlayer2 : ytPlayer;
+        if (!activePlayer || !activePlayer.getCurrentTime) return;
+        
+        let current = 0;
+        let duration = 0;
+        try {
+            current = activePlayer.getCurrentTime() || 0;
+            duration = activePlayer.getDuration() || 0;
+        } catch(e) {}
 
         const currentEl = document.getElementById('radio-time-current');
         const totalEl = document.getElementById('radio-time-total');
@@ -2902,17 +2908,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Auto-pop queue if it's about to end (handles playlists not firing ENDED)
-        if (isRadioDJ && !isLive && duration > 0 && (duration - current) <= 1.5) {
-            if (radioState.allow_requests && radioState.queue && radioState.queue.length > 0) {
+        // Only do this if NOT crossfading, otherwise it conflicts with auto-mix
+        if (isRadioDJ && !isLive && duration > 0 && (duration - current) <= 1.5 && !isCrossfading && !window.manualSkipInProgress) {
+            if (radioState.queue && radioState.queue.length > 0) {
                 const nextItem = radioState.queue[0];
                 if (window.socket) window.socket.emit('queue_pop');
-                if (ytPlayer.loadVideoById) {
-                    ytPlayer.loadVideoById(nextItem.youtube_id);
-                    ytPlayer.playVideo();
+                if (activePlayer.loadVideoById) {
+                    activePlayer.loadVideoById(nextItem.youtube_id);
+                    activePlayer.playVideo();
                     radioState.youtube_id = nextItem.youtube_id;
                     radioState.is_playing = true;
-                    updateRadioUI();
-                    syncRadioToServer();
+                    if (window.updateRadioUI) window.updateRadioUI();
+                    if (window.syncRadioToServer) window.syncRadioToServer();
                 }
             }
         }
