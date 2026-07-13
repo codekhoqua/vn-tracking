@@ -1833,6 +1833,8 @@ document.addEventListener('DOMContentLoaded', () => {
 // YOUTUBE RADIO SYNC
 // ======================================
 let ytPlayer = null;
+let ytPlayer2 = null;
+let isCrossfading = false;
 let isRadioDJ = false;
 let isListening = false;
 let radioState = {
@@ -1855,16 +1857,169 @@ const firstScriptTag = document.getElementsByTagName('script')[0];
 firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 
 window.onYouTubeIframeAPIReady = function () {
+    const pVars = { 'autoplay': 0, 'controls': 0, 'disablekb': 1, 'fs': 0, 'modestbranding': 1, 'rel': 0, 'showinfo': 0 };
     ytPlayer = new YT.Player('lofi-youtube-player', {
         height: '0',
         width: '0',
         videoId: radioState.youtube_id,
-        playerVars: { 'autoplay': 0, 'controls': 0, 'disablekb': 1, 'fs': 0, 'modestbranding': 1, 'rel': 0, 'showinfo': 0 },
+        playerVars: pVars,
         events: {
             'onReady': onPlayerReady,
-            'onStateChange': onPlayerStateChange
+            'onStateChange': function(event) {
+                // Only process events from the active player, ignore during crossfade
+                if (event.target !== ytPlayer || isCrossfading) return;
+                onPlayerStateChange(event);
+            }
         }
     });
+    ytPlayer2 = new YT.Player('lofi-youtube-player-2', {
+        height: '0',
+        width: '0',
+        playerVars: pVars,
+        events: {
+            'onReady': function() { /* Player 2 standby */ },
+            'onStateChange': function(event) {
+                if (event.target !== ytPlayer || isCrossfading) return;
+                onPlayerStateChange(event);
+            }
+        }
+    });
+};
+
+// ---- Crossfade (Auto-Mix) ----
+window.cancelCrossfade = function() {
+    if (window.fadeInterval) {
+        clearInterval(window.fadeInterval);
+        window.fadeInterval = null;
+    }
+    isCrossfading = false;
+    var overlay = document.getElementById('radio-mixing-overlay');
+    var label = document.getElementById('radio-mixing-label');
+    if (overlay) overlay.style.display = 'none';
+    if (label) label.style.display = 'none';
+    if (ytPlayer2 && ytPlayer2.pauseVideo) {
+        try { ytPlayer2.pauseVideo(); } catch(e) {}
+    }
+    if (ytPlayer && ytPlayer.setVolume) {
+        try { ytPlayer.setVolume(100); } catch(e) {}
+    }
+};
+
+window.crossfadeTo = function(newVideoId, startTime, callback) {
+    startTime = startTime || 0;
+    if (isCrossfading || !ytPlayer2 || !ytPlayer2.loadVideoById) {
+        // Fallback: load directly on main player
+        if (ytPlayer && ytPlayer.loadVideoById) {
+            ytPlayer.loadVideoById(newVideoId, startTime);
+            ytPlayer.playVideo();
+        }
+        if (callback) callback();
+        return;
+    }
+    isCrossfading = true;
+
+    ytPlayer2.setVolume(0);
+    ytPlayer2.loadVideoById(newVideoId, startTime);
+    ytPlayer2.playVideo();
+
+    var fadeTime = 20000; // 20 seconds crossfade (Apple Music style)
+    var intervalTime = 100;
+    var steps = fadeTime / intervalTime;
+    var currentStep = 0;
+    var startVol = 100;
+    try { startVol = ytPlayer.getVolume() || 100; } catch (e) {}
+
+    window.fadeInterval = setInterval(function() {
+        currentStep++;
+        var ratio = currentStep / steps;
+        var remainingSeconds = Math.ceil((steps - currentStep) * intervalTime / 1000);
+        
+        var overlay = document.getElementById('radio-mixing-overlay');
+        var label = document.getElementById('radio-mixing-label');
+        if (overlay) overlay.style.display = 'block';
+        if (label) {
+            label.style.display = 'block';
+            var span = label.querySelector('span');
+            if (span) span.innerText = (CURRENT_LANG === 'vi' ? 'Đang mix ' : 'Mixing ') + '(-0:' + (remainingSeconds < 10 ? '0' : '') + remainingSeconds + ')';
+        }
+
+        try {
+            if (ytPlayer && ytPlayer.setVolume) ytPlayer.setVolume(Math.max(0, Math.round(startVol * (1 - ratio))));
+            if (ytPlayer2 && ytPlayer2.setVolume) ytPlayer2.setVolume(Math.min(100, Math.round(startVol * ratio)));
+        } catch(e) {}
+
+        if (currentStep >= steps) {
+            clearInterval(window.fadeInterval);
+            window.fadeInterval = null;
+            var overlay = document.getElementById('radio-mixing-overlay');
+            var label = document.getElementById('radio-mixing-label');
+            if (overlay) overlay.style.display = 'none';
+            if (label) label.style.display = 'none';
+
+            try {
+                if (ytPlayer && ytPlayer.pauseVideo) ytPlayer.pauseVideo();
+                if (ytPlayer && ytPlayer.setVolume) ytPlayer.setVolume(100);
+            } catch(e) {}
+            // Pointer swap: ytPlayer always points to the active player
+            var temp = ytPlayer;
+            ytPlayer = ytPlayer2;
+            ytPlayer2 = temp;
+            isCrossfading = false;
+            if (callback) callback();
+        }
+    }, intervalTime);
+};
+
+// ---- Seek ±5s ----
+window.radioSeek = function(delta) {
+    if (!ytPlayer || !ytPlayer.getCurrentTime) return;
+    try {
+        var current = ytPlayer.getCurrentTime();
+        var duration = ytPlayer.getDuration() || 0;
+        var newTime = Math.max(0, Math.min(duration, current + delta));
+        
+        if (isCrossfading && window.cancelCrossfade) {
+            window.cancelCrossfade();
+        }
+        
+        ytPlayer.seekTo(newTime, true);
+        if (isRadioDJ && window.syncRadioToServer) syncRadioToServer();
+    } catch(e) {}
+};
+
+// ---- Skip Track (Prev / Next) ----
+window.radioSkipPrev = function() {
+    if (!ytPlayer || !ytPlayer.seekTo) return;
+    if (isCrossfading && window.cancelCrossfade) window.cancelCrossfade();
+    // Restart current song from beginning
+    try {
+        ytPlayer.seekTo(0, true);
+        if (isRadioDJ && window.syncRadioToServer) syncRadioToServer();
+    } catch(e) {}
+};
+
+window.radioSkipNext = function() {
+    if (!isRadioDJ) return; // Only DJ can skip tracks
+    if (!radioState.queue || radioState.queue.length === 0) {
+        if (window.showToast) showToast(CURRENT_LANG === 'vi' ? 'Hàng chờ trống!' : 'キューが空です！', 'info');
+        return;
+    }
+    if (isCrossfading && window.cancelCrossfade) window.cancelCrossfade();
+    var nextItem = radioState.queue[0];
+    if (window.socket) window.socket.emit('queue_pop');
+    radioState.youtube_id = nextItem.youtube_id;
+    radioState.current_time = 0;
+    radioState.is_playing = true;
+    
+    // Hard skip (no crossfade on manual skip)
+    window.manualSkipInProgress = true;
+    if (ytPlayer && ytPlayer.loadVideoById) {
+        ytPlayer.loadVideoById(nextItem.youtube_id);
+        ytPlayer.playVideo();
+        if (window.updateRadioUI) updateRadioUI();
+        if (window.syncRadioToServer) syncRadioToServer();
+    }
+    setTimeout(() => { window.manualSkipInProgress = false; }, 2000);
 };
 
 // ---- REST API helpers ----
@@ -1914,7 +2069,11 @@ function handleRadioStateFromPolling(state) {
         if (ytPlayer && ytPlayer.loadVideoById) {
             const currentVideo = ytPlayer.getVideoData?.()?.video_id;
             if (currentVideo !== state.youtube_id) {
-                ytPlayer.loadVideoById(state.youtube_id, state.current_time);
+                if (!isCrossfading && currentVideo && window.crossfadeTo) {
+                    window.crossfadeTo(state.youtube_id, state.current_time);
+                } else {
+                    ytPlayer.loadVideoById(state.youtube_id, state.current_time);
+                }
             }
             if (state.is_playing) ytPlayer.playVideo();
         }
@@ -1923,6 +2082,7 @@ function handleRadioStateFromPolling(state) {
         radioState.current_time = state.current_time;
         if (state.next_title !== undefined) radioState.next_title = state.next_title;
         radioState.allow_requests = state.allow_requests === true || state.allow_requests === 'true';
+        radioState.is_automix_enabled = state.is_automix_enabled !== false;
         if (state.queue) radioState.queue = state.queue;
 
         if (window.updateRadioUI) window.updateRadioUI();
@@ -1954,17 +2114,28 @@ function handleRadioStateFromPolling(state) {
 
     if (isListening && ytPlayer && ytPlayer.loadVideoById) {
         const currentVideo = ytPlayer.getVideoData?.()?.video_id;
+        const duration = ytPlayer.getDuration?.() || 0;
+        const currentTime = ytPlayer.getCurrentTime?.() || 0;
+        const isNearEnd = duration > 0 && (duration - currentTime) <= 22;
+
         if (currentVideo !== state.youtube_id) {
-            ytPlayer.loadVideoById(state.youtube_id, state.current_time);
-        } else if (Math.abs((ytPlayer.getCurrentTime?.() || 0) - state.current_time) > 3) {
+            if (!isCrossfading && currentVideo && window.crossfadeTo && isNearEnd) {
+                window.crossfadeTo(state.youtube_id, state.current_time);
+            } else {
+                if (isCrossfading && window.cancelCrossfade) window.cancelCrossfade();
+                ytPlayer.loadVideoById(state.youtube_id, state.current_time);
+            }
+        } else if (!isCrossfading && Math.abs(currentTime - state.current_time) > 3) {
             ytPlayer.seekTo(state.current_time, true);
         }
 
         const playerState = ytPlayer.getPlayerState?.();
-        if (state.is_playing && playerState !== YT.PlayerState.PLAYING) {
+        if (state.is_playing && playerState !== YT.PlayerState.PLAYING && playerState !== YT.PlayerState.BUFFERING) {
             ytPlayer.playVideo();
-        } else if (!state.is_playing && playerState === YT.PlayerState.PLAYING) {
+            if (isCrossfading && ytPlayer2 && ytPlayer2.playVideo) ytPlayer2.playVideo();
+        } else if (!state.is_playing && playerState !== YT.PlayerState.PAUSED && playerState !== YT.PlayerState.CUED && playerState !== YT.PlayerState.UNSTARTED) {
             ytPlayer.pauseVideo();
+            if (isCrossfading && ytPlayer2 && ytPlayer2.pauseVideo) ytPlayer2.pauseVideo();
         }
     }
 
@@ -2169,21 +2340,33 @@ function setupSocketRadio() {
         radioState.is_playing = state.is_playing;
         if (state.next_title !== undefined) radioState.next_title = state.next_title;
         radioState.allow_requests = state.allow_requests === true || state.allow_requests === 'true';
+        radioState.is_automix_enabled = state.is_automix_enabled !== false;
         if (state.queue) radioState.queue = state.queue;
 
         if (isListening && ytPlayer && ytPlayer.loadVideoById) {
-            const currentVideo = ytPlayer.getVideoData()?.video_id;
+            const currentVideo = ytPlayer.getVideoData?.()?.video_id;
+            const duration = ytPlayer.getDuration?.() || 0;
+            const currentTime = ytPlayer.getCurrentTime?.() || 0;
+            const isNearEnd = duration > 0 && (duration - currentTime) <= 22;
+
             if (currentVideo !== state.youtube_id) {
-                ytPlayer.loadVideoById(state.youtube_id, state.current_time);
-            } else if (Math.abs(ytPlayer.getCurrentTime() - state.current_time) > 0.5) {
+                if (!isCrossfading && currentVideo && window.crossfadeTo && isNearEnd) {
+                    window.crossfadeTo(state.youtube_id, state.current_time);
+                } else {
+                    if (isCrossfading && window.cancelCrossfade) window.cancelCrossfade();
+                    ytPlayer.loadVideoById(state.youtube_id, state.current_time);
+                }
+            } else if (!isCrossfading && Math.abs(currentTime - state.current_time) > 0.5) {
                 ytPlayer.seekTo(state.current_time, true);
             }
 
-            const playerState = ytPlayer.getPlayerState();
-            if (state.is_playing && playerState !== YT.PlayerState.PLAYING) {
+            const playerState = ytPlayer.getPlayerState?.();
+            if (state.is_playing && playerState !== YT.PlayerState.PLAYING && playerState !== YT.PlayerState.BUFFERING) {
                 ytPlayer.playVideo();
-            } else if (!state.is_playing && playerState === YT.PlayerState.PLAYING) {
+                if (isCrossfading && ytPlayer2 && ytPlayer2.playVideo) ytPlayer2.playVideo();
+            } else if (!state.is_playing && playerState !== YT.PlayerState.PAUSED && playerState !== YT.PlayerState.CUED && playerState !== YT.PlayerState.UNSTARTED) {
                 ytPlayer.pauseVideo();
+                if (isCrossfading && ytPlayer2 && ytPlayer2.pauseVideo) ytPlayer2.pauseVideo();
             }
         }
 
@@ -2247,9 +2430,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const state = ytPlayer.getPlayerState();
             if (state === YT.PlayerState.PLAYING) {
                 ytPlayer.pauseVideo();
+                if (isCrossfading && ytPlayer2 && ytPlayer2.pauseVideo) ytPlayer2.pauseVideo();
                 radioState.is_playing = false;
             } else {
                 ytPlayer.playVideo();
+                if (isCrossfading && ytPlayer2 && ytPlayer2.playVideo) ytPlayer2.playVideo();
                 radioState.is_playing = true;
             }
             updateRadioUI();
@@ -2420,17 +2605,39 @@ document.addEventListener('DOMContentLoaded', () => {
     window.syncRadioToServer = function () {
         if (!isRadioDJ || !ytPlayer || !ytPlayer.getCurrentTime) return;
         let time = 0;
-        try { time = ytPlayer.getCurrentTime() || 0; } catch (e) { }
+        let duration = 0;
+        try {
+            time = ytPlayer.getCurrentTime() || 0;
+            duration = ytPlayer.getDuration() || 0;
+        } catch (e) { }
+
+        // --- Auto-Mix Crossfade Check ---
+        if (!window.manualSkipInProgress && radioState.is_automix_enabled !== false && !isCrossfading && duration > 0 && (duration - time) <= 20 && (duration - time) > 0 && radioState.queue && radioState.queue.length > 0) {
+            const nextItem = radioState.queue[0];
+            if (window.socket) window.socket.emit('queue_pop');
+            radioState.youtube_id = nextItem.youtube_id;
+            radioState.current_time = 0;
+            radioState.is_playing = true;
+            if (window.crossfadeTo) {
+                window.crossfadeTo(nextItem.youtube_id, 0, function() {
+                    if (window.updateRadioUI) updateRadioUI();
+                    if (window.syncRadioToServer) syncRadioToServer();
+                });
+            }
+            return;
+        }
+
+        let activePlayer = isCrossfading && ytPlayer2 ? ytPlayer2 : ytPlayer;
 
         try {
-            const ytData = ytPlayer.getVideoData();
+            const ytData = activePlayer.getVideoData();
             if (ytData && ytData.video_id) {
                 radioState.youtube_id = ytData.video_id; // Dynamically grab current playlist video
             }
 
-            if (ytPlayer.getPlaylist && ytPlayer.getPlaylistIndex) {
-                const playlist = ytPlayer.getPlaylist();
-                const index = ytPlayer.getPlaylistIndex();
+            if (activePlayer.getPlaylist && activePlayer.getPlaylistIndex) {
+                const playlist = activePlayer.getPlaylist();
+                const index = activePlayer.getPlaylistIndex();
                 if (playlist && playlist.length > index + 1) {
                     const nextVideoId = playlist[index + 1];
                     if (radioState.next_youtube_id !== nextVideoId) {
@@ -2465,9 +2672,19 @@ document.addEventListener('DOMContentLoaded', () => {
             window.socket.emit('radio_sync', {
                 is_playing: radioState.is_playing,
                 youtube_id: radioState.youtube_id,
-                current_time: time,
-                next_title: radioState.next_title
+                current_time: isCrossfading && ytPlayer2 ? ytPlayer2.getCurrentTime() || 0 : time,
+                next_title: radioState.next_title,
+                is_crossfading: isCrossfading,
+                is_automix_enabled: radioState.is_automix_enabled !== false
             });
+        }
+    };
+
+    window.toggleAutoMix = function (checkbox) {
+        if (!isRadioDJ) return;
+        radioState.is_automix_enabled = checkbox.checked;
+        if (window.socket) {
+            window.socket.emit('toggle_automix', { is_automix_enabled: checkbox.checked });
         }
     };
 
@@ -2570,8 +2787,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     const checkbox = document.getElementById('radio-allow-requests');
                     if (checkbox) checkbox.checked = radioState.allow_requests === true || radioState.allow_requests === 'true';
                 }
+                const automixCheckbox = document.getElementById('radio-automix-toggle');
+                if (automixCheckbox) automixCheckbox.checked = radioState.is_automix_enabled !== false;
+                const automixContainer = document.getElementById('dj-automix-toggle');
+                if (automixContainer) automixContainer.style.display = 'flex';
             } else {
                 if (toggleContainer) toggleContainer.style.display = 'none';
+                const automixContainer = document.getElementById('dj-automix-toggle');
+                if (automixContainer) automixContainer.style.display = 'none';
                 if (inputContainer) {
                     inputContainer.style.display = (radioState.allow_requests && isListening) ? 'block' : 'none';
                 }
