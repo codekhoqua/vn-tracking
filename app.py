@@ -1934,7 +1934,9 @@ radio_state = {
     'last_update': time.time(),
     'dj_username': None,
     'dj_sid': None,
-    'allow_requests': False
+    'allow_requests': False,
+    'is_crossfading': False,
+    'is_automix_enabled': True
 }
 
 radio_queue = []
@@ -1951,10 +1953,30 @@ def get_radio_listener_profiles():
     
     # Add DJ to the top of the listener list
     dj_sid = radio_state.get('dj_sid')
+    dj_username = radio_state.get('dj_username')
+    dj_added = False
+    
+    # Try by SID first
     if dj_sid and dj_sid in online_users:
         u = online_users[dj_sid]
         seen.add(u['username'])
         listeners.append(u)
+        dj_added = True
+    
+    # Fallback: find DJ by username in online_users (handles socket reconnect)
+    if not dj_added and dj_username:
+        for sid, u in online_users.items():
+            if u['username'] == dj_username:
+                seen.add(u['username'])
+                listeners.append(u)
+                radio_state['dj_sid'] = sid  # Update SID to new one
+                dj_added = True
+                break
+    
+    # Last resort: use stored DJ profile (survives brief disconnects)
+    if not dj_added and dj_username and radio_state.get('dj_profile'):
+        seen.add(dj_username)
+        listeners.append(radio_state['dj_profile'])
 
     # Add listeners from polling
     polling_listeners = _presence_read_dir(RADIO_LISTENERS_DIR)
@@ -2034,6 +2056,7 @@ def handle_radio_sync(data):
     radio_state['current_time'] = data.get('current_time', 0)
     if 'next_title' in data:
         radio_state['next_title'] = data['next_title']
+    radio_state['is_crossfading'] = data.get('is_crossfading', False)
     radio_state['last_update'] = time.time()
     state = radio_state.copy()
     state['queue'] = radio_queue
@@ -2047,6 +2070,9 @@ def handle_claim_dj():
         radio_listeners.clear()
         radio_state['dj_sid'] = request.sid
         radio_state['dj_username'] = session.get('user', 'Guest')
+        # Store DJ profile for fallback during socket reconnects
+        if request.sid in online_users:
+            radio_state['dj_profile'] = online_users[request.sid].copy()
         state = radio_state.copy()
         state['queue'] = radio_queue
         emit('radio_sync', state, broadcast=True)
@@ -2061,6 +2087,7 @@ def handle_release_dj():
     if radio_state.get('dj_sid') == request.sid:
         radio_state['dj_sid'] = None
         radio_state['dj_username'] = None
+        radio_state['dj_profile'] = None
         radio_state['is_playing'] = False
         radio_state['youtube_id'] = '4xDzrIxC4Dk'
         radio_state['current_time'] = 0
