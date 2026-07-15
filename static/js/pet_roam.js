@@ -14,7 +14,7 @@ window.PetRoamEngine = (function() {
     let imgElement = null;
     
     // Config URLs
-    const IDLE_GIF = '/static/img/idle.gif';
+    const IDLE_GIF = '/static/img/pet/2.gif';
     const CLICK_PET_GIF = '/static/img/pet/1.gif';
     const FEED_GIF = '/static/img/pet/2.gif';
     const IGNORE_GIF = '/static/img/pet/3.gif';
