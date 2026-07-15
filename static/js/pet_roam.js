@@ -17,7 +17,7 @@ window.PetRoamEngine = (function() {
         'hamster': 'https://raw.githubusercontent.com/tonybaloney/vscode-pets/main/media/totoro/gray_walk_8fps.gif'
     };
 
-    const FALLBACK_GIF = 'https://raw.githubusercontent.com/tonybaloney/vscode-pets/main/media/totoro/gray_walk_8fps.gif';
+    const FALLBACK_GIF = '/static/img/pifei_spritesheet.webp';
 
     // State
     let x = window.innerWidth / 2;
@@ -68,14 +68,59 @@ window.PetRoamEngine = (function() {
         const scale = Math.min(2.5, 1.5 + (level * 0.03)); 
         petElement.style.transform = `scale(${scale}) scaleX(${direction})`;
 
-        const img = document.createElement('img');
-        img.src = PET_GIFS[petData.type] || FALLBACK_GIF;
-        img.style.width = '80px'; // To hơn gốc
-        img.style.height = '80px';
-        img.style.objectFit = 'contain';
-        img.style.filter = 'drop-shadow(0 4px 6px rgba(0,0,0,0.4))';
-        
-        petElement.appendChild(img);
+        const url = PET_GIFS[petData.type] || FALLBACK_GIF;
+
+        if (url.endsWith('.webp')) {
+            // Spritesheet mode (for Pifei)
+            const spriteDiv = document.createElement('div');
+            spriteDiv.id = 'pet-sprite-div';
+            spriteDiv.style.width = '48px'; // Kích thước 1 khung hình (48x48)
+            spriteDiv.style.height = '48px';
+            spriteDiv.style.backgroundImage = `url('${url}')`;
+            spriteDiv.style.backgroundRepeat = 'no-repeat';
+            // Scale up for visibility
+            spriteDiv.style.transform = 'scale(1.5)';
+            spriteDiv.style.transformOrigin = 'bottom center';
+            spriteDiv.style.filter = 'drop-shadow(0 2px 4px rgba(0,0,0,0.4))';
+            
+            // Default row 1 (walk) - Tạm tính row = 1
+            let row = window.pifei_row !== undefined ? window.pifei_row : 1;
+            
+            // Allow dynamic update in console
+            window.updatePifeiRow = (newRow) => {
+                row = newRow;
+                spriteDiv.style.backgroundPosition = `0px -${row * cellWidth}px`;
+            };
+
+            const frameCount = 4; // Tạm tính 4 frame
+            const cellWidth = 48;
+            spriteDiv.style.backgroundPosition = `0px -${row * cellWidth}px`;
+            
+            // Add CSS animation keyframes if not exists
+            if (!document.getElementById('pet-sprite-style')) {
+                const style = document.createElement('style');
+                style.id = 'pet-sprite-style';
+                style.innerHTML = `
+                    @keyframes pet-sprite-anim {
+                        from { background-position-x: 0px; }
+                        to { background-position-x: -${frameCount * cellWidth}px; }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+            spriteDiv.style.animation = `pet-sprite-anim 0.8s steps(${frameCount}) infinite`;
+            
+            petElement.appendChild(spriteDiv);
+        } else {
+            // Normal GIF mode
+            const img = document.createElement('img');
+            img.src = url;
+            img.style.width = '80px'; // To hơn gốc
+            img.style.height = '80px';
+            img.style.objectFit = 'contain';
+            img.style.filter = 'drop-shadow(0 4px 6px rgba(0,0,0,0.4))';
+            petElement.appendChild(img);
+        }
         
         document.body.appendChild(petElement);
     }
