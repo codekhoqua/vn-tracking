@@ -220,7 +220,7 @@
             style="border-radius: var(--radius-sm); margin-right: 8px;">
         <div style="display: flex; flex-direction: column; justify-content: center;">
             <span>VN-Tracking</span>
-            <sup style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.2.63</i></sup>
+            <sup style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.2.64</i></sup>
         </div>
     </div>
 
@@ -1509,9 +1509,6 @@
         <div style="display: flex; gap: 10px; margin-top: 15px;">
             <button class="pet-feed-btn" id="pet-feed-btn" onclick="feedPet()" style="flex:1;">
                 🍖 Cho ăn
-            </button>
-            <button class="pet-feed-btn" onclick="openPetAdoptModal()" style="background: linear-gradient(135deg, #ef4444, #b91c1c);" title="Đổi thú cưng (Reset)">
-                🔄 Đổi thú cưng
             </button>
             <button class="pet-feed-btn" onclick="fetch('/api/pet/cheat_food', {method:'POST'}).then(r=>r.json()).then(d=>{if(d.success) fetchPetData();})" style="background: linear-gradient(135deg, #fbbf24, #d97706);" title="Cheat 999 Food">
                 ✨ +999 Food
