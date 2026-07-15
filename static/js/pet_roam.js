@@ -9,15 +9,15 @@ window.PetRoamEngine = (function() {
     
     // Config URLs for different pet types
     const PET_GIFS = {
-        'neko': 'https://media.tenor.com/FwWk8c2B4p0AAAAj/pixel-cat.gif',
-        'shiba': 'https://media.tenor.com/0Fw9Q1sKj4EAAAAj/pixel-dog.gif',
-        'bunny': 'https://media.tenor.com/xO7vS-Q3i_QAAAAj/rabbit-pixel.gif',
-        'dragon': 'https://media.tenor.com/B_O9UXXq63UAAAAj/dragon-pixel.gif',
-        'fox': 'https://media.tenor.com/v2J_q2oOaN8AAAAj/fox-pixel.gif',
-        'hamster': 'https://media.tenor.com/5Xh5yWwG24EAAAAj/hamster-pixel.gif'
+        'neko': 'https://raw.githubusercontent.com/tonybaloney/vscode-pets/main/media/totoro/gray_walk_8fps.gif',
+        'shiba': 'https://raw.githubusercontent.com/tonybaloney/vscode-pets/main/media/dog/akita_walk_8fps.gif',
+        'bunny': 'https://raw.githubusercontent.com/tonybaloney/vscode-pets/main/media/fox/white_walk_8fps.gif',
+        'dragon': 'https://raw.githubusercontent.com/tonybaloney/vscode-pets/main/media/snake/snake_walk_8fps.gif',
+        'fox': 'https://raw.githubusercontent.com/tonybaloney/vscode-pets/main/media/fox/red_walk_8fps.gif',
+        'hamster': 'https://raw.githubusercontent.com/tonybaloney/vscode-pets/main/media/totoro/gray_walk_8fps.gif'
     };
 
-    const FALLBACK_GIF = 'https://media.tenor.com/FwWk8c2B4p0AAAAj/pixel-cat.gif';
+    const FALLBACK_GIF = 'https://raw.githubusercontent.com/tonybaloney/vscode-pets/main/media/totoro/gray_walk_8fps.gif';
 
     // State
     let x = window.innerWidth / 2;
