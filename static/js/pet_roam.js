@@ -143,8 +143,12 @@ window.PetRoamEngine = (function() {
             }
         },
         syncPet: (pet) => {
-            petData = pet; // Cập nhật data mới
-            revertToDefault(); // Nếu vừa được ăn xong -> thoát starve
+            if (!petElement) {
+                init(pet);
+            } else {
+                petData = pet; // Cập nhật data mới
+                revertToDefault(); // Cập nhật lại animation (ví dụ vừa ăn xong -> hết đói)
+            }
         },
         destroy: () => {
             if (idleTimer) clearTimeout(idleTimer);
