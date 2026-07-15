@@ -220,7 +220,7 @@
             style="border-radius: var(--radius-sm); margin-right: 8px;">
         <div style="display: flex; flex-direction: column; justify-content: center;">
             <span>VN-Tracking</span>
-            <sup style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.2.60</i></sup>
+            <sup style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.2.61</i></sup>
         </div>
     </div>
 
@@ -1505,10 +1505,7 @@
                 <span id="pet-streak-count">0 ngày</span>
             </div>
         </div>
-        <div class="pet-stats" style="margin-top: 10px; flex-wrap: wrap;">
-            <div style="width:100%; font-size: 11px; color: var(--text-2); margin-bottom: 5px;">🎒 Tủ đồ:</div>
-            <div id="pet-wardrobe-list" style="display:flex; flex-wrap:wrap; gap:5px; width:100%;"></div>
-        </div>
+
         <div style="display: flex; gap: 10px; margin-top: 15px;">
             <button class="pet-feed-btn" id="pet-feed-btn" onclick="feedPet()" style="flex:1;">
                 🍖 Cho ăn
@@ -1972,26 +1969,7 @@ function renderPet() {
     document.getElementById('pet-food-count').textContent = petData.food || 0;
     document.getElementById('pet-streak-count').textContent = (petData.login_streak || 0) + (lang === 'ja' ? '日' : ' ngày');
 
-    // Render wardrobe
-    const wardrobeDiv = document.getElementById('pet-wardrobe-list');
-    if (wardrobeDiv) {
-        wardrobeDiv.innerHTML = '';
-        const accs = petData.accessories || [];
-        if(accs.length === 0) {
-            wardrobeDiv.innerHTML = '<span style="font-size:12px;color:var(--text-2);">Chưa có phụ kiện</span>';
-        } else {
-            accs.forEach(acc => {
-                let emoji = '';
-                if(acc==='sunglasses') emoji='🕶️';
-                else if(acc==='magic_hat') emoji='🎩';
-                else if(acc==='bow') emoji='🎀';
-                else if(acc==='crown') emoji='👑';
-                else if(acc==='halo') emoji='👼';
-                else if(acc==='gold_chain') emoji='🏅';
-                wardrobeDiv.innerHTML += `<div style="padding:2px; background:rgba(255,255,255,0.1); border-radius:4px; font-size:16px;">${emoji}</div>`;
-            });
-        }
-    }
+
 
     document.getElementById('pet-feed-btn').disabled = (petData.food || 0) <= 0;
 
