@@ -99,8 +99,8 @@ window.PetRoamEngine = (function() {
         petElement.style.cursor = 'pointer';
         
         // VỊ TRÍ ĐỨNG IM GẦN TEAM CHAT (DƯỚI CÙNG GÓC PHẢI)
-        petElement.style.bottom = '-5px'; // Lép sát thanh taskbar
-        petElement.style.right = '90px';  // Ngay cạnh nút chat
+        petElement.style.bottom = '-25px'; // Lép sát thanh taskbar hơn
+        petElement.style.right = '130px';  // Dịch sang trái một chút
         
         const level = petData.level || 1;
         const scale = Math.min(2.5, 1.5 + (level * 0.03)); 
