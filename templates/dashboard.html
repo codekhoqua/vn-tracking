@@ -220,7 +220,7 @@
             style="border-radius: var(--radius-sm); margin-right: 8px;">
         <div style="display: flex; flex-direction: column; justify-content: center;">
             <span>VN-Tracking</span>
-            <sup style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.2.65</i></sup>
+            <sup style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.2.66</i></sup>
         </div>
     </div>
 
@@ -1998,10 +1998,16 @@ async function feedPet() {
         if (data.success) {
             fetchPetData(); // reload all states
 
+            // Kích hoạt animation ăn của roaming pet
+            if (window.triggerPetFeedAnimation) {
+                window.triggerPetFeedAnimation();
+            }
 
-            // Eat animation
+            // Eat animation cho static pet (nếu còn)
             const display = document.getElementById('pet-display');
-            display.className = 'pet-display pet-anim-eat';
+            if (display) {
+                display.className = 'pet-display pet-anim-eat';
+            }
             setTimeout(() => {
                 renderPet();
                 if (data.leveled_up) {
