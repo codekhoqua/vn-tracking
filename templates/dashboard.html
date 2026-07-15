@@ -2287,7 +2287,7 @@ document.addEventListener('DOMContentLoaded', () => setTimeout(initPet, 1500));
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/pet_roam.js') }}"></script>
+<script src="{{ url_for('static', filename='js/pet_roam.js') }}?v=2.5"></script>
 <script>
     const CHECKLIST_API = "{{ checklist_api }}";
     const CURRENT_LANG = "{{ lang }}";
