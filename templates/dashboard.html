@@ -220,7 +220,7 @@
             style="border-radius: var(--radius-sm); margin-right: 8px;">
         <div style="display: flex; flex-direction: column; justify-content: center;">
             <span>VN-Tracking</span>
-            <sup style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.2.58</i></sup>
+            <sup style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.2.59</i></sup>
         </div>
     </div>
 
@@ -1513,11 +1513,11 @@
             <button class="pet-feed-btn" id="pet-feed-btn" onclick="feedPet()" style="flex:1;">
                 🍖 Cho ăn
             </button>
-            <button class="pet-feed-btn" id="pet-switch-btn" onclick="switchPet()" style="flex:1; background: linear-gradient(135deg, #3b82f6, #2563eb); display:none;">
-                🔄 Đổi Pet
+            <button class="pet-feed-btn" onclick="openPetAdoptModal()" style="background: linear-gradient(135deg, #ef4444, #b91c1c);" title="Đổi thú cưng (Reset)">
+                🔄 Đổi thú cưng
             </button>
-            <button class="pet-feed-btn" onclick="openPetAdoptModal()" style="width:40px; background: linear-gradient(135deg, #10b981, #059669);" title="Nhận nuôi thêm">
-                +
+            <button class="pet-feed-btn" onclick="fetch('/api/pet/cheat_food', {method:'POST'}).then(r=>r.json()).then(d=>{if(d.success) fetchPetData();})" style="background: linear-gradient(135deg, #fbbf24, #d97706);" title="Cheat 999 Food">
+                ✨ +999 Food
             </button>
         </div>
     </div>
@@ -1885,8 +1885,6 @@
 <script>
 // ===== 🐾 VIRTUAL PET SYSTEM =====
 let petData = null;
-let allPets = [];
-let activePetIndex = 0;
 let petPanelOpen = false;
 let selectedPetType = null;
 
@@ -1918,13 +1916,10 @@ async function initPet() {
             return;
         }
         if (data.has_pet) {
-            allPets = data.pets || [data];
-            activePetIndex = data.active_pet_index || 0;
-            if(activePetIndex >= allPets.length) activePetIndex = 0;
-            petData = allPets[activePetIndex];
+            petData = data;
             
             if(window.PetRoamEngine) {
-                window.PetRoamEngine.syncPets(allPets);
+                window.PetRoamEngine.syncPet(petData);
             }
             renderPet();
         }
@@ -1997,8 +1992,6 @@ function renderPet() {
             });
         }
     }
-    const switchBtn = document.getElementById('pet-switch-btn');
-    if (switchBtn) switchBtn.style.display = allPets.length > 1 ? 'block' : 'none';
 
     document.getElementById('pet-feed-btn').disabled = (petData.food || 0) <= 0;
 
@@ -2018,23 +2011,6 @@ function togglePetPanel() {
     }
 }
 
-async function switchPet() {
-    if(allPets.length <= 1) return;
-    let nextIdx = (activePetIndex + 1) % allPets.length;
-    try {
-        const res = await fetch('/api/pet/set_active', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({index: nextIdx})
-        });
-        const data = await res.json();
-        if(data.success) {
-            fetchPetData();
-        }
-    } catch(e) {
-        console.error('Error switching pet:', e);
-    }
-}
 
 async function feedPet() {
     const btn = document.getElementById('pet-feed-btn');

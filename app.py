@@ -1682,33 +1682,31 @@ def _pet_mood(last_activity_str):
 def _pet_read(username):
     """Đọc pet data từ Supabase hoặc Local."""
     if not username:
-        return {'active_pet': 0, 'pets': []}
-
-    def _migrate(data):
-        if not data:
-            return {'active_pet': 0, 'pets': []}
-        if 'pets' not in data:
-            return {'active_pet': 0, 'pets': [data]}
-        return data
-
+        return None
     if USE_SUPABASE:
         try:
             data = sb_download_bytes(f'_system/pets/{username}.json')
             if data:
-                return _migrate(json.loads(data.decode('utf-8')))
+                d = json.loads(data.decode('utf-8'))
+                if 'pets' in d and len(d['pets']) > 0:
+                    return d['pets'][d.get('active_pet', 0)] # migration fallback
+                return d
         except Exception:
             pass
-        return {'active_pet': 0, 'pets': []}
+        return None
     else:
         # Fallback local
         try:
             path = os.path.join(DRIVE_ROOT, '_system', 'pets', f'{username}.json')
             if os.path.exists(path):
                 with open(path, 'r', encoding='utf-8') as f:
-                    return _migrate(json.load(f))
+                    d = json.load(f)
+                    if 'pets' in d and len(d['pets']) > 0:
+                        return d['pets'][d.get('active_pet', 0)]
+                    return d
         except Exception:
             pass
-        return {'active_pet': 0, 'pets': []}
+        return None
 
 
 def _pet_write(username, pet_data):
@@ -1737,136 +1735,120 @@ def _pet_write(username, pet_data):
 
 
 def pet_add_xp(username, amount, reason=''):
-    """Thêm XP cho tất cả pet. Trả về dict active_pet_data hoặc None."""
-    pet_data_wrapper = _pet_read(username)
-    if not pet_data_wrapper.get('pets'):
+    """Thêm XP cho pet. Trả về dict {leveled_up, new_level, pet_data} hoặc None."""
+    pet = _pet_read(username)
+    if not pet:
         return None
 
-    active_idx = pet_data_wrapper.get('active_pet', 0)
-    leveled_up_any = False
+    old_level = pet.get('level', 1)
+    pet['xp'] = pet.get('xp', 0) + amount
+    pet['last_activity'] = datetime.now().isoformat()
 
-    for pet in pet_data_wrapper['pets']:
-        pet['xp'] = pet.get('xp', 0) + amount
-        pet['last_activity'] = datetime.now().isoformat()
-        
-        # Food token: mỗi 20 XP kiếm được +1 food
-        if reason in ('checklist', 'logtime', 'checklist_bonus'):
-            pet['food'] = pet.get('food', 0) + max(1, amount // 20)
+    # Food token: mỗi 20 XP kiếm được +1 food
+    if reason in ('checklist', 'logtime', 'checklist_bonus'):
+        pet['food'] = pet.get('food', 0) + max(1, amount // 20)
 
-        # Level up check
-        while True:
-            xp_needed = _pet_xp_for_level(pet.get('level', 1))
-            if pet['xp'] >= xp_needed:
-                pet['xp'] -= xp_needed
-                pet['level'] = pet.get('level', 1) + 1
-                leveled_up_any = True
-                
-                # Rớt phụ kiện
-                new_acc = _get_random_accessory(pet)
-                if new_acc:
-                    accs = pet.get('accessories', [])
-                    if new_acc not in accs:
-                        accs.append(new_acc)
-                    pet['accessories'] = accs
-            else:
-                break
-        pet['stage'] = _pet_stage(pet.get('level', 1))
+    # Level up check
+    leveled_up = False
+    while True:
+        xp_needed = _pet_xp_for_level(pet.get('level', 1))
+        if pet['xp'] >= xp_needed:
+            pet['xp'] -= xp_needed
+            pet['level'] = pet.get('level', 1) + 1
+            leveled_up = True
+            
+            # Rớt phụ kiện
+            new_acc = _get_random_accessory(pet)
+            if new_acc:
+                accs = pet.get('accessories', [])
+                if new_acc not in accs:
+                    accs.append(new_acc)
+                pet['accessories'] = accs
+        else:
+            break
 
-    _pet_write(username, pet_data_wrapper)
-    
-    # Lấy pet active để render bong bóng
-    if active_idx >= len(pet_data_wrapper['pets']):
-        active_idx = 0
-    active_pet = pet_data_wrapper['pets'][active_idx]
+    pet['stage'] = _pet_stage(pet.get('level', 1))
+    _pet_write(username, pet)
 
     return {
-        'leveled_up': leveled_up_any,
-        'old_level': active_pet.get('level', 1) - (1 if leveled_up_any else 0), # approx
-        'new_level': active_pet.get('level', 1),
+        'leveled_up': leveled_up,
+        'old_level': old_level,
+        'new_level': pet.get('level', 1),
         'xp_gained': amount,
         'reason': reason,
-        'pet_data': active_pet
+        'pet_data': pet
     }
 
 
 @app.route('/api/pet', methods=['GET'])
 def api_pet_get():
-    """Lấy thông tin tất cả pet hiện tại."""
+    """Lấy thông tin pet hiện tại."""
     if not session.get('logged_in'):
         return jsonify({'error': 'Unauthorized'}), 401
 
     username = session.get('user', '')
-    pet_data_wrapper = _pet_read(username)
+    pet = _pet_read(username)
 
-    if not pet_data_wrapper.get('pets'):
+    if not pet:
         return jsonify({'has_pet': False, 'pet_types': PET_TYPES})
 
+    # Tính mood động
+    pet['mood'] = _pet_mood(pet.get('last_activity'))
+    pet['stage'] = _pet_stage(pet.get('level', 1))
+    pet['xp_needed'] = _pet_xp_for_level(pet.get('level', 1))
+
+    # Login streak check (Bỏ qua T7, CN)
     today = date.today()
-    today_str = today.isoformat()
-    yesterday = None
-    if today.weekday() == 0:
-        yesterday = (today - timedelta(days=3)).isoformat()
-    elif today.weekday() < 5:
-        yesterday = (today - timedelta(days=1)).isoformat()
+    if today.weekday() < 5:  # Chỉ tính vào Thứ 2 -> Thứ 6
+        today_str = today.isoformat()
+        if pet.get('last_login_date') != today_str:
+            # Nếu hnay là Thứ 2, thì yesterday hợp lệ để nối chuỗi là Thứ 6 (-3 ngày)
+            if today.weekday() == 0:
+                yesterday = (today - timedelta(days=3)).isoformat()
+            else:
+                yesterday = (today - timedelta(days=1)).isoformat()
+                
+            if pet.get('last_login_date') == yesterday:
+                pet['login_streak'] = pet.get('login_streak', 0) + 1
+            else:
+                pet['login_streak'] = 1
+            pet['last_login_date'] = today_str
 
-    needs_save = False
+            # Streak XP bonus
+            streak_xp = min(pet['login_streak'] * 3, 15)  # cap 15 XP
+            pet['xp'] = pet.get('xp', 0) + streak_xp
+            pet['last_activity'] = datetime.now().isoformat()
 
-    for pet in pet_data_wrapper['pets']:
-        pet['mood'] = _pet_mood(pet.get('last_activity'))
-        pet['stage'] = _pet_stage(pet.get('level', 1))
-        pet['xp_needed'] = _pet_xp_for_level(pet.get('level', 1))
-
-        # Login streak check (Bỏ qua T7, CN)
-        if today.weekday() < 5:  # Chỉ tính vào Thứ 2 -> Thứ 6
-            if pet.get('last_login_date') != today_str:
-                if yesterday and pet.get('last_login_date') == yesterday:
-                    pet['login_streak'] = pet.get('login_streak', 0) + 1
+            # Level up check after streak
+            while True:
+                xp_needed = _pet_xp_for_level(pet.get('level', 1))
+                if pet['xp'] >= xp_needed:
+                    pet['xp'] -= xp_needed
+                    pet['level'] = pet.get('level', 1) + 1
+                    
+                    new_acc = _get_random_accessory(pet)
+                    if new_acc:
+                        accs = pet.get('accessories', [])
+                        if new_acc not in accs:
+                            accs.append(new_acc)
+                        pet['accessories'] = accs
                 else:
-                    pet['login_streak'] = 1
-                pet['last_login_date'] = today_str
+                    break
+            pet['stage'] = _pet_stage(pet.get('level', 1))
+            pet['xp_needed'] = _pet_xp_for_level(pet.get('level', 1))
+            _pet_write(username, pet)
 
-                # Streak XP bonus
-                streak_xp = min(pet['login_streak'] * 3, 15)  # cap 15 XP
-                pet['xp'] = pet.get('xp', 0) + streak_xp
-                pet['last_activity'] = datetime.now().isoformat()
-                needs_save = True
-
-                # Level up check after streak
-                while True:
-                    xp_needed = _pet_xp_for_level(pet.get('level', 1))
-                    if pet['xp'] >= xp_needed:
-                        pet['xp'] -= xp_needed
-                        pet['level'] = pet.get('level', 1) + 1
-                        new_acc = _get_random_accessory(pet)
-                        if new_acc:
-                            accs = pet.get('accessories', [])
-                            if new_acc not in accs:
-                                accs.append(new_acc)
-                            pet['accessories'] = accs
-                    else:
-                        break
-                pet['stage'] = _pet_stage(pet.get('level', 1))
-                pet['xp_needed'] = _pet_xp_for_level(pet.get('level', 1))
-
-    if needs_save:
-        _pet_write(username, pet_data_wrapper)
-
-    return jsonify({
-        'has_pet': True, 
-        'pets': pet_data_wrapper['pets'],
-        'active_pet_index': pet_data_wrapper.get('active_pet', 0)
-    })
+    return jsonify({'has_pet': True, **pet})
 
 
 @app.route('/api/pet/adopt', methods=['POST'])
 def api_pet_adopt():
-    """Nhận nuôi pet mới."""
+    """Nhận nuôi hoặc ĐỔI pet (Reset)."""
     if not session.get('logged_in'):
         return jsonify({'error': 'Unauthorized'}), 401
 
     username = session.get('user', '')
-    pet_data_wrapper = _pet_read(username)
-
+    
     data = request.get_json(silent=True) or {}
     pet_type = data.get('type', '').strip()
     pet_name = data.get('name', '').strip()
@@ -1876,7 +1858,7 @@ def api_pet_adopt():
     if not pet_name or len(pet_name) > 20:
         return jsonify({'error': 'Invalid name (1-20 chars)'}), 400
 
-    new_pet = {
+    pet_data = {
         'type': pet_type,
         'name': pet_name,
         'xp': 0,
@@ -1891,30 +1873,21 @@ def api_pet_adopt():
         'accessories': []
     }
 
-    pet_data_wrapper['pets'].append(new_pet)
-    pet_data_wrapper['active_pet'] = len(pet_data_wrapper['pets']) - 1
-
-    if _pet_write(username, pet_data_wrapper):
-        return jsonify({'success': True, 'pet': new_pet, 'pets': pet_data_wrapper['pets'], 'active_pet_index': pet_data_wrapper['active_pet']})
+    if _pet_write(username, pet_data):
+        return jsonify({'success': True, 'pet': pet_data})
     return jsonify({'error': 'Failed to save'}), 500
 
 
 @app.route('/api/pet/feed', methods=['POST'])
 def api_pet_feed():
-    """Cho pet đang active ăn — trừ 1 food token, +10 XP bonus."""
+    """Cho pet ăn — trừ 1 food token, +10 XP bonus."""
     if not session.get('logged_in'):
         return jsonify({'error': 'Unauthorized'}), 401
 
     username = session.get('user', '')
-    pet_data_wrapper = _pet_read(username)
-    if not pet_data_wrapper.get('pets'):
+    pet = _pet_read(username)
+    if not pet:
         return jsonify({'error': 'No pet'}), 404
-
-    active_idx = pet_data_wrapper.get('active_pet', 0)
-    if active_idx >= len(pet_data_wrapper['pets']):
-        active_idx = 0
-    
-    pet = pet_data_wrapper['pets'][active_idx]
 
     if pet.get('food', 0) <= 0:
         return jsonify({'error': 'No food left', 'food': 0}), 400
@@ -1942,26 +1915,21 @@ def api_pet_feed():
 
     pet['stage'] = _pet_stage(pet.get('level', 1))
     pet['mood'] = 'happy'
-    _pet_write(username, pet_data_wrapper)
+    _pet_write(username, pet)
 
-    return jsonify({'success': True, 'leveled_up': leveled_up, 'pet': pet, 'pets': pet_data_wrapper['pets'], 'active_pet_index': active_idx})
+    return jsonify({'success': True, 'leveled_up': leveled_up, 'pet': pet})
 
 
 @app.route('/api/pet/rename', methods=['POST'])
 def api_pet_rename():
-    """Đổi tên pet đang active."""
+    """Đổi tên pet."""
     if not session.get('logged_in'):
         return jsonify({'error': 'Unauthorized'}), 401
 
     username = session.get('user', '')
-    pet_data_wrapper = _pet_read(username)
-    if not pet_data_wrapper.get('pets'):
+    pet = _pet_read(username)
+    if not pet:
         return jsonify({'error': 'No pet'}), 404
-
-    active_idx = pet_data_wrapper.get('active_pet', 0)
-    if active_idx >= len(pet_data_wrapper['pets']):
-        active_idx = 0
-    pet = pet_data_wrapper['pets'][active_idx]
 
     data = request.get_json(silent=True) or {}
     new_name = data.get('name', '').strip()
@@ -1969,27 +1937,23 @@ def api_pet_rename():
         return jsonify({'error': 'Invalid name (1-20 chars)'}), 400
 
     pet['name'] = new_name
-    _pet_write(username, pet_data_wrapper)
-    return jsonify({'success': True, 'pet': pet, 'pets': pet_data_wrapper['pets'], 'active_pet_index': active_idx})
+    _pet_write(username, pet)
+    return jsonify({'success': True, 'pet': pet})
 
-@app.route('/api/pet/set_active', methods=['POST'])
-def api_pet_set_active():
-    """Đổi pet active."""
+@app.route('/api/pet/cheat_food', methods=['POST'])
+def api_pet_cheat_food():
+    """API ẩn để test buff 999 food."""
     if not session.get('logged_in'):
         return jsonify({'error': 'Unauthorized'}), 401
 
     username = session.get('user', '')
-    pet_data_wrapper = _pet_read(username)
-    if not pet_data_wrapper.get('pets'):
+    pet = _pet_read(username)
+    if not pet:
         return jsonify({'error': 'No pet'}), 404
-
-    data = request.get_json(silent=True) or {}
-    idx = data.get('index', 0)
-    if 0 <= idx < len(pet_data_wrapper['pets']):
-        pet_data_wrapper['active_pet'] = idx
-        _pet_write(username, pet_data_wrapper)
-        return jsonify({'success': True, 'active_pet_index': idx})
-    return jsonify({'error': 'Invalid index'}), 400
+        
+    pet['food'] = 999
+    _pet_write(username, pet)
+    return jsonify({'success': True, 'food': 999})
 
 
 # =====================================================================
