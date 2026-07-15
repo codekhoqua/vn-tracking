@@ -37,7 +37,7 @@ window.PetRoamEngine = (function() {
             if (!petElement || !imgElement) return;
             // Nếu click KHÔNG PHẢI vào pet và KHÔNG PHẢI nút cho ăn
             if (!petElement.contains(e.target) && !e.target.closest('.pet-feed-btn')) {
-                changeState('click_outside', CLICK_OUTSIDE_GIF, 2000); // Phát animation 5.gif trong 2s
+                changeState('click_outside', CLICK_OUTSIDE_GIF, 0); // Giữ nguyên gif 5
             }
             resetIdleTimer();
         });
@@ -122,6 +122,13 @@ window.PetRoamEngine = (function() {
             changeState('click_pet', CLICK_PET_GIF, 2000); // Bóp má 2s rồi thả ra
             resetIdleTimer();
             e.stopPropagation(); // Ngăn sự kiện truyền ra ngoài gây ra lỗi "click outside"
+        });
+        
+        // Khi rê chuột gần pet (mouseenter), khôi phục trạng thái nếu đang dỗi vì click chỗ khác
+        petElement.addEventListener('mouseenter', () => {
+            if (currentState === 'click_outside') {
+                revertToDefault();
+            }
         });
         
         document.body.appendChild(petElement);
