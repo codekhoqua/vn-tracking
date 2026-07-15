@@ -220,7 +220,7 @@
             style="border-radius: var(--radius-sm); margin-right: 8px;">
         <div style="display: flex; flex-direction: column; justify-content: center;">
             <span>VN-Tracking</span>
-            <sup style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.2.57</i></sup>
+            <sup style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.2.58</i></sup>
         </div>
     </div>
 
@@ -1505,9 +1505,21 @@
                 <span id="pet-streak-count">0 ngày</span>
             </div>
         </div>
-        <button class="pet-feed-btn" id="pet-feed-btn" onclick="feedPet()">
-            🍖 Cho ăn
-        </button>
+        <div class="pet-stats" style="margin-top: 10px; flex-wrap: wrap;">
+            <div style="width:100%; font-size: 11px; color: var(--text-2); margin-bottom: 5px;">🎒 Tủ đồ:</div>
+            <div id="pet-wardrobe-list" style="display:flex; flex-wrap:wrap; gap:5px; width:100%;"></div>
+        </div>
+        <div style="display: flex; gap: 10px; margin-top: 15px;">
+            <button class="pet-feed-btn" id="pet-feed-btn" onclick="feedPet()" style="flex:1;">
+                🍖 Cho ăn
+            </button>
+            <button class="pet-feed-btn" id="pet-switch-btn" onclick="switchPet()" style="flex:1; background: linear-gradient(135deg, #3b82f6, #2563eb); display:none;">
+                🔄 Đổi Pet
+            </button>
+            <button class="pet-feed-btn" onclick="openPetAdoptModal()" style="width:40px; background: linear-gradient(135deg, #10b981, #059669);" title="Nhận nuôi thêm">
+                +
+            </button>
+        </div>
     </div>
 </div>
 
@@ -1564,7 +1576,7 @@
 /* ===== PET WIDGET BUBBLE ===== */
 #pet-widget-bubble {
     position: fixed;
-    bottom: 24px;
+    bottom: 110px;
     right: 24px;
     width: 64px;
     height: 64px;
@@ -1610,7 +1622,7 @@
 /* ===== PET PANEL ===== */
 .pet-panel {
     position: fixed;
-    bottom: 96px;
+    bottom: 185px;
     right: 24px;
     width: 280px;
     background: linear-gradient(145deg, #1e1b4b, #0f172a);
@@ -1859,12 +1871,12 @@
 /* ===== MOBILE RESPONSIVE ===== */
 @media (max-width: 768px) {
     #pet-widget-bubble {
-        bottom: 16px; right: 16px;
+        bottom: 90px; right: 16px;
         width: 52px; height: 52px;
     }
     .pet-bubble-sprite { font-size: 22px; }
     .pet-panel {
-        bottom: 76px; right: 16px;
+        bottom: 155px; right: 16px;
         width: 260px;
     }
 }
@@ -1873,6 +1885,8 @@
 <script>
 // ===== 🐾 VIRTUAL PET SYSTEM =====
 let petData = null;
+let allPets = [];
+let activePetIndex = 0;
 let petPanelOpen = false;
 let selectedPetType = null;
 
@@ -1904,12 +1918,24 @@ async function initPet() {
             return;
         }
         if (data.has_pet) {
-            petData = data;
+            allPets = data.pets || [data];
+            activePetIndex = data.active_pet_index || 0;
+            if(activePetIndex >= allPets.length) activePetIndex = 0;
+            petData = allPets[activePetIndex];
+            
+            if(window.PetRoamEngine) {
+                window.PetRoamEngine.syncPets(allPets);
+            }
             renderPet();
         }
     } catch(e) {
         console.log('Pet init error:', e);
     }
+}
+
+// Function to refresh state without closing modal
+async function fetchPetData() {
+    await initPet();
 }
 
 function renderPet() {
@@ -1931,7 +1957,8 @@ function renderPet() {
     // Panel
     const lg = document.getElementById('pet-sprite-large');
     lg.textContent = emoji;
-    lg.style.fontSize = stage === 'legendary' ? '72px' : stage === 'adult' ? '68px' : stage === 'teen' ? '66px' : '64px';
+    // Tăng dần kích thước để thấy rõ sự trưởng thành
+    lg.style.fontSize = stage === 'legendary' ? '110px' : stage === 'adult' ? '90px' : stage === 'teen' ? '70px' : '50px';
 
     document.getElementById('pet-name').textContent = petData.name || '???';
     document.getElementById('pet-stage-badge').textContent = stage.toUpperCase();
@@ -1949,6 +1976,29 @@ function renderPet() {
 
     document.getElementById('pet-food-count').textContent = petData.food || 0;
     document.getElementById('pet-streak-count').textContent = (petData.login_streak || 0) + (lang === 'ja' ? '日' : ' ngày');
+
+    // Render wardrobe
+    const wardrobeDiv = document.getElementById('pet-wardrobe-list');
+    if (wardrobeDiv) {
+        wardrobeDiv.innerHTML = '';
+        const accs = petData.accessories || [];
+        if(accs.length === 0) {
+            wardrobeDiv.innerHTML = '<span style="font-size:12px;color:var(--text-2);">Chưa có phụ kiện</span>';
+        } else {
+            accs.forEach(acc => {
+                let emoji = '';
+                if(acc==='sunglasses') emoji='🕶️';
+                else if(acc==='magic_hat') emoji='🎩';
+                else if(acc==='bow') emoji='🎀';
+                else if(acc==='crown') emoji='👑';
+                else if(acc==='halo') emoji='👼';
+                else if(acc==='gold_chain') emoji='🏅';
+                wardrobeDiv.innerHTML += `<div style="padding:2px; background:rgba(255,255,255,0.1); border-radius:4px; font-size:16px;">${emoji}</div>`;
+            });
+        }
+    }
+    const switchBtn = document.getElementById('pet-switch-btn');
+    if (switchBtn) switchBtn.style.display = allPets.length > 1 ? 'block' : 'none';
 
     document.getElementById('pet-feed-btn').disabled = (petData.food || 0) <= 0;
 
@@ -1968,6 +2018,24 @@ function togglePetPanel() {
     }
 }
 
+async function switchPet() {
+    if(allPets.length <= 1) return;
+    let nextIdx = (activePetIndex + 1) % allPets.length;
+    try {
+        const res = await fetch('/api/pet/set_active', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({index: nextIdx})
+        });
+        const data = await res.json();
+        if(data.success) {
+            fetchPetData();
+        }
+    } catch(e) {
+        console.error('Error switching pet:', e);
+    }
+}
+
 async function feedPet() {
     const btn = document.getElementById('pet-feed-btn');
     btn.disabled = true;
@@ -1977,9 +2045,8 @@ async function feedPet() {
         const res = await fetch('/api/pet/feed', { method: 'POST', headers: {'Content-Type': 'application/json'} });
         const data = await res.json();
         if (data.success) {
-            petData = data.pet;
-            petData.mood = 'happy';
-            petData.xp_needed = petData.xp_needed || 30;
+            fetchPetData(); // reload all states
+
 
             // Eat animation
             const display = document.getElementById('pet-display');
@@ -2263,6 +2330,7 @@ document.addEventListener('DOMContentLoaded', () => setTimeout(initPet, 1500));
 {% endblock %}
 
 {% block scripts %}
+<script src="{{ url_for('static', filename='js/pet_roam.js') }}"></script>
 <script>
     const CHECKLIST_API = "{{ checklist_api }}";
     const CURRENT_LANG = "{{ lang }}";
