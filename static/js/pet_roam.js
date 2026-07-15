@@ -122,7 +122,16 @@ window.PetRoamEngine = (function() {
             // Nếu chuột đi quá xa lên trên, vẫn giữ nguyên ở dưới
             if (targetY < floorLevel) targetY = floorLevel;
 
-            // Walk logic
+            // WALK LOGIC RESTRICTIONS (Bottom Right 1/3 of screen)
+            const minX = window.innerWidth * 2 / 3;
+            const maxX = window.innerWidth - 60; // Trừ đi một chút lề
+            
+            // Ép buộc targetX nằm trong vùng 1/3 bên phải màn hình
+            if (targetX < minX) targetX = minX;
+            if (targetX > maxX) targetX = maxX;
+
+            // Nếu chuột đi ra ngoài vùng này, pet sẽ đi đến rìa vùng đó rồi đứng chờ
+            
             const dx = targetX - x;
             const dy = targetY - y;
             const dist = Math.sqrt(dx*dx + dy*dy);
@@ -131,6 +140,11 @@ window.PetRoamEngine = (function() {
                 state = 'walk';
                 x += dx * 0.03;
                 y += dy * 0.03;
+                
+                // Giữ thú cưng không văng ra ngoài khung
+                if (x < minX) x = minX;
+                if (x > maxX) x = maxX;
+
                 direction = dx > 0 ? 1 : -1;
             } else {
                 state = 'idle';
