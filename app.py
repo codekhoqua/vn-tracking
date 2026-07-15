@@ -13,7 +13,7 @@ import requests
 import re
 import json
 from collections import defaultdict
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from functools import wraps
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify
 from markupsafe import Markup
@@ -798,6 +798,19 @@ def api_checklist_sync():
                 global checklist_version
                 checklist_version += 1
         
+        # Pet XP: +5 khi tick checkbox ON
+        pet_result = None
+        if bool(status):
+            username = session.get('user', '')
+            pet_result = pet_add_xp(username, 5, 'checklist')
+            # Check 9/9 completion bonus
+            if tp_key and tp_key in data:
+                checked_count = sum(1 for v in data[tp_key].values() if v)
+                if checked_count >= 9:
+                    bonus = pet_add_xp(username, 50, 'checklist_bonus')
+                    if bonus:
+                        pet_result = bonus
+
         # Broadcast to other clients
         socketio.emit('checklist_updated', {
             'tp_key': tp_key,
@@ -805,7 +818,10 @@ def api_checklist_sync():
             'status': bool(status)
         }, broadcast=True, include_self=False)
         
-        return jsonify({"status": "success"})
+        resp = {"status": "success"}
+        if pet_result:
+            resp['pet'] = pet_result
+        return jsonify(resp)
     except Exception as e:
         print("Error saving checklist:", e)
         return jsonify({"status": "error", "message": str(e)}), 500
@@ -1480,7 +1496,13 @@ def api_logtime():
     
     data = request.get_json()
     if save_logtime(data):
-        return jsonify({"status": "success"})
+        # Pet XP: +10 khi submit logtime
+        username = session.get('user', '')
+        pet_result = pet_add_xp(username, 10, 'logtime')
+        resp = {"status": "success"}
+        if pet_result:
+            resp['pet'] = pet_result
+        return jsonify(resp)
     else:
         return jsonify({"status": "error", "message": "Lỗi khi lưu logtime"}), 500
 
@@ -1590,7 +1612,262 @@ def api_avatar_proxy():
 
 
 # =====================================================================
-# 10b. RADIO REST API (Serverless-compatible — dùng trên Vercel)
+# 10b. VIRTUAL PET SYSTEM
+# =====================================================================
+PET_TYPES = {
+    'neko':    {'name_vi': 'Mèo Neko',   'name_ja': 'ネコ',     'emoji': '🐱'},
+    'shiba':   {'name_vi': 'Chó Shiba',  'name_ja': '柴犬',     'emoji': '🐕'},
+    'bunny':   {'name_vi': 'Thỏ',        'name_ja': 'うさぎ',   'emoji': '🐰'},
+    'dragon':  {'name_vi': 'Rồng',       'name_ja': 'ドラゴン', 'emoji': '🐲'},
+    'fox':     {'name_vi': 'Cáo',        'name_ja': 'キツネ',   'emoji': '🦊'},
+    'hamster': {'name_vi': 'Hamster',    'name_ja': 'ハムスター','emoji': '🐹'},
+}
+
+# XP thresholds per level range
+def _pet_xp_for_level(level):
+    """XP cần để lên level tiếp theo."""
+    if level < 5:    return 30
+    if level < 15:   return 60
+    if level < 30:   return 100
+    return 150
+
+def _pet_stage(level):
+    """Trả về stage dựa trên level."""
+    if level < 5:    return 'baby'
+    if level < 15:   return 'teen'
+    if level < 30:   return 'adult'
+    return 'legendary'
+
+def _pet_mood(last_activity_str):
+    """Tính mood dựa trên thời gian activity gần nhất."""
+    if not last_activity_str:
+        return 'sad'
+    try:
+        last = datetime.fromisoformat(last_activity_str)
+        now = datetime.now()
+        hours_diff = (now - last).total_seconds() / 3600
+
+        # Ngoài giờ làm (22h-7h)
+        if now.hour >= 22 or now.hour < 7:
+            return 'sleep'
+        if hours_diff < 2:
+            return 'happy'
+        if hours_diff < 24:
+            return 'normal'
+        return 'sad'
+    except Exception:
+        return 'normal'
+
+
+def _pet_read(username):
+    """Đọc pet data từ Supabase. Trả None nếu chưa có pet."""
+    if not USE_SUPABASE or not username:
+        return None
+    try:
+        data = sb_download_bytes(f'_system/pets/{username}.json')
+        if data:
+            return json.loads(data.decode('utf-8'))
+    except Exception:
+        pass
+    return None
+
+
+def _pet_write(username, pet_data):
+    """Ghi pet data lên Supabase."""
+    if not USE_SUPABASE or not username:
+        return False
+    try:
+        json_data = json.dumps(pet_data, ensure_ascii=False).encode('utf-8')
+        sb_upload(f'_system/pets/{username}.json', json_data, content_type='application/json')
+        return True
+    except Exception as e:
+        print(f"Pet write error for {username}: {e}")
+        return False
+
+
+def pet_add_xp(username, amount, reason=''):
+    """Thêm XP cho pet. Trả về dict {leveled_up, new_level, pet_data} hoặc None."""
+    pet = _pet_read(username)
+    if not pet:
+        return None
+
+    old_level = pet.get('level', 1)
+    pet['xp'] = pet.get('xp', 0) + amount
+    pet['last_activity'] = datetime.now().isoformat()
+
+    # Food token: mỗi 20 XP kiếm được +1 food
+    if reason in ('checklist', 'logtime', 'checklist_bonus'):
+        pet['food'] = pet.get('food', 0) + max(1, amount // 20)
+
+    # Level up check
+    leveled_up = False
+    while True:
+        xp_needed = _pet_xp_for_level(pet.get('level', 1))
+        if pet['xp'] >= xp_needed:
+            pet['xp'] -= xp_needed
+            pet['level'] = pet.get('level', 1) + 1
+            leveled_up = True
+        else:
+            break
+
+    pet['stage'] = _pet_stage(pet.get('level', 1))
+    _pet_write(username, pet)
+
+    return {
+        'leveled_up': leveled_up,
+        'old_level': old_level,
+        'new_level': pet.get('level', 1),
+        'xp_gained': amount,
+        'reason': reason,
+        'pet_data': pet
+    }
+
+
+@app.route('/api/pet', methods=['GET'])
+def api_pet_get():
+    """Lấy thông tin pet hiện tại."""
+    if not session.get('logged_in'):
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    username = session.get('user', '')
+    pet = _pet_read(username)
+
+    if not pet:
+        return jsonify({'has_pet': False, 'pet_types': PET_TYPES})
+
+    # Tính mood động
+    pet['mood'] = _pet_mood(pet.get('last_activity'))
+    pet['stage'] = _pet_stage(pet.get('level', 1))
+    pet['xp_needed'] = _pet_xp_for_level(pet.get('level', 1))
+
+    # Login streak check
+    today_str = date.today().isoformat()
+    if pet.get('last_login_date') != today_str:
+        yesterday = (date.today() - timedelta(days=1)).isoformat()
+        if pet.get('last_login_date') == yesterday:
+            pet['login_streak'] = pet.get('login_streak', 0) + 1
+        else:
+            pet['login_streak'] = 1
+        pet['last_login_date'] = today_str
+
+        # Streak XP bonus
+        streak_xp = min(pet['login_streak'] * 3, 15)  # cap 15 XP
+        pet['xp'] = pet.get('xp', 0) + streak_xp
+        pet['last_activity'] = datetime.now().isoformat()
+
+        # Level up check after streak
+        while True:
+            xp_needed = _pet_xp_for_level(pet.get('level', 1))
+            if pet['xp'] >= xp_needed:
+                pet['xp'] -= xp_needed
+                pet['level'] = pet.get('level', 1) + 1
+            else:
+                break
+        pet['stage'] = _pet_stage(pet.get('level', 1))
+        pet['xp_needed'] = _pet_xp_for_level(pet.get('level', 1))
+        _pet_write(username, pet)
+
+    return jsonify({'has_pet': True, **pet})
+
+
+@app.route('/api/pet/adopt', methods=['POST'])
+def api_pet_adopt():
+    """Chọn pet lần đầu."""
+    if not session.get('logged_in'):
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    username = session.get('user', '')
+    existing = _pet_read(username)
+    if existing:
+        return jsonify({'error': 'Already have a pet', 'pet': existing}), 400
+
+    data = request.get_json(silent=True) or {}
+    pet_type = data.get('type', '').strip()
+    pet_name = data.get('name', '').strip()
+
+    if pet_type not in PET_TYPES:
+        return jsonify({'error': 'Invalid pet type'}), 400
+    if not pet_name or len(pet_name) > 20:
+        return jsonify({'error': 'Invalid name (1-20 chars)'}), 400
+
+    pet_data = {
+        'type': pet_type,
+        'name': pet_name,
+        'xp': 0,
+        'level': 1,
+        'stage': 'baby',
+        'mood': 'happy',
+        'food': 3,  # Start with some food
+        'last_activity': datetime.now().isoformat(),
+        'login_streak': 1,
+        'last_login_date': date.today().isoformat(),
+        'created_at': datetime.now().isoformat(),
+    }
+
+    if _pet_write(username, pet_data):
+        return jsonify({'success': True, 'pet': pet_data})
+    return jsonify({'error': 'Failed to save'}), 500
+
+
+@app.route('/api/pet/feed', methods=['POST'])
+def api_pet_feed():
+    """Cho pet ăn — trừ 1 food token, +10 XP bonus."""
+    if not session.get('logged_in'):
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    username = session.get('user', '')
+    pet = _pet_read(username)
+    if not pet:
+        return jsonify({'error': 'No pet'}), 404
+
+    if pet.get('food', 0) <= 0:
+        return jsonify({'error': 'No food left', 'food': 0}), 400
+
+    pet['food'] = pet.get('food', 0) - 1
+    pet['last_activity'] = datetime.now().isoformat()
+    pet['xp'] = pet.get('xp', 0) + 10
+
+    # Level up
+    leveled_up = False
+    while True:
+        xp_needed = _pet_xp_for_level(pet.get('level', 1))
+        if pet['xp'] >= xp_needed:
+            pet['xp'] -= xp_needed
+            pet['level'] = pet.get('level', 1) + 1
+            leveled_up = True
+        else:
+            break
+
+    pet['stage'] = _pet_stage(pet.get('level', 1))
+    pet['mood'] = 'happy'
+    _pet_write(username, pet)
+
+    return jsonify({'success': True, 'leveled_up': leveled_up, 'pet': pet})
+
+
+@app.route('/api/pet/rename', methods=['POST'])
+def api_pet_rename():
+    """Đổi tên pet."""
+    if not session.get('logged_in'):
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    username = session.get('user', '')
+    pet = _pet_read(username)
+    if not pet:
+        return jsonify({'error': 'No pet'}), 404
+
+    data = request.get_json(silent=True) or {}
+    new_name = data.get('name', '').strip()
+    if not new_name or len(new_name) > 20:
+        return jsonify({'error': 'Invalid name (1-20 chars)'}), 400
+
+    pet['name'] = new_name
+    _pet_write(username, pet)
+    return jsonify({'success': True, 'pet': pet})
+
+
+# =====================================================================
+# 10c. RADIO REST API (Serverless-compatible — dùng trên Vercel)
 # =====================================================================
 # Trên Vercel, Socket.IO không hoạt động vì serverless không giữ persistent
 # connection. Các endpoint REST này cho phép client polling để đồng bộ DJ state.

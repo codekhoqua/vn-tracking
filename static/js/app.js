@@ -394,7 +394,9 @@ function initChecklistInContainer(container) {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ tac_pham: tpKey, checkbox_id: rawId, status: e.target.checked })
-                    });
+                    }).then(r => r.json()).then(data => {
+                        if (typeof handlePetXPResponse === 'function') handlePetXPResponse(data);
+                    }).catch(() => {});
                 }
                 updateTaskProgressLocally(tpKey, container);
             });
@@ -600,6 +602,7 @@ function handleLogtime(event, formId) {
             if (result.status === 'success') {
                 logtimeCooldowns[formId] = Date.now();
                 showSuccessModal();
+                if (typeof handlePetXPResponse === 'function') handlePetXPResponse(result);
             } else {
                 showToast('❌ ' + (result.message || 'Có lỗi xảy ra.'), 'error');
             }
@@ -1849,6 +1852,7 @@ let radioUpdateInterval = null;
 let radioPollingInterval = null;
 // Detect serverless: Socket.IO không khả dụng hoặc không thể kết nối
 let useRadioPolling = false;
+let lastSeekTime = 0;
 
 // Dynamically load YouTube Iframe API
 const tag = document.createElement('script');
@@ -2126,7 +2130,11 @@ function handleRadioStateFromPolling(state) {
                 ytPlayer.loadVideoById(state.youtube_id, state.current_time);
             }
         } else if (!isCrossfading && Math.abs(currentTime - state.current_time) > 3) {
-            ytPlayer.seekTo(state.current_time, true);
+            const now = Date.now();
+            if (now - lastSeekTime > 5000) {
+                ytPlayer.seekTo(state.current_time, true);
+                lastSeekTime = now;
+            }
         }
 
         const playerState = ytPlayer.getPlayerState?.();
@@ -2208,6 +2216,46 @@ function handleRadioListenersUpdate(listeners) {
         });
         extra.title = listeners.slice(MAX_SHOW).map(u => u.fullname).join(', ');
         container.appendChild(extra);
+    }
+
+    // Update participants marquee
+    const marqueeEl = document.getElementById('radio-participants-marquee');
+    const marqueeTrack = document.getElementById('radio-participants-track');
+    if (marqueeEl && marqueeTrack) {
+        if (listeners.length > 0) {
+            marqueeTrack.innerHTML = '';
+            for (let copy = 0; copy < 2; copy++) {
+                listeners.forEach(function(user, i) {
+                    var item = document.createElement('span');
+                    item.style.cssText = 'display:inline-flex;align-items:center;gap:4px;flex-shrink:0;';
+                    var img = document.createElement('img');
+                    img.src = user.avatar || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(user.fullname) + '&background=random&color=fff&size=16');
+                    img.style.cssText = 'width:14px;height:14px;border-radius:50%;object-fit:cover;flex-shrink:0;';
+                    img.referrerPolicy = 'no-referrer';
+                    img.onerror = function() { this.style.display='none'; };
+                    var txt = document.createElement('span');
+                    txt.style.cssText = 'font-size:10px;color:rgba(255,255,255,0.75);font-weight:500;white-space:nowrap;';
+                    txt.textContent = user.fullname;
+                    item.appendChild(img);
+                    item.appendChild(txt);
+                    marqueeTrack.appendChild(item);
+                    if (i < listeners.length - 1 || copy === 0) {
+                        var dot = document.createElement('span');
+                        dot.style.cssText = 'color:rgba(255,255,255,0.3);font-size:8px;flex-shrink:0;margin:0 4px;';
+                        dot.textContent = '\u2022';
+                        marqueeTrack.appendChild(dot);
+                    }
+                });
+            }
+            marqueeEl.style.display = 'flex';
+            requestAnimationFrame(function() {
+                var halfWidth = marqueeTrack.scrollWidth / 2;
+                var duration = Math.max(8, halfWidth / 30);
+                marqueeTrack.style.animation = 'radioMarquee ' + duration + 's linear infinite';
+            });
+        } else {
+            marqueeEl.style.display = 'none';
+        }
     }
 }
 
@@ -2302,7 +2350,7 @@ function setupSocketRadio() {
             if (!djSyncInterval) {
                 djSyncInterval = setInterval(() => {
                     if (window.syncRadioToServer) window.syncRadioToServer();
-                }, 1000);
+                }, 3000);
             }
 
             if (ytPlayer && ytPlayer.loadVideoById) {
@@ -2356,8 +2404,12 @@ function setupSocketRadio() {
                     if (isCrossfading && window.cancelCrossfade) window.cancelCrossfade();
                     ytPlayer.loadVideoById(state.youtube_id, state.current_time);
                 }
-            } else if (!isCrossfading && Math.abs(currentTime - state.current_time) > 0.5) {
-                ytPlayer.seekTo(state.current_time, true);
+            } else if (!isCrossfading && Math.abs(currentTime - state.current_time) > 3) {
+                const now = Date.now();
+                if (now - lastSeekTime > 5000) {
+                    ytPlayer.seekTo(state.current_time, true);
+                    lastSeekTime = now;
+                }
             }
 
             const playerState = ytPlayer.getPlayerState?.();
@@ -2516,7 +2568,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (statusText) statusText.innerHTML = `Bạn đang là DJ 🎧`;
                         if (ytInputContainer) ytInputContainer.style.display = 'block';
                         if (progressEl) progressEl.disabled = false;
-                        djSyncInterval = setInterval(syncRadioToServer, 1000);
+                        djSyncInterval = setInterval(syncRadioToServer, 3000);
                         syncRadioToServer();
                         updateRadioUI();
                     } else {
