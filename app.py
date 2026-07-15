@@ -1780,6 +1780,37 @@ def pet_add_xp(username, amount, reason=''):
     }
 
 
+@app.route('/api/pet/leaderboard', methods=['GET'])
+def api_pet_leaderboard():
+    """Lấy danh sách pet của tất cả người dùng để xếp hạng."""
+    if not session.get('logged_in'):
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    leaderboard = []
+    # Lấy danh sách tất cả người dùng từ USER_DB
+    users = list(USER_DB.keys())
+    for username in users:
+        pet = _pet_read(username)
+        if pet:
+            # Tính mood và stage động
+            mood = _pet_mood(pet.get('last_activity'))
+            stage = _pet_stage(pet.get('level', 1))
+            
+            leaderboard.append({
+                'username': username,
+                'name': pet.get('name', 'Pet'),
+                'type': pet.get('type', 'neko'),
+                'level': pet.get('level', 1),
+                'xp': pet.get('xp', 0),
+                'mood': mood,
+                'stage': stage,
+                'food': pet.get('food', 0)
+            })
+
+    # Sắp xếp theo level giảm dần, sau đó theo xp giảm dần
+    leaderboard.sort(key=lambda x: (x['level'], x['xp']), reverse=True)
+    return jsonify({'success': True, 'leaderboard': leaderboard})
+
 @app.route('/api/pet', methods=['GET'])
 def api_pet_get():
     """Lấy thông tin pet hiện tại."""
