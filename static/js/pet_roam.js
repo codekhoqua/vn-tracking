@@ -1,14 +1,16 @@
 /**
- * 🐾 VN Pet System - V2.2 Fixed Y-Axis Roaming Engine
- * Chỉ dùng 1 ảnh GIF duy nhất và chỉ chạy ngang trên taskbar.
+ * 🐾 VN Pet System - V2.3 Interactive Roaming Engine
+ * Hỗ trợ nhiều trạng thái GIF (Idle & Interact).
  */
 
 window.PetRoamEngine = (function() {
     let petData = null;
     let petElement = null;
+    let imgElement = null;
     
-    // Config duy nhất 1 ảnh GIF do user cung cấp
-    const CAT_GIF = '/static/img/cat.gif';
+    // Config URLs
+    const IDLE_GIF = '/static/img/idle.gif';
+    const INTERACT_GIF = '/static/img/interact.gif';
 
     // State
     let x = window.innerWidth / 2;
@@ -18,6 +20,8 @@ window.PetRoamEngine = (function() {
     let state = 'idle'; // idle, walk, sleep
     let direction = 1; // 1 = right, -1 = left
     let animationFrameId = null;
+    let isInteracting = false;
+    let interactTimeout = null;
 
     function init(initialPetData) {
         petData = initialPetData;
@@ -28,7 +32,7 @@ window.PetRoamEngine = (function() {
 
         // Mouse tracking (Chỉ lấy trục X)
         document.addEventListener('mousemove', (e) => {
-            if (state === 'sleep' || !petData) return;
+            if (state === 'sleep' || !petData || isInteracting) return;
             // Pet chạy theo con trỏ chuột theo chiều ngang
             targetX = e.clientX - 40;
             
@@ -47,23 +51,46 @@ window.PetRoamEngine = (function() {
         petElement.id = 'roaming-pet-container';
         petElement.style.position = 'fixed';
         petElement.style.zIndex = '9998';
-        petElement.style.pointerEvents = 'none'; // let mouse pass through initially
+        petElement.style.pointerEvents = 'auto'; // Cho phép click vào Pet
+        petElement.style.cursor = 'pointer';
         petElement.style.transition = 'transform 0.2s';
         
-        // Cấp bậc level quyết định kích cỡ (to hơn)
         const level = petData.level || 1;
         const scale = Math.min(2.5, 1.5 + (level * 0.03)); 
         petElement.style.transform = `scale(${scale}) scaleX(${direction})`;
 
-        // Chỉ dùng ảnh GIF duy nhất
-        const img = document.createElement('img');
-        img.src = CAT_GIF;
-        img.style.width = '80px'; // To hơn gốc
-        img.style.height = '80px';
-        img.style.objectFit = 'contain';
-        img.style.filter = 'drop-shadow(0 4px 6px rgba(0,0,0,0.4))';
+        imgElement = document.createElement('img');
+        imgElement.src = IDLE_GIF;
+        imgElement.style.width = '80px';
+        imgElement.style.height = '80px';
+        imgElement.style.objectFit = 'contain';
+        imgElement.style.filter = 'drop-shadow(0 4px 6px rgba(0,0,0,0.4))';
+        imgElement.draggable = false;
         
-        petElement.appendChild(img);
+        petElement.appendChild(imgElement);
+
+        // Interaction logic (Click / Mousedown)
+        petElement.addEventListener('mousedown', (e) => {
+            isInteracting = true;
+            imgElement.src = INTERACT_GIF;
+            
+            // Xóa timeout cũ nếu click liên tục
+            if (interactTimeout) clearTimeout(interactTimeout);
+        });
+
+        // Revert khi nhả chuột hoặc di chuột ra ngoài
+        const endInteraction = () => {
+            if (isInteracting) {
+                // Đợi một xíu cho hoạt ảnh bóp má mượt hơn
+                interactTimeout = setTimeout(() => {
+                    isInteracting = false;
+                    imgElement.src = IDLE_GIF;
+                }, 800);
+            }
+        };
+
+        petElement.addEventListener('mouseup', endInteraction);
+        petElement.addEventListener('mouseleave', endInteraction);
         
         document.body.appendChild(petElement);
     }
@@ -71,13 +98,11 @@ window.PetRoamEngine = (function() {
     function loop() {
         if (!petElement || !petData) return;
 
-        // Bỏ qua nếu là cuối tuần (ngủ)
         const day = new Date().getDay();
         if (day === 0 || day === 6) {
             state = 'sleep';
         }
 
-        // LUÔN LUÔN CỐ ĐỊNH TRỤC Y Ở ĐÁY MÀN HÌNH
         let y = getFixedY();
 
         if (state === 'sleep') {
@@ -87,7 +112,6 @@ window.PetRoamEngine = (function() {
             const scale = Math.min(2.5, 1.5 + (level * 0.03)); 
             petElement.style.transform = `scale(${scale}) scaleX(${direction})`;
             
-            // Add Zz if not exists
             if (!document.getElementById('pet-zz')) {
                 const zz = document.createElement('div');
                 zz.id = 'pet-zz';
@@ -98,26 +122,27 @@ window.PetRoamEngine = (function() {
                 zz.style.color = '#fff';
                 zz.style.fontWeight = 'bold';
                 zz.style.animation = 'float 2s infinite ease-in-out';
+                zz.style.pointerEvents = 'none';
                 petElement.appendChild(zz);
             }
         } else {
-            // Remove Zz
             const zz = document.getElementById('pet-zz');
             if (zz) zz.remove();
 
-            // Walk logic CHỈ THEO TRỤC X
-            const dx = targetX - x;
-            const dist = Math.abs(dx);
+            // Nếu đang bị tương tác (bóp má) thì đứng im
+            if (!isInteracting) {
+                const dx = targetX - x;
+                const dist = Math.abs(dx);
 
-            if (dist > 10) { // Sai số 10px để tránh giật
-                state = 'walk';
-                x += dx * 0.03;
-                direction = dx > 0 ? 1 : -1;
-            } else {
-                state = 'idle';
+                if (dist > 10) {
+                    state = 'walk';
+                    x += dx * 0.03;
+                    direction = dx > 0 ? 1 : -1;
+                } else {
+                    state = 'idle';
+                }
             }
 
-            // Update DOM
             petElement.style.left = `${x}px`;
             petElement.style.top = `${y}px`;
             
