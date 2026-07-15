@@ -39,8 +39,11 @@ window.PetRoamEngine = (function() {
         document.addEventListener('mousemove', (e) => {
             if (state === 'sleep' || !petData) return;
             // Target is a bit above and to the left of the cursor
-            targetX = e.clientX - 30;
-            targetY = e.clientY - 30;
+            targetX = e.clientX - 40;
+            
+            // LIMIT Y TO BOTTOM AREA (At least window.innerHeight - 150)
+            const floorLevel = window.innerHeight - 120;
+            targetY = Math.max(e.clientY - 40, floorLevel);
             
             if (state === 'idle') {
                 state = 'walk';
@@ -60,56 +63,21 @@ window.PetRoamEngine = (function() {
         petElement.style.pointerEvents = 'none'; // let mouse pass through initially
         petElement.style.transition = 'transform 0.2s';
         
-        // Cấp bậc level quyết định kích cỡ
+        // Cấp bậc level quyết định kích cỡ (to hơn)
         const level = petData.level || 1;
-        const scale = Math.min(1.5, 0.8 + (level * 0.02)); 
+        const scale = Math.min(2.5, 1.5 + (level * 0.03)); 
         petElement.style.transform = `scale(${scale}) scaleX(${direction})`;
 
         const img = document.createElement('img');
         img.src = PET_GIFS[petData.type] || FALLBACK_GIF;
-        img.style.width = '60px';
-        img.style.height = '60px';
+        img.style.width = '80px'; // To hơn gốc
+        img.style.height = '80px';
         img.style.objectFit = 'contain';
-        img.style.filter = 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))';
+        img.style.filter = 'drop-shadow(0 4px 6px rgba(0,0,0,0.4))';
         
         petElement.appendChild(img);
         
-        // Add accessories container
-        const accContainer = document.createElement('div');
-        accContainer.id = 'roaming-pet-accessories';
-        accContainer.style.position = 'absolute';
-        accContainer.style.top = '0';
-        accContainer.style.left = '0';
-        accContainer.style.width = '100%';
-        accContainer.style.height = '100%';
-        petElement.appendChild(accContainer);
-
-        renderAccessories();
         document.body.appendChild(petElement);
-    }
-
-    function renderAccessories() {
-        if (!petElement) return;
-        const accContainer = petElement.querySelector('#roaming-pet-accessories');
-        if (!accContainer) return;
-        accContainer.innerHTML = '';
-        
-        const accs = petData.accessories || [];
-        accs.forEach(acc => {
-            let emoji = '';
-            let style = '';
-            switch(acc) {
-                case 'sunglasses': emoji='🕶️'; style='top: 20%; left: 30%; font-size: 20px;'; break;
-                case 'magic_hat': emoji='🎩'; style='top: -20%; left: 30%; font-size: 24px;'; break;
-                case 'bow': emoji='🎀'; style='top: -10%; left: 10%; font-size: 20px;'; break;
-                case 'crown': emoji='👑'; style='top: -20%; left: 30%; font-size: 24px;'; break;
-                case 'halo': emoji='👼'; style='top: -30%; left: 30%; font-size: 24px;'; break;
-                case 'gold_chain': emoji='🏅'; style='top: 50%; left: 30%; font-size: 20px;'; break;
-            }
-            if (emoji) {
-                accContainer.innerHTML += `<div style="position:absolute; ${style}">${emoji}</div>`;
-            }
-        });
     }
 
     function loop() {
@@ -121,14 +89,16 @@ window.PetRoamEngine = (function() {
             state = 'sleep';
         }
 
+        const floorLevel = window.innerHeight - 120;
+
         if (state === 'sleep') {
             // Ngủ dưới đáy màn hình
-            targetY = window.innerHeight - 80;
+            targetY = floorLevel;
             y += (targetY - y) * 0.05;
             petElement.style.left = `${x}px`;
             petElement.style.top = `${y}px`;
             const level = petData.level || 1;
-            const scale = Math.min(1.5, 0.8 + (level * 0.02)); 
+            const scale = Math.min(2.5, 1.5 + (level * 0.03)); 
             petElement.style.transform = `scale(${scale}) scaleX(${direction})`;
             
             // Add Zz if not exists
@@ -149,6 +119,9 @@ window.PetRoamEngine = (function() {
             const zz = document.getElementById('pet-zz');
             if (zz) zz.remove();
 
+            // Nếu chuột đi quá xa lên trên, vẫn giữ nguyên ở dưới
+            if (targetY < floorLevel) targetY = floorLevel;
+
             // Walk logic
             const dx = targetX - x;
             const dy = targetY - y;
@@ -168,7 +141,7 @@ window.PetRoamEngine = (function() {
             petElement.style.top = `${y}px`;
             
             const level = petData.level || 1;
-            const scale = Math.min(1.5, 0.8 + (level * 0.02)); 
+            const scale = Math.min(2.5, 1.5 + (level * 0.03)); 
             petElement.style.transform = `scale(${scale}) scaleX(${direction})`;
         }
 
