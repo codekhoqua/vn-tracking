@@ -124,7 +124,7 @@ window.PetRoamEngine = (function() {
         petElement.appendChild(imgElement);
 
         const bubbleHtml = `
-            <div id="pet-speech-bubble" class="pet-speech-bubble" style="transform: translateX(-50%) translateY(0) scale(0.9); font-family: 'Plus Jakarta Sans', sans-serif;">
+            <div id="pet-speech-bubble" class="pet-speech-bubble" style="font-family: 'Plus Jakarta Sans', sans-serif;">
                 <div id="pet-speech-text" class="pet-speech-text"></div>
                 <div id="pet-speech-actions" class="pet-speech-actions"></div>
             </div>
@@ -156,6 +156,13 @@ window.PetRoamEngine = (function() {
         
         document.body.appendChild(petElement);
         revertToDefault(); // Kích hoạt ngay lúc đầu (để check starve)
+        
+        if (window._pendingPetMusicInvite && window.triggerPetMusicInvite) {
+            setTimeout(() => {
+                window.triggerPetMusicInvite(window._pendingPetMusicInvite.djName, window._pendingPetMusicInvite.youtubeId);
+                window._pendingPetMusicInvite = null;
+            }, 500); // Đợi nửa giây cho DOM load xong hẳn
+        }
     }
 
     // API public để gọi từ dashboard.html khi bấm Cho Ăn

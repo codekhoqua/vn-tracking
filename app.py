@@ -812,16 +812,16 @@ def api_checklist_sync():
                 global checklist_version
                 checklist_version += 1
         
-        # Pet XP: +5 khi tick checkbox ON
+        # Pet XP: +0 khi tick checkbox ON (chỉ lấy thịt)
         pet_result = None
         if bool(status):
             username = session.get('user', '')
-            pet_result = pet_add_xp(username, 5, 'checklist')
+            pet_result = pet_add_xp(username, 0, 'checklist')
             # Check 9/9 completion bonus
             if tp_key and tp_key in data:
                 checked_count = sum(1 for v in data[tp_key].values() if v)
                 if checked_count >= 9:
-                    bonus = pet_add_xp(username, 50, 'checklist_bonus')
+                    bonus = pet_add_xp(username, 0, 'checklist_bonus')
                     if bonus:
                         pet_result = bonus
 
@@ -1510,9 +1510,9 @@ def api_logtime():
     
     data = request.get_json()
     if save_logtime(data):
-        # Pet XP: +10 khi submit logtime
+        # Pet XP: +0 khi submit logtime (Pet reward)
         username = session.get('user', '')
-        pet_result = pet_add_xp(username, 10, 'logtime')
+        pet_result = pet_add_xp(username, 0, 'logtime')
         resp = {"status": "success"}
         if pet_result:
             resp['pet'] = pet_result
@@ -2035,7 +2035,7 @@ Return ONLY valid JSON format:
             "https://api.groq.com/openai/v1/chat/completions",
             headers={"Authorization": f"Bearer {GROQ_API_KEY}"},
             json={
-                "model": "llama3-8b-8192",
+                "model": "llama-3.3-70b-versatile",
                 "messages": [{"role": "user", "content": prompt}],
                 "temperature": 0.7,
                 "response_format": {"type": "json_object"}
