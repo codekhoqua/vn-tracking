@@ -220,7 +220,7 @@
             style="border-radius: var(--radius-sm); margin-right: 8px;">
         <div style="display: flex; flex-direction: column; justify-content: center;">
             <span>VN-Tracking</span>
-            <sup style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.3.2</i></sup>
+            <sup style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.3.3</i></sup>
         </div>
     </div>
 
@@ -2132,7 +2132,7 @@ window.triggerPetMusicInvite = function(djName, youtubeId) {
     
     textEl.innerHTML = msg;
     
-    actionsEl.innerHTML = `<button class="pet-speech-btn" onclick="document.getElementById('radio-play-btn').click(); event.stopPropagation();">
+    actionsEl.innerHTML = `<button class="pet-speech-btn" onclick="if(window.radioTogglePlay) window.radioTogglePlay(); event.stopPropagation();">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <polygon points="5 3 19 12 5 21 5 3"></polygon>
         </svg> Tham gia
@@ -2167,12 +2167,12 @@ function addGroqMusic(youtubeId, title) {
     } else {
         window.socket.emit('queue_add', { youtube_id: youtubeId, title: title });
         
-        // Đảm bảo click vào nút play của LSA Music
+        // Đảm bảo join radio nếu chưa join
         const playBtn = document.getElementById('radio-play-btn');
         if (playBtn) {
             const isPlaying = playBtn.innerHTML.includes('rect'); // Nút pause có thẻ rect
             if (!isPlaying) {
-                playBtn.click(); // Nếu chưa play thì click để play
+                if (window.radioTogglePlay) window.radioTogglePlay();
             }
         }
     }
