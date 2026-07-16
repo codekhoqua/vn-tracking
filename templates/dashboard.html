@@ -220,7 +220,7 @@
             style="border-radius: var(--radius-sm); margin-right: 8px;">
         <div style="display: flex; flex-direction: column; justify-content: center;">
             <span>VN-Tracking</span>
-            <sup style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.2.80</i></sup>
+            <sup style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.2.81</i></sup>
         </div>
     </div>
 
@@ -1974,7 +1974,8 @@ function renderPet() {
 
     const lang = typeof CURRENT_LANG !== 'undefined' ? CURRENT_LANG : 'vi';
     const moodTexts = MOOD_TEXT[lang] || MOOD_TEXT.vi;
-    document.getElementById('pet-mood-text').textContent = moodTexts[mood] || moodTexts.normal;
+    let stars = level <= 10 ? '⭐'.repeat(level) : '⭐ x' + level;
+    document.getElementById('pet-mood-text').innerHTML = (moodTexts[mood] || moodTexts.normal) + '<div style="margin-top: 6px; font-size: 11px; letter-spacing: 2px; text-shadow: 0 0 5px rgba(251,191,36,0.5);">' + stars + '</div>';
 
     document.getElementById('pet-level-text').textContent = 'Lv.' + level;
     const xp = petData.xp || 0;
