@@ -1744,8 +1744,8 @@ def pet_add_xp(username, amount, reason=''):
     pet['xp'] = pet.get('xp', 0) + amount
     pet['last_activity'] = datetime.now().isoformat()
 
-    # Food token: 1 food per checklist ticked
-    if reason == 'checklist':
+    # Food token: 1 food per checklist or logtime
+    if reason in ('checklist', 'logtime'):
         pet['food'] = pet.get('food', 0) + 1
 
     # Level up check
