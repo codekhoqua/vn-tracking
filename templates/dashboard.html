@@ -220,7 +220,7 @@
             style="border-radius: var(--radius-sm); margin-right: 8px;">
         <div style="display: flex; flex-direction: column; justify-content: center;">
             <span>VN-Tracking</span>
-            <sup style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.2.94</i></sup>
+            <sup style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.2.95</i></sup>
         </div>
     </div>
 
@@ -2389,10 +2389,8 @@ async function adoptPet() {
                 const petEl = document.getElementById('roaming-pet-container');
                 if (petEl) {
                     petEl.style.display = 'block';
-                    window.PetRoamEngine.syncPet(petData);
-                } else {
-                    window.PetRoamEngine.init(petData);
                 }
+                window.PetRoamEngine.syncPet(petData);
             }
             if (typeof showToast === 'function') {
                 const lang = typeof CURRENT_LANG !== 'undefined' ? CURRENT_LANG : 'vi';
