@@ -82,8 +82,10 @@ window.PetRoamEngine = (function() {
 
     function revertToDefault() {
         if (!petData) return;
-        // Kiểm tra starvation: Nếu hết sạch thức ăn = starving
-        if (petData.food <= 0) {
+        // Logic cũ: 
+        // - Starving (ảnh 4) xảy ra khi pet bị bỏ bê (không được tương tác/cho ăn) quá 1 ngày.
+        // - Backend sẽ tính toán thời gian và set petData.mood = 'sad' nếu quá 24h.
+        if (petData.mood === 'sad') {
             changeState('starve', STARVE_GIF, 0);
         } else {
             changeState('idle', IDLE_GIF, 0);
