@@ -1788,6 +1788,7 @@ def api_pet_leaderboard():
 
     leaderboard = []
     # Lấy danh sách tất cả người dùng từ USER_DB
+    USER_DB = load_users_from_sheet(USER_SHEET_URL)
     users = list(USER_DB.keys())
     for username in users:
         pet = _pet_read(username)
@@ -1810,6 +1811,24 @@ def api_pet_leaderboard():
     # Sắp xếp theo level giảm dần, sau đó theo xp giảm dần
     leaderboard.sort(key=lambda x: (x['level'], x['xp']), reverse=True)
     return jsonify({'success': True, 'leaderboard': leaderboard})
+
+@app.route('/api/pet/reset', methods=['POST'])
+def api_pet_reset():
+    if not session.get('logged_in'):
+        return jsonify({'error': 'Unauthorized'}), 401
+    username = session.get('user', '')
+    pet = _pet_read(username)
+    if not pet:
+        return jsonify({'error': 'No pet found'}), 404
+    # Reset pet
+    pet['level'] = 1
+    pet['xp'] = 0
+    pet['food'] = 0
+    pet['accessories'] = []
+    pet['active_accessory'] = None
+    pet['last_activity'] = datetime.now().isoformat()
+    _pet_write(username, pet)
+    return jsonify({'success': True})
 
 @app.route('/api/pet', methods=['GET'])
 def api_pet_get():
