@@ -220,7 +220,7 @@
             style="border-radius: var(--radius-sm); margin-right: 8px;">
         <div style="display: flex; flex-direction: column; justify-content: center;">
             <span>VN-Tracking</span>
-            <sup style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.3.1</i></sup>
+            <sup style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.3.2</i></sup>
         </div>
     </div>
 
@@ -1940,7 +1940,7 @@
     pointer-events: none;
     transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
     z-index: 10;
-    width: 250px;
+    width: 160px;
     text-align: left;
     line-height: 1.4;
 }
@@ -2147,12 +2147,10 @@ window.triggerPetMusicInvite = function(djName, youtubeId) {
 function addGroqMusic(youtubeId, title) {
     if (!window.socket) return;
     
-    // Kiểm tra xem phòng có đang im ắng không
     const djNameEl = document.getElementById('radio-dj-name');
     const isSilent = !djNameEl || djNameEl.innerText.includes('Phòng chờ') || djNameEl.innerText.includes('Silent');
     
     if (isSilent) {
-        // Tự động làm DJ và phát bài này
         const djToggle = document.getElementById('radio-dj-toggle');
         if (djToggle && !djToggle.checked) {
             djToggle.checked = true;
@@ -2167,11 +2165,15 @@ function addGroqMusic(youtubeId, title) {
             }
         }, 300);
     } else {
-        // Có người làm DJ rồi thì gửi request và join
         window.socket.emit('queue_add', { youtube_id: youtubeId, title: title });
         
-        if (typeof isListening !== 'undefined' && !isListening) {
-            document.getElementById('radio-play-btn')?.click();
+        // Đảm bảo click vào nút play của LSA Music
+        const playBtn = document.getElementById('radio-play-btn');
+        if (playBtn) {
+            const isPlaying = playBtn.innerHTML.includes('rect'); // Nút pause có thẻ rect
+            if (!isPlaying) {
+                playBtn.click(); // Nếu chưa play thì click để play
+            }
         }
     }
     
