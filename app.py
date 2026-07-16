@@ -1981,23 +1981,6 @@ def api_pet_rename():
     _pet_write(username, pet)
     return jsonify({'success': True, 'name': new_name})
 
-@app.route('/api/pet/color', methods=['POST'])
-def api_pet_color():
-    """Đổi màu pet."""
-    if not session.get('logged_in'):
-        return jsonify({'error': 'Unauthorized'}), 401
-
-    username = session.get('user', '')
-    pet = _pet_read(username)
-    if not pet:
-        return jsonify({'error': 'No pet'}), 404
-
-    data = request.get_json(silent=True) or {}
-    hue = int(data.get('hue', 0))
-    pet['hue'] = hue
-    _pet_write(username, pet)
-    return jsonify({'success': True, 'hue': hue})
-
 @app.route('/api/pet/cheat_food', methods=['POST'])
 def api_pet_cheat_food():
     """API ẩn để test buff 999 food."""
