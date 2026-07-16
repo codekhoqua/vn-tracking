@@ -816,7 +816,7 @@ def api_checklist_sync():
             'tp_key': tp_key,
             'cb_id': cb_id,
             'status': bool(status)
-        }, broadcast=True, include_self=False)
+        })
         
         resp = {"status": "success"}
         if pet_result:
