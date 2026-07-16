@@ -74,7 +74,7 @@
     style="max-width: 95vw; height: 95vh; width: 100%; padding: 0; overflow: hidden; flex-direction: column;">
     <div class="modal-header"
         style="padding: 15px 25px; border-bottom: 1px solid var(--border); background: var(--surface); flex-shrink: 0;">
-        <h3 style="margin: 0;">Lịch Team</h3>
+        <h3 style="margin: 0;">Team Calendar</h3>
         <button class="modal-close" onclick="closeCalendarModal()">&times;</button>
     </div>
     <div class="modal-body" style="flex: 1; padding: 0; overflow: hidden;">
@@ -220,7 +220,7 @@
             style="border-radius: var(--radius-sm); margin-right: 8px;">
         <div style="display: flex; flex-direction: column; justify-content: center;">
             <span>VN-Tracking</span>
-            <sup style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.2.92</i></sup>
+            <sup style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.2.93</i></sup>
         </div>
     </div>
 
@@ -1475,7 +1475,7 @@
 
 <div id="pet-panel" class="pet-panel">
     <div class="pet-panel-header">
-        <span>🐾 マイペット</span>
+        <span>🐾 {{ 'My Pet' if lang == 'vi' else 'マイペット' }}</span>
         <div style="display: flex; gap: 10px; align-items: center;">
             <button onclick="resetPet()" style="background:none; border:none; color: var(--text-3); cursor:pointer; padding: 4px; display: flex; align-items: center; justify-content: center; opacity: 0.8; transition: all 0.2s; margin-right: 4px;" onmouseover="this.style.color='#ef4444'; this.style.opacity='1'" onmouseout="this.style.color='var(--text-3)'; this.style.opacity='0.8'">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
