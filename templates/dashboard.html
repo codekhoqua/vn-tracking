@@ -220,7 +220,7 @@
             style="border-radius: var(--radius-sm); margin-right: 8px;">
         <div style="display: flex; flex-direction: column; justify-content: center;">
             <span>VN-Tracking</span>
-            <sup style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.2.79</i></sup>
+            <sup style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.2.80</i></sup>
         </div>
     </div>
 
@@ -1477,7 +1477,7 @@
     <div class="pet-panel-header">
         <span>🐾 My Pet</span>
         <div style="display: flex; gap: 10px; align-items: center;">
-            <button onclick="resetPet()" style="background:none; border:none; color: #ef4444; cursor:pointer; font-size:12px; font-weight: bold; opacity: 0.8;" title="Reset Pet">🔄 Reset</button>
+            <button onclick="resetPet()" style="background:none; border:none; color: #ef4444; cursor:pointer; font-size:16px; opacity: 0.8; margin-right: 4px;">🔄</button>
             <button onclick="togglePetPanel()" style="background:none; border:none; color:var(--text-3); cursor:pointer; font-size:18px;">✕</button>
         </div>
     </div>
@@ -1511,10 +1511,10 @@
 
         <div style="display: flex; gap: 12px; margin-top: 16px;">
             <button class="pet-action-btn pet-btn-feed" id="pet-feed-btn" onclick="feedPet()" style="flex:1;">
-                <span style="font-size: 18px;">🍖</span> Cho ăn
+                <span style="font-size: 20px;">🍖</span>
             </button>
-            <button class="pet-action-btn pet-btn-bxh" onclick="openLeaderboardModal()" title="Bảng Xếp Hạng">
-                <span style="font-size: 18px;">🏆</span> BXH
+            <button class="pet-action-btn pet-btn-bxh" onclick="openLeaderboardModal()" style="flex:1;">
+                <span style="font-size: 20px;">🏆</span>
             </button>
         </div>
     </div>
@@ -1923,7 +1923,7 @@ async function initPet() {
             document.getElementById('pet-bubble-mood').style.background = '#94a3b8'; // gray
             
             if (window.PetRoamEngine) {
-                const petEl = document.getElementById('roaming-pet');
+                const petEl = document.getElementById('roaming-pet-container');
                 if (petEl) petEl.style.display = 'none';
             }
             return;
@@ -2062,10 +2062,6 @@ function closeLeaderboardModal() {
 }
 
 async function resetPet() {
-    const lang = CURRENT_LANG || 'vi';
-    const msg = lang === 'vi' ? 'Bạn có chắc chắn muốn reset pet về Level 1 và mất hết thức ăn không?' : 'ペットをリセットしてもよろしいですか？（レベルと食べ物は失われます）';
-    if (!confirm(msg)) return;
-    
     try {
         const res = await fetch('/api/pet/reset', { method: 'POST', headers: {'Content-Type': 'application/json'} });
         const data = await res.json();
@@ -2115,7 +2111,7 @@ async function feedPet() {
     }
 
     setTimeout(() => {
-        btn.textContent = '🍖 Cho ăn';
+        btn.innerHTML = '<span style="font-size: 20px;">🍖</span>';
         btn.disabled = (petData?.food || 0) <= 0;
     }, 800);
 }
@@ -2203,7 +2199,7 @@ async function adoptPet() {
                 confetti({ particleCount: 100, spread: 90, origin: { y: 0.6 }, colors: ['#8b5cf6', '#a78bfa', '#f59e0b', '#22c55e', '#ec4899'] });
             }
             if (window.PetRoamEngine) {
-                const petEl = document.getElementById('roaming-pet');
+                const petEl = document.getElementById('roaming-pet-container');
                 if (petEl) {
                     petEl.style.display = 'block';
                     window.PetRoamEngine.syncPet(petData);
@@ -2222,8 +2218,7 @@ async function adoptPet() {
         console.error('Adopt error:', e);
     }
     btn.disabled = false;
-    const lang = typeof CURRENT_LANG !== 'undefined' ? CURRENT_LANG : 'vi';
-    btn.textContent = lang === 'ja' ? '🐾 お迎え！' : '🐾 Nhận nuôi!';
+    btn.innerHTML = '<span style="font-size: 20px;">🐾</span>';
 }
 
 async function renamePet() {
