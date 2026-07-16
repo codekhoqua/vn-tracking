@@ -220,7 +220,7 @@
             style="border-radius: var(--radius-sm); margin-right: 8px;">
         <div style="display: flex; flex-direction: column; justify-content: center;">
             <span>VN-Tracking</span>
-            <sup style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.2.96</i></sup>
+            <sup style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.2.97</i></sup>
         </div>
     </div>
 
@@ -2097,6 +2097,36 @@ async function triggerPetBrief() {
         }, 5000);
     }
 }
+
+window.triggerPetMusicInvite = function(djName, youtubeId) {
+    const bubble = document.getElementById('pet-speech-bubble');
+    const textEl = document.getElementById('pet-speech-text');
+    const actionsEl = document.getElementById('pet-speech-actions');
+    
+    if (!bubble) return;
+    
+    clearTimeout(petBriefTimeout);
+    bubble.classList.add('active');
+    
+    const lang = typeof CURRENT_LANG !== 'undefined' ? CURRENT_LANG : 'vi';
+    let msg = `Có người đang nghe nhạc trên LSA MUSIC kìa! Bạn có muốn tham gia cùng ${djName} không? 🎵`;
+    if (lang === 'ja') {
+        msg = `${djName}さんがLSA MUSICで音楽を聴いています！一緒に参加しませんか？ 🎵`;
+    }
+    
+    textEl.innerHTML = msg;
+    
+    actionsEl.innerHTML = `<button class="pet-speech-btn" onclick="document.getElementById('radio-join-btn').click(); event.stopPropagation();">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+        </svg> Tham gia
+    </button>`;
+    
+    petBriefTimeout = setTimeout(() => {
+        bubble.classList.remove('active');
+    }, 15000);
+};
+
 
 function addGroqMusic(youtubeId, title) {
     if (window.socket) {
