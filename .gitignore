@@ -1,5 +1,6 @@
 .vercel
 .env*
 deploy.sh
+deploy.ps1
 env.yaml
 env_vars.yaml
