@@ -220,7 +220,7 @@
             style="border-radius: var(--radius-sm); margin-right: 8px;">
         <div style="display: flex; flex-direction: column; justify-content: center;">
             <span>VN-Tracking</span>
-            <sup style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.2.87</i></sup>
+            <sup style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.2.88</i></sup>
         </div>
     </div>
 
@@ -1491,9 +1491,9 @@
             <div class="pet-sprite-large" id="pet-sprite-large"></div>
             <div class="pet-stage-badge" id="pet-stage-badge">BABY</div>
         </div>
-        <div class="pet-name-row">
+        <div class="pet-name-row" style="justify-content: center; position: relative; width: fit-content; margin: 0 auto;">
             <span class="pet-name" id="pet-name">???</span>
-            <button class="pet-rename-btn" onclick="renamePet()" title="Rename" style="background:none; border:none; color: var(--text-3); cursor:pointer; padding: 4px; display: flex; align-items: center; justify-content: center; opacity: 0.8; transition: all 0.2s; margin-left: 6px;" onmouseover="this.style.color='#8b5cf6'; this.style.opacity='1'" onmouseout="this.style.color='var(--text-3)'; this.style.opacity='0.8'">
+            <button class="pet-rename-btn" onclick="renamePet()" title="Rename" style="position: absolute; right: -32px; background:none; border:none; color: var(--text-3); cursor:pointer; padding: 4px; display: flex; align-items: center; justify-content: center; opacity: 0.8; transition: all 0.2s;" onmouseover="this.style.color='#8b5cf6'; this.style.opacity='1'" onmouseout="this.style.color='var(--text-3)'; this.style.opacity='0.8'">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                     <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
@@ -2013,7 +2013,7 @@ function renderPet() {
     const lang = typeof CURRENT_LANG !== 'undefined' ? CURRENT_LANG : 'vi';
     const moodTexts = MOOD_TEXT[lang] || MOOD_TEXT.vi;
     let stars = level <= 10 ? '⭐'.repeat(level) : '⭐ x' + level;
-    document.getElementById('pet-mood-text').innerHTML = (moodTexts[mood] || moodTexts.normal) + '<div style="margin-top: 6px; font-size: 11px; letter-spacing: 2px; text-shadow: 0 0 5px rgba(251,191,36,0.5);">' + stars + '</div>';
+    document.getElementById('pet-mood-text').innerHTML = (moodTexts[mood] || moodTexts.normal) + '<div style="margin-top: 6px; font-size: 11px; letter-spacing: 2px; text-shadow: 0 0 8px #fbbf24, 0 0 15px #fbbf24; filter: brightness(1.2);">' + stars + '</div>';
 
     document.getElementById('pet-level-text').textContent = 'Lv.' + level;
     const xp = petData.xp || 0;
