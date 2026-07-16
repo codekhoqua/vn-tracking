@@ -2,3 +2,4 @@
 .env*
 deploy.sh
 env.yaml
+env_vars.yaml
