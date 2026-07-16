@@ -1693,17 +1693,33 @@ def _pet_mood(last_activity_str):
         return 'normal'
 
 
+def safe_sb_filename(u):
+    import base64
+    return base64.urlsafe_b64encode(u.encode('utf-8')).decode('utf-8')
+
 def _pet_read(username):
     """Đọc pet data từ Supabase hoặc Local."""
     if not username:
         return None
     if USE_SUPABASE:
         try:
-            data = sb_download_bytes(f'_system/pets/{username}.json')
+            # Dùng base64 để tránh lỗi encoding filename trên Supabase Storage
+            sb_user = safe_sb_filename(username)
+            data = sb_download_bytes(f'_system/pets/{sb_user}.json')
             if data:
                 d = json.loads(data.decode('utf-8'))
                 if 'pets' in d and len(d['pets']) > 0:
                     return d['pets'][d.get('active_pet', 0)] # migration fallback
+                return d
+        except Exception:
+            pass
+        # Fallback to check plain username in Supabase in case they had old data
+        try:
+            data = sb_download_bytes(f'_system/pets/{username}.json')
+            if data:
+                d = json.loads(data.decode('utf-8'))
+                if 'pets' in d and len(d['pets']) > 0:
+                    return d['pets'][d.get('active_pet', 0)]
                 return d
         except Exception:
             pass
@@ -1730,7 +1746,8 @@ def _pet_write(username, pet_data):
     if USE_SUPABASE:
         try:
             json_data = json.dumps(pet_data, ensure_ascii=False).encode('utf-8')
-            sb_upload(f'_system/pets/{username}.json', json_data, content_type='application/json')
+            sb_user = safe_sb_filename(username)
+            sb_upload(f'_system/pets/{sb_user}.json', json_data, content_type='application/json')
             return True
         except Exception as e:
             print(f"Pet write error for {username}: {e}")
