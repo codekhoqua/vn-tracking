@@ -1681,6 +1681,10 @@ def _pet_mood(last_activity_str):
             
         hours_diff = (now - last).total_seconds() / 3600
 
+        # Vừa mới có tương tác (feed, click) < 6 phút (0.1 giờ) -> Vẫn thức/happy dù là ban đêm
+        if hours_diff < 0.1:
+            return 'happy'
+
         # Ngoài giờ làm (22h-7h)
         if now.hour >= 22 or now.hour < 7:
             return 'sleep'
