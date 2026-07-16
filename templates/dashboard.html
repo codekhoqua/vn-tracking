@@ -220,7 +220,7 @@
             style="border-radius: var(--radius-sm); margin-right: 8px;">
         <div style="display: flex; flex-direction: column; justify-content: center;">
             <span>VN-Tracking</span>
-            <sup style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.2.75</i></sup>
+            <sup style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.2.76</i></sup>
         </div>
     </div>
 
@@ -1911,6 +1911,13 @@ async function initPet() {
         const res = await fetch('/api/pet');
         const data = await res.json();
         if (data.has_pet === false) {
+            // Ẩn panel nếu đang mở
+            document.getElementById('pet-panel').classList.remove('active');
+            document.getElementById('pet-widget-bubble').style.display = 'none';
+            if (window.PetRoamEngine) {
+                const petEl = document.getElementById('roaming-pet');
+                if (petEl) petEl.style.display = 'none';
+            }
             // Show adopt modal
             openPetAdoptModal();
             return;
@@ -2184,6 +2191,15 @@ async function adoptPet() {
             // Welcome confetti
             if (typeof confetti === 'function') {
                 confetti({ particleCount: 100, spread: 90, origin: { y: 0.6 }, colors: ['#8b5cf6', '#a78bfa', '#f59e0b', '#22c55e', '#ec4899'] });
+            }
+            if (window.PetRoamEngine) {
+                const petEl = document.getElementById('roaming-pet');
+                if (petEl) {
+                    petEl.style.display = 'block';
+                    window.PetRoamEngine.syncPet(petData);
+                } else {
+                    window.PetRoamEngine.init(petData);
+                }
             }
             if (typeof showToast === 'function') {
                 const lang = typeof CURRENT_LANG !== 'undefined' ? CURRENT_LANG : 'vi';
