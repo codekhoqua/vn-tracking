@@ -2381,6 +2381,13 @@ function setupSocketRadio() {
                     showToast(CURRENT_LANG === 'vi' ? 'Host đã tắt DJ, bạn đã ngắt kết nối' : 'ホストがDJを終了したため、切断されました', 'info');
                 }
             }
+        } else if (state.is_playing && state.dj_username !== window.currentUser && !isListening) {
+            if (window._lastPetDjNotified !== state.dj_username) {
+                window._lastPetDjNotified = state.dj_username;
+                if (window.triggerPetMusicInvite) {
+                    window.triggerPetMusicInvite(state.dj_username, state.youtube_id);
+                }
+            }
         }
 
         radioState.youtube_id = state.youtube_id;
