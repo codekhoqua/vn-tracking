@@ -118,8 +118,7 @@ window.PetRoamEngine = (function() {
         imgElement.style.width = '80px';
         imgElement.style.height = '80px';
         imgElement.style.objectFit = 'contain';
-        const hue = (petData && petData.hue) || 0;
-        imgElement.style.filter = `drop-shadow(0 4px 6px rgba(0,0,0,0.4)) hue-rotate(${hue}deg)`;
+        imgElement.style.filter = 'drop-shadow(0 4px 6px rgba(0,0,0,0.4))';
         imgElement.draggable = false;
         
         petElement.appendChild(imgElement);
