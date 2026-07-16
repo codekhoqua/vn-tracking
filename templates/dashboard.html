@@ -220,7 +220,7 @@
             style="border-radius: var(--radius-sm); margin-right: 8px;">
         <div style="display: flex; flex-direction: column; justify-content: center;">
             <span>VN-Tracking</span>
-            <sup style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.2.74</i></sup>
+            <sup style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.2.75</i></sup>
         </div>
     </div>
 
@@ -1509,12 +1509,12 @@
             </div>
         </div>
 
-        <div style="display: flex; gap: 10px; margin-top: 15px;">
-            <button class="pet-feed-btn" id="pet-feed-btn" onclick="feedPet()" style="flex:1;">
-                🍖 Cho ăn
+        <div style="display: flex; gap: 12px; margin-top: 16px;">
+            <button class="pet-action-btn pet-btn-feed" id="pet-feed-btn" onclick="feedPet()" style="flex:1;">
+                <span style="font-size: 18px;">🍖</span> Cho ăn
             </button>
-            <button class="pet-feed-btn" onclick="openLeaderboardModal()" style="background: linear-gradient(135deg, #3b82f6, #2563eb);" title="Bảng Xếp Hạng">
-                🏆 BXH
+            <button class="pet-action-btn pet-btn-bxh" onclick="openLeaderboardModal()" title="Bảng Xếp Hạng">
+                <span style="font-size: 18px;">🏆</span> BXH
             </button>
         </div>
     </div>
@@ -1543,35 +1543,12 @@
         <p style="color: var(--text-2); margin-bottom: 16px; font-size: 0.9rem;">
             {{ 'Hoàn thành task để nuôi thú cưng lên level! Pet sẽ buồn nếu bạn bỏ bê nó đấy~' if lang == 'vi' else 'タスクを完了してペットを育てましょう！放置するとペットが悲しくなります〜' }}
         </p>
-        <div class="pet-select-grid" id="pet-select-grid">
-            <div class="pet-select-card" data-type="neko" onclick="selectPetType(this, 'neko')">
-                <div class="pet-select-sprite pet-sprite-neko"></div>
-                <span>🐱 {{ 'Mèo Neko' if lang == 'vi' else 'ネコ' }}</span>
-            </div>
-            <div class="pet-select-card" data-type="shiba" onclick="selectPetType(this, 'shiba')">
-                <div class="pet-select-sprite pet-sprite-shiba"></div>
-                <span>🐕 {{ 'Chó Shiba' if lang == 'vi' else '柴犬' }}</span>
-            </div>
-            <div class="pet-select-card" data-type="bunny" onclick="selectPetType(this, 'bunny')">
-                <div class="pet-select-sprite pet-sprite-bunny"></div>
-                <span>🐰 {{ 'Thỏ' if lang == 'vi' else 'うさぎ' }}</span>
-            </div>
-            <div class="pet-select-card" data-type="dragon" onclick="selectPetType(this, 'dragon')">
-                <div class="pet-select-sprite pet-sprite-dragon"></div>
-                <span>🐲 {{ 'Rồng' if lang == 'vi' else 'ドラゴン' }}</span>
-            </div>
-            <div class="pet-select-card" data-type="fox" onclick="selectPetType(this, 'fox')">
-                <div class="pet-select-sprite pet-sprite-fox"></div>
-                <span>🦊 {{ 'Cáo' if lang == 'vi' else 'キツネ' }}</span>
-            </div>
-            <div class="pet-select-card" data-type="hamster" onclick="selectPetType(this, 'hamster')">
-                <div class="pet-select-sprite pet-sprite-hamster"></div>
-                <span>🐹 {{ 'Hamster' if lang == 'vi' else 'ハムスター' }}</span>
-            </div>
+        <div style="display: flex; flex-direction: column; align-items: center; margin-bottom: 20px;">
+            <img src="/static/img/pet/2.gif" style="width: 120px; height: 120px; object-fit: contain; filter: drop-shadow(0 4px 12px rgba(0,0,0,0.5));">
         </div>
         <div style="margin-top: 16px;">
-            <label style="display:block; margin-bottom:5px; color:var(--text-2); font-size:0.85rem;">{{ 'Đặt tên cho pet' if lang == 'vi' else 'ペットの名前' }}</label>
-            <input type="text" id="pet-name-input" class="cp-input" style="width: 100%;" placeholder="{{ 'VD: Mochi, Luna...' if lang == 'vi' else '例: モチ、ルナ...' }}" maxlength="20">
+            <label style="display:block; margin-bottom:10px; color:var(--text-2); font-size:0.95rem; text-align: center;">{{ 'Đặt tên cho thú cưng của bạn' if lang == 'vi' else 'ペットの名前' }}</label>
+            <input type="text" id="pet-name-input" class="cp-input" style="width: 100%; text-align: center; font-weight: bold; font-size: 1.1rem; padding: 12px; border-radius: 12px;" placeholder="{{ 'Nhập tên ngộ nghĩnh...' if lang == 'vi' else '名前を入力...' }}" maxlength="20">
         </div>
     </div>
     <div class="modal-footer" style="padding: 15px; border-top: 1px solid rgba(255,255,255,0.1); display:flex; justify-content:flex-end; gap:10px;">
@@ -1728,21 +1705,35 @@
     display: flex; align-items: center; gap: 4px;
     font-size: 13px; color: #e2e8f0;
 }
-.pet-feed-btn {
-    width: 100%;
-    padding: 10px;
+.pet-action-btn {
+    padding: 12px 16px;
     border: none;
-    border-radius: 12px;
-    background: linear-gradient(135deg, #7c3aed, #6d28d9);
+    border-radius: 14px;
     color: #fff;
     font-weight: 700;
-    font-size: 13px;
+    font-size: 14px;
     cursor: pointer;
-    transition: transform 0.2s, box-shadow 0.2s;
-    box-shadow: 0 4px 12px rgba(124,58,237,0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
-.pet-feed-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(124,58,237,0.4); }
-.pet-feed-btn:active { transform: scale(0.97); }
+.pet-btn-feed {
+    background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+    box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4);
+}
+.pet-btn-feed:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(139, 92, 246, 0.6); filter: brightness(1.1); }
+.pet-btn-feed:active { transform: scale(0.95); }
+.pet-btn-feed:disabled {
+    opacity: 0.5; cursor: not-allowed; filter: grayscale(1); box-shadow: none; transform: none;
+}
+.pet-btn-bxh {
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+}
+.pet-btn-bxh:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(59, 130, 246, 0.6); filter: brightness(1.1); }
+.pet-btn-bxh:active { transform: scale(0.95); }
 .pet-feed-btn:disabled {
     opacity: 0.5; cursor: not-allowed;
     background: rgba(255,255,255,0.1);
@@ -2165,18 +2156,12 @@ function closePetAdoptModal() {
     document.getElementById('pet-adopt-overlay').classList.remove('active');
     document.getElementById('pet-adopt-modal').classList.remove('active');
 }
-function selectPetType(card, type) {
-    selectedPetType = type;
-    document.querySelectorAll('.pet-select-card').forEach(c => c.classList.remove('selected'));
-    card.classList.add('selected');
-    document.getElementById('pet-adopt-btn').disabled = !document.getElementById('pet-name-input').value.trim();
-}
+function selectPetType(card, type) {}
 document.getElementById('pet-name-input')?.addEventListener('input', function() {
-    document.getElementById('pet-adopt-btn').disabled = !selectedPetType || !this.value.trim();
+    document.getElementById('pet-adopt-btn').disabled = !this.value.trim();
 });
 
 async function adoptPet() {
-    if (!selectedPetType) return;
     const name = document.getElementById('pet-name-input').value.trim();
     if (!name) return;
 
@@ -2188,7 +2173,7 @@ async function adoptPet() {
         const res = await fetch('/api/pet/adopt', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ type: selectedPetType, name: name })
+            body: JSON.stringify({ type: 'neko', name: name })
         });
         const data = await res.json();
         if (data.success) {
