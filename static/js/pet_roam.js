@@ -25,7 +25,6 @@ window.PetRoamEngine = (function() {
 
     let stateTimeout = null;
     let idleTimer = null;
-    let currentState = 'idle';
 
     function init(initialPetData) {
         petData = initialPetData;
