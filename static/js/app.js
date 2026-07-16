@@ -2533,6 +2533,45 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    // Hàm chuyên biệt để join radio từ Pet - không bị chặn bởi ytPlayer check
+    window.joinRadioFromPet = function () {
+        if (isRadioDJ || isListening) return; // Đã là DJ hoặc đang nghe rồi thì bỏ qua
+
+        // 1. Đánh dấu đang nghe
+        isListening = true;
+
+        // 2. Thông báo server
+        if (useRadioPolling) {
+            radioApiPost('/api/radio/join');
+            startListenerHeartbeat();
+            startRadioPolling();
+        } else if (window.socket) {
+            window.socket.emit('join_radio');
+        }
+
+        // 3. Load & play video nếu YT Player sẵn sàng
+        if (ytPlayer && ytPlayer.getPlayerState) {
+            const currentVideo = ytPlayer.getVideoData?.()?.video_id;
+            if (currentVideo !== radioState.youtube_id) {
+                ytPlayer.loadVideoById(radioState.youtube_id, radioState.current_time);
+            } else {
+                ytPlayer.seekTo(radioState.current_time, true);
+            }
+            if (radioState.is_playing) ytPlayer.playVideo();
+        } else {
+            // YT Player chưa sẵn sàng → retry sau 1 giây
+            setTimeout(() => {
+                if (ytPlayer && ytPlayer.loadVideoById) {
+                    ytPlayer.loadVideoById(radioState.youtube_id, radioState.current_time);
+                    if (radioState.is_playing) ytPlayer.playVideo();
+                }
+            }, 1000);
+        }
+
+        // 4. Cập nhật UI
+        updateRadioUI();
+    };
+
     window.toggleDJMode = function () {
         const toggleEl = document.getElementById('radio-dj-toggle');
         const isChecked = toggleEl.checked;
