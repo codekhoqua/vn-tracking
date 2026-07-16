@@ -10,8 +10,10 @@
 
 window.PetRoamEngine = (function() {
     let petData = null;
+    let currentState = 'idle';
     let petElement = null;
     let imgElement = null;
+    let clickOutsideTimer = null;
     
     // Config URLs
     const IDLE_GIF = '/static/img/pet/2.gif';
@@ -37,7 +39,10 @@ window.PetRoamEngine = (function() {
             if (!petElement || !imgElement) return;
             // Nếu click KHÔNG PHẢI vào pet và KHÔNG PHẢI nút cho ăn
             if (!petElement.contains(e.target) && !e.target.closest('.pet-feed-btn')) {
-                changeState('click_outside', CLICK_OUTSIDE_GIF, 0); // Giữ nguyên gif 5
+                if (clickOutsideTimer) clearTimeout(clickOutsideTimer);
+                clickOutsideTimer = setTimeout(() => {
+                    changeState('click_outside', CLICK_OUTSIDE_GIF, 0); // Giữ nguyên gif 5 sau 2 phút
+                }, 2 * 60 * 1000); // 2 phút (120000ms)
             }
             resetIdleTimer();
         });
@@ -119,6 +124,10 @@ window.PetRoamEngine = (function() {
 
         // Interaction logic (Click / Mousedown)
         petElement.addEventListener('mousedown', (e) => {
+            if (clickOutsideTimer) {
+                clearTimeout(clickOutsideTimer);
+                clickOutsideTimer = null;
+            }
             changeState('click_pet', CLICK_PET_GIF, 2000); // Bóp má 2s rồi thả ra
             resetIdleTimer();
             e.stopPropagation(); // Ngăn sự kiện truyền ra ngoài gây ra lỗi "click outside"
@@ -126,7 +135,11 @@ window.PetRoamEngine = (function() {
         
         // Khi rê chuột gần pet (mouseenter), khôi phục trạng thái nếu đang dỗi vì click chỗ khác
         petElement.addEventListener('mouseenter', () => {
-            if (currentState === 'click_outside') {
+            if (clickOutsideTimer) {
+                clearTimeout(clickOutsideTimer);
+                clickOutsideTimer = null;
+            }
+            if (currentState === 'click_outside' || currentState === 'ignored') {
                 revertToDefault();
             }
         });
