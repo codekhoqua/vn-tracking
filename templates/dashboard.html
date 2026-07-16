@@ -220,7 +220,7 @@
             style="border-radius: var(--radius-sm); margin-right: 8px;">
         <div style="display: flex; flex-direction: column; justify-content: center;">
             <span>VN-Tracking</span>
-            <sup style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.2.76</i></sup>
+            <sup style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.2.77</i></sup>
         </div>
     </div>
 
@@ -2018,12 +2018,12 @@ async function openLeaderboardModal() {
                 let badgeColor = index === 0 ? '#fbbf24' : index === 1 ? '#94a3b8' : index === 2 ? '#b45309' : 'transparent';
                 let rankDisplay = index < 3 ? `<div style="width: 28px; height: 28px; border-radius: 50%; background: ${badgeColor}; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #fff;">${index + 1}</div>` : `<div style="width: 28px; text-align: center; font-weight: bold; color: var(--text-2);">${index + 1}</div>`;
                 
-                let emoji = (PET_STAGE_EMOJIS[p.stage] || PET_STAGE_EMOJIS.baby)[p.type] || PET_EMOJIS[p.type] || '🐾';
+                let avatar = `<img src="/static/img/pet/2.gif" style="width: 48px; height: 48px; object-fit: contain;">`;
                 
                 html += `
                 <div style="display: flex; align-items: center; gap: 15px; padding: 12px; background: rgba(255,255,255,0.05); border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);">
                     ${rankDisplay}
-                    <div style="font-size: 32px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));">${emoji}</div>
+                    <div style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); display: flex; align-items: center; justify-content: center;">${avatar}</div>
                     <div style="flex: 1;">
                         <div style="font-weight: 700; color: #e2e8f0; display: flex; align-items: center; gap: 6px;">
                             ${p.username} 
