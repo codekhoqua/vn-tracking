@@ -220,7 +220,7 @@
             style="border-radius: var(--radius-sm); margin-right: 8px;">
         <div style="display: flex; flex-direction: column; justify-content: center;">
             <span>VN-Tracking</span>
-            <sup style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.3.5</i></sup>
+            <sup style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.3.6</i></sup>
         </div>
     </div>
 
@@ -2343,7 +2343,7 @@ async function feedPet() {
         const res = await fetch('/api/pet/feed', { method: 'POST', headers: {'Content-Type': 'application/json'} });
         const data = await res.json();
         if (data.success) {
-            fetchPetData(); // reload all states
+            await fetchPetData(); // Đợi load xong state mới (tránh gọi renderPet() giữa chừng)
 
             // Kích hoạt animation ăn của roaming pet
             if (window.triggerPetFeedAnimation) {
