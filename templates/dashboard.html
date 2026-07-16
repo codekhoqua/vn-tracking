@@ -220,7 +220,7 @@
             style="border-radius: var(--radius-sm); margin-right: 8px;">
         <div style="display: flex; flex-direction: column; justify-content: center;">
             <span>VN-Tracking</span>
-            <sup style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.2.98</i></sup>
+            <sup style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.2.99</i></sup>
         </div>
     </div>
 
@@ -1939,7 +1939,11 @@
     transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
     z-index: 10;
     width: 250px;
-    text-align: center;
+    text-align: left;
+    line-height: 1.4;
+}
+.pet-speech-text {
+    font-size: 13px !important;
 }
 .pet-speech-bubble.active {
     opacity: 1;
@@ -1955,6 +1959,8 @@
     border-width: 6px;
     border-style: solid;
     border-color: transparent transparent transparent var(--border);
+    width: 0;
+    height: 0;
 }
 .pet-speech-bubble::before {
     content: '';
@@ -1967,6 +1973,8 @@
     border-style: solid;
     border-color: transparent transparent transparent var(--bg-card);
     z-index: 1;
+    width: 0;
+    height: 0;
 }
 .pet-speech-actions {
     margin-top: 8px;
@@ -2135,32 +2143,57 @@ window.triggerPetMusicInvite = function(djName, youtubeId) {
 
 
 function addGroqMusic(youtubeId, title) {
-    if (window.socket) {
-        window.socket.emit('queue_add', { youtube_id: youtubeId, title: title });
-        
-        // Show a fun toast
-        const toast = document.createElement('div');
-        toast.textContent = '🎵 Đã bay vào LSA Music!';
-        toast.style.position = 'fixed';
-        toast.style.bottom = '80px';
-        toast.style.right = '20px';
-        toast.style.background = '#22c55e';
-        toast.style.color = 'white';
-        toast.style.padding = '8px 16px';
-        toast.style.borderRadius = '8px';
-        toast.style.zIndex = '10005';
-        toast.style.boxShadow = '0 4px 12px rgba(0,0,0,0.3)';
-        toast.style.animation = 'petLevelUpToast 0.5s ease-out forwards';
-        document.body.appendChild(toast);
+    if (!window.socket) return;
+    
+    // Kiểm tra xem phòng có đang im ắng không
+    const djNameEl = document.getElementById('radio-dj-name');
+    const isSilent = !djNameEl || djNameEl.innerText.includes('Phòng chờ') || djNameEl.innerText.includes('Silent');
+    
+    if (isSilent) {
+        // Tự động làm DJ và phát bài này
+        const djToggle = document.getElementById('radio-dj-toggle');
+        if (djToggle && !djToggle.checked) {
+            djToggle.checked = true;
+            if (window.toggleDJMode) window.toggleDJMode();
+        }
         
         setTimeout(() => {
-            toast.style.opacity = '0';
-            toast.style.transition = 'opacity 0.3s';
-            setTimeout(() => toast.remove(), 300);
-        }, 3000);
+            const ytInput = document.getElementById('radio-yt-input');
+            const addBtn = document.getElementById('radio-yt-add-btn');
+            if (ytInput && addBtn) {
+                ytInput.value = youtubeId;
+                addBtn.click();
+            }
+        }, 300);
     } else {
-        console.log("Socket not found, cannot add music:", youtubeId);
+        // Có người làm DJ rồi thì gửi request và join
+        window.socket.emit('queue_add', { youtube_id: youtubeId, title: title });
+        
+        if (typeof isListening !== 'undefined' && !isListening) {
+            document.getElementById('radio-join-btn')?.click();
+        }
     }
+    
+    // Show a fun toast
+    const toast = document.createElement('div');
+    toast.textContent = '🎵 Đã bay vào LSA Music!';
+    toast.style.position = 'fixed';
+    toast.style.bottom = '80px';
+    toast.style.right = '20px';
+    toast.style.background = '#22c55e';
+    toast.style.color = 'white';
+    toast.style.padding = '8px 16px';
+    toast.style.borderRadius = '8px';
+    toast.style.zIndex = '10005';
+    toast.style.boxShadow = '0 4px 12px rgba(0,0,0,0.3)';
+    toast.style.animation = 'petLevelUpToast 0.5s ease-out forwards';
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transition = 'opacity 0.3s';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
 }
 
 function renderPet() {
