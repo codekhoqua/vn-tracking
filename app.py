@@ -2318,6 +2318,8 @@ def api_radio_sync():
     state['current_time'] = data.get('current_time', 0)
     if 'next_title' in data:
         state['next_title'] = data['next_title']
+    if 'video_active' in data:
+        state['video_active'] = data['video_active']
     _radio_write_state(state)
     return jsonify({'success': True})
 
@@ -2603,6 +2605,8 @@ def handle_radio_sync(data):
     radio_state['current_time'] = data.get('current_time', 0)
     if 'next_title' in data:
         radio_state['next_title'] = data['next_title']
+    if 'video_active' in data:
+        radio_state['video_active'] = data['video_active']
     radio_state['is_crossfading'] = data.get('is_crossfading', False)
     radio_state['last_update'] = time.time()
     state = radio_state.copy()
@@ -2860,7 +2864,7 @@ def compare_psd():
         folder_psd = os.path.join(base_path, f"{tap_str}巻", "01_レタッチ", "01_★編集用PSD")
         
         if not os.path.exists(folder_psd):
-            return jsonify({'error': f'Thư mục đích không tồn tại: {folder_psd}. Vui lòng Tạo thư mục trước!'}), 400
+            os.makedirs(folder_psd, exist_ok=True)
             
         # Find all .psd files in source_path
         psd_files = glob.glob(os.path.join(source_path, '*.psd'))

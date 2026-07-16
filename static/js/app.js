@@ -1794,7 +1794,7 @@ document.addEventListener('DOMContentLoaded', () => {
             cursorEl.timeoutId = setTimeout(() => {
                 cursorEl.remove();
                 delete cursors[uid];
-            }, 300000); // 5 mins
+            }, 180000); // 3 mins
         });
 
         window.socket.on('online_users_update', (users) => {
@@ -1868,7 +1868,13 @@ window.onYouTubeIframeAPIReady = function () {
         videoId: radioState.youtube_id,
         playerVars: pVars,
         events: {
-            'onReady': onPlayerReady,
+            'onReady': function(event) {
+                if(event.target.getIframe) {
+                    event.target.getIframe().style.opacity = '1';
+                    event.target.getIframe().style.zIndex = '2';
+                }
+                onPlayerReady(event);
+            },
             'onStateChange': function(event) {
                 // Only process events from the active player, ignore during crossfade
                 if (event.target !== ytPlayer || isCrossfading) return;
@@ -1881,7 +1887,12 @@ window.onYouTubeIframeAPIReady = function () {
         width: '0',
         playerVars: pVars,
         events: {
-            'onReady': function() { /* Player 2 standby */ },
+            'onReady': function(event) { 
+                if(event.target.getIframe) {
+                    event.target.getIframe().style.opacity = '0';
+                    event.target.getIframe().style.zIndex = '1';
+                }
+            },
             'onStateChange': function(event) {
                 if (event.target !== ytPlayer || isCrossfading) return;
                 onPlayerStateChange(event);
@@ -1907,6 +1918,16 @@ window.cancelCrossfade = function() {
     if (ytPlayer && ytPlayer.setVolume) {
         try { ytPlayer.setVolume(100); } catch(e) {}
     }
+    try {
+        if (ytPlayer && ytPlayer.getIframe) {
+            ytPlayer.getIframe().style.opacity = '1';
+            ytPlayer.getIframe().style.zIndex = '2';
+        }
+        if (ytPlayer2 && ytPlayer2.getIframe) {
+            ytPlayer2.getIframe().style.opacity = '0';
+            ytPlayer2.getIframe().style.zIndex = '1';
+        }
+    } catch(e) {}
 };
 
 window.crossfadeTo = function(newVideoId, startTime, callback) {
@@ -1950,6 +1971,14 @@ window.crossfadeTo = function(newVideoId, startTime, callback) {
         try {
             if (ytPlayer && ytPlayer.setVolume) ytPlayer.setVolume(Math.max(0, Math.round(startVol * (1 - ratio))));
             if (ytPlayer2 && ytPlayer2.setVolume) ytPlayer2.setVolume(Math.min(100, Math.round(startVol * ratio)));
+            if (ytPlayer && ytPlayer.getIframe) {
+                ytPlayer.getIframe().style.opacity = 1 - ratio;
+                ytPlayer.getIframe().style.zIndex = '2';
+            }
+            if (ytPlayer2 && ytPlayer2.getIframe) {
+                ytPlayer2.getIframe().style.opacity = ratio;
+                ytPlayer2.getIframe().style.zIndex = '3';
+            }
         } catch(e) {}
 
         if (currentStep >= steps) {
@@ -1963,6 +1992,14 @@ window.crossfadeTo = function(newVideoId, startTime, callback) {
             try {
                 if (ytPlayer && ytPlayer.pauseVideo) ytPlayer.pauseVideo();
                 if (ytPlayer && ytPlayer.setVolume) ytPlayer.setVolume(100);
+                if (ytPlayer && ytPlayer.getIframe) {
+                    ytPlayer.getIframe().style.opacity = '0';
+                    ytPlayer.getIframe().style.zIndex = '1';
+                }
+                if (ytPlayer2 && ytPlayer2.getIframe) {
+                    ytPlayer2.getIframe().style.opacity = '1';
+                    ytPlayer2.getIframe().style.zIndex = '2';
+                }
             } catch(e) {}
             // Pointer swap: ytPlayer always points to the active player
             var temp = ytPlayer;
@@ -2087,6 +2124,7 @@ function handleRadioStateFromPolling(state) {
         if (state.next_title !== undefined) radioState.next_title = state.next_title;
         radioState.allow_requests = state.allow_requests === true || state.allow_requests === 'true';
         radioState.is_automix_enabled = state.is_automix_enabled !== false;
+        radioState.video_active = !!state.video_active;
         if (state.queue) radioState.queue = state.queue;
 
         if (window.updateRadioUI) window.updateRadioUI();
@@ -2225,27 +2263,31 @@ function handleRadioListenersUpdate(listeners) {
         if (listeners.length > 0) {
             marqueeTrack.innerHTML = '';
             for (let copy = 0; copy < 2; copy++) {
+                var containerItem = document.createElement('span');
+                containerItem.style.cssText = 'display:inline-flex;align-items:center;flex-shrink:0;';
+                
                 listeners.forEach(function(user, i) {
-                    var item = document.createElement('span');
-                    item.style.cssText = 'display:inline-flex;align-items:center;gap:4px;flex-shrink:0;';
                     var img = document.createElement('img');
                     img.src = user.avatar || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(user.fullname) + '&background=random&color=fff&size=16');
-                    img.style.cssText = 'width:14px;height:14px;border-radius:50%;object-fit:cover;flex-shrink:0;';
+                    img.style.cssText = 'width:16px;height:16px;border-radius:50%;object-fit:cover;flex-shrink:0;border:1px solid var(--border);';
+                    if (i > 0) img.style.marginLeft = '-6px';
                     img.referrerPolicy = 'no-referrer';
                     img.onerror = function() { this.style.display='none'; };
-                    var txt = document.createElement('span');
-                    txt.style.cssText = 'font-size:10px;color:rgba(255,255,255,0.75);font-weight:500;white-space:nowrap;';
-                    txt.textContent = user.fullname;
-                    item.appendChild(img);
-                    item.appendChild(txt);
-                    marqueeTrack.appendChild(item);
-                    if (i < listeners.length - 1 || copy === 0) {
-                        var dot = document.createElement('span');
-                        dot.style.cssText = 'color:rgba(255,255,255,0.3);font-size:8px;flex-shrink:0;margin:0 4px;';
-                        dot.textContent = '\u2022';
-                        marqueeTrack.appendChild(dot);
-                    }
+                    containerItem.appendChild(img);
                 });
+                
+                var desc = document.createElement('span');
+                desc.style.cssText = 'font-size:10px;color:var(--text);font-weight:500;white-space:nowrap;margin-left:6px;';
+                desc.textContent = (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi') ? 'đang tham gia phát nhạc 🎵' : 'が再生に参加しています 🎵';
+                containerItem.appendChild(desc);
+                marqueeTrack.appendChild(containerItem);
+                
+                if (copy === 0) {
+                    var dot = document.createElement('span');
+                    dot.style.cssText = 'color:var(--text-3);font-size:8px;flex-shrink:0;margin:0 12px;';
+                    dot.textContent = '\u2022';
+                    marqueeTrack.appendChild(dot);
+                }
             }
             marqueeEl.style.display = 'flex';
             requestAnimationFrame(function() {
@@ -2396,6 +2438,7 @@ function setupSocketRadio() {
         if (state.next_title !== undefined) radioState.next_title = state.next_title;
         radioState.allow_requests = state.allow_requests === true || state.allow_requests === 'true';
         radioState.is_automix_enabled = state.is_automix_enabled !== false;
+        radioState.video_active = !!state.video_active;
         if (state.queue) radioState.queue = state.queue;
 
         if (isListening && ytPlayer && ytPlayer.loadVideoById) {
@@ -2763,7 +2806,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 is_playing: radioState.is_playing,
                 youtube_id: radioState.youtube_id,
                 current_time: time,
-                next_title: radioState.next_title
+                next_title: radioState.next_title,
+                video_active: radioState.video_active
             });
         } else if (window.socket) {
             // Socket.IO sync
@@ -2773,7 +2817,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 current_time: isCrossfading && ytPlayer2 ? ytPlayer2.getCurrentTime() || 0 : time,
                 next_title: radioState.next_title,
                 is_crossfading: isCrossfading,
-                is_automix_enabled: radioState.is_automix_enabled !== false
+                is_automix_enabled: radioState.is_automix_enabled !== false,
+                video_active: radioState.video_active
             });
         }
     };
@@ -2871,6 +2916,23 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             playIcon.style.display = 'block';
             pauseIcon.style.display = 'none';
+        }
+
+        const wrapper = document.getElementById('radio-video-wrapper');
+        const btn = document.getElementById('radio-video-toggle');
+        if (wrapper && btn) {
+            if (radioState.video_active) {
+                wrapper.style.display = 'block';
+                btn.style.color = '#34c759';
+            } else {
+                wrapper.style.display = 'none';
+                btn.style.color = 'rgba(255,255,255,0.4)';
+            }
+            if (!isRadioDJ) {
+                btn.style.cursor = 'default';
+            } else {
+                btn.style.cursor = 'pointer';
+            }
         }
 
         if (isRadioDJ || isListening) {
@@ -3242,3 +3304,13 @@ async function submitComparePsd() {
         showToast("Lỗi mạng: " + e.message, "error");
     }
 }
+
+window.toggleRadioVideo = function() {
+    if (!isRadioDJ) {
+        showToast(CURRENT_LANG === 'vi' ? 'Chỉ DJ mới có thể chuyển đổi hiển thị video' : 'DJのみがビデオ表示を切り替えることができます', 'info');
+        return;
+    }
+    radioState.video_active = !radioState.video_active;
+    if (window.updateRadioUI) updateRadioUI();
+    if (window.syncRadioToServer) syncRadioToServer();
+};
