@@ -1951,6 +1951,78 @@ def api_pet_adopt():
     return jsonify({'error': 'Failed to save'}), 500
 
 
+@app.route('/api/pet/brief', methods=['GET'])
+def api_pet_brief():
+    """Lấy thông báo Now Brief từ Groq AI cho Pet."""
+    GROQ_API_KEY = os.environ.get('GROQ_API_KEY', '')
+    if not GROQ_API_KEY:
+        # Fallback dummy logic
+        return jsonify({
+            "message": "Trời hôm nay đẹp quá! Bạn có muốn nghe nhạc cùng mình không? 🎵",
+            "action": {
+                "type": "play_music",
+                "payload": "KxGrk4n9Duo", # Son Tung MTP - Hay trao cho anh
+                "title": "Hãy trao cho anh"
+            }
+        })
+    
+    username = session.get('user', 'Guest')
+    context_str = f"User: {username}\n"
+    
+    global radio_state
+    if radio_state.get('is_playing') and radio_state.get('dj_username'):
+        context_str += f"Music room: {radio_state['dj_username']} is DJing.\n"
+    else:
+        context_str += "Music room: silent.\n"
+        
+    loc = 'Ho+Chi+Minh'
+    w_data = "Unknown"
+    if loc in weather_cache:
+        w_data = f"Temp: {weather_cache[loc]['data'].get('temp', '?')}C, Code: {weather_cache[loc]['data'].get('wmo', '?')}"
+    context_str += f"Weather: {w_data}\n"
+    
+    prompt = f"""
+You are a cute virtual pet assistant. The user {username} just clicked on you.
+Context:
+{context_str}
+
+Task: Generate a short, friendly, and cute greeting/notification (in Vietnamese).
+Mention the weather or music room if relevant. 
+Recommend a YouTube song (provide a valid 11-char YouTube video ID) if the music room is silent, e.g., "Hãy trao cho anh" (KxGrk4n9Duo).
+Return ONLY valid JSON format:
+{{
+    "message": "your cute message here",
+    "action": {{
+        "type": "play_music",
+        "payload": "YOUTUBE_ID",
+        "title": "Song Title"
+    }}
+}}
+"""
+    try:
+        r = requests.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers={"Authorization": f"Bearer {GROQ_API_KEY}"},
+            json={
+                "model": "llama3-8b-8192",
+                "messages": [{"role": "user", "content": prompt}],
+                "temperature": 0.7,
+                "response_format": {"type": "json_object"}
+            },
+            timeout=8
+        )
+        if r.status_code == 200:
+            content = r.json()['choices'][0]['message']['content'].strip()
+            return jsonify(json.loads(content))
+    except Exception as e:
+        print("Groq API error:", e)
+        
+    return jsonify({
+        "message": "Xin chào! Chúc bạn một ngày tốt lành nha! meow meow",
+    })
+
+
+
 @app.route('/api/pet/feed', methods=['POST'])
 def api_pet_feed():
     """Cho pet ăn — trừ 1 food token, +10 XP bonus."""
