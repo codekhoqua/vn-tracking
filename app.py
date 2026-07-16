@@ -1744,9 +1744,9 @@ def pet_add_xp(username, amount, reason=''):
     pet['xp'] = pet.get('xp', 0) + amount
     pet['last_activity'] = datetime.now().isoformat()
 
-    # Food token: mỗi 20 XP kiếm được +1 food
-    if reason in ('checklist', 'logtime', 'checklist_bonus'):
-        pet['food'] = pet.get('food', 0) + max(1, amount // 20)
+    # Food token: 1 food per checklist ticked
+    if reason == 'checklist':
+        pet['food'] = pet.get('food', 0) + 1
 
     # Level up check
     leveled_up = False
@@ -1838,10 +1838,37 @@ def api_pet_get():
     pet['stage'] = _pet_stage(pet.get('level', 1))
     pet['xp_needed'] = _pet_xp_for_level(pet.get('level', 1))
 
+    needs_write = False
+
+    # Daily food check (1 cục mỗi ngày)
+    today_str = date.today().isoformat()
+    if pet.get('last_daily_food_date') != today_str:
+        pet['food'] = pet.get('food', 0) + 1
+        pet['last_daily_food_date'] = today_str
+        needs_write = True
+
+    # 4-hour passive food check (1 cục mỗi 4 tiếng)
+    now = datetime.now()
+    if 'last_4h_food_time' not in pet:
+        # Khởi tạo mốc thời gian nếu chưa có (không buff rückwirkend)
+        pet['last_4h_food_time'] = now.isoformat()
+        needs_write = True
+    else:
+        try:
+            last_4h = datetime.fromisoformat(pet['last_4h_food_time'])
+            hours_diff = (now - last_4h).total_seconds() / 3600
+            if hours_diff >= 4:
+                food_gained = int(hours_diff // 4)
+                pet['food'] = pet.get('food', 0) + food_gained
+                pet['last_4h_food_time'] = (last_4h + timedelta(hours=4 * food_gained)).isoformat()
+                needs_write = True
+        except Exception:
+            pet['last_4h_food_time'] = now.isoformat()
+            needs_write = True
+
     # Login streak check (Bỏ qua T7, CN)
     today = date.today()
     if today.weekday() < 5:  # Chỉ tính vào Thứ 2 -> Thứ 6
-        today_str = today.isoformat()
         if pet.get('last_login_date') != today_str:
             # Nếu hnay là Thứ 2, thì yesterday hợp lệ để nối chuỗi là Thứ 6 (-3 ngày)
             if today.weekday() == 0:
@@ -1877,7 +1904,10 @@ def api_pet_get():
                     break
             pet['stage'] = _pet_stage(pet.get('level', 1))
             pet['xp_needed'] = _pet_xp_for_level(pet.get('level', 1))
-            _pet_write(username, pet)
+            needs_write = True
+            
+    if needs_write:
+        _pet_write(username, pet)
 
     return jsonify({'has_pet': True, **pet})
 
@@ -1908,8 +1938,10 @@ def api_pet_adopt():
         'mood': 'happy',
         'food': 3,  # Start with some food
         'last_activity': datetime.now().isoformat(),
+        'last_4h_food_time': datetime.now().isoformat(),
         'login_streak': 1,
         'last_login_date': date.today().isoformat(),
+        'last_daily_food_date': date.today().isoformat(),
         'created_at': datetime.now().isoformat(),
         'accessories': []
     }
