@@ -24,6 +24,20 @@ from flask_socketio import SocketIO, emit, join_room, leave_room
 # =====================================================================
 # 1. CẤU HÌNH FLASK & SOCKETIO
 # =====================================================================
+# Tự động nạp biến môi trường từ env_vars.yaml nếu có
+env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'env_vars.yaml')
+if os.path.exists(env_path):
+    try:
+        with open(env_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                if ':' in line and not line.strip().startswith('#'):
+                    k, v = line.split(':', 1)
+                    k = k.strip()
+                    v = v.strip().strip('"').strip("'")
+                    if k and k not in os.environ:
+                        os.environ[k] = v
+    except Exception as e:
+        print("Failed to load env_vars.yaml:", e)
 app = Flask(__name__)
 
 DRIVE_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "drive_data")

@@ -123,6 +123,14 @@ window.PetRoamEngine = (function() {
         
         petElement.appendChild(imgElement);
 
+        const bubbleHtml = `
+            <div id="pet-speech-bubble" class="pet-speech-bubble" style="transform: translateX(-50%) translateY(0) scale(0.9); font-family: 'Plus Jakarta Sans', sans-serif;">
+                <div id="pet-speech-text" class="pet-speech-text"></div>
+                <div id="pet-speech-actions" class="pet-speech-actions"></div>
+            </div>
+        `;
+        petElement.insertAdjacentHTML('beforeend', bubbleHtml);
+
         // Interaction logic (Click / Mousedown)
         petElement.addEventListener('mousedown', (e) => {
             if (clickOutsideTimer) {
@@ -131,6 +139,7 @@ window.PetRoamEngine = (function() {
             }
             changeState('click_pet', CLICK_PET_GIF, 2000); // Bóp má 2s rồi thả ra
             resetIdleTimer();
+            if (window.triggerPetBrief) window.triggerPetBrief();
             e.stopPropagation(); // Ngăn sự kiện truyền ra ngoài gây ra lỗi "click outside"
         });
         
