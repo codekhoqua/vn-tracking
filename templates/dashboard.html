@@ -220,7 +220,7 @@
             style="border-radius: var(--radius-sm); margin-right: 8px;">
         <div style="display: flex; flex-direction: column; justify-content: center;">
             <span>VN-Tracking</span>
-            <sup style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.3.4</i></sup>
+            <sup style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.3.5</i></sup>
         </div>
     </div>
 
@@ -2136,7 +2136,7 @@ window.triggerPetMusicInvite = function(djName, youtubeId) {
     
     textEl.innerHTML = msg;
     
-    actionsEl.innerHTML = `<button class="pet-speech-btn" onclick="if(window.socket){window.socket.emit('join_radio');if(window.radioTogglePlay)window.radioTogglePlay();} event.stopPropagation();">
+    actionsEl.innerHTML = `<button class="pet-speech-btn" onclick="if(window.joinRadioFromPet)window.joinRadioFromPet(); event.stopPropagation();">
         <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg> Tham gia
     </button>`;
     
@@ -2169,9 +2169,8 @@ function addGroqMusic(youtubeId, title) {
     } else {
         window.socket.emit('queue_add', { youtube_id: youtubeId, title: title });
         
-        // Emit join_radio trực tiếp qua socket (không phụ thuộc YT Player)
-        window.socket.emit('join_radio');
-        if (window.radioTogglePlay) window.radioTogglePlay();
+        // Join radio trực tiếp (hàm chuyên biệt, không bị chặn bởi ytPlayer check)
+        if (window.joinRadioFromPet) window.joinRadioFromPet();
     }
     
     // Show a fun toast
