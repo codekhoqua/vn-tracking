@@ -1817,17 +1817,8 @@ def api_pet_reset():
     if not session.get('logged_in'):
         return jsonify({'error': 'Unauthorized'}), 401
     username = session.get('user', '')
-    pet = _pet_read(username)
-    if not pet:
-        return jsonify({'error': 'No pet found'}), 404
-    # Reset pet
-    pet['level'] = 1
-    pet['xp'] = 0
-    pet['food'] = 0
-    pet['accessories'] = []
-    pet['active_accessory'] = None
-    pet['last_activity'] = datetime.now().isoformat()
-    _pet_write(username, pet)
+    # Ghi đè bằng dict rỗng để xóa hoàn toàn pet
+    _pet_write(username, {})
     return jsonify({'success': True})
 
 @app.route('/api/pet', methods=['GET'])
