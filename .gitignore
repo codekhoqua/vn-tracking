@@ -4,3 +4,42 @@ deploy.sh
 deploy.ps1
 env.yaml
 env_vars.yaml
+static/chat_uploads/
+__pycache__/
+.venv/
+
+# Backup & temp files
+backup_local/
+gcloud_*.zip
+gcloud_*/
+temp_*.py
+temp_*.js
+temp_*.html
+
+# Patch/revert/fix scripts (one-off)
+patch_*.py
+revert*.py
+fix_*.py
+final_*.py
+
+# Old backups
+app_head*.py
+app_diff.txt
+app_js_diff.txt
+
+# Test files
+test_*.py
+test_*.json
+test_*.txt
+test_*.html
+
+# Misc
+chat_history.json
+*.log
+PSD_New_Rules.docx
+*.bak
+
+# IDE
+.claude/
+.agents/
+.vscode/

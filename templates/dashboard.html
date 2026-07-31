@@ -220,7 +220,7 @@
             style="border-radius: var(--radius-sm); margin-right: 8px;">
         <div style="display: flex; flex-direction: column; justify-content: center;">
             <span>VN-Tracking</span>
-            <sup style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.3.14</i></sup>
+            <sup style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.3.26</i></sup>
         </div>
     </div>
 
@@ -415,9 +415,30 @@
 
                 <!-- YouTube Input (DJ Only) -->
                 <div id="radio-yt-input-container" style="display: none;">
-                    <input type="text" id="radio-yt-input"
-                        placeholder="{{ 'Dán link YouTube vào đây...' if lang == 'vi' else 'YouTubeのリンクをここに貼り付け...' }}"
-                        style="width: 100%; padding: 8px 12px; font-size: 11px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.25); color: #fff; outline: none; transition: background 0.2s;">
+                    <div style="display: flex; gap: 6px;">
+                        <input type="text" id="radio-yt-input"
+                            placeholder="{{ 'Dán link YouTube vào đây...' if lang == 'vi' else 'YouTubeのリンクをここに貼り付け...' }}"
+                            style="flex-grow: 1; width: 100%; padding: 8px 12px; font-size: 11px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.25); color: #fff; outline: none; transition: background 0.2s;">
+                        <button onclick="toggleLocalPlaylist()" style="padding: 0 10px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; color: #fff; cursor: pointer; transition: background 0.2s;" title="Nhạc đã thêm">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+                        </button>
+                        <button onclick="toggleDNASuggestions()" style="padding: 0 10px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; color: #fff; cursor: pointer; transition: background 0.2s; margin-left: 4px;" title="Gợi ý nhạc (LSA DNA)">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M4 22V2M4 2v20"></path>
+                                <path d="M20 22V2M20 2v20"></path>
+                                <path d="M4 6c4-1 6-4 8-4s4 3 8 4"></path>
+                                <path d="M4 10c4-1 6-4 8-4s4 3 8 4"></path>
+                                <path d="M4 14c4-1 6-4 8-4s4 3 8 4"></path>
+                                <path d="M4 18c4-1 6-4 8-4s4 3 8 4"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    <!-- Local Playlist Dropdown -->
+                    <div id="radio-local-playlist" style="display: none; margin-top: 6px; flex-direction: column; gap: 4px; max-height: 120px; overflow-y: auto; background: rgba(0,0,0,0.4); border-radius: 8px; padding: 6px; border: 1px solid rgba(255,255,255,0.1);">
+                    </div>
+                    <!-- DNA Suggestions Dropdown -->
+                    <div id="radio-dna-suggestions" style="display: none; margin-top: 6px; flex-direction: column; gap: 4px; max-height: 150px; overflow-y: auto; background: rgba(99,102,241,0.15); border-radius: 8px; padding: 6px; border: 1px solid rgba(99,102,241,0.3);">
+                    </div>
                 </div>
 
                 <!-- Progress Bar -->
