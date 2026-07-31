@@ -2125,7 +2125,10 @@ function handleRadioStateFromPolling(state) {
         radioState.allow_requests = state.allow_requests === true || state.allow_requests === 'true';
         radioState.is_automix_enabled = state.is_automix_enabled !== false;
         radioState.video_active = !!state.video_active;
-        if (state.queue) radioState.queue = state.queue;
+        if (state.queue) {
+        radioState.queue = state.queue;
+        if (window.syncQueueToLocalPlaylist) window.syncQueueToLocalPlaylist(state.queue);
+    }
 
         if (window.updateRadioUI) window.updateRadioUI();
         if (window.renderRadioQueue) window.renderRadioQueue();
@@ -2439,7 +2442,10 @@ function setupSocketRadio() {
         radioState.allow_requests = state.allow_requests === true || state.allow_requests === 'true';
         radioState.is_automix_enabled = state.is_automix_enabled !== false;
         radioState.video_active = !!state.video_active;
-        if (state.queue) radioState.queue = state.queue;
+        if (state.queue) {
+        radioState.queue = state.queue;
+        if (window.syncQueueToLocalPlaylist) window.syncQueueToLocalPlaylist(state.queue);
+    }
 
         if (isListening && ytPlayer && ytPlayer.loadVideoById) {
             const currentVideo = ytPlayer.getVideoData?.()?.video_id;
@@ -2483,6 +2489,7 @@ function setupSocketRadio() {
 
     window.socket.on('radio_queue_update', function (queue) {
         radioState.queue = queue;
+        if (window.syncQueueToLocalPlaylist) window.syncQueueToLocalPlaylist(queue);
         if (window.updateRadioUI) window.updateRadioUI();
     });
 }
@@ -2725,11 +2732,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         .then(r => r.json())
                         .then(d => {
                             const title = d.title || 'Unknown Video';
+                            if (window.saveToLocalPlaylist) window.saveToLocalPlaylist(videoId, title);
                             if (window.socket) {
                                 window.socket.emit('queue_add', { youtube_id: videoId, title: title });
                             }
                         })
                         .catch(() => {
+                            if (window.saveToLocalPlaylist) window.saveToLocalPlaylist(videoId, 'Unknown Video');
                             if (window.socket) window.socket.emit('queue_add', { youtube_id: videoId, title: 'Unknown Video' });
                         });
                     ytInput.value = '';
@@ -3314,3 +3323,218 @@ window.toggleRadioVideo = function() {
     if (window.updateRadioUI) updateRadioUI();
     if (window.syncRadioToServer) syncRadioToServer();
 };
+
+// ==========================================
+// Local Playlist feature for LSA MUSIC
+// ==========================================
+window.getLocalPlaylist = function() {
+    try {
+        return JSON.parse(localStorage.getItem('lsa_music_history') || '[]');
+    } catch (e) {
+        return [];
+    }
+}
+
+window.syncQueueToLocalPlaylist = function(queue) {
+    if (!queue || !Array.isArray(queue)) return;
+    for (let i = queue.length - 1; i >= 0; i--) {
+        const item = queue[i];
+        if (item.youtube_id && item.title && window.saveToLocalPlaylist) {
+            window.saveToLocalPlaylist(item.youtube_id, item.title, true);
+        }
+    }
+}
+
+window.saveToLocalPlaylist = function(videoId, title, skipReorder = false) {
+    let list = window.getLocalPlaylist();
+    const existingIndex = list.findIndex(item => item.id === videoId);
+    if (existingIndex !== -1) {
+        if (skipReorder) return;
+        list.splice(existingIndex, 1);
+    }
+    list.unshift({ id: videoId, title: title, time: Date.now() });
+    if (list.length > 10) list = list.slice(0, 10);
+    localStorage.setItem('lsa_music_history', JSON.stringify(list));
+    if (window.renderLocalPlaylist) window.renderLocalPlaylist();
+}
+
+window.renderLocalPlaylist = function() {
+    const container = document.getElementById('radio-local-playlist');
+    if (!container) return;
+    const list = window.getLocalPlaylist();
+    if (list.length === 0) {
+        container.innerHTML = `<div style="font-size: 10px; color: rgba(255,255,255,0.5); text-align: center; padding: 4px;">Chưa có bài hát nào được lưu.</div>`;
+        return;
+    }
+    let html = '';
+    if (list.length > 1) {
+        html += `
+            <div style="display: flex; justify-content: center; padding: 4px; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 4px;">
+                <button onclick="addAllLocalToQueue()" style="background: rgba(99,102,241,0.5); border: none; color: white; padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 10px; font-weight: 600; width: 100%; transition: background 0.2s;" onmouseover="this.style.background='rgba(99,102,241,0.8)'" onmouseout="this.style.background='rgba(99,102,241,0.5)'">
+                    Thêm tất cả vào hàng chờ
+                </button>
+            </div>
+        `;
+    }
+    list.forEach(item => {
+        const safeTitle = (item.title || 'Unknown').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        html += `
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 6px; background: rgba(255,255,255,0.05); border-radius: 4px; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">
+                <div style="font-size: 10px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-grow: 1;" onclick="addLocalToQueue('${item.id}', '${safeTitle}')">${item.title}</div>
+                <button onclick="removeLocalPlaylist('${item.id}', event)" style="background: none; border: none; color: #ff6b6b; cursor: pointer; padding: 0 4px; display: flex; align-items: center;" title="Xóa">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+        `;
+    });
+    container.innerHTML = html;
+}
+
+window.toggleLocalPlaylist = function() {
+    const container = document.getElementById('radio-local-playlist');
+    const dnaContainer = document.getElementById('radio-dna-suggestions');
+    if (!container) return;
+    if (container.style.display === 'none' || container.style.display === '') {
+        if (dnaContainer) dnaContainer.style.display = 'none';
+        window.renderLocalPlaylist();
+        container.style.display = 'flex';
+    } else {
+        container.style.display = 'none';
+    }
+}
+
+window.addLocalToQueue = function(videoId, title) {
+    if (!isRadioDJ && (!radioState || !radioState.allow_requests)) {
+        if (window.showToast) window.showToast(CURRENT_LANG === 'vi' ? 'Không có quyền thêm nhạc lúc này!' : '権限がありません！', 'error');
+        return;
+    }
+    if (window.socket) {
+        window.socket.emit('queue_add', { youtube_id: videoId, title: title });
+        if (window.showToast) window.showToast(CURRENT_LANG === 'vi' ? 'Đã thêm vào hàng chờ!' : 'キューに追加されました！', 'success');
+        const container = document.getElementById('radio-local-playlist');
+        if (container) container.style.display = 'none';
+        
+        // Cập nhật lại playlist để đưa bài hát này lên đầu
+        window.saveToLocalPlaylist(videoId, title);
+    }
+}
+
+window.toggleDNASuggestions = function() {
+    const container = document.getElementById('radio-dna-suggestions');
+    const localContainer = document.getElementById('radio-local-playlist');
+    if (!container) return;
+    if (container.style.display === 'none' || container.style.display === '') {
+        if (localContainer) localContainer.style.display = 'none';
+        container.style.display = 'flex';
+        container.innerHTML = `<div style="font-size: 10px; color: rgba(255,255,255,0.7); text-align: center; padding: 10px;">Đang phân tích DNA âm nhạc...</div>`;
+        window.fetchDNASuggestions();
+    } else {
+        container.style.display = 'none';
+    }
+}
+
+window.fetchDNASuggestions = function() {
+    let keyword = "lofi chill việt nam";
+    let vidId = "";
+    
+    // Prioritize currently playing track
+    if (window.radioState && window.radioState.youtube_id && window.radioState.youtube_id !== 'playlist' && window.radioState.is_playing) {
+        vidId = window.radioState.youtube_id;
+        const trackNameEl = document.getElementById('radio-track-name');
+        keyword = trackNameEl ? trackNameEl.innerText : "";
+    } else {
+        // Fallback to local playlist
+        const list = window.getLocalPlaylist();
+        if (list.length > 0) {
+            const index = 0; // Most recently added
+            const title = list[index].title || "";
+            vidId = list[index].youtube_id || list[index].id || "";
+            keyword = title;
+        }
+    }
+    
+    // Clean keyword for UI and fallback query
+    keyword = keyword.replace(/\(Official.*?\)/gi, '').replace(/\[.*?\]/g, '').replace(/official.*(?:video|audio)/gi, '').split('-')[0].trim();
+    if (keyword.length < 3 && vidId) keyword = "Video";
+    if (keyword.length < 3) keyword = "lofi chill việt nam";
+
+    const qStr = encodeURIComponent(keyword + " mix");
+    let fetchUrl = `/api/music_dna?q=${qStr}`;
+    if (vidId && vidId !== 'playlist' && vidId !== 'null') {
+        fetchUrl += `&vid=${vidId}`;
+    }
+    fetchUrl += `&_t=${Date.now()}`;
+        
+    fetch(fetchUrl)
+        .then(res => res.json())
+        .then(data => {
+            const container = document.getElementById('radio-dna-suggestions');
+            if (!container) return;
+            if (data.results && data.results.length > 0) {
+                let html = `
+                    <div style="font-size: 10px; font-weight: 600; color: #818cf8; text-align: center; padding: 2px 0 6px 0; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 4px;">
+                        Gợi ý từ: ${keyword.substring(0,30)}${keyword.length > 30 ? '...' : ''}
+                    </div>
+                `;
+                data.results.forEach(item => {
+                    const safeTitle = (item.title || 'Unknown').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                    html += `
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px; background: rgba(255,255,255,0.05); border-radius: 4px; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(99,102,241,0.2)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'" onclick="addDNAToQueue('${item.id}', '${safeTitle}')">
+                            <div style="font-size: 10px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.title}</div>
+                        </div>
+                    `;
+                });
+                container.innerHTML = html;
+            } else {
+                container.innerHTML = `<div style="font-size: 10px; color: rgba(255,255,255,0.5); text-align: center; padding: 10px;">Không tìm thấy gợi ý nào.</div>`;
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            const container = document.getElementById('radio-dna-suggestions');
+            if (container) container.innerHTML = `<div style="font-size: 10px; color: #ff6b6b; text-align: center; padding: 10px;">Lỗi khi tải gợi ý.</div>`;
+        });
+}
+
+window.addDNAToQueue = function(videoId, title) {
+    if (!isRadioDJ && (!radioState || !radioState.allow_requests)) {
+        if (window.showToast) window.showToast(CURRENT_LANG === 'vi' ? 'Không có quyền thêm nhạc lúc này!' : '権限がありません！', 'error');
+        return;
+    }
+    if (window.socket) {
+        window.socket.emit('queue_add', { youtube_id: videoId, title: title });
+        if (window.showToast) window.showToast(CURRENT_LANG === 'vi' ? 'Đã thêm gợi ý vào hàng chờ!' : 'キューに追加されました！', 'success');
+        const container = document.getElementById('radio-dna-suggestions');
+        if (container) container.style.display = 'none';
+        
+        window.saveToLocalPlaylist(videoId, title);
+    }
+}
+
+window.addAllLocalToQueue = function() {
+    if (!isRadioDJ && (!radioState || !radioState.allow_requests)) {
+        if (window.showToast) window.showToast(CURRENT_LANG === 'vi' ? 'Không có quyền thêm nhạc lúc này!' : '権限がありません！', 'error');
+        return;
+    }
+    const list = window.getLocalPlaylist();
+    if (list.length === 0) return;
+    
+    // Thêm ngược từ dưới lên để giữ đúng thứ tự playlist
+    if (window.socket) {
+        for (let i = list.length - 1; i >= 0; i--) {
+            window.socket.emit('queue_add', { youtube_id: list[i].id, title: list[i].title });
+        }
+        if (window.showToast) window.showToast(CURRENT_LANG === 'vi' ? `Đã thêm ${list.length} bài vào hàng chờ!` : `${list.length}曲をキューに追加しました！`, 'success');
+        const container = document.getElementById('radio-local-playlist');
+        if (container) container.style.display = 'none';
+    }
+}
+
+window.removeLocalPlaylist = function(videoId, e) {
+    if (e) e.stopPropagation();
+    let list = window.getLocalPlaylist();
+    list = list.filter(item => item.id !== videoId);
+    localStorage.setItem('lsa_music_history', JSON.stringify(list));
+    window.renderLocalPlaylist();
+}
+

@@ -2387,6 +2387,101 @@ def api_youtube_title():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/music_dna')
+def api_music_dna():
+    vid = request.args.get('vid')
+    query = request.args.get('q')
+    if not vid and not query:
+        return jsonify({'error': 'No query'}), 400
+    try:
+        import urllib.request, urllib.parse, re, json
+        
+        results = []
+        if vid:
+            url = f'https://www.youtube.com/watch?v={vid}'
+            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+            html = urllib.request.urlopen(req, timeout=5).read().decode('utf-8')
+            match = re.search(r'ytInitialData = ({.*?});</script>', html)
+            if match:
+                data = json.loads(match.group(1))
+                def find_compact(d):
+                    res = []
+                    if isinstance(d, dict):
+                        if 'compactVideoRenderer' in d:
+                            res.append(d['compactVideoRenderer'])
+                        for k, v in d.items():
+                            res.extend(find_compact(v))
+                    elif isinstance(d, list):
+                        for item in d:
+                            res.extend(find_compact(item))
+                    return res
+                
+                compacts = find_compact(data)
+                
+                # Extract up to 20 unique items
+                pool = []
+                seen_ids = set()
+                seen_titles = set()
+                for cvid in compacts[:50]:
+                    cvid_id = cvid.get('videoId')
+                    if cvid_id and cvid_id != vid and cvid_id not in seen_ids:
+                        if 'title' in cvid and 'simpleText' in cvid['title']:
+                            title = cvid['title']['simpleText']
+                        elif 'title' in cvid and 'runs' in cvid['title']:
+                            title = cvid['title']['runs'][0]['text']
+                        else:
+                            title = 'Unknown'
+                            
+                        title_lower = title.lower()
+                        if 'official' in title_lower or title_lower in seen_titles:
+                            continue
+                            
+                        seen_ids.add(cvid_id)
+                        seen_titles.add(title_lower)
+                        pool.append({'id': cvid_id, 'title': title})
+                        if len(pool) >= 20: break
+                
+                import random
+                results = random.sample(pool, min(5, len(pool)))
+            
+            if results:
+                return jsonify({'results': results})
+                
+        # Fallback to search if vid fails or is not provided
+        if query:
+            q = urllib.parse.quote(query)
+            url = f'https://www.youtube.com/results?search_query={q}'
+            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+            html = urllib.request.urlopen(req, timeout=5).read().decode('utf-8')
+            match = re.search(r'ytInitialData = ({.*?});</script>', html)
+            if match:
+                data = json.loads(match.group(1))
+                contents = data['contents']['twoColumnSearchResultsRenderer']['primaryContents']['sectionListRenderer']['contents'][0]['itemSectionRenderer']['contents']
+                pool = []
+                seen_ids = set()
+                seen_titles = set()
+                for item in contents:
+                    if 'videoRenderer' in item:
+                        vr = item['videoRenderer']
+                        vr_id = vr['videoId']
+                        if vr_id not in seen_ids:
+                            title = vr['title']['runs'][0]['text']
+                            title_lower = title.lower()
+                            if 'official' in title_lower or title_lower in seen_titles:
+                                continue
+                                
+                            seen_ids.add(vr_id)
+                            seen_titles.add(title_lower)
+                            pool.append({'id': vr_id, 'title': title})
+                        if len(pool) >= 20: break
+                import random
+                results = random.sample(pool, min(5, len(pool)))
+                return jsonify({'results': results})
+                
+        return jsonify({'error': 'No match'}), 404
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 
 @app.route('/api/radio/join', methods=['POST'])
 def api_radio_join():
