@@ -150,6 +150,63 @@
 
 
 
+<!-- ============ GIEO QUẺ MODAL ============ -->
+<div id="fortune-overlay" class="cp-overlay" onclick="closeFortuneModal()"></div>
+<div id="fortune-modal" class="cp-modal fortune-modal-container">
+    <button class="modal-close fortune-close-btn" onclick="closeFortuneModal()">✕</button>
+
+    <!-- STEP 1: PROMPT TO DRAW -->
+    <div id="fortune-step-intro" class="fortune-step active">
+        <div class="fortune-header">
+            <div class="fortune-icon-anim">🔮</div>
+            <h3>Gieo Quẻ Đầu Ngày</h3>
+            <p>Xem vận may, công việc & lời chúc cho ngày hôm nay!</p>
+        </div>
+        <div class="fortune-tube-wrapper">
+            <div class="fortune-tube" id="fortune-tube-el">🎋</div>
+        </div>
+        <div class="fortune-actions">
+            <button class="btn fortune-draw-btn" onclick="triggerDrawFortune()">
+                🧧 Gieo Quẻ Ngay
+            </button>
+            <button class="btn btn-outline" style="color: #bbb; border-color: rgba(255,255,255,0.2);" onclick="closeFortuneModal(true)">
+                Bỏ qua hôm nay
+            </button>
+        </div>
+    </div>
+
+    <!-- STEP 2: ANIMATION SHAKING -->
+    <div id="fortune-step-anim" class="fortune-step">
+        <div class="fortune-header">
+            <div class="fortune-icon-anim shaking-tube">🎋</div>
+            <h3>Đang lắc quẻ...</h3>
+            <p>Đang xin quẻ linh nghiệm cho ngày mới...</p>
+        </div>
+    </div>
+
+    <!-- STEP 3: RESULT CARD -->
+    <div id="fortune-step-result" class="fortune-step">
+        <div class="fortune-result-card" id="fortune-card-el">
+            <div class="fortune-badge" id="fortune-rarity-badge">大吉 • ĐẠI CÁT</div>
+            <h2 class="fortune-title" id="fortune-card-title">Quẻ Số 88: Thuận Thủy Thôi Châu</h2>
+            <div class="fortune-divider">✦ ✧ ✦</div>
+            <div class="fortune-poem" id="fortune-card-poem">"Code một lần chạy ngay - Bug thấy phải né xa"</div>
+            <div class="fortune-body" id="fortune-card-body">Hôm nay vận khí cực thịnh! Mọi tác vụ logic đều hanh thông...</div>
+            <div class="fortune-stats" id="fortune-card-stats">
+                <div class="f-stat"><span class="f-lbl">May Mắn</span><span class="f-val" id="f-stat-luck">98%</span></div>
+                <div class="f-stat"><span class="f-lbl">Năng Lượng</span><span class="f-val" id="f-stat-energy">95%</span></div>
+                <div class="f-stat"><span class="f-lbl">Né Bug</span><span class="f-val" id="f-stat-bug">100%</span></div>
+            </div>
+            <div class="fortune-date-stamp" id="fortune-card-date">Ngày: 2026-08-14</div>
+        </div>
+        <div class="fortune-actions" style="margin-top: 15px;">
+            <button class="btn fortune-draw-btn" onclick="closeFortuneModal()">
+                ✨ Nhận Lộc & Đóng
+            </button>
+        </div>
+    </div>
+</div>
+
 <!-- ============ FILTER DRAWER (RIGHT SIDE) ============ -->
 {% if role in ['admin', 'manager', 'leader'] %}
 <div class="drawer-overlay" id="filter-overlay" onclick="toggleFilters()"></div>
@@ -220,7 +277,7 @@
             style="border-radius: var(--radius-sm); margin-right: 8px;">
         <div style="display: flex; flex-direction: column; justify-content: center;">
             <span>VN-Tracking</span>
-            <sup style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.3.26</i></sup>
+            <sup style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.3.55</i></sup>
         </div>
     </div>
 
@@ -271,6 +328,13 @@
                 <line x1="3" y1="10" x2="21" y2="10"></line>
             </svg>
             Team Calendar
+        </div>
+    </div>
+    <div class="nav-item" onclick="openFortuneModal(true)" style="cursor: pointer;" id="nav-fortune-item">
+        <div class="nav-item-content">
+            <span style="font-size: 16px; margin-right: 4px;">🔮</span>
+            <span>Gieo Quẻ Hàng Ngày</span>
+            <span id="fortune-nav-badge" style="display: none; margin-left: auto; background: #e74c3c; color: white; border-radius: 10px; padding: 2px 6px; font-size: 10px; font-weight: bold;">Mới</span>
         </div>
     </div>
     <a href="/psd-tool" target="_blank" class="nav-item" style="text-decoration: none; color: inherit;">
@@ -356,10 +420,32 @@
             <div id="lofi-inner-content"
                 style="position: relative; z-index: 1; padding: 12px; display: flex; flex-direction: column; gap: 8px;">
 
-                <!-- Video Player Container (Hidden by default) -->
+                <!-- Video Player Container (Hidden by default, or floating window when popped out) -->
                 <div id="radio-video-wrapper" style="display: none; width: 100%; aspect-ratio: 16/9; border-radius: 8px; overflow: hidden; background: #000; box-shadow: 0 4px 12px rgba(0,0,0,0.4); position: relative;">
-                    <div id="lofi-youtube-player"></div>
-                    <div id="lofi-youtube-player-2"></div>
+                    <!-- POPOUT DRAGGABLE HEADER -->
+                    <div id="radio-popout-header" style="display: none; height: 36px; background: linear-gradient(135deg, #1e293b, #0f172a); border-bottom: 1px solid rgba(255,255,255,0.1); padding: 0 12px; align-items: center; justify-content: space-between; cursor: move; user-select: none; z-index: 100; flex-shrink: 0;">
+                        <div style="display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; color: #fff; letter-spacing: 0.5px;">
+                            <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#6366f1; box-shadow: 0 0 8px #6366f1;"></span>
+                            <span>LSA MUSIC VIDEO</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <button onclick="toggleRadioPopout(false)" style="background: rgba(255,255,255,0.15); border: none; color: #fff; cursor: pointer; padding: 4px 8px; border-radius: 6px; font-size: 11px; display: flex; align-items: center; gap: 4px; transition: background 0.2s;" title="Thu nhỏ về sidebar">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 14 10 14 10 20"></polyline><polyline points="20 10 14 10 14 4"></polyline><line x1="14" y1="10" x2="21" y2="3"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>
+                                <span>Thu nhỏ</span>
+                            </button>
+                            <button onclick="closeRadioPopout()" style="background: rgba(239,68,68,0.25); border: none; color: #ef4444; cursor: pointer; padding: 4px 6px; border-radius: 6px; display: flex; align-items: center; justify-content: center; transition: background 0.2s;" title="Đóng">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                            </button>
+                        </div>
+                    </div>
+                    <!-- PLAYERS WRAPPER -->
+                    <div id="radio-video-players-box" style="position: relative; width: 100%; height: 100%; flex: 1; overflow: hidden;">
+                        <div id="lofi-youtube-player"></div>
+                        <div id="lofi-youtube-player-2"></div>
+                    </div>
+                    <!-- POPOUT RESIZE HANDLE -->
+                    <div id="radio-popout-resizer" style="display: none; position: absolute; bottom: 0; right: 0; width: 24px; height: 24px; cursor: nwse-resize; z-index: 100; align-items: flex-end; justify-content: flex-end; padding: 4px; background: linear-gradient(135deg, transparent 50%, rgba(255,255,255,0.4) 50%); border-bottom-right-radius: 14px;">
+                    </div>
                 </div>
 
                 <!-- Header: Title & DJ Toggle -->
@@ -400,8 +486,16 @@
                             <div id="radio-track-name"
                                 style="font-weight: 700; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #fff; line-height: 1.2; text-shadow: 0 1px 2px rgba(0,0,0,0.2);">
                                 {{ 'Đang chờ...' if lang == 'vi' else '待機中...' }}</div>
-                            <button id="radio-video-toggle" onclick="toggleRadioVideo()" style="background: none; border: none; color: rgba(255,255,255,0.4); cursor: pointer; padding: 0; display: flex; align-items: center; justify-content: center; transition: color 0.2s; flex-shrink: 0;" title="Toggle Video">
+                            <button id="radio-video-toggle" onclick="toggleRadioVideo()" style="background: none; border: none; color: rgba(255,255,255,0.4); cursor: pointer; padding: 0; display: flex; align-items: center; justify-content: center; transition: color 0.2s; flex-shrink: 0;" title="Bật/Tắt Video">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
+                            </button>
+                            <button id="radio-video-popout-icon" onclick="toggleRadioPopout(true)" style="background: none; border: none; color: rgba(255,255,255,0.45); cursor: pointer; padding: 0; display: flex; align-items: center; justify-content: center; transition: color 0.2s; flex-shrink: 0;" title="Phóng to Video (Floating Player)">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="15 3 21 3 21 9"></polyline>
+                                    <polyline points="9 21 3 21 3 15"></polyline>
+                                    <line x1="21" y1="3" x2="14" y2="10"></line>
+                                    <line x1="3" y1="21" x2="10" y2="14"></line>
+                                </svg>
                             </button>
                         </div>
                         <div id="radio-dj-name"
@@ -579,6 +673,49 @@
                 top: 0;
                 left: 0;
                 pointer-events: none;
+            }
+
+            /* FLOATING POP-OUT VIDEO PLAYER FOR LSA MUSIC */
+            #radio-video-wrapper.is-popped-out {
+                position: fixed !important;
+                bottom: 90px;
+                right: 320px;
+                width: 480px;
+                height: 310px;
+                min-width: 260px;
+                min-height: 180px;
+                max-width: 92vw;
+                max-height: 82vh;
+                z-index: 100000 !important;
+                border-radius: 16px !important;
+                box-shadow: 0 24px 60px rgba(0,0,0,0.85), 0 0 0 1px rgba(99,102,241,0.4) !important;
+                display: flex !important;
+                flex-direction: column !important;
+                aspect-ratio: unset !important;
+                background: #0f172a !important;
+                overflow: hidden !important;
+                animation: popoutZoom 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            }
+
+            @keyframes popoutZoom {
+                0% { transform: scale(0.85); opacity: 0; }
+                100% { transform: scale(1); opacity: 1; }
+            }
+
+            #radio-video-wrapper.is-popped-out #radio-popout-header {
+                display: flex !important;
+            }
+
+            #radio-video-wrapper.is-popped-out #radio-popout-resizer {
+                display: flex !important;
+            }
+
+            #radio-video-wrapper.is-popped-out #radio-video-players-box {
+                position: relative !important;
+                width: 100% !important;
+                flex: 1 !important;
+                height: calc(100% - 36px) !important;
+                overflow: hidden !important;
             }
 
             #radio-progress {
@@ -1378,64 +1515,100 @@
         </div>
     </div>
 
-    <!-- MINI CHAT BOX -->
-    <div id="mini-chat-widget"
-        style="position: fixed; bottom: 20px; right: 20px; z-index: 10010; display: flex; flex-direction: column; align-items: flex-end;">
-        <!-- Chat Window -->
-        <div id="chat-window"
-            style="display: none; width: 320px; height: 400px; background: var(--bg-card); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border-radius: 12px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5); border: 1px solid var(--border); flex-direction: column; margin-bottom: 10px; overflow: hidden; z-index: 10000;">
-            <div
-                style="background: linear-gradient(135deg, #3b82f6, #8b5cf6); padding: 12px 16px; color: white; font-weight: 600; display: flex; justify-content: space-between; align-items: center;">
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                        stroke-linecap="round" stroke-linejoin="round">
+    <!-- CHAT BUBBLE BUTTON -->
+    <div id="mini-chat-widget" style="position: fixed; bottom: 110px; right: 24px; z-index: 10000;">
+        <button id="chat-bubble-btn" class="chat-bubble-btn" onclick="toggleChat()">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+            </svg>
+            <div id="chat-badge" class="chat-badge">0</div>
+        </button>
+    </div>
+
+    <!-- CHAT PANEL (Compact popup above bubble) -->
+    <div id="chat-panel" class="chat-panel">
+        <!-- Header -->
+        <div class="chat-header">
+            <div class="chat-header-left">
+                <div class="chat-header-icon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
                     </svg>
-                    Team Chat
                 </div>
-                <button onclick="toggleChat()"
-                    style="background: transparent; border: none; color: white; cursor: pointer; padding: 0;">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                        stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                    </svg>
+                <div class="chat-header-info">
+                    <h3>Team Chat</h3>
+                    <div class="chat-online-count" id="chat-online-count">{{ 'Đang tải...' if lang == 'vi' else '読み込み中...' }}</div>
+                </div>
+            </div>
+            <button class="chat-close-btn" onclick="toggleChat()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+        
+        <!-- Messages -->
+        <div id="chat-messages" class="chat-messages">
+            <div class="chat-welcome">{{ 'Chào mừng bạn đến với kênh chat chung! 💬' if lang == 'vi' else 'グループチャットへようこそ！💬' }}</div>
+        </div>
+        
+        <div id="chat-typing-indicator" class="chat-typing-indicator" style="display: none;">
+            <span id="chat-typing-text"></span>
+            <span class="typing-dots"><span>.</span><span>.</span><span>.</span></span>
+        </div>
+        
+        <!-- Input Area -->
+        <div class="chat-input-area" style="position: relative;">
+            <!-- Emoji Picker -->
+            <div id="emoji-picker" class="emoji-picker-container">
+                <input type="text" class="emoji-picker-search" id="emoji-search" placeholder="{{ 'Tìm emoji...' if lang == 'vi' else '絵文字を検索...' }}">
+                <div class="emoji-tabs" id="emoji-tabs"></div>
+                <div class="emoji-grid" id="emoji-grid"></div>
+            </div>
+            
+            <!-- File Preview -->
+            <div id="chat-file-preview" class="chat-file-preview">
+                <span class="file-icon">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>
+                </span>
+                <span class="file-name" id="chat-file-name"></span>
+                <button class="file-remove" onclick="cancelChatFile()" title="{{ 'Hủy' if lang == 'vi' else 'キャンセル' }}">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                 </button>
             </div>
-            <div id="chat-messages"
-                style="flex: 1; padding: 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; font-size: 13px;">
-                <!-- Messages go here -->
-                <div style="text-align: center; color: var(--text-3); font-size: 12px; margin-bottom: 10px;">{{ 'Chào
-                    mừng bạn đến với kênh chat chung!' if lang == 'vi' else 'グループチャットへようこそ！' }}</div>
-            </div>
-            <div
-                style="padding: 10px; border-top: 1px solid var(--border); display: flex; gap: 8px; background: var(--bg-body);">
-                <input type="text" id="chat-input"
+            
+            <!-- Input Row -->
+            <div class="chat-input-row">
+                <input type="file" id="chat-file-input" style="display: none;" onchange="handleChatFileSelect(event)">
+                <input type="text" id="chat-input" class="chat-input-field"
                     placeholder="{{ 'Nhập tin nhắn...' if lang == 'vi' else 'メッセージを入力...' }}"
-                    style="flex: 1; padding: 8px 12px; border-radius: 20px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text); outline: none;">
-                <button onclick="sendChatMessage()"
-                    style="background: #3b82f6; color: white; border: none; border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                        stroke-linecap="round" stroke-linejoin="round" style="margin-left: -2px; margin-top: 2px;">
+                    autocomplete="off">
+                <button class="chat-input-btn" onclick="toggleEmojiPicker()" title="Emoji" id="emoji-toggle-btn">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
+                        <line x1="9" y1="9" x2="9.01" y2="9"></line>
+                        <line x1="15" y1="9" x2="15.01" y2="9"></line>
+                    </svg>
+                </button>
+                <button class="chat-input-btn" onclick="document.getElementById('chat-file-input').click()" title="{{ 'Đính kèm file' if lang == 'vi' else 'ファイル添付' }}">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+                    </svg>
+                </button>
+                <button class="chat-send-btn" onclick="sendChatMessage()" title="{{ 'Gửi' if lang == 'vi' else '送信' }}">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                         <line x1="22" y1="2" x2="11" y2="13"></line>
                         <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
                     </svg>
                 </button>
             </div>
         </div>
-
-        <!-- Chat Bubble -->
-        <button id="chat-bubble-btn" onclick="toggleChat()"
-            style="width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, #3b82f6, #8b5cf6); color: white; border: none; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4); cursor: pointer; display: flex; align-items: center; justify-content: center; position: relative; transition: transform 0.2s;">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-            </svg>
-            <div id="chat-badge"
-                style="position: absolute; top: -5px; right: -5px; background: #ef4444; color: white; font-size: 11px; font-weight: bold; width: 20px; height: 20px; border-radius: 50%; display: none; align-items: center; justify-content: center; border: 2px solid var(--bg-body);">
-                0</div>
-        </button>
     </div>
+    
+
+
 </main>
 
 <!-- ============ MODALS FOR LOGTIME / CHECKLIST ============ -->
@@ -1635,7 +1808,7 @@
 /* ===== PET WIDGET BUBBLE ===== */
 #pet-widget-bubble {
     position: fixed;
-    bottom: 100px;
+    bottom: 24px;
     right: 24px;
     width: 64px;
     height: 64px;
@@ -1644,7 +1817,7 @@
     border: 2px solid rgba(139, 92, 246, 0.5);
     box-shadow: 0 4px 20px rgba(139, 92, 246, 0.3), 0 0 40px rgba(139, 92, 246, 0.1);
     cursor: pointer;
-    z-index: 9999;
+    z-index: 10000;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2676,6 +2849,165 @@ document.addEventListener('DOMContentLoaded', () => setTimeout(initPet, 1500));
         padding: 0 15px !important;
         z-index: 3 !important;
     }
+
+    /* Fortune Modal Custom Styles */
+    .fortune-modal-container {
+        max-width: 440px !important;
+        background: linear-gradient(135deg, #1e1b2e 0%, #2a1f40 100%) !important;
+        color: #fff !important;
+        border: 2px solid rgba(255, 215, 0, 0.4) !important;
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6), 0 0 25px rgba(255, 215, 0, 0.2) !important;
+        border-radius: 20px !important;
+        text-align: center;
+        overflow: hidden;
+    }
+    .fortune-close-btn {
+        color: rgba(255, 255, 255, 0.7) !important;
+    }
+    .fortune-close-btn:hover {
+        color: #fff !important;
+    }
+    .fortune-step {
+        display: none;
+        padding: 10px 5px;
+    }
+    .fortune-step.active {
+        display: block;
+        animation: fadeInFortune 0.4s ease forwards;
+    }
+    @keyframes fadeInFortune {
+        from { opacity: 0; transform: scale(0.95); }
+        to { opacity: 1; transform: scale(1); }
+    }
+    .fortune-header h3 {
+        font-size: 22px;
+        font-weight: 700;
+        color: #ffd700;
+        margin: 8px 0 4px 0;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    }
+    .fortune-header p {
+        font-size: 13px;
+        color: #d1c4e9;
+        margin: 0;
+    }
+    .fortune-icon-anim {
+        font-size: 48px;
+        margin-top: 5px;
+    }
+    .fortune-tube-wrapper {
+        margin: 20px 0;
+    }
+    .fortune-tube {
+        font-size: 72px;
+        display: inline-block;
+        filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.5));
+        transition: transform 0.2s;
+    }
+    .shaking-tube {
+        display: inline-block;
+        animation: shakeTube 0.6s infinite ease-in-out;
+    }
+    @keyframes shakeTube {
+        0% { transform: rotate(0deg) translateY(0); }
+        25% { transform: rotate(-15deg) translateY(-8px); }
+        50% { transform: rotate(0deg) translateY(0); }
+        75% { transform: rotate(15deg) translateY(-8px); }
+        100% { transform: rotate(0deg) translateY(0); }
+    }
+    .fortune-actions {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+        margin-top: 15px;
+    }
+    .fortune-draw-btn {
+        background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%) !important;
+        border: 1px solid #f1c40f !important;
+        color: #fff !important;
+        font-weight: bold !important;
+        box-shadow: 0 4px 12px rgba(231, 76, 60, 0.4);
+    }
+    .fortune-draw-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(231, 76, 60, 0.6);
+    }
+    .fortune-result-card {
+        background: linear-gradient(145deg, #2d1836, #3b1e47);
+        border: 2px solid #ffd700;
+        border-radius: 16px;
+        padding: 20px 15px;
+        box-shadow: inset 0 0 15px rgba(255, 215, 0, 0.2), 0 8px 20px rgba(0,0,0,0.4);
+        position: relative;
+    }
+    .fortune-badge {
+        display: inline-block;
+        background: linear-gradient(135deg, #d4af37, #f1c40f);
+        color: #2c0e37;
+        font-weight: bold;
+        font-size: 12px;
+        padding: 4px 14px;
+        border-radius: 20px;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    }
+    .fortune-title {
+        font-size: 18px;
+        color: #ffffff;
+        margin: 12px 0 6px 0;
+        font-weight: 700;
+    }
+    .fortune-divider {
+        color: #ffd700;
+        font-size: 12px;
+        opacity: 0.8;
+        margin: 4px 0 10px 0;
+    }
+    .fortune-poem {
+        font-style: italic;
+        color: #ffe082;
+        background: rgba(0, 0, 0, 0.25);
+        padding: 10px;
+        border-radius: 8px;
+        border-left: 3px solid #ffd700;
+        font-size: 13.5px;
+        margin-bottom: 12px;
+    }
+    .fortune-body {
+        font-size: 13px;
+        color: #e0e0e0;
+        line-height: 1.5;
+        margin-bottom: 15px;
+    }
+    .fortune-stats {
+        display: flex;
+        justify-content: space-around;
+        background: rgba(0, 0, 0, 0.3);
+        padding: 8px 5px;
+        border-radius: 10px;
+        margin-bottom: 8px;
+    }
+    .f-stat {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+    .f-lbl {
+        font-size: 10px;
+        color: #aaa;
+    }
+    .f-val {
+        font-size: 14px;
+        font-weight: bold;
+        color: #2ecc71;
+    }
+    .fortune-date-stamp {
+        font-size: 10px;
+        color: rgba(255, 255, 255, 0.4);
+        text-align: right;
+        margin-top: 4px;
+    }
 </style>
 
 {% endblock %}
@@ -2704,5 +3036,386 @@ document.addEventListener('DOMContentLoaded', () => setTimeout(initPet, 1500));
 </script>
 <!-- Confetti Library for Celebration Effects -->
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+<!-- Daily Fortune Telling Script -->
+<script>
+    const FORTUNES_DB = [
+        {
+            rarity: "大吉 • THƯỢNG THƯỢNG CÁT",
+            title: "Quẻ Số 88: Thuận Thủy Thôi Châu",
+            poem: "💻 Code một lần chạy ngay - Bug thấy phải né xa!",
+            body: "Hôm nay vận khí cực thịnh! Mọi tác vụ logic đều hanh thông, công việc trôi chảy như nước chảy mây trôi.",
+            luck: "99%", energy: "98%", bug: "100%"
+        },
+        {
+            rarity: "大吉 • ĐẠI CÁT",
+            title: "Quẻ Số 66: Thần Tài Ghé Thăm",
+            poem: "☕ Cà phê thơm phức đầu ngày - Task khó đến mấy giải ngay tức thì!",
+            body: "Hôm nay năng lượng tràn đầy. Bạn sẽ tìm ra giải pháp tối ưu cho những vấn đề hóc húa nhất.",
+            luck: "95%", energy: "96%", bug: "95%"
+        },
+        {
+            rarity: "吉 • THƯỢNG CÁT",
+            title: "Quẻ Số 38: Vạn Sự Như Ý",
+            poem: "✨ Đồng nghiệp hỗ trợ nhiệt tình - Sếp duyệt đề xuất trong trình một giây!",
+            body: "Các mối quan hệ công việc hôm nay rất thuận lợi. Mọi trao đổi, làm việc nhóm đều đạt kết quả cao.",
+            luck: "92%", energy: "90%", bug: "90%"
+        },
+        {
+            rarity: "吉 • THƯỢNG CÁT",
+            title: "Quẻ Số 28: Kim Bảng Đề Danh",
+            poem: "🏆 Task xong sớm trước deadline - Thảnh thơi nhâm nhi tách trà chiều!",
+            body: "Tốc độ xử lý công việc vượt trội. Đừng quên dành thời gian thư giãn để duy trì phong độ đỉnh cao nhé.",
+            luck: "90%", energy: "94%", bug: "92%"
+        },
+        {
+            rarity: "中吉 • TRUNG CÁT",
+            title: "Quẻ Số 18: An Hòa Bình Tĩnh",
+            poem: "🌿 Việc nhỏ việc lớn bình an - Tâm trí minh mẫn thấu quan mọi đường!",
+            body: "Một ngày làm việc êm đềm và ổn định. Phù hợp để kiểm tra lại công việc cũ và sắp xếp kế hoạch tuần.",
+            luck: "85%", energy: "88%", bug: "88%"
+        },
+        {
+            rarity: "吉 • THƯỢNG CÁT",
+            title: "Quẻ Số 77: Đột Phá Sáng Tạo",
+            poem: "💡 Ý tưởng nảy số liên hồi - Giải pháp mới mẻ khiến ai cũng trầm trồ!",
+            body: "Khả năng sáng tạo đột phá! Hãy mạnh dạn thử nghiệm những góc nhìn mới trong công việc hôm nay.",
+            luck: "94%", energy: "92%", bug: "89%"
+        },
+        {
+            rarity: "大吉 • ĐẠI CÁT",
+            title: "Quẻ Số 99: Cát Tường Như Ý",
+            poem: "🧧 Lộc vào tận cửa ban mai - Nụ cười rạng rỡ suôn sẻ cả ngày!",
+            body: "Ngày hôm nay ngập tràn niềm vui và sự ủng hộ. Bạn làm gì cũng dễ dàng gặt hái thành công.",
+            luck: "98%", energy: "95%", bug: "98%"
+        },
+        {
+            rarity: "中吉 • TRUNG CÁT",
+            title: "Quẻ Số 55: Tích Tiểu Thành Đại",
+            poem: "🎯 Từng bước vững chắc tiến lên - Thành quả tích tụ vững bền tương lai!",
+            body: "Tập trung giải quyết tốt từng việc nhỏ. Sự kiên trì hôm nay sẽ đem lại thành quả lớn vào cuối tuần.",
+            luck: "86%", energy: "86%", bug: "90%"
+        },
+        {
+            rarity: "吉 • THƯỢNG CÁT",
+            title: "Quẻ Số 52: Quang Minh Chính Đại",
+            poem: "☀️ Màn hình sáng trưng nụ cười - Bug rượt đuổi người chứ người không lo!",
+            body: "Tâm lý thoải mái mang lại hiệu suất làm việc ấn tượng. Hãy giữ tinh thần tích cực này nhé!",
+            luck: "91%", energy: "93%", bug: "93%"
+        },
+        {
+            rarity: "大吉 • THƯỢNG THƯỢNG CÁT",
+            title: "Quẻ Số 100: Bách Phát Bách Trúng",
+            poem: "🚀 Deploy thành công rực rỡ - Cả team thán phục vỗ tay rầm rầm!",
+            body: "Vận may tuyệt đối! Mọi bản release hoặc báo cáo hôm nay đều mượt mà hoàn hảo không một vết xước.",
+            luck: "100%", energy: "99%", bug: "100%"
+        },
+        {
+            rarity: "吉 • THƯỢNG CÁT",
+            title: "Quẻ Số 12: Phong Thủy Hảo Hợp",
+            poem: "🍀 Ngồi đúng hướng gió hanh thông - Việc khó bỗng hóa hư không nhẹ nhàng!",
+            body: "Hôm nay trực giác và may mắn đồng hành cùng bạn. Hãy tự tin giải quyết công việc tồn đọng.",
+            luck: "93%", energy: "91%", bug: "94%"
+        },
+        {
+            rarity: "中吉 • TRUNG CÁT",
+            title: "Quẻ Số 33: Tĩnh Tâm Dưỡng Khí",
+            poem: "🍵 Một tách trà nóng thảnh thơi - Tập trung một hướng chẳng rơi nhịp nào!",
+            body: "Tập trung cao độ giúp bạn giải quyết tốt công việc. Tránh xao nhãng để đạt hiệu quả cao nhất.",
+            luck: "87%", energy: "89%", bug: "91%"
+        },
+        {
+            rarity: "吉 • THƯỢNG CÁT",
+            title: "Quẻ Số 68: Thiên Thời Địa Lợi",
+            poem: "🌟 Đúng lúc đúng thời điểm vàng - Quý nhân xuất hiện sẵn sàng giúp tay!",
+            body: "Mọi cuộc trao đổi công việc đều thuận lợi nhờ có sự hỗ trợ đắc lực từ đồng nghiệp.",
+            luck: "94%", energy: "92%", bug: "95%"
+        },
+        {
+            rarity: "大吉 • ĐẠI CÁT",
+            title: "Quẻ Số 89: Phúc Lộc Song Toàn",
+            poem: "🎁 Bất ngờ tin tốt trao tay - Niềm vui lan tỏa suốt ngày làm hăng!",
+            body: "Cả may mắn tài lộc lẫn công việc đều rực rỡ. Đừng ngần ngại chia sẻ niềm vui với mọi người.",
+            luck: "97%", energy: "96%", bug: "97%"
+        },
+        {
+            rarity: "吉 • THƯỢNG CÁT",
+            title: "Quẻ Số 45: Hợp Tác Thành Công",
+            poem: "🤝 Kết nối nhịp nhàng cùng team - Dự án hoàn thành êm điềm đẹp sao!",
+            body: "Làm việc nhóm mang lại thành tích bất ngờ. Tinh thần đồng đội lên cao trào hôm nay.",
+            luck: "92%", energy: "93%", bug: "92%"
+        }
+    ];
+
+    function getTodayKey() {
+        const d = new Date();
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        return `${CURRENT_USER}_fortune_${yyyy}-${mm}-${dd}`;
+    }
+
+    function checkDailyFortuneOnLoad() {
+        const todayKey = getTodayKey();
+        const savedData = localStorage.getItem(todayKey);
+
+        if (!savedData) {
+            // Show badge on nav item
+            const badge = document.getElementById('fortune-nav-badge');
+            if (badge) badge.style.display = 'inline-block';
+            
+            // Automatically open Fortune modal on first visit of the day after 1s
+            setTimeout(() => {
+                openFortuneModal(false);
+            }, 1000);
+        } else {
+            const data = JSON.parse(savedData);
+            const badge = document.getElementById('fortune-nav-badge');
+            if (badge) badge.style.display = 'none';
+        }
+    }
+
+    function openFortuneModal(force = true) {
+        const todayKey = getTodayKey();
+        const savedData = localStorage.getItem(todayKey);
+        const overlay = document.getElementById('fortune-overlay');
+        const modal = document.getElementById('fortune-modal');
+
+        if (!overlay || !modal) return;
+
+        // Reset steps
+        document.getElementById('fortune-step-intro').classList.remove('active');
+        document.getElementById('fortune-step-anim').classList.remove('active');
+        document.getElementById('fortune-step-result').classList.remove('active');
+
+        if (savedData) {
+            const data = JSON.parse(savedData);
+            if (data.status === 'dismissed' && !force) {
+                return; // User dismissed today, don't auto-open
+            }
+            if (data.status === 'drawn') {
+                // Show result directly
+                renderFortuneResult(data.fortune, data.dateStr);
+                document.getElementById('fortune-step-result').classList.add('active');
+            } else {
+                document.getElementById('fortune-step-intro').classList.add('active');
+            }
+        } else {
+            document.getElementById('fortune-step-intro').classList.add('active');
+        }
+
+        overlay.classList.add('active');
+        modal.classList.add('active');
+    }
+
+    function closeFortuneModal(skipToday = false) {
+        const overlay = document.getElementById('fortune-overlay');
+        const modal = document.getElementById('fortune-modal');
+        if (overlay) overlay.classList.remove('active');
+        if (modal) modal.classList.remove('active');
+
+        if (skipToday) {
+            const todayKey = getTodayKey();
+            const d = new Date();
+            const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+            localStorage.setItem(todayKey, JSON.stringify({ status: 'dismissed', dateStr: dateStr }));
+            const badge = document.getElementById('fortune-nav-badge');
+            if (badge) badge.style.display = 'none';
+        }
+    }
+
+    function triggerDrawFortune() {
+        // Step 1 -> Step 2 (Animation)
+        document.getElementById('fortune-step-intro').classList.remove('active');
+        document.getElementById('fortune-step-anim').classList.add('active');
+
+        // Play shaking for 1.8 seconds then reveal result
+        setTimeout(() => {
+            // Pick deterministic/random fortune based on date & user to maintain consistency
+            const todayKey = getTodayKey();
+            let hash = 0;
+            for (let i = 0; i < todayKey.length; i++) {
+                hash = (hash << 5) - hash + todayKey.charCodeAt(i);
+                hash |= 0;
+            }
+            const fortuneIndex = Math.abs(hash) % FORTUNES_DB.length;
+            const drawnFortune = FORTUNES_DB[fortuneIndex];
+
+            const d = new Date();
+            const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+
+            // Save state to localStorage
+            localStorage.setItem(todayKey, JSON.stringify({
+                status: 'drawn',
+                fortune: drawnFortune,
+                dateStr: dateStr
+            }));
+
+            // Hide badge
+            const badge = document.getElementById('fortune-nav-badge');
+            if (badge) badge.style.display = 'none';
+
+            // Render result
+            renderFortuneResult(drawnFortune, dateStr);
+            document.getElementById('fortune-step-anim').classList.remove('active');
+            document.getElementById('fortune-step-result').classList.add('active');
+
+            // Trigger celebratory Confetti!
+            if (typeof confetti === 'function') {
+                confetti({
+                    particleCount: 80,
+                    spread: 70,
+                    origin: { y: 0.6 }
+                });
+            }
+        }, 1800);
+    }
+
+    function renderFortuneResult(fortune, dateStr) {
+        document.getElementById('fortune-rarity-badge').innerText = fortune.rarity;
+        document.getElementById('fortune-card-title').innerText = fortune.title;
+        document.getElementById('fortune-card-poem').innerText = fortune.poem;
+        document.getElementById('fortune-card-body').innerText = fortune.body;
+        document.getElementById('f-stat-luck').innerText = fortune.luck;
+        document.getElementById('f-stat-energy').innerText = fortune.energy;
+        document.getElementById('f-stat-bug').innerText = fortune.bug;
+        document.getElementById('fortune-card-date').innerText = `Ngày: ${dateStr}`;
+    }
+
+    // Run check on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        checkDailyFortuneOnLoad();
+    });
+</script>
+
+<!-- Mid-Autumn Festival Effect -->
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        // 1. Play Audio for 20s (Tùng tùng dinh dinh)
+        const audio = new Audio("{{ url_for('static', filename='media/trungthu.mp3') }}");
+        audio.volume = 0.5;
+        // Attempt to play (might be blocked by browser without interaction)
+        audio.play().catch(e => console.log("Audio autoplay blocked by browser. User interaction needed.", e));
+        setTimeout(() => {
+            audio.pause();
+        }, 20000);
+
+        // 2. Varied lanterns floating down slowly
+        const lanternTypes = ['🏮', '🪔', '🌕', '⭐', '🎆', '🥮', '✨', '🏮', '🏮'];
+        const lanternContainer = document.createElement('div');
+        lanternContainer.style.position = 'fixed';
+        lanternContainer.style.top = '0';
+        lanternContainer.style.left = '0';
+        lanternContainer.style.width = '100%';
+        lanternContainer.style.height = '100%';
+        lanternContainer.style.pointerEvents = 'none';
+        lanternContainer.style.zIndex = '9999';
+        document.body.appendChild(lanternContainer);
+
+        const totalLanterns = 35;
+        for (let i = 0; i < totalLanterns; i++) {
+            let lantern = document.createElement('div');
+            const icon = lanternTypes[Math.floor(Math.random() * lanternTypes.length)];
+            lantern.innerHTML = icon;
+            lantern.style.position = 'absolute';
+            lantern.style.left = (Math.random() * 95) + 'vw';
+            lantern.style.top = '-60px';
+            lantern.style.fontSize = (Math.random() * 24 + 20) + 'px';
+            
+            // Randomize speed, delay, and filter effects for variation
+            const duration = 8 + Math.random() * 8; // 8s to 16s fall duration (much slower)
+            const delay = Math.random() * 5; // Stagger start up to 5s
+            const hueRotate = Math.floor(Math.random() * 360);
+            lantern.style.filter = `hue-rotate(${hueRotate}deg) drop-shadow(0 0 6px rgba(255,215,0,0.6))`;
+            lantern.style.animation = `fallLanternSlow ${duration}s ease-in-out ${delay}s forwards`;
+            lanternContainer.appendChild(lantern);
+        }
+
+        let style = document.createElement('style');
+        style.innerHTML = `
+            @keyframes fallLanternSlow {
+                0% { 
+                    transform: translateY(-60px) translateX(0) rotate(-15deg); 
+                    opacity: 0; 
+                }
+                10% { opacity: 1; }
+                50% { 
+                    transform: translateY(50vh) translateX(30px) rotate(15deg); 
+                    opacity: 0.9; 
+                }
+                100% { 
+                    transform: translateY(105vh) translateX(-20px) rotate(-10deg); 
+                    opacity: 0; 
+                }
+            }
+            @keyframes walkAcross {
+                0% { transform: translateX(-100%); }
+                100% { transform: translateX(100vw); }
+            }
+        `;
+        document.head.appendChild(style);
+
+        // Remove lanterns container after slow fall finishes (~18s total)
+        setTimeout(() => {
+            lanternContainer.remove();
+        }, 18000);
+
+        // 3. Children playing Video, GIF or PNG moving for 15s
+        // Supports ruoc-den.mp4, ruoc-den.webm, ruoc-den.gif, or ruoc-den.png
+        const videoSrcMp4 = "{{ url_for('static', filename='videos/ruoc-den.mp4') }}";
+        const videoSrcWebm = "{{ url_for('static', filename='videos/ruoc-den.webm') }}";
+        const gifSrc = "{{ url_for('static', filename='images/ruoc-den.gif') }}";
+        const pngSrc = "{{ url_for('static', filename='images/ruoc-den.png') }}";
+
+        let kidsElement = document.createElement('video');
+        kidsElement.autoplay = true;
+        kidsElement.loop = true;
+        kidsElement.muted = true;
+        kidsElement.playsInline = true;
+        kidsElement.src = videoSrcMp4;
+
+        kidsElement.style.position = 'fixed';
+        kidsElement.style.bottom = '20px';
+        kidsElement.style.left = '0';
+        kidsElement.style.height = '150px';
+        kidsElement.style.zIndex = '9998';
+        kidsElement.style.pointerEvents = 'none';
+        kidsElement.style.objectFit = 'contain';
+        kidsElement.style.animation = 'walkAcross 15s linear forwards';
+
+        // Auto fallback from MP4 -> WebM -> GIF -> PNG if file not found
+        kidsElement.onerror = function() {
+            if (kidsElement.tagName.toLowerCase() === 'video') {
+                if (kidsElement.src.includes('ruoc-den.mp4')) {
+                    kidsElement.src = videoSrcWebm;
+                } else {
+                    const imgFallback = document.createElement('img');
+                    imgFallback.src = gifSrc;
+                    imgFallback.alt = "Rước đèn Trung Thu";
+                    imgFallback.style.cssText = kidsElement.style.cssText;
+                    imgFallback.onerror = function() {
+                        if (imgFallback.src.includes('ruoc-den.gif')) {
+                            imgFallback.src = pngSrc;
+                        } else {
+                            console.log('Không tìm thấy file ruoc-den.mp4, ruoc-den.webm, ruoc-den.gif hoặc ruoc-den.png');
+                        }
+                    };
+                    if (kidsElement.parentNode) {
+                        kidsElement.replaceWith(imgFallback);
+                    }
+                    kidsElement = imgFallback;
+                }
+            }
+        };
+
+        document.body.appendChild(kidsElement);
+
+        setTimeout(() => {
+            if (kidsElement && kidsElement.parentNode) {
+                kidsElement.remove();
+            }
+        }, 15000);
+    });
+</script>
 
 {% endblock %}
