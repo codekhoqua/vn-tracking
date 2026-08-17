@@ -1,4 +1,5 @@
 import os
+import uuid
 import zipfile
 import io
 from flask import send_file
@@ -7,6 +8,7 @@ from werkzeug.utils import secure_filename
 from flask import send_from_directory
 import time
 import threading
+from datetime import datetime, timezone, timedelta
 import hashlib
 import pandas as pd
 import requests
@@ -61,7 +63,7 @@ socketio = SocketIO(app, cors_allowed_origins="*", async_mode=_SOCKETIO_ASYNC_MO
 USER_SHEET_URL = "https://docs.google.com/spreadsheets/d/1VLlDF5XoXt0Rz0ACZ3EZRKcKWFnIRXptMPbQthimNE0/export?format=csv&gid=0"
 
 CHANGE_PASS_API = "https://script.google.com/macros/s/AKfycbzf59j11q0IfvgjRkhvUx6EhnSdssGbvpp3PnKQGL4JUmJC2w2uidZi0BKygpriqMVB/exec"
-LOGTIME_API_URL = "https://script.google.com/macros/s/AKfycbwRgcwRvxBZPOMEyfKbWCDXpLsY1H5edxQtxF4xihgaVIJn-eiqbuDB_2yCU9XYR_MwAQ/exec"
+LOGTIME_API_URL = "https://script.google.com/macros/s/AKfycbzZ--vv1xsR8u5pFKFqK7N_PCYwGnpl-yvyOVt15rXSoI99hJTwQV5WBXXMXiGMApljig/exec"
 
 url = "https://docs.google.com/spreadsheets/d/1ec_v1hsKu0oCOwyrFNgxckpoaq3Q02J4NdIchqbYE3s/edit?gid=597870203#gid=597870203"
 csv_url = url.split("/edit")[0] + "/export?format=csv" if "/edit" in url else url
@@ -710,22 +712,23 @@ def process_dashboard_data():
     ai_insights = generate_ai_insights(dash_nay, dash_truoc, lang)
 
     # Garbage Collect Checklists
-    active_keys = set()
-    for row in dash_nay + dash_truoc + dash_sau:
-        active_keys.add(row['key'])
+    if role != "member":
+        active_keys = set()
+        for row in dash_nay + dash_truoc + dash_sau:
+            active_keys.add(row['key'])
 
-    try:
-        with checklist_lock:
-            chk_data = get_supabase_checklists()
-            if chk_data:
-                keys_to_delete = [k for k in chk_data.keys() if k not in active_keys]
-                if keys_to_delete:
-                    for k in keys_to_delete:
-                        del chk_data[k]
-                    json_data = json.dumps(chk_data, ensure_ascii=False).encode('utf-8')
-                    sb_upload('_system/checklists.json', json_data, content_type='application/json')
-    except Exception as e:
-        print("Cleanup checklist error:", e)
+        try:
+            with checklist_lock:
+                chk_data = get_supabase_checklists()
+                if chk_data:
+                    keys_to_delete = [k for k in chk_data.keys() if k not in active_keys]
+                    if keys_to_delete:
+                        for k in keys_to_delete:
+                            del chk_data[k]
+                        json_data = json.dumps(chk_data, ensure_ascii=False).encode('utf-8')
+                        sb_upload('_system/checklists.json', json_data, content_type='application/json')
+        except Exception as e:
+            print("Cleanup checklist error:", e)
 
     return {
         'user': user,
@@ -2835,27 +2838,58 @@ def on_sync_drag_drop(data):
             'target_status': target_status
         }, broadcast=True, include_self=False)
 
+chat_history = []
+
+@socketio.on('request_chat_history')
+def handle_request_chat_history():
+    emit('chat_history', chat_history)
+
 @socketio.on('chat_message')
 def handle_chat_message(data):
     username = session.get('user', 'Guest')
     msg = data.get('msg', '').strip()
-    if msg:
+    file_name = data.get('file_name')
+    file_type = data.get('file_type')
+    file_data = data.get('file_data')
+    
+    if msg or file_data:
         fullname = username
         avatar = ""
         try:
-            USER_DB = load_users_from_sheet(USER_SHEET_URL)
-            fullname = USER_DB.get(username, {}).get("fullname", username)
-            avatar = USER_DB.get(username, {}).get("avatar", "")
+            # Try to get avatar from pet data first
+            if USE_SUPABASE:
+                pet_data = read_pet_data(username)
+                if pet_data and 'sprite' in pet_data:
+                    avatar = f"/static/img/pet/{pet_data['sprite']}.gif"
         except:
             pass
-        
-        emit('chat_message', {
+            
+        if not avatar:
+            try:
+                USER_DB = load_users_from_sheet(USER_SHEET_URL)
+                fullname = USER_DB.get(username, {}).get("fullname", username)
+                avatar = USER_DB.get(username, {}).get("avatar", f"https://ui-avatars.com/api/?name={fullname}&background=random")
+            except:
+                avatar = f"https://ui-avatars.com/api/?name={username}&background=random"
+
+        message_obj = {
+            'id': str(uuid.uuid4()),
             'username': username,
             'fullname': fullname,
             'avatar': avatar,
             'msg': msg,
-            'time': pd.Timestamp.now().strftime("%H:%M")
-        }, broadcast=True)
+            'file_name': file_name,
+            'file_type': file_type,
+            'file_data': file_data,
+            'time': datetime.now(timezone(timedelta(hours=7))).strftime("%H:%M"),
+            'read_by': []
+        }
+        
+        chat_history.append(message_obj)
+        if len(chat_history) > 100:
+            chat_history.pop(0)
+
+        emit('chat_message', message_obj, broadcast=True)
         
         # --- Xử lý Bot Dịch Thuật ---
         if msg.lower().startswith('@bot '):
@@ -2868,13 +2902,79 @@ def handle_chat_message(data):
                 lang_name = "Tiếng Việt" if target_lang == 'vi' else "Tiếng Nhật"
                 
                 # Bot trả lời vào chat
-                emit('chat_message', {
+                bot_msg = {
+                    'id': str(uuid.uuid4()),
                     'username': 'bot',
                     'fullname': '🤖 Bot Dịch Thuật',
                     'avatar': 'https://api.dicebear.com/7.x/bottts/svg?seed=TranslateBot',
                     'msg': f"**[Dịch sang {lang_name}]:**\n{translated_text}",
-                    'time': pd.Timestamp.now().strftime("%H:%M")
-                }, broadcast=True)
+                    'time': datetime.now(timezone(timedelta(hours=7))).strftime("%H:%M"),
+                    'read_by': []
+                }
+                chat_history.append(bot_msg)
+                if len(chat_history) > 100:
+                    chat_history.pop(0)
+                emit('chat_message', bot_msg, broadcast=True)
+
+@socketio.on('chat_typing')
+def handle_chat_typing():
+    username = session.get('user')
+    if username:
+        try:
+            USER_DB = load_users_from_sheet(USER_SHEET_URL)
+            fullname = USER_DB.get(username, {}).get("fullname", username)
+        except:
+            fullname = username
+        emit('chat_typing', {'username': username, 'fullname': fullname}, broadcast=True, include_self=False)
+
+@socketio.on('chat_stop_typing')
+def handle_chat_stop_typing():
+    username = session.get('user')
+    if username:
+        emit('chat_stop_typing', {'username': username}, broadcast=True, include_self=False)
+
+@socketio.on('chat_mark_read')
+def handle_chat_mark_read():
+    username = session.get('user')
+    if not username:
+        return
+        
+    avatar = ""
+    try:
+        if USE_SUPABASE:
+            pet_data = read_pet_data(username)
+            if pet_data and 'sprite' in pet_data:
+                avatar = f"/static/img/pet/{pet_data['sprite']}.gif"
+    except:
+        pass
+    if not avatar:
+        try:
+            USER_DB = load_users_from_sheet(USER_SHEET_URL)
+            fullname = USER_DB.get(username, {}).get("fullname", username)
+            avatar = USER_DB.get(username, {}).get("avatar", f"https://ui-avatars.com/api/?name={fullname}&background=random")
+        except:
+            avatar = f"https://ui-avatars.com/api/?name={username}&background=random"
+
+    updated_msg_ids = []
+    # Mark unread messages as read
+    for msg in reversed(chat_history):
+        # Prevent self-reads from cluttering
+        if msg.get('username') == username:
+            continue
+            
+        has_read = any(u.get('username') == username for u in msg.get('read_by', []))
+        if not has_read:
+            msg.setdefault('read_by', []).append({'username': username, 'avatar': avatar})
+            updated_msg_ids.append(msg.get('id'))
+        else:
+            # We can optionally break here if we assume consecutive reading
+            pass
+            
+    if updated_msg_ids:
+        emit('chat_read_update', {
+            'message_ids': updated_msg_ids,
+            'user': {'username': username, 'avatar': avatar}
+        }, broadcast=True)
 
 @socketio.on('cursor_move')
 def handle_cursor_move(data):
@@ -2916,8 +3016,8 @@ def prepare_psd():
         return jsonify({'error': 'Vui lòng cung cấp đường dẫn tuyệt đối hợp lệ (VD: C:\\Users\\...).'}), 400
         
     try:
-        # Create {tap}巻/01_レタッチ/01_★編集用PSD
-        folder_psd = os.path.join(base_path, f"{tap_str}巻", "01_レタッチ", "01_★編集用PSD")
+        # Create {tap}巻/01_レタッチ/PSD_Retouch_Lettering_Backups
+        folder_psd = os.path.join(base_path, f"{tap_str}巻", "01_レタッチ", "PSD_Retouch_Lettering_Backups")
         # Create {tap}巻/01_レタッチ/02_写植・レタッチ時Mikan用jpg
         folder_jpg = os.path.join(base_path, f"{tap_str}巻", "01_レタッチ", "02_写植・レタッチ時Mikan用jpg")
         
@@ -2955,8 +3055,8 @@ def compare_psd():
         import shutil
         import glob
         
-        # Target folder: [path]/[tap]巻/01_レタッチ/01_★編集用PSD
-        folder_psd = os.path.join(base_path, f"{tap_str}巻", "01_レタッチ", "01_★編集用PSD")
+        # Target folder: [path]/[tap]巻/01_レタッチ/PSD_Retouch_Lettering_Backups
+        folder_psd = os.path.join(base_path, f"{tap_str}巻", "01_レタッチ", "PSD_Retouch_Lettering_Backups")
         
         if not os.path.exists(folder_psd):
             os.makedirs(folder_psd, exist_ok=True)
@@ -2976,16 +3076,7 @@ def compare_psd():
             shutil.move(psd_file, dest_file)
             moved_count += 1
             
-        # Duplicate 01_★編集用PSD to 99_Backup
-        folder_backup = os.path.join(base_path, f"{tap_str}巻", "01_レタッチ", "99_Backup")
-        
-        if os.path.exists(folder_backup):
-            # If backup already exists, we might want to remove it or merge. Let's just remove old backup to replace with new one.
-            shutil.rmtree(folder_backup)
-            
-        shutil.copytree(folder_psd, folder_backup)
-        
-        return jsonify({'success': True, 'message': f'Đã chuyển {moved_count} file PSD và tạo thư mục 99_Backup thành công!'})
+        return jsonify({'success': True, 'message': f'Đã chuyển {moved_count} file PSD thành công!'})
     except Exception as e:
         return jsonify({'error': f'Có lỗi xảy ra: {str(e)}'}), 500
 
