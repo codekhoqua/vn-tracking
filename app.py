@@ -438,40 +438,45 @@ def render_checklist_html(tac_pham_key, index, lang, api_url, checked_ids=None, 
     is_coop = is_combined or bool(row_data and row_data.get('is_coop'))
     volume_key = (row_data and row_data.get('volume_key')) or (tac_pham_key.split(' - ')[1] if ' - ' in str(tac_pham_key) else str(tac_pham_key))
     partner_worker = (row_data and row_data.get('partner_worker')) or ''
-    partner_cv = (row_data and row_data.get('partner_cv')) or 'Đồng đội'
+    partner_cv = (row_data and row_data.get('partner_cv')) or ''
 
-    handover_html = ""
-    if is_coop:
-        partner_info_text = f"Đồng đội: <strong>{partner_worker}</strong> ({partner_cv})" if partner_worker else "Retouch ⇄ Lettering"
-        handover_html = f'''
-        <div class="task-handover-box" id="handover_{index}" data-tp-key="{volume_key}">
-            <div class="handover-header">
-                <div class="handover-title-row">
-                    <span class="handover-title"><i class="far fa-comments" style="margin-right: 6px; color: #818cf8;"></i>{ "Comment:" if lang == "vi" else "コメント:" } <span class="handover-volume-name">{volume_key}</span></span>
-                    <span class="handover-partner-badge">{partner_info_text}</span>
-                </div>
-            </div>
-            <div class="handover-body" id="handover_body_{index}">
-                <div class="quick-handover-actions">
-                    <span class="quick-handover-label">{ "Mẫu nhanh:" if lang == "vi" else "定型文:" }</span>
-                    <button type="button" class="btn-quick-tag done-retouch" onclick="sendQuickHandover('{index}', '{volume_key}', '{ "✓ Đã xong Retouch ➔ Chuyển giao Lettering" if lang == "vi" else "✓ レタッチ完了 ➔ 写植へ引き継ぎ" }', 'handover')">{ "✓ Xong Retouch ➔ Lettering" if lang == "vi" else "✓ レタッチ完了 ➔ 写植へ" }</button>
-                    <button type="button" class="btn-quick-tag in-progress" onclick="sendQuickHandover('{index}', '{volume_key}', '{ "Đang xử lý khâu Retouch..." if lang == "vi" else "レタッチ作業中..." }', 'progress')">{ "Đang làm Retouch" if lang == "vi" else "レタッチ作業中" }</button>
-                    <button type="button" class="btn-quick-tag in-progress" onclick="sendQuickHandover('{index}', '{volume_key}', '{ "Đang xử lý khâu Lettering..." if lang == "vi" else "写植作業中..." }', 'progress')">{ "Đang làm Lettering" if lang == "vi" else "写植作業中" }</button>
-                    <button type="button" class="btn-quick-tag in-progress" onclick="sendQuickHandover('{index}', '{volume_key}', '{ "Đang làm dở trang..." if lang == "vi" else "作業中..." }', 'progress')">{ "Đang làm dở" if lang == "vi" else "作業中" }</button>
-                    <button type="button" class="btn-quick-tag note" onclick="sendQuickHandover('{index}', '{volume_key}', '{ "Lưu ý font / style đặc biệt" if lang == "vi" else "フォント・スタイルの注意事項あり" }', 'warning')">{ "Lưu ý font/style" if lang == "vi" else "注意事項" }</button>
-                </div>
+    if partner_worker:
+        partner_info_text = f"Đồng đội: <strong>{partner_worker}</strong> ({partner_cv})" if partner_cv else f"Đồng đội: <strong>{partner_worker}</strong>"
+        badge_html = f'<span class="handover-partner-badge">{partner_info_text}</span>'
+    elif is_coop:
+        badge_html = '<span class="handover-partner-badge">Retouch ⇄ Lettering</span>'
+    else:
+        badge_html = f'<span class="handover-partner-badge" style="opacity: 0.85;">💬 { "Ghi chú & Thảo luận" if lang == "vi" else "メモ・連絡" }</span>'
 
-                <div class="handover-comments-list" id="comments_list_{index}">
-                    <div class="handover-empty">{ "Chưa có ghi chú nào. Hãy để lại lời nhắn cho đồng đội!" if lang == "vi" else "メッセージはまだありません。" }</div>
-                </div>
-
-                <div class="handover-input-group">
-                    <input type="text" id="handover_input_{index}" class="handover-input" placeholder="{ "Nhập tin nhắn hoặc ghi chú bàn giao..." if lang == "vi" else "引き継ぎメッセージを入力..." }" onkeydown="if(event.key==='Enter') sendTaskComment('{index}', '{volume_key}')">
-                    <button type="button" class="btn-handover-send" id="btn_send_comment_{index}" onclick="sendTaskComment('{index}', '{volume_key}')">{ "Gửi" if lang == "vi" else "送信" }</button>
-                </div>
+    handover_html = f'''
+    <div class="task-handover-box" id="handover_{index}" data-tp-key="{volume_key}">
+        <div class="handover-header">
+            <div class="handover-title-row">
+                <span class="handover-title"><i class="far fa-comments" style="margin-right: 6px; color: #818cf8;"></i>{ "Comment:" if lang == "vi" else "コメント:" } <span class="handover-volume-name">{volume_key}</span></span>
+                {badge_html}
             </div>
         </div>
-        '''
+        <div class="handover-body" id="handover_body_{index}">
+            <div class="quick-handover-actions">
+                <span class="quick-handover-label">{ "Mẫu nhanh:" if lang == "vi" else "定型文:" }</span>
+                <button type="button" class="btn-quick-tag done-retouch" onclick="sendQuickHandover('{index}', '{volume_key}', '{ "✓ Đã xong Retouch ➔ Chuyển giao Lettering" if lang == "vi" else "✓ レタッチ完了 ➔ 写植へ引き継ぎ" }', 'handover')">{ "✓ Xong Retouch ➔ Lettering" if lang == "vi" else "✓ レタッチ完了 ➔ 写植へ" }</button>
+                <button type="button" class="btn-quick-tag in-progress" onclick="sendQuickHandover('{index}', '{volume_key}', '{ "Đang xử lý khâu Retouch..." if lang == "vi" else "レタッチ作業中..." }', 'progress')">{ "Đang làm Retouch" if lang == "vi" else "レタッチ作業中" }</button>
+                <button type="button" class="btn-quick-tag in-progress" onclick="sendQuickHandover('{index}', '{volume_key}', '{ "Đang xử lý khâu Lettering..." if lang == "vi" else "写植作業中..." }', 'progress')">{ "Đang làm Lettering" if lang == "vi" else "写植作業中" }</button>
+                <button type="button" class="btn-quick-tag in-progress" onclick="sendQuickHandover('{index}', '{volume_key}', '{ "Đang làm dở trang..." if lang == "vi" else "作業中..." }', 'progress')">{ "Đang làm dở" if lang == "vi" else "作業中" }</button>
+                <button type="button" class="btn-quick-tag note" onclick="sendQuickHandover('{index}', '{volume_key}', '{ "Lưu ý font / style đặc biệt" if lang == "vi" else "フォント・スタイルの注意事項あり" }', 'warning')">{ "Lưu ý font/style" if lang == "vi" else "注意事項" }</button>
+            </div>
+
+            <div class="handover-comments-list" id="comments_list_{index}">
+                <div class="handover-empty">{ "Chưa có ghi chú nào. Hãy để lại lời nhắn cho đồng đội!" if lang == "vi" else "メッセージはまだありません。" }</div>
+            </div>
+
+            <div class="handover-input-group">
+                <input type="text" id="handover_input_{index}" class="handover-input" placeholder="{ "Nhập tin nhắn hoặc ghi chú bàn giao..." if lang == "vi" else "引き継ぎメッセージを入力..." }" onkeydown="if(event.key==='Enter') sendTaskComment('{index}', '{volume_key}')">
+                <button type="button" class="btn-handover-send" id="btn_send_comment_{index}" onclick="sendTaskComment('{index}', '{volume_key}')">{ "Gửi" if lang == "vi" else "送信" }</button>
+            </div>
+        </div>
+    </div>
+    '''
 
     tracker_html = f'''<div class="time-tracker-box" id="tracker_{index}" data-tp-key="{tac_pham_key}">
         <div class="tracker-header">
@@ -672,6 +677,19 @@ def process_dashboard_data():
     df_tuan_sau = clean_df(df_raw.iloc[idx_tuan[1]:].copy()) if len(idx_tuan) > 1 else pd.DataFrame(columns=df_raw.columns)
     df_tuan_truoc = clean_df(df_truoc_raw.iloc[idx_tuan_truoc[0]:].copy()) if len(idx_tuan_truoc) > 0 else clean_df(df_truoc_raw)
 
+    # Pre-calculate global volume partners across all raw data before member filtering
+    global_vol_partners = defaultdict(list)
+    for df_src in [df_raw, df_truoc_raw]:
+        if not df_src.empty:
+            for _, row_full in df_src.iterrows():
+                tp = str(row_full.get('Tên tác phẩm', '')).strip()
+                tap = str(row_full.get('Tập', '')).strip()
+                cv = str(row_full.get('Công việc', '')).strip()
+                w = str(row_full.get('Người thực hiện', '')).strip()
+                vol_k = f"{tap}_{tp}" if tap and tap.lower() not in ['nan', 'none', ''] else tp
+                if vol_k and w and w.lower() not in ['nan', 'none', '']:
+                    global_vol_partners[vol_k].append({'worker': w, 'cv': cv, 'tp_key': f"{cv} - {vol_k}"})
+
     # Phân quyền: member chỉ thấy task của mình
     if role == "member":
         df_tuan_nay = df_tuan_nay[df_tuan_nay["Người thực hiện"].astype(str).str.contains(user, na=False, regex=False)]
@@ -692,11 +710,11 @@ def process_dashboard_data():
         if df_target.empty:
             return []
         records = df_target.to_dict('records')
-        volume_groups = {}
         for r in records:
             cv = str(r.get('Công việc', '')).strip()
             tp = str(r.get('Tên tác phẩm', '')).strip()
             tap = str(r.get('Tập', '')).strip()
+            my_worker = str(r.get('Người thực hiện', '')).strip()
             
             if tap and tap.lower() not in ['nan', 'none', '']:
                 old_tp_key = f"{tap}_{tp}"
@@ -718,41 +736,31 @@ def process_dashboard_data():
                 checked_ids_dict[tp_key] = merged
                 check_counts[tp_key] = len(merged)
 
-            if vol_key not in volume_groups:
-                volume_groups[vol_key] = []
-            volume_groups[vol_key].append(r)
-
-        # Detect Co-op / Partner tasks for the same volume (e.g. Lettering & Retouch)
-        for vol_key, group in volume_groups.items():
-            if len(group) > 1:
-                for r in group:
-                    partners = [p for p in group if p != r]
-                    p_workers = [str(p.get('Người thực hiện', '')).strip() for p in partners if str(p.get('Người thực hiện', '')).strip()]
-                    p_cvs = [str(p.get('Công việc', '')).strip() for p in partners if str(p.get('Công việc', '')).strip()]
-                    p_keys = [p.get('tp_key', '') for p in partners]
-                    p_progresses = [int((check_counts.get(pk, 0) / 9) * 100) for pk in p_keys]
-                    
-                    r['is_coop'] = True
-                    r['partner_worker'] = ', '.join(p_workers)
-                    r['partner_cv'] = ', '.join(p_cvs)
-                    r['partner_key'] = p_keys[0] if p_keys else ''
-                    r['partner_progress'] = p_progresses[0] if p_progresses else 0
+            # Detect Co-op / Partner tasks from global map
+            partners = [p for p in global_vol_partners.get(vol_key, []) if p.get('worker') != my_worker or p.get('cv') != cv]
+            if partners:
+                p_workers = list(dict.fromkeys([p['worker'] for p in partners if p.get('worker')]))
+                p_cvs = list(dict.fromkeys([p['cv'] for p in partners if p.get('cv')]))
+                p_keys = [p['tp_key'] for p in partners]
+                p_progresses = [int((check_counts.get(pk, 0) / 9) * 100) for pk in p_keys]
+                
+                r['is_coop'] = True
+                r['partner_worker'] = ', '.join(p_workers)
+                r['partner_cv'] = ', '.join(p_cvs)
+                r['partner_key'] = p_keys[0] if p_keys else ''
+                r['partner_progress'] = p_progresses[0] if p_progresses else 0
+            elif '写植/ﾚﾀｯﾁ' in cv or '写植/レタッチ' in cv or 'Lettering/Retouch' in cv or ',' in my_worker:
+                r['is_coop'] = True
+                r['partner_worker'] = my_worker
+                r['partner_cv'] = 'Retouch ⇄ Lettering'
+                r['partner_key'] = r['tp_key']
+                r['partner_progress'] = int((check_counts.get(r['tp_key'], 0) / 9) * 100)
             else:
-                r = group[0]
-                cv = str(r.get('Công việc', '')).strip()
-                worker = str(r.get('Người thực hiện', '')).strip()
-                if '写植/ﾚﾀｯﾁ' in cv or '写植/レタッチ' in cv or 'Lettering/Retouch' in cv or ',' in worker:
-                    r['is_coop'] = True
-                    r['partner_worker'] = worker
-                    r['partner_cv'] = 'Retouch ⇄ Lettering'
-                    r['partner_key'] = r['tp_key']
-                    r['partner_progress'] = int((check_counts.get(r['tp_key'], 0) / 9) * 100)
-                else:
-                    r['is_coop'] = False
-                    r['partner_worker'] = ''
-                    r['partner_cv'] = ''
-                    r['partner_key'] = ''
-                    r['partner_progress'] = 0
+                r['is_coop'] = False
+                r['partner_worker'] = ''
+                r['partner_cv'] = ''
+                r['partner_key'] = ''
+                r['partner_progress'] = 0
 
         return records
 
