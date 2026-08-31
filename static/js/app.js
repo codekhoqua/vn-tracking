@@ -513,9 +513,15 @@ function saveStoredNotifications(list) {
 
 function addNotification(item) {
     const list = getStoredNotifications();
+    const notifId = item.id || `notif_${Date.now()}`;
+
+    // Deduplicate: If exact same notification ID exists OR same message & tpKey within 15 seconds, don't duplicate
+    const isDup = list.some(n => (item.id && n.id === item.id) || (n.message === item.message && n.tpKey === item.tpKey && (Date.now() - n.timestamp < 15000)));
+    if (isDup) return;
+
     const now = new Date();
     const notif = {
-        id: item.id || `notif_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+        id: notifId,
         type: item.type || 'comment',
         user: item.user || 'Hệ thống',
         tpKey: item.tpKey || '',
@@ -525,20 +531,16 @@ function addNotification(item) {
         isRead: false
     };
 
-    // Avoid exact duplicate within 3 seconds
-    const isDup = list.some(n => n.message === notif.message && n.tpKey === notif.tpKey && (Date.now() - n.timestamp < 3000));
-    if (!isDup) {
-        list.unshift(notif);
-        saveStoredNotifications(list);
+    list.unshift(notif);
+    saveStoredNotifications(list);
 
-        // Animate bell
-        const bellBtn = document.getElementById('notification-bell-btn');
-        if (bellBtn) {
-            bellBtn.classList.remove('ringing');
-            void bellBtn.offsetWidth;
-            bellBtn.classList.add('ringing');
-            setTimeout(() => bellBtn.classList.remove('ringing'), 1000);
-        }
+    // Animate bell
+    const bellBtn = document.getElementById('notification-bell-btn');
+    if (bellBtn) {
+        bellBtn.classList.remove('ringing');
+        void bellBtn.offsetWidth;
+        bellBtn.classList.add('ringing');
+        setTimeout(() => bellBtn.classList.remove('ringing'), 1000);
     }
 }
 
@@ -663,9 +665,17 @@ function clearAllNotifications() {
     saveStoredNotifications([]);
 }
 
-function showTaskToast(user, tpKey, message) {
+function showTaskToast(user, tpKey, message, id = null) {
+    // Avoid duplicate toast on screen
+    const existingToasts = document.querySelectorAll('.task-handover-toast');
+    for (let t of existingToasts) {
+        if ((id && t.dataset.toastId === String(id)) || (t.dataset.tpKey === tpKey && t.dataset.message === message)) {
+            return;
+        }
+    }
+
     // Add to Notification Center
-    addNotification({ user, tpKey, message });
+    addNotification({ id, user, tpKey, message });
 
     let container = document.getElementById('task-toast-container');
     if (!container) {
@@ -677,6 +687,9 @@ function showTaskToast(user, tpKey, message) {
 
     const toast = document.createElement('div');
     toast.className = 'task-handover-toast';
+    if (id) toast.dataset.toastId = id;
+    toast.dataset.tpKey = tpKey;
+    toast.dataset.message = message;
     toast.style.cssText = 'pointer-events: auto; background: rgba(17, 24, 39, 0.96); border: 1px solid rgba(129, 140, 248, 0.4); backdrop-filter: blur(12px); border-radius: 10px; padding: 10px 14px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); display: flex; gap: 10px; align-items: flex-start; color: #fff; animation: toastSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1); transition: all 0.3s ease; cursor: pointer;';
     
     const avatar = getAvatarForUser(user);
@@ -716,9 +729,14 @@ function showTaskToast(user, tpKey, message) {
 }
 
 function setupTaskCommentsSocket() {
-    if (!window.socket) return;
-    if (window.socket._taskCommentsSetup) return;
-    window.socket._taskCommentsSetup = true;
+    if (!window.socket) {
+        setTimeout(setupTaskCommentsSocket, 300);
+        return;
+    }
+
+    // Always unbind first to guarantee no duplicate event listeners
+    window.socket.off('task_comment_new');
+    window.socket.off('task_comment_deleted');
 
     window.socket.on('task_comment_new', function(data) {
         if (!data || !data.tp_key || !data.comment) return;
@@ -739,7 +757,7 @@ function setupTaskCommentsSocket() {
         });
 
         if (data.comment.user !== (typeof CURRENT_USER !== 'undefined' ? CURRENT_USER : '')) {
-            showTaskToast(data.comment.user, data.tp_key, data.comment.message);
+            showTaskToast(data.comment.user, data.tp_key, data.comment.message, data.comment.id);
         }
     });
 
