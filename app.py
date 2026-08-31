@@ -768,9 +768,15 @@ def process_dashboard_data():
             except:
                 return str(d_str)
         records = df_to_records(df_target)
+        comments_db = get_supabase_task_comments() or {}
         for row in records:
             tp_key = row['tp_key']
             tp_name = row['tp_name']
+            vol_key = row.get('volume_key', tp_name)
+            cmts = comments_db.get(tp_key) or comments_db.get(vol_key) or comments_db.get(tp_name) or []
+            has_comments = bool(cmts and len(cmts) > 0)
+            comments_count = len(cmts) if cmts else 0
+
             worker = str(row.get('Người thực hiện', '')).strip()
             qc_person = str(row.get('QC Nội bộ', '')).strip()
             checked = check_counts.get(tp_key, 0)
@@ -805,11 +811,13 @@ def process_dashboard_data():
                 "start_date": start_date,
                 "end_date": end_date,
                 "is_coop": row.get('is_coop', False),
-                "volume_key": row.get('volume_key', tp_name),
+                "volume_key": vol_key,
                 "partner_worker": row.get('partner_worker', ''),
                 "partner_cv": row.get('partner_cv', ''),
                 "partner_key": row.get('partner_key', ''),
-                "partner_progress": row.get('partner_progress', 0)
+                "partner_progress": row.get('partner_progress', 0),
+                "has_comments": has_comments,
+                "comments_count": comments_count
             })
         return data
 
