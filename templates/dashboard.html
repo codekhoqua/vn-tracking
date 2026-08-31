@@ -222,7 +222,7 @@
             style="border-radius: var(--radius-sm); margin-right: 8px;">
         <div style="display: flex; flex-direction: column; justify-content: center;">
             <span>VN-Tracking</span>
-            <sup style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.3.65</i></sup>
+            <sup style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.3.66</i></sup>
         </div>
     </div>
 
@@ -1324,6 +1324,18 @@
                                     {% endif %}
                                 </div>
 
+                                {% if card.is_coop and card.partner_worker %}
+                                <div class="card-partner-box" style="margin-top: 6px; padding: 4px 8px; background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(168, 85, 247, 0.12)); border: 1px dashed rgba(168, 85, 247, 0.35); border-radius: 6px; display: flex; align-items: center; justify-content: space-between; font-size: 0.73rem;">
+                                    <div style="display: flex; align-items: center; gap: 5px; color: #c084fc; font-weight: 600;">
+                                        <span>🤝</span>
+                                        <span>{{ card.partner_cv }}: <strong style="color: #fff;">{{ card.partner_worker }}</strong></span>
+                                    </div>
+                                    <span style="font-size: 0.7rem; color: {% if card.partner_progress >= 100 %}#34d399{% elif card.partner_progress > 0 %}#fbbf24{% else %}var(--text-4){% endif %}; font-weight: 700;">
+                                        {{ card.partner_progress }}%
+                                    </span>
+                                </div>
+                                {% endif %}
+
                                 <div class="t4-external-toggle" style="margin-top: 8px;">
                                     {% set is_started = ('t4' in card.checked_ids) %}
                                     <div onclick="event.stopPropagation(); toggleExternalStart('{{ card.key }}', this)" style="font-size: 0.75rem; color: {% if is_started %}var(--primary){% else %}var(--text-3){% endif %}; background: {% if is_started %}rgba(16, 185, 129, 0.1){% else %}var(--bg-page){% endif %}; border: 1px solid {% if is_started %}rgba(16, 185, 129, 0.3){% else %}var(--border){% endif %}; padding: 4px 8px; border-radius: 4px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; transition: all 0.2s;" title="Đánh dấu Bắt đầu">
@@ -1409,6 +1421,18 @@
                                 </div>
                                 {% endif %}
                             </div>
+
+                            {% if card.is_coop and card.partner_worker %}
+                            <div class="card-partner-box" style="margin-top: 6px; padding: 4px 8px; background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(168, 85, 247, 0.12)); border: 1px dashed rgba(168, 85, 247, 0.35); border-radius: 6px; display: flex; align-items: center; justify-content: space-between; font-size: 0.73rem;">
+                                <div style="display: flex; align-items: center; gap: 5px; color: #c084fc; font-weight: 600;">
+                                    <span>🤝</span>
+                                    <span>{{ card.partner_cv }}: <strong style="color: #fff;">{{ card.partner_worker }}</strong></span>
+                                </div>
+                                <span style="font-size: 0.7rem; color: {% if card.partner_progress >= 100 %}#34d399{% elif card.partner_progress > 0 %}#fbbf24{% else %}var(--text-4){% endif %}; font-weight: 700;">
+                                    {{ card.partner_progress }}%
+                                </span>
+                            </div>
+                            {% endif %}
 
                             <div class="t4-external-toggle" style="margin-top: 8px;">
                                 {% set is_started = ('t4' in card.checked_ids) %}
@@ -1572,6 +1596,18 @@
                                     {% endif %}
                                 </div>
 
+                                {% if card.is_coop and card.partner_worker %}
+                                <div class="card-partner-box" style="margin-top: 6px; padding: 4px 8px; background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(168, 85, 247, 0.12)); border: 1px dashed rgba(168, 85, 247, 0.35); border-radius: 6px; display: flex; align-items: center; justify-content: space-between; font-size: 0.73rem;">
+                                    <div style="display: flex; align-items: center; gap: 5px; color: #c084fc; font-weight: 600;">
+                                        <span>🤝</span>
+                                        <span>{{ card.partner_cv }}: <strong style="color: #fff;">{{ card.partner_worker }}</strong></span>
+                                    </div>
+                                    <span style="font-size: 0.7rem; color: {% if card.partner_progress >= 100 %}#34d399{% elif card.partner_progress > 0 %}#fbbf24{% else %}var(--text-4){% endif %}; font-weight: 700;">
+                                        {{ card.partner_progress }}%
+                                    </span>
+                                </div>
+                                {% endif %}
+
                                 <div class="t4-external-toggle" style="margin-top: 8px;">
                                     {% set is_started = ('t4' in card.checked_ids) %}
                                     <div onclick="event.stopPropagation(); toggleExternalStart('{{ card.key }}', this)" style="font-size: 0.75rem; color: {% if is_started %}var(--primary){% else %}var(--text-3){% endif %}; background: {% if is_started %}rgba(16, 185, 129, 0.1){% else %}var(--bg-page){% endif %}; border: 1px solid {% if is_started %}rgba(16, 185, 129, 0.3){% else %}var(--border){% endif %}; padding: 4px 8px; border-radius: 4px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; transition: all 0.2s;" title="Đánh dấu Bắt đầu">
@@ -1657,6 +1693,18 @@
                                 </div>
                                 {% endif %}
                             </div>
+
+                            {% if card.is_coop and card.partner_worker %}
+                            <div class="card-partner-box" style="margin-top: 6px; padding: 4px 8px; background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(168, 85, 247, 0.12)); border: 1px dashed rgba(168, 85, 247, 0.35); border-radius: 6px; display: flex; align-items: center; justify-content: space-between; font-size: 0.73rem;">
+                                <div style="display: flex; align-items: center; gap: 5px; color: #c084fc; font-weight: 600;">
+                                    <span>🤝</span>
+                                    <span>{{ card.partner_cv }}: <strong style="color: #fff;">{{ card.partner_worker }}</strong></span>
+                                </div>
+                                <span style="font-size: 0.7rem; color: {% if card.partner_progress >= 100 %}#34d399{% elif card.partner_progress > 0 %}#fbbf24{% else %}var(--text-4){% endif %}; font-weight: 700;">
+                                    {{ card.partner_progress }}%
+                                </span>
+                            </div>
+                            {% endif %}
 
                             <div class="t4-external-toggle" style="margin-top: 8px;">
                                 {% set is_started = ('t4' in card.checked_ids) %}
@@ -1820,6 +1868,18 @@
                                     {% endif %}
                                 </div>
 
+                                {% if card.is_coop and card.partner_worker %}
+                                <div class="card-partner-box" style="margin-top: 6px; padding: 4px 8px; background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(168, 85, 247, 0.12)); border: 1px dashed rgba(168, 85, 247, 0.35); border-radius: 6px; display: flex; align-items: center; justify-content: space-between; font-size: 0.73rem;">
+                                    <div style="display: flex; align-items: center; gap: 5px; color: #c084fc; font-weight: 600;">
+                                        <span>🤝</span>
+                                        <span>{{ card.partner_cv }}: <strong style="color: #fff;">{{ card.partner_worker }}</strong></span>
+                                    </div>
+                                    <span style="font-size: 0.7rem; color: {% if card.partner_progress >= 100 %}#34d399{% elif card.partner_progress > 0 %}#fbbf24{% else %}var(--text-4){% endif %}; font-weight: 700;">
+                                        {{ card.partner_progress }}%
+                                    </span>
+                                </div>
+                                {% endif %}
+
                                 <div class="t4-external-toggle" style="margin-top: 8px;">
                                     {% set is_started = ('t4' in card.checked_ids) %}
                                     <div onclick="event.stopPropagation(); toggleExternalStart('{{ card.key }}', this)" style="font-size: 0.75rem; color: {% if is_started %}var(--primary){% else %}var(--text-3){% endif %}; background: {% if is_started %}rgba(16, 185, 129, 0.1){% else %}var(--bg-page){% endif %}; border: 1px solid {% if is_started %}rgba(16, 185, 129, 0.3){% else %}var(--border){% endif %}; padding: 4px 8px; border-radius: 4px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; transition: all 0.2s;" title="Đánh dấu Bắt đầu">
@@ -1905,6 +1965,18 @@
                                 </div>
                                 {% endif %}
                             </div>
+
+                            {% if card.is_coop and card.partner_worker %}
+                            <div class="card-partner-box" style="margin-top: 6px; padding: 4px 8px; background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(168, 85, 247, 0.12)); border: 1px dashed rgba(168, 85, 247, 0.35); border-radius: 6px; display: flex; align-items: center; justify-content: space-between; font-size: 0.73rem;">
+                                <div style="display: flex; align-items: center; gap: 5px; color: #c084fc; font-weight: 600;">
+                                    <span>🤝</span>
+                                    <span>{{ card.partner_cv }}: <strong style="color: #fff;">{{ card.partner_worker }}</strong></span>
+                                </div>
+                                <span style="font-size: 0.7rem; color: {% if card.partner_progress >= 100 %}#34d399{% elif card.partner_progress > 0 %}#fbbf24{% else %}var(--text-4){% endif %}; font-weight: 700;">
+                                    {{ card.partner_progress }}%
+                                </span>
+                            </div>
+                            {% endif %}
 
                             <div class="t4-external-toggle" style="margin-top: 8px;">
                                 {% set is_started = ('t4' in card.checked_ids) %}
@@ -2138,7 +2210,7 @@
             </button>
         </div>
         <div class="modal-body">
-            {{ render_checklist(tp_key, tab_key ~ '_' ~ loop.index0, lang, checklist_api, checked_ids_dict) }}
+            {{ render_checklist(tp_key, tab_key ~ '_' ~ loop.index0, lang, checklist_api, checked_ids_dict, row) }}
             {{ render_logtime_form(row, tab_key ~ '_' ~ loop.index0, t, users, lang) }}
         </div>
     </div>
