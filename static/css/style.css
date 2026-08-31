@@ -1552,15 +1552,14 @@ select option { background: var(--surface); color: var(--text); }
    TASK HANDOVER & COMMENTS (RETOUCH ⇄ LETTERING)
    ========================================================================== */
 .task-handover-box {
-    margin-top: 15px;
-    padding: 16px;
-    background: rgba(99, 102, 241, 0.05);
-    border: 1px solid rgba(99, 102, 241, 0.2);
-    border-radius: 12px;
+    margin-top: 16px;
+    padding: 14px 16px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--border);
+    border-radius: 10px;
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    backdrop-filter: blur(8px);
+    gap: 10px;
 }
 
 .handover-header {
@@ -1569,91 +1568,134 @@ select option { background: var(--surface); color: var(--text); }
     justify-content: space-between;
 }
 
-.handover-tag {
-    font-size: 0.72rem;
+.handover-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    gap: 12px;
+}
+
+.handover-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+}
+
+.handover-volume-name {
+    color: #fbbf24;
     font-weight: 700;
+    margin-left: 4px;
+}
+
+.handover-partner-badge {
+    font-size: 0.75rem;
+    color: #a5b4fc;
+    background: rgba(99, 102, 241, 0.1);
+    border: 1px solid rgba(99, 102, 241, 0.25);
     padding: 2px 8px;
-    border-radius: 20px;
-    background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(168, 85, 247, 0.2));
-    border: 1px solid rgba(168, 85, 247, 0.3);
-    color: #c084fc;
-    letter-spacing: 0.3px;
+    border-radius: 6px;
 }
 
 .quick-handover-actions {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 8px;
-    padding-bottom: 6px;
+    gap: 6px;
+    padding-bottom: 4px;
+}
+
+.quick-handover-label {
+    font-size: 0.75rem;
+    color: var(--text-3);
+    font-weight: 500;
+    margin-right: 2px;
 }
 
 .btn-quick-tag {
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
     color: var(--text-2);
-    padding: 5px 12px;
-    border-radius: 20px;
-    font-size: 0.78rem;
-    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 500;
     cursor: pointer;
-    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: all 0.15s ease;
     display: inline-flex;
     align-items: center;
     gap: 4px;
 }
 
 .btn-quick-tag:hover {
-    transform: translateY(-1px);
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.15);
+    color: var(--text);
 }
 
 .btn-quick-tag.done-retouch {
-    background: rgba(16, 185, 129, 0.12);
-    border-color: rgba(16, 185, 129, 0.3);
+    background: rgba(16, 185, 129, 0.1);
+    border-color: rgba(16, 185, 129, 0.25);
     color: #34d399;
 }
 .btn-quick-tag.done-retouch:hover {
-    background: rgba(16, 185, 129, 0.22);
-    box-shadow: 0 0 10px rgba(16, 185, 129, 0.2);
+    background: rgba(16, 185, 129, 0.18);
+    border-color: rgba(16, 185, 129, 0.4);
 }
 
 .btn-quick-tag.in-progress {
-    background: rgba(245, 158, 11, 0.12);
-    border-color: rgba(245, 158, 11, 0.3);
+    background: rgba(245, 158, 11, 0.1);
+    border-color: rgba(245, 158, 11, 0.25);
     color: #fbbf24;
 }
 .btn-quick-tag.in-progress:hover {
-    background: rgba(245, 158, 11, 0.22);
-    box-shadow: 0 0 10px rgba(245, 158, 11, 0.2);
+    background: rgba(245, 158, 11, 0.18);
+    border-color: rgba(245, 158, 11, 0.4);
 }
 
 .btn-quick-tag.note {
-    background: rgba(239, 68, 68, 0.12);
-    border-color: rgba(239, 68, 68, 0.3);
+    background: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.25);
     color: #f87171;
 }
 .btn-quick-tag.note:hover {
-    background: rgba(239, 68, 68, 0.22);
-    box-shadow: 0 0 10px rgba(239, 68, 68, 0.2);
+    background: rgba(239, 68, 68, 0.18);
+    border-color: rgba(239, 68, 68, 0.4);
 }
 
 .handover-comments-list {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
     max-height: 180px;
     overflow-y: auto;
     padding-right: 4px;
     margin: 4px 0;
 }
 
+.handover-empty {
+    font-size: 0.8rem;
+    color: var(--text-4);
+    font-style: italic;
+    padding: 8px 0;
+}
+
 .handover-comment-item {
     display: flex;
     gap: 10px;
-    background: rgba(255, 255, 255, 0.03);
+    background: rgba(255, 255, 255, 0.025);
     border: 1px solid rgba(255, 255, 255, 0.05);
     border-radius: 8px;
     padding: 8px 12px;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.handover-comment-item:hover {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.08);
 }
 
 .comment-avatar {
@@ -1661,20 +1703,20 @@ select option { background: var(--surface); color: var(--text); }
 }
 
 .comment-avatar-img {
-    width: 28px;
-    height: 28px;
+    width: 26px;
+    height: 26px;
     border-radius: 50%;
     object-fit: cover;
-    border: 1.5px solid rgba(99, 102, 241, 0.4);
+    border: 1px solid rgba(99, 102, 241, 0.4);
 }
 
 .comment-avatar-fallback {
-    width: 28px;
-    height: 28px;
+    width: 26px;
+    height: 26px;
     border-radius: 50%;
     background: #4f46e5;
     color: white;
-    font-size: 0.75rem;
+    font-size: 0.72rem;
     font-weight: 700;
     display: flex;
     align-items: center;
@@ -1689,43 +1731,66 @@ select option { background: var(--surface); color: var(--text); }
 .comment-meta {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     margin-bottom: 2px;
 }
 
 .comment-user {
     font-size: 0.8rem;
-    font-weight: 700;
+    font-weight: 600;
     color: #818cf8;
 }
 
 .comment-tag {
-    font-size: 0.68rem;
-    font-weight: 600;
-    padding: 1px 6px;
-    border-radius: 12px;
+    font-size: 0.65rem;
+    font-weight: 500;
+    padding: 1px 5px;
+    border-radius: 4px;
 }
 .comment-tag.handover {
-    background: rgba(16, 185, 129, 0.2);
+    background: rgba(16, 185, 129, 0.15);
     color: #34d399;
 }
 .comment-tag.progress {
-    background: rgba(245, 158, 11, 0.2);
+    background: rgba(245, 158, 11, 0.15);
     color: #fbbf24;
 }
 .comment-tag.warning {
-    background: rgba(239, 68, 68, 0.2);
+    background: rgba(239, 68, 68, 0.15);
     color: #f87171;
 }
 
 .comment-time {
-    font-size: 0.7rem;
+    font-size: 0.68rem;
     color: var(--text-4);
     margin-left: auto;
 }
 
+.btn-delete-comment {
+    background: transparent;
+    border: none;
+    color: var(--text-4);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 0 4px;
+    border-radius: 4px;
+    line-height: 1;
+    opacity: 0;
+    transition: all 0.15s ease;
+}
+
+.handover-comment-item:hover .btn-delete-comment {
+    opacity: 0.7;
+}
+
+.btn-delete-comment:hover {
+    opacity: 1 !important;
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.15);
+}
+
 .comment-text {
-    font-size: 0.85rem;
+    font-size: 0.82rem;
     color: var(--text);
     line-height: 1.35;
     word-break: break-word;
@@ -1740,40 +1805,39 @@ select option { background: var(--surface); color: var(--text); }
 
 .handover-input {
     flex: 1;
-    background: rgba(0, 0, 0, 0.25);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 8px;
-    padding: 8px 12px;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 7px 12px;
     color: var(--text);
-    font-size: 0.85rem;
+    font-size: 0.82rem;
     outline: none;
-    transition: all 0.2s ease;
+    transition: all 0.15s ease;
 }
 
 .handover-input:focus {
-    border-color: rgba(99, 102, 241, 0.6);
-    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15);
+    border-color: #6366f1;
 }
 
 .btn-handover-send {
     background: #6366f1;
     color: white;
     border: none;
-    border-radius: 8px;
-    padding: 8px 16px;
-    font-weight: 600;
-    font-size: 0.85rem;
+    border-radius: 6px;
+    padding: 7px 14px;
+    font-weight: 500;
+    font-size: 0.82rem;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.15s ease;
 }
 
 .btn-handover-send:hover {
     background: #4f46e5;
-    box-shadow: 0 0 12px rgba(99, 102, 241, 0.4);
 }
 
 @keyframes toastSlideIn {
     0% { transform: translateY(20px) scale(0.95); opacity: 0; }
     100% { transform: translateY(0) scale(1); opacity: 1; }
 }
+
 

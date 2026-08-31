@@ -346,6 +346,8 @@ async function fetchAiInsights() {
 }
 
 // ==================== TASK HANDOVER & COMMENTS ====================
+let isSendingTaskComment = false;
+
 function getAvatarForUser(username) {
     if (typeof userProfilesDB !== 'undefined' && userProfilesDB[username] && userProfilesDB[username].avatar) {
         return userProfilesDB[username].avatar;
@@ -353,18 +355,24 @@ function getAvatarForUser(username) {
     return '';
 }
 
-function createCommentItemHtml(c) {
+function createCommentItemHtml(c, tpKey) {
     const avatar = getAvatarForUser(c.user);
     const initial = (c.user || 'U').charAt(0).toUpperCase();
     
     let tagBadge = '';
     if (c.tag === 'handover') {
-        tagBadge = `<span class="comment-tag handover">🎨 Bàn giao</span>`;
+        tagBadge = `<span class="comment-tag handover">Bàn giao</span>`;
     } else if (c.tag === 'progress') {
-        tagBadge = `<span class="comment-tag progress">⏳ Tiến độ</span>`;
+        tagBadge = `<span class="comment-tag progress">Tiến độ</span>`;
     } else if (c.tag === 'warning') {
-        tagBadge = `<span class="comment-tag warning">⚠️ Lưu ý</span>`;
+        tagBadge = `<span class="comment-tag warning">Lưu ý</span>`;
     }
+
+    const currentLoggedUser = typeof CURRENT_USER !== 'undefined' ? CURRENT_USER : '';
+    const canDelete = (c.user === currentLoggedUser || (typeof USER_ROLE !== 'undefined' && ['admin', 'manager', 'leader'].includes(USER_ROLE)));
+    const deleteBtnHtml = canDelete 
+        ? `<button type="button" class="btn-delete-comment" onclick="deleteTaskComment('${c.id}', '${tpKey}', this)" title="Xóa">&times;</button>`
+        : '';
 
     const avatarHtml = avatar 
         ? `<img src="${avatar}" alt="${c.user}" class="comment-avatar-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><div class="comment-avatar-fallback" style="display:none;">${initial}</div>`
@@ -378,6 +386,7 @@ function createCommentItemHtml(c) {
                     <span class="comment-user">${c.user || 'Thành viên'}</span>
                     ${tagBadge}
                     <span class="comment-time">${c.time || ''}</span>
+                    ${deleteBtnHtml}
                 </div>
                 <div class="comment-text">${c.message}</div>
             </div>
@@ -394,12 +403,12 @@ async function loadTaskComments(index, tpKey) {
         if (data.status === 'success' && data.comments && data.comments.length > 0) {
             list.innerHTML = '';
             data.comments.forEach(c => {
-                list.insertAdjacentHTML('beforeend', createCommentItemHtml(c));
+                list.insertAdjacentHTML('beforeend', createCommentItemHtml(c, tpKey));
             });
             list.scrollTop = list.scrollHeight;
         } else {
             const isVN = (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi');
-            list.innerHTML = `<div class="handover-empty">${isVN ? 'Chưa có ghi chú trao đổi nào. Hãy để lại lời nhắn cho đồng đội!' : 'メッセージはまだありません。メモを残してください。'}</div>`;
+            list.innerHTML = `<div class="handover-empty">${isVN ? 'Chưa có ghi chú nào. Hãy để lại lời nhắn cho đồng đội!' : 'メッセージはまだありません。'}</div>`;
         }
     } catch (e) {
         console.error('Error loading task comments:', e);
@@ -407,13 +416,15 @@ async function loadTaskComments(index, tpKey) {
 }
 
 async function sendTaskComment(index, tpKey, messageOverride = null, tag = 'chat') {
+    if (isSendingTaskComment) return;
     const input = document.getElementById(`handover_input_${index}`);
     const message = messageOverride ? messageOverride.trim() : (input ? input.value.trim() : '');
     if (!message) return;
 
-    if (input && !messageOverride) {
-        input.value = '';
-    }
+    isSendingTaskComment = true;
+    const sendBtn = document.getElementById(`btn_send_comment_${index}`);
+    if (sendBtn) { sendBtn.disabled = true; sendBtn.style.opacity = '0.5'; }
+    if (input && !messageOverride) { input.value = ''; }
 
     try {
         const res = await fetch('/api/task_comments', {
@@ -431,12 +442,17 @@ async function sendTaskComment(index, tpKey, messageOverride = null, tag = 'chat
             if (list) {
                 const empty = list.querySelector('.handover-empty');
                 if (empty) empty.remove();
-                list.insertAdjacentHTML('beforeend', createCommentItemHtml(data.comment));
-                list.scrollTop = list.scrollHeight;
+                if (!document.getElementById(`comment_${data.comment.id}`)) {
+                    list.insertAdjacentHTML('beforeend', createCommentItemHtml(data.comment, tpKey));
+                    list.scrollTop = list.scrollHeight;
+                }
             }
         }
     } catch (e) {
         console.error('Error sending task comment:', e);
+    } finally {
+        isSendingTaskComment = false;
+        if (sendBtn) { sendBtn.disabled = false; sendBtn.style.opacity = '1'; }
     }
 }
 
@@ -444,24 +460,57 @@ function sendQuickHandover(index, tpKey, text, tag = 'handover') {
     sendTaskComment(index, tpKey, text, tag);
 }
 
+async function deleteTaskComment(commentId, tpKey, btnEl) {
+    if (!commentId || !tpKey) return;
+    const isVN = (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi');
+    if (!confirm(isVN ? 'Bạn có chắc chắn muốn xóa tin nhắn này?' : 'このメッセージを削除しますか？')) return;
+
+    try {
+        const res = await fetch('/api/task_comments/delete', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ id: commentId, tp_key: tpKey })
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+            const el = document.getElementById(`comment_${commentId}`);
+            if (el) {
+                el.style.opacity = '0';
+                el.style.transform = 'scale(0.9)';
+                setTimeout(() => {
+                    const list = el.parentElement;
+                    el.remove();
+                    if (list && list.children.length === 0) {
+                        list.innerHTML = `<div class="handover-empty">${isVN ? 'Chưa có ghi chú nào. Hãy để lại lời nhắn cho đồng đội!' : 'メッセージはまだありません。'}</div>`;
+                    }
+                }, 200);
+            }
+        } else {
+            showToast(data.message || (isVN ? 'Không thể xóa tin nhắn' : '削除できませんでした'), 'error');
+        }
+    } catch (e) {
+        console.error('Error deleting task comment:', e);
+    }
+}
+
 function showTaskToast(user, tpKey, message) {
     let container = document.getElementById('task-toast-container');
     if (!container) {
         container = document.createElement('div');
         container.id = 'task-toast-container';
-        container.style.cssText = 'position: fixed; bottom: 24px; right: 24px; z-index: 999999; display: flex; flex-direction: column; gap: 10px; max-width: 380px; pointer-events: none;';
+        container.style.cssText = 'position: fixed; bottom: 24px; right: 24px; z-index: 999999; display: flex; flex-direction: column; gap: 10px; max-width: 360px; pointer-events: none;';
         document.body.appendChild(container);
     }
 
     const toast = document.createElement('div');
     toast.className = 'task-handover-toast';
-    toast.style.cssText = 'pointer-events: auto; background: rgba(15, 23, 42, 0.95); border: 1px solid rgba(99, 102, 241, 0.4); backdrop-filter: blur(12px); border-radius: 12px; padding: 12px 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.5), 0 0 15px rgba(99,102,241,0.2); display: flex; gap: 12px; align-items: flex-start; color: #fff; animation: toastSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1); transition: all 0.3s ease;';
+    toast.style.cssText = 'pointer-events: auto; background: rgba(17, 24, 39, 0.95); border: 1px solid rgba(129, 140, 248, 0.35); backdrop-filter: blur(12px); border-radius: 10px; padding: 10px 14px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); display: flex; gap: 10px; align-items: flex-start; color: #fff; animation: toastSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1); transition: all 0.3s ease;';
     
     const avatar = getAvatarForUser(user);
     const initial = (user || 'U').charAt(0).toUpperCase();
     const avatarHtml = avatar 
-        ? `<img src="${avatar}" style="width:36px; height:36px; border-radius:50%; object-fit:cover; border:2px solid #6366f1;">`
-        : `<div style="width:36px; height:36px; border-radius:50%; background:#6366f1; display:flex; align-items:center; justify-content:center; font-weight:bold; color:#fff;">${initial}</div>`;
+        ? `<img src="${avatar}" style="width:32px; height:32px; border-radius:50%; object-fit:cover; border:1.5px solid #818cf8;">`
+        : `<div style="width:32px; height:32px; border-radius:50%; background:#4f46e5; display:flex; align-items:center; justify-content:center; font-weight:bold; color:#fff; font-size:12px;">${initial}</div>`;
 
     const shortTp = tpKey.split(' - ')[1] || tpKey;
 
@@ -469,13 +518,13 @@ function showTaskToast(user, tpKey, message) {
         <div style="flex-shrink: 0;">${avatarHtml}</div>
         <div style="flex: 1; min-width: 0;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
-                <span style="font-weight: 700; font-size: 0.85rem; color: #818cf8;">${user}</span>
-                <span style="font-size: 0.75rem; color: rgba(255,255,255,0.5);">Vừa xong</span>
+                <span style="font-weight: 700; font-size: 0.82rem; color: #818cf8;">${user}</span>
+                <span style="font-size: 0.7rem; color: var(--text-4);">Vừa xong</span>
             </div>
-            <div style="font-size: 0.75rem; color: #fbbf24; font-weight: 600; margin-bottom: 4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">📚 ${shortTp}</div>
-            <div style="font-size: 0.85rem; color: rgba(255,255,255,0.9); line-height: 1.3;">${message}</div>
+            <div style="font-size: 0.72rem; color: #fbbf24; font-weight: 600; margin-bottom: 3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">📖 ${shortTp}</div>
+            <div style="font-size: 0.82rem; color: var(--text); line-height: 1.3;">${message}</div>
         </div>
-        <button onclick="this.parentElement.remove()" style="background:none; border:none; color:rgba(255,255,255,0.4); cursor:pointer; font-size:16px; padding:0; margin-left:4px;">&times;</button>
+        <button onclick="this.parentElement.remove()" style="background:none; border:none; color:var(--text-4); cursor:pointer; font-size:16px; padding:0; line-height:1;">&times;</button>
     `;
 
     container.appendChild(toast);
@@ -484,7 +533,53 @@ function showTaskToast(user, tpKey, message) {
         toast.style.opacity = '0';
         toast.style.transform = 'translateX(20px)';
         setTimeout(() => toast.remove(), 300);
-    }, 6000);
+    }, 5000);
+}
+
+function setupTaskCommentsSocket() {
+    if (!window.socket) return;
+    if (window.socket._taskCommentsSetup) return;
+    window.socket._taskCommentsSetup = true;
+
+    window.socket.on('task_comment_new', function(data) {
+        if (!data || !data.tp_key || !data.comment) return;
+        
+        document.querySelectorAll('.task-handover-box').forEach(box => {
+            if (box.getAttribute('data-tp-key') === data.tp_key) {
+                const index = box.id.replace('handover_', '');
+                const list = document.getElementById(`comments_list_${index}`);
+                if (list) {
+                    const empty = list.querySelector('.handover-empty');
+                    if (empty) empty.remove();
+                    if (!document.getElementById(`comment_${data.comment.id}`)) {
+                        list.insertAdjacentHTML('beforeend', createCommentItemHtml(data.comment, data.tp_key));
+                        list.scrollTop = list.scrollHeight;
+                    }
+                }
+            }
+        });
+
+        if (data.comment.user !== (typeof CURRENT_USER !== 'undefined' ? CURRENT_USER : '')) {
+            showTaskToast(data.comment.user, data.tp_key, data.comment.message);
+        }
+    });
+
+    window.socket.on('task_comment_deleted', function(data) {
+        if (!data || !data.id) return;
+        const el = document.getElementById(`comment_${data.id}`);
+        if (el) {
+            el.style.opacity = '0';
+            el.style.transform = 'scale(0.9)';
+            setTimeout(() => {
+                const list = el.parentElement;
+                el.remove();
+                if (list && list.children.length === 0) {
+                    const isVN = (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi');
+                    list.innerHTML = `<div class="handover-empty">${isVN ? 'Chưa có ghi chú nào. Hãy để lại lời nhắn cho đồng đội!' : 'メッセージはまだありません。'}</div>`;
+                }
+            }, 200);
+        }
+    });
 }
 
 // ===================== MODAL =====================
@@ -501,6 +596,7 @@ function openModal(tabKey, cardName) {
             // Load Task Handover Comments if combined task
             const handoverBox = modal.querySelector('.task-handover-box');
             if (handoverBox) {
+                setupTaskCommentsSocket();
                 const index = handoverBox.id.replace('handover_', '');
                 const tpKey = handoverBox.getAttribute('data-tp-key');
                 loadTaskComments(index, tpKey);
