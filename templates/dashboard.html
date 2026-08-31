@@ -222,7 +222,7 @@
             style="border-radius: var(--radius-sm); margin-right: 8px;">
         <div style="display: flex; flex-direction: column; justify-content: center;">
             <span>VN-Tracking</span>
-            <sup style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.3.81</i></sup>
+            <sup style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.3.82</i></sup>
         </div>
     </div>
 
@@ -2471,6 +2471,76 @@
 </div>
 {% endfor %}
 {% endfor %}
+
+<!-- ============ 🔗 EDIT TASK LINKS MODAL ============ -->
+<div id="edit-task-links-modal" class="task-links-modal-overlay" style="display: none;" onclick="if(event.target===this) closeEditTaskLinksModal()">
+    <div class="task-links-modal-card">
+        <div class="task-links-modal-header">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <span class="task-links-modal-icon"><i class="fas fa-link"></i></span>
+                <div>
+                    <h3 class="task-links-modal-title">{{ 'Liên kết công việc' if lang == 'vi' else '作業リンク設定' }}</h3>
+                    <span class="task-links-modal-subtitle" id="edit-task-links-subtitle"></span>
+                </div>
+            </div>
+            <button type="button" class="btn-modal-close" onclick="closeEditTaskLinksModal()">✕</button>
+        </div>
+        <div class="task-links-modal-body">
+            <input type="hidden" id="edit-task-links-key" value="">
+            
+            <div class="task-link-input-group mikan">
+                <label for="link_input_mikan">
+                    <span class="tool-badge mikan"><i class="fas fa-tasks"></i> MIKAN</span>
+                    <span class="input-hint">{{ 'Link quản lý tiến độ Mikan' if lang == 'vi' else 'Mikan進捗リンク' }}</span>
+                </label>
+                <div class="input-with-icon">
+                    <input type="url" id="link_input_mikan" placeholder="https://mikan..." class="task-link-input">
+                    <button type="button" class="btn-paste-link" onclick="pasteClipboardToInput('link_input_mikan')" title="{{ 'Dán từ clipboard' if lang == 'vi' else '貼り付け' }}"><i class="fas fa-paste"></i></button>
+                </div>
+            </div>
+
+            <div class="task-link-input-group notion">
+                <label for="link_input_notion">
+                    <span class="tool-badge notion"><i class="fas fa-book-open"></i> NOTION</span>
+                    <span class="input-hint">{{ 'Link trang Notion' if lang == 'vi' else 'Notionページリンク' }}</span>
+                </label>
+                <div class="input-with-icon">
+                    <input type="url" id="link_input_notion" placeholder="https://notion.so/..." class="task-link-input">
+                    <button type="button" class="btn-paste-link" onclick="pasteClipboardToInput('link_input_notion')" title="{{ 'Dán từ clipboard' if lang == 'vi' else '貼り付け' }}"><i class="fas fa-paste"></i></button>
+                </div>
+            </div>
+
+            <div class="task-link-input-group asana">
+                <label for="link_input_asana">
+                    <span class="tool-badge asana"><i class="fas fa-circle-notch"></i> ASANA</span>
+                    <span class="input-hint">{{ 'Link task Asana' if lang == 'vi' else 'Asanaタスクリンク' }}</span>
+                </label>
+                <div class="input-with-icon">
+                    <input type="url" id="link_input_asana" placeholder="https://app.asana.com/..." class="task-link-input">
+                    <button type="button" class="btn-paste-link" onclick="pasteClipboardToInput('link_input_asana')" title="{{ 'Dán từ clipboard' if lang == 'vi' else '貼り付け' }}"><i class="fas fa-paste"></i></button>
+                </div>
+            </div>
+
+            <div class="task-link-input-group dropbox">
+                <label for="link_input_dropbox">
+                    <span class="tool-badge dropbox"><i class="fab fa-dropbox"></i> DROPBOX</span>
+                    <span class="input-hint">{{ 'Link thư mục Dropbox / Drive' if lang == 'vi' else 'Dropboxフォルダリンク' }}</span>
+                </label>
+                <div class="input-with-icon">
+                    <input type="url" id="link_input_dropbox" placeholder="https://dropbox.com/..." class="task-link-input">
+                    <button type="button" class="btn-paste-link" onclick="pasteClipboardToInput('link_input_dropbox')" title="{{ 'Dán từ clipboard' if lang == 'vi' else '貼り付け' }}"><i class="fas fa-paste"></i></button>
+                </div>
+            </div>
+        </div>
+        <div class="task-links-modal-footer">
+            <button type="button" class="btn-links-cancel" onclick="closeEditTaskLinksModal()">{{ 'Hủy' if lang == 'vi' else 'キャンセル' }}</button>
+            <button type="button" class="btn-links-save" id="btn-save-task-links" onclick="submitSaveTaskLinks()">
+                <i class="fas fa-check"></i> {{ 'Lưu liên kết' if lang == 'vi' else '保存する' }}
+            </button>
+        </div>
+    </div>
+</div>
+
 <!-- ============ 🐾 VIRTUAL PET WIDGET ============ -->
 <div id="pet-widget-bubble" onclick="togglePetPanel()" style="display:none;">
     <div class="pet-bubble-sprite" id="pet-bubble-sprite"></div>
