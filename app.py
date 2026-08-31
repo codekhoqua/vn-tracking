@@ -1098,10 +1098,31 @@ def api_task_comments():
         comments_db[tp_key].append(comment_item)
         save_supabase_task_comments(comments_db)
         
+        # Collect assignees for this task / volume to target notifications
+        assignees = []
+        try:
+            df_raw = load_sheet_data(csv_url)
+            df_truoc = load_sheet_data(csv_url_truoc)
+            combined_df = pd.concat([df_raw, df_truoc], ignore_index=True)
+            for _, r in combined_df.iterrows():
+                tp = str(r.get('Tên tác phẩm', '')).strip()
+                tap = str(r.get('Tập', '')).strip()
+                vol = f"{tap}_{tp}" if tap and tap.lower() not in ['nan', 'none', ''] else tp
+                if vol in tp_key or tp_key in vol or tp in tp_key or tp_key in tp:
+                    w = str(r.get('Người thực hiện', '')).strip()
+                    if w and w.lower() not in ['nan', 'none', '']:
+                        for p in w.split(','):
+                            p_clean = p.strip()
+                            if p_clean and p_clean not in assignees:
+                                assignees.append(p_clean)
+        except Exception:
+            pass
+
         # Broadcast via SocketIO
         socketio.emit('task_comment_new', {
             "tp_key": tp_key,
-            "comment": comment_item
+            "comment": comment_item,
+            "assignees": assignees
         })
         
         return jsonify({"status": "success", "comment": comment_item})
