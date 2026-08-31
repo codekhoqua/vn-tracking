@@ -1,0 +1,51 @@
+def load_vntask_details():
+    try:
+        df = pd.read_csv(VNTASK_URL)
+        start_date_col = None
+        for col in df.columns:
+            if 'ΘûïσºïµùÑ' in col:
+                start_date_col = col
+                break
+                
+        if not start_date_col:
+            if len(df.columns) > 7:
+                start_date_col = df.columns[7]
+            else:
+                return []
+            
+        job_col = df.columns[1] if len(df.columns) > 1 else None
+        task_col = df.columns[2] if len(df.columns) > 2 else None
+        worker_col = df.columns[10] if len(df.columns) > 10 else (df.columns[9] if len(df.columns) > 9 else None)
+
+        details = []
+        current_year = date.today().year
+
+        for idx, row in df.iterrows():
+            val = str(row[start_date_col]).strip()
+            if val in ['nan', 'NaN', 'None', '']:
+                continue
+            
+            raw_job = str(row[job_col]).strip() if job_col and pd.notna(row[job_col]) else "Kh├íc"
+            job_type = "Retouch" if "πâ¼πé┐πââπâü" in raw_job else ("Lettering" if "σåÖµñì" in raw_job else raw_job)
+            if job_type in ['nan', 'NaN', 'None', '']: job_type = "Kh├íc"
+            
+            task_name = str(row[task_col]) if task_col and pd.notna(row[task_col]) else "Unknown Task"
+            worker = str(row[worker_col]) if worker_col and pd.notna(row[worker_col]) else ""
+            
+            # remove day of week like (Wed)
+            clean_d = re.sub(r'\([A-Za-z]+\)', '', val).strip()
+            # replace hyphens with space
+            clean_d = clean_d.replace('-', ' ')
+            try:
+                dt = date_parser.parse(clean_d, default=datetime(current_year, 1, 1))
+                formatted_date = dt.strftime('%Y-%m-%d')
+                details.append({
+                    "date": formatted_date,
+                    "taskName": task_name,
+                    "worker": worker,
+                    "jobType": job_type
+                })
+            except Exception:
+                pass
+                
+        return details

@@ -1,0 +1,962 @@
+{% extends "base.html" %}
+{% block title %}{{ t.title }} — VN-Tracking{% endblock %}
+
+{% block body %}
+<!-- ============ CHANGE PASS MODAL ============ -->
+<div id="changepass-overlay" class="cp-overlay" onclick="closeChangePassModal()"></div>
+<div id="changepass-modal" class="cp-modal">
+    <div class="modal-header">
+        <h3>{{ 'Đổi mật khẩu' if lang == 'vi' else 'パスワード変更' }}</h3>
+        <button class="modal-close" onclick="closeChangePassModal()">✕</button>
+    </div>
+    <div class="modal-body">
+        <div style="margin-bottom: 15px;">
+            <label style="display:block; margin-bottom: 5px; color: var(--text-2); font-size: 0.9rem;">{{ 'Mật khẩu cũ' if lang == 'vi' else '現在のパスワード' }}</label>
+            <input type="password" id="old-pass" style="width: 100%; padding: 12px 16px; border-radius: 12px; border: 1px solid var(--border); background: var(--bg-page); color: var(--text); font-size: 0.95rem;">
+        </div>
+        <div style="margin-bottom: 15px;">
+            <label style="display:block; margin-bottom: 5px; color: var(--text-2); font-size: 0.9rem;">{{ 'Mật khẩu mới' if lang == 'vi' else '新しいパスワード' }}</label>
+            <input type="password" id="new-pass" style="width: 100%; padding: 12px 16px; border-radius: 12px; border: 1px solid var(--border); background: var(--bg-page); color: var(--text); font-size: 0.95rem;">
+        </div>
+        <div>
+            <label style="display:block; margin-bottom: 5px; color: var(--text-2); font-size: 0.9rem;">{{ 'Xác nhận mật khẩu' if lang == 'vi' else '新しいパスワード（確認）' }}</label>
+            <input type="password" id="confirm-pass" style="width: 100%; padding: 12px 16px; border-radius: 12px; border: 1px solid var(--border); background: var(--bg-page); color: var(--text); font-size: 0.95rem;">
+        </div>
+    </div>
+    <div class="modal-footer" style="display: flex; gap: 10px; justify-content: flex-end;">
+        <button class="btn btn-outline" onclick="closeChangePassModal()">{{ 'Hủy' if lang == 'vi' else 'キャンセル' }}</button>
+        <button class="btn btn-primary" onclick="submitChangePass()">{{ 'Lưu thay đổi' if lang == 'vi' else '保存する' }}</button>
+    </div>
+</div>
+
+<!-- ============ ROLE MODAL ============ -->
+<div id="role-overlay" class="cp-overlay" onclick="closeRoleModal()"></div>
+<div id="role-modal" class="cp-modal" style="max-width: 600px;">
+    <div class="modal-header">
+        <h3>{{ 'Quản lý Phân quyền' if lang == 'vi' else '権限管理' }}</h3>
+        <button class="modal-close" onclick="closeRoleModal()">✕</button>
+    </div>
+    <div class="modal-body" style="max-height: 50vh; overflow-y: auto; padding-right: 10px;">
+        {% for uname, info in user_profiles.items() %}
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border);">
+                <div>
+                    <div style="font-weight: 500;">{{ info.fullname or uname }}</div>
+                    <div style="font-size: 0.85rem; color: var(--text-3);">@{{ uname }}</div>
+                </div>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <select id="role-select-{{ uname | replace(' ', '_') | replace('.', '_') }}" style="padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-page); color: var(--text);">
+                        <option value="admin" {% if info.role == 'admin' %}selected{% endif %}>Admin</option>
+                        <option value="leader" {% if info.role == 'leader' %}selected{% endif %}>Leader</option>
+                        <option value="member" {% if info.role == 'member' %}selected{% endif %}>Member</option>
+                    </select>
+                    <button class="btn btn-primary" style="padding: 6px 12px; font-size: 0.85rem; display: flex; align-items: center; gap: 5px; min-width: 60px; justify-content: center;" onclick="updateRole('{{ uname }}', this)">{{ 'Lưu' if lang == 'vi' else '保存' }}</button>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+
+
+
+<!-- ============ FILTER DRAWER (RIGHT SIDE) ============ -->
+{% if role in ['admin', 'manager', 'leader'] %}
+<div class="drawer-overlay" id="filter-overlay" onclick="toggleFilters()"></div>
+<div class="filter-drawer" id="filter-drawer">
+    <div class="drawer-header">
+        <h2>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+            {{ t.filter_title }}
+        </h2>
+        <button class="close-btn" onclick="toggleFilters()">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+    </div>
+    
+    <div class="filter-group">
+        <div class="filter-group-title">{{ t.cv_nay }}</div>
+        {% for cv in filter_cv_nay %}
+        <label class="filter-option">
+            <input type="checkbox" value="{{ cv }}" data-filter-group="cv-nay" onchange="applyFilters()">
+            <span>{{ cv }}</span>
+        </label>
+        {% endfor %}
+    </div>
+
+    <div class="filter-group">
+        <div class="filter-group-title">{{ t.nguoi_nay }}</div>
+        {% for u in users %}
+        <label class="filter-option">
+            <input type="checkbox" value="{{ u }}" data-filter-group="nguoi-nay" onchange="applyFilters()">
+            <span>{{ u }}</span>
+        </label>
+        {% endfor %}
+    </div>
+
+    <div class="filter-group" style="border-top: 1px solid var(--border); padding-top: 24px;">
+        <div class="filter-group-title">{{ t.cv_sau }}</div>
+        {% for cv in filter_cv_sau %}
+        <label class="filter-option">
+            <input type="checkbox" value="{{ cv }}" data-filter-group="cv-sau" onchange="applyFilters()">
+            <span>{{ cv }}</span>
+    return self._load_template(name, globals)
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "C:\Users\Admin\AppData\Roaming\Python\Python314\site-packages\jinja2\environment.py", line 975, in _load_template
+    template = self.loader.load(self, name, self.make_globals(globals))
+  File "C:\Users\Admin\AppData\Roaming\Python\Python314\site-packages\jinja2\loaders.py", line 138, in load
+    code = environment.compile(source, name, filename)
+  File "C:\Users\Admin\AppData\Roaming\Python\Python314\site-packages\jinja2\environment.py", line 771, in compile
+    self.handle_exception(source=source_hint)
+    ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Admin\AppData\Roaming\Python\Python314\site-packages\jinja2\environment.py", line 942, in handle_exception
+    raise rewrite_traceback_stack(source=source)
+  File "D:\Test\b\u1ea3n ch�nh th\u1ee9c\templates\dashboard.html", line 665, in template
+    {% endfor %}
+jinja2.exceptions.TemplateSyntaxError: Encountered unknown tag 'endfor'. Jinja was looking for the following tags: 'endblock'. The innermost block that needs to be closed is 'block'.
+127.0.0.1 - - [04/Jul/2026 10:14:12] "GET /dashboard?__debugger__=yes&cmd=resource&f=style.css HTTP/1.1" 304 -
+127.0.0.1 - - [04/Jul/2026 10:14:12] "GET /dashboard?__debugger__=yes&cmd=resource&f=debugger.js HTTP/1.1" 304 -
+127.0.0.1 - - [04/Jul/2026 10:14:12] "GET /dashboard?__debugger__=yes&cmd=resource&f=console.png&s=g3iy2NA65Jt8bg3575Ik HTTP/1.1" 304 -
+127.0.0.1 - - [04/Jul/2026 10:14:13] "GET /dashboard?__debugger__=yes&cmd=resource&f=console.png HTTP/1.1" 304 -
+127.0.0.1 - - [04/Jul/2026 10:15:09] "GET /dashboard HTTP/1.1" 200 -
+127.0.0.1 - - [04/Jul/2026 10:15:09] "GET /static/css/style.css?v=127 HTTP/1.1" 304 -
+127.0.0.1 - - [04/Jul/2026 10:15:09] "GET /static/js/app.js?v=182930 HTTP/1.1" 200 -
+127.0.0.1 - - [04/Jul/2026 10:15:09] "GET /static/js/app.js?v=24768 HTTP/1.1" 200 -
+127.0.0.1 - - [04/Jul/2026 10:15:09] "GET /static/logo.png HTTP/1.1" 304 -
+127.0.0.1 - - [04/Jul/2026 10:15:09] "GET /socket.io/?EIO=4&transport=polling&t=Pyh7tNC HTTP/1.1" 200 -
+127.0.0.1 - - [04/Jul/2026 10:15:10] "POST /socket.io/?EIO=4&transport=polling&t=Pyh7tOo&sid=K9MBm1Qfe2xv-esvAAAA HTTP/1.1" 200 -
+127.0.0.1 - - [04/Jul/2026 10:15:10] "GET /socket.io/?EIO=4&transport=polling&t=Pyh7tOp&sid=K9MBm1Qfe2xv-esvAAAA HTTP/1.1" 200 -
+127.0.0.1 - - [04/Jul/2026 10:15:10] "GET /static/logo.png HTTP/1.1" 304 -
+127.0.0.1 - - [04/Jul/2026 10:15:10] "GET /socket.io/?EIO=4&transport=polling&t=Pyh7tTp&sid=K9MBm1Qfe2xv-esvAAAA HTTP/1.1" 200 -
+127.0.0.1 - - [04/Jul/2026 10:15:11] "GET /api/chart_data HTTP/1.1" 200 -
+127.0.0.1 - - [04/Jul/2026 10:16:31] "GET /dashboard HTTP/1.1" 200 -
+127.0.0.1 - - [04/Jul/2026 10:16:31] "GET /socket.io/?EIO=4&transport=websocket&sid=K9MBm1Qfe2xv-esvAAAA HTTP/1.1" 200 -
+127.0.0.1 - - [04/Jul/2026 10:16:32] "GET /static/css/style.css?v=127 HTTP/1.1" 304 -
+127.0.0.1 - - [04/Jul/2026 10:16:32] "GET /static/js/app.js?v=852255 HTTP/1.1" 200 -
+127.0.0.1 - - [04/Jul/2026 10:16:32] "GET /socket.io/?EIO=4&transport=polling&t=Pyh8BU7 HTTP/1.1" 200 -
+127.0.0.1 - - [04/Jul/2026 10:16:32] "POST /socket.io/?EIO=4&transport=polling&t=Pyh8BV8&sid=8culiteazJruPRyaAAAC HTTP/1.1" 200 -
+127.0.0.1 - - [04/Jul/2026 10:16:32] "GET /socket.io/?EIO=4&transport=polling&t=Pyh8BVB&sid=8culiteazJruPRyaAAAC HTTP/1.1" 200 -
+127.0.0.1 - - [04/Jul/2026 10:16:32] "GET /socket.io/?EIO=4&transport=polling&t=Pyh8BZ5&sid=8culiteazJruPRyaAAAC HTTP/1.1" 200 -
+127.0.0.1 - - [04/Jul/2026 10:16:32] "GET /static/js/app.js?v=40631 HTTP/1.1" 200 -
+127.0.0.1 - - [04/Jul/2026 10:16:32] "GET /api/chart_data HTTP/1.1" 200 -
+127.0.0.1 - - [04/Jul/2026 10:16:32] "GET /static/logo.png HTTP/1.1" 304 -
+127.0.0.1 - - [04/Jul/2026 10:16:33] "GET /static/logo.png HTTP/1.1" 304 -
+127.0.0.1 - - [04/Jul/2026 10:16:57] "GET /logout HTTP/1.1" 302 -
+127.0.0.1 - - [04/Jul/2026 10:16:57] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [04/Jul/2026 10:16:57] "GET /static/js/app.js?v=405931 HTTP/1.1" 200 -
+127.0.0.1 - - [04/Jul/2026 10:16:57] "GET /static/css/style.css?v=127 HTTP/1.1" 304 -
+127.0.0.1 - - [04/Jul/2026 10:16:57] "GET /api/chart_data HTTP/1.1" 200 -
+127.0.0.1 - - [04/Jul/2026 10:16:58] "GET /static/logo.png HTTP/1.1" 304 -
+127.0.0.1 - - [04/Jul/2026 10:16:58] "GET /static/intro.mp4 HTTP/1.1" 206 -
+127.0.0.1 - - [04/Jul/2026 10:17:02] "POST /login HTTP/1.1" 302 -
+            </div>
+            <div class="lang-dropdown">
+                <div class="lang-option {{ 'active' if lang == 'vi' }}" onclick="changeLang('vi', event)">VN</div>
+                <div class="lang-option {{ 'active' if lang == 'ja' }}" onclick="changeLang('ja', event)">JP</div>
+            </div>
+        </div>
+    </div>
+    
+    {% if session.get('user') == 'Manager' or session.get('role') == 'admin' %}
+    <div class="nav-item" onclick="openRoleModal()" style="cursor: pointer;">
+        <div class="nav-item-content">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+            {{ 'Phân quyền' if lang == 'vi' else '権限管理' }}
+        </div>
+    </div>
+    {% endif %}
+    
+    <div class="sidebar-footer">
+        <!-- LOFI RADIO WIDGET -->
+        <div id="lofi-radio-widget" style="width: 100%; margin-bottom: 12px; display: flex; flex-direction: column; align-items: flex-start; background: var(--bg-card); border-radius: 12px; border: 1px solid var(--border); overflow: hidden; transition: transform 0.3s; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+            <!-- Header -->
+            <div style="background: var(--surface-hover); border-bottom: 1px solid var(--border); padding: 12px 16px; color: var(--text); display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                <div style="display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 13px;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
+                    YouTube Sync Radio
+                </div>
+                <div id="radio-dj-badge" style="font-size: 9px; background: var(--primary); color: white; padding: 2px 6px; border-radius: 12px; display: none;">DJ: Bạn</div>
+            </div>
+            
+            <!-- YouTube Input (DJ Only) -->
+            <div id="radio-yt-input-container" style="display: none; padding: 12px 16px 0 16px; width: 100%;">
+                <input type="text" id="radio-yt-input" placeholder="Dán link YouTube vào đây..." style="width: 100%; padding: 8px 12px; font-size: 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-page); color: var(--text); outline: none;">
+            </div>
+
+            <!-- Track Info -->
+            <div style="padding: 12px 16px 4px 16px; width: 100%;">
+                <div id="radio-track-name" style="font-weight: 600; font-size: 13px; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--primary);">Nhấn Play để kết nối...</div>
+                <div id="radio-status" style="font-size: 11px; color: var(--text-3); display: flex; justify-content: space-between;">
+                    <span id="radio-dj-name">Đang chờ...</span>
+                </div>
+            </div>
+            
+            <!-- Progress Bar -->
+            <div style="padding: 0 16px 8px 16px; width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                <span id="radio-time-current" style="font-size: 10px; color: var(--text-3); min-width: 30px; text-align: left;">0:00</span>
+                <input type="range" id="radio-progress" min="0" max="100" value="0" disabled style="flex-grow: 1; height: 4px; accent-color: var(--primary); cursor: pointer;">
+                <span id="radio-time-total" style="font-size: 10px; color: var(--text-3); min-width: 30px; text-align: right;">0:00</span>
+            </div>
+
+            <!-- Controls -->
+            <div style="padding: 0 16px 12px 16px; width: 100%; display: flex; align-items: center; justify-content: center; gap: 12px;">
+                <button id="radio-play-btn" onclick="radioTogglePlay()" style="background: var(--primary); border: none; color: white; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);">
+                    <svg id="radio-icon-play" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="none" style="margin-left: 2px;"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                    <svg id="radio-icon-pause" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="none" style="display: none;"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
+                </button>
+            </div>
+            
+            <!-- DJ Mode Toggle -->
+            <div style="border-top: 1px solid var(--border); width: 100%; padding: 8px 16px; display: flex; justify-content: space-between; align-items: center; background: var(--bg-page);">
+                <span style="font-size: 11px; color: var(--text-2);">Làm DJ (Phát nhạc)</span>
+                <label class="switch" style="position: relative; display: inline-block; width: 28px; height: 16px;">
+                    <input type="checkbox" id="radio-dj-toggle" onchange="toggleDJMode()" style="opacity: 0; width: 0; height: 0;">
+                    <span class="slider round" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--border); transition: .4s; border-radius: 34px;">
+                        <span style="position: absolute; content: ''; height: 12px; width: 12px; left: 2px; bottom: 2px; background-color: white; transition: .4s; border-radius: 50%;"></span>
+                    </span>
+                </label>
+            </div>
+                <div class="user-name">{{ user }}</div>
+                <div class="user-role">{{ role }}</div>
+            </div>
+            <svg class="profile-chevron" id="profile-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--text-4); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);"><polyline points="18 15 12 9 6 15"></polyline></svg>
+        </div>
+    </div>
+</aside>
+
+<!-- ============ MAIN AREA ============ -->
+<main class="main-area">
+    <div class="top-header">
+        <div class="header-left">
+            <div class="header-title">{{ t.welcome }}, {{ user }}</div>
+            <div class="weather-time" id="weather-time"></div>
+            <h1>{{ t.title }}</h1>
+        </div>
+        <div class="header-right">
+            <!-- Global Online Users -->
+            <div id="global-online-users" class="online-users-cluster"></div>
+            
+            <!-- Theme Toggle -->
+            <button class="theme-toggle" onclick="toggleTheme()" title="Toggle Dark Mode">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+            </button>
+            
+            {% if role in ['admin', 'manager', 'leader'] %}
+            <button class="btn btn-outline" onclick="toggleFilters()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+                Filters
+            </button>
+            {% endif %}
+            <button class="btn btn-primary" onclick="refreshData()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"></path><path d="M1 20v-6h6"></path><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"></path><path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"></path></svg>
+                Refresh
+            </button>
+        </div>
+    </div>
+
+    <div class="chart-section" style="background: var(--bg-card); border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: 1px solid var(--border); width: 100%;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h3 style="color: var(--text); display: flex; align-items: center; gap: 8px; margin: 0;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"></path><path d="M18 17V9"></path><path d="M13 17V5"></path><path d="M8 17v-3"></path></svg>
+                {{ 'Tiến độ theo thời gian' if lang == 'vi' else '期間別タスク進捗' }}
+            </h3>
+            
+            <div id="custom-chart-legend" style="display: none; align-items: center; gap: 16px; font-size: 0.9rem; color: var(--text-2); margin-left: auto; margin-right: 20px;">
+                <span style="display: flex; align-items: center; gap: 6px;">
+                    <span style="width: 12px; height: 12px; border-radius: 50%; background: rgba(96, 165, 250, 0.85);"></span>
+                    Retouch
+                </span>
+                <span style="display: flex; align-items: center; gap: 6px;">
+                    <span style="width: 12px; height: 12px; border-radius: 50%; background: rgba(167, 243, 208, 0.85);"></span>
+                    Lettering
+                </span>
+            </div>
+
+            <div class="chart-time-controls" style="display: flex; gap: 5px;">
+                <button class="btn btn-sm btn-primary active" data-period="week" onclick="setChartPeriod('week')">{{ 'Tuần' if lang == 'vi' else '週' }}</button>
+                <div class="custom-lang-select" id="custom-week-select" style="display: none;" onclick="toggleWeekSelect(event)">
+                    <div class="lang-trigger" style="padding: 4px 12px; height: 100%;">
+                        <span id="week-text" style="font-size: 0.8rem; font-weight: 500;">{{ 'Tuần này' if lang == 'vi' else '今週' }}</span>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lang-arrow"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                    </div>
+                    <div class="lang-dropdown" id="week-dropdown-list" style="min-width: 140px; max-height: 250px; overflow-y: auto;">
++    margin-right: 16px;
++    height: 100%;
++}
++.online-users-cluster:empty {
++    display: none;
++}
++.online-avatar {
++    width: 34px;
++    height: 34px;
++    border-radius: 50%;
++    border: 2px solid var(--bg-page);
++    margin-left: -10px;
++    object-fit: cover;
++    background-color: var(--surface);
++    display: flex;
++    align-items: center;
++    justify-content: center;
++    font-size: 0.85rem;
++    font-weight: 600;
++    color: var(--text);
++    position: relative;
++    cursor: default;
++    transition: transform 0.2s;
++    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
++}
++.online-avatar:first-child {
++    margin-left: 0;
++}
++.online-avatar:hover {
++    transform: translateY(-2px);
++    z-index: 10;
++}
++.online-avatar-counter {
++    width: 34px;
++    height: 34px;
++    border-radius: 50%;
++    background-color: var(--surface-hover);
++    border: 2px solid var(--bg-page);
++    margin-left: -10px;
++    display: flex;
++    align-items: center;
++    justify-content: center;
++    font-size: 0.8rem;
++    color: var(--text-2);
++    font-weight: 600;
++    z-index: 1;
++    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
++}
+diff --git a/static/js/app.js b/static/js/app.js
+index 78baa7b..b53a0e7 100644
+--- a/static/js/app.js
++++ b/static/js/app.js
+@@ -299,9 +299,9 @@ function initChecklistInContainer(container) {
+         // 1. FAST LOCAL RENDER FROM CARD DATA (Injected by Python)
+         const card = document.querySelector(`.progress-card[data-tp-key="${tpKey}"]`);
+         if (card) {
+-            const checkedIds = (card.dataset.checkedIds || '').split(',').filter(Boolean);
++            const checkedIds = (card.dataset.checkedIds || '').toLowerCase().split(',').filter(Boolean);
+             checkboxes.forEach(cb => {
+            <div class="user-info">
+                <div class="user-name">{{ user }}</div>
+                <div class="user-role">{{ role }}</div>
+            </div>
+            <svg class="profile-chevron" id="profile-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--text-4); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);"><polyline points="18 15 12 9 6 15"></polyline></svg>
+        <div class="metrics-row">
+            <div class="metric-card"><div class="metric-title">{{ t.metric_total }}</div><div class="metric-value">{{ weeks.truoc.metrics.total }}</div></div>
+            <div class="metric-card"><div class="metric-title">{{ t.metric_retouch }}</div><div class="metric-value">{{ weeks.truoc.metrics.retouch }}</div></div>
+            <div class="metric-card"><div class="metric-title">{{ t.metric_type }}</div><div class="metric-value">{{ weeks.truoc.metrics.lettering }}</div></div>
+        </div>
+        <div class="kanban-board">
+            {% set statuses = [('not-started', 'To Do', weeks.truoc.dashboard|selectattr("status_class", "equalto", "not-started")|list), ('in-progress', 'In Progress', weeks.truoc.dashboard|selectattr("status_class", "equalto", "in-progress")|list), ('delivered', 'Completed', weeks.truoc.dashboard|selectattr("status_class", "equalto", "delivered")|list)] %}
+            {% for status_id, status_name, cards in statuses %}
+            <div class="kanban-column" data-status="{{ status_id }}">
+                <div class="kanban-header">
+                    <span>{{ status_name }}</span>
+                    <span class="count kanban-col-count">{{ cards|length }}</span>
+                </div>
+                <div class="kanban-cards">
+                    {% for card in cards %}
+                    <div class="progress-card status-{{ card.status_class }}" data-tp-key="{{ card.key }}" data-checked-ids="{{ card.checked_ids }}" onclick="openModal('truoc', '{{ card.key }}')">
+                        <div class="card-tags">
+                            {% set cv = card.name.split(' - ')[0] %}
+                            {% set tag_class = 'tag-lettering' if '写植' in cv or 'Lettering' in cv else ('tag-retouch' if 'レタッチ' in cv or 'Retouch' in cv else '') %}
+                            <span class="tag {{ tag_class }}">{{ cv }}</span>
+                        </div>
+                        <div class="card-title">{{ card.name }}</div>
+                        <div class="card-worker">
+                            <div class="worker-avatars-group" style="display: flex;">
+                                {% set workers = card.worker.split(',') if card.worker else [] %}
+                                {% for w in workers %}
+                                    {% set w_trim = w.strip() %}
+                                    {% set ns = namespace(found_avatar=none) %}
+                                    {% if user_profiles %}
+                                        {% for k, v in user_profiles.items() %}
+                                            {% if k|lower in w_trim|lower or w_trim|lower in k|lower %}
+            <h3 style="color: var(--text); display: flex; align-items: center; gap: 8px; margin: 0;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"></path><path d="M18 17V9"></path><path d="M13 17V5"></path><path d="M8 17v-3"></path></svg>
+                {{ 'Tiến độ theo thời gian' if lang == 'vi' else '期間別タスク進捗' }}
+            </h3>
+            
+            <div id="custom-chart-legend" style="display: none; align-items: center; gap: 16px; font-size: 0.9rem; color: var(--text-2); margin-left: auto; margin-right: 20px;">
+                <span style="display: flex; align-items: center; gap: 6px;">
+                    <span style="width: 12px; height: 12px; border-radius: 50%; background: rgba(96, 165, 250, 0.85);"></span>
+                    Retouch
+                </span>
+                <span style="display: flex; align-items: center; gap: 6px;">
+                    <span style="width: 12px; height: 12px; border-radius: 50%; background: rgba(167, 243, 208, 0.85);"></span>
+                    Lettering
+                </span>
+            </div>
++            });
++            dropdownList.innerHTML = optionsHtml;
++        }
++
+         
+         let targetWeek = getWeekNumber(now);
+         let targetYear = now.getFullYear();
+-        const hasDataThisWeek = vntaskDataList.some(item => getWeekNumber(new Date(item.date)) === targetWeek && new Date(item.date).getFullYear() === targetYear);
+-        
+-        if (!hasDataThisWeek && vntaskDataList.length > 0) {
+-            const maxDate = new Date(Math.max(...vntaskDataList.map(item => new Date(item.date))));
+-            targetWeek = getWeekNumber(maxDate);
+-            targetYear = maxDate.getFullYear();
++        const weekText = document.getElementById('week-text');
++        if (weekText && weekText.dataset.weekOffset) {
++            const offset = parseInt(weekText.dataset.weekOffset, 10);
++            const targetDate = new Date();
++            targetDate.setDate(targetDate.getDate() + (offset * 7));
++            targetWeek = getWeekNumber(targetDate);
++            targetYear = targetDate.getFullYear();
+         }
+ 
+         const currentWeekTasks = vntaskDataList.filter(item => {
+@@ -904,14 +928,14 @@ function updateAreaChart(period) {
+         currentWeekTasks.forEach(item => {
+             if (item.worker) {
+                 const workers = item.worker.split(',').map(w => w.trim());
++                const weight = 1.0 / workers.length;
+                 workers.forEach(w => {
+-                    const shortName = w;
+-                    if (!workerTasks[shortName]) workerTasks[shortName] = [];
+-                    workerTasks[shortName].push(item);
++                    if (!workerTasks[w]) workerTasks[w] = [];
++                    workerTasks[w].push({ ...item, weight: weight });
+                 });
+             } else {
+                 if (!workerTasks[txtOtherWorker]) workerTasks[txtOtherWorker] = [];
+-                workerTasks[txtOtherWorker].push(item);
++                workerTasks[txtOtherWorker].push({ ...item, weight: 1.0 });
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lang-arrow"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                    </div>
+                    <div class="lang-dropdown" id="month-dropdown-list" style="min-width: 140px; max-height: 250px; overflow-y: auto;">
+                    </div>
+                </div>
+                
+                <button class="btn btn-sm btn-outline" data-period="year" onclick="setChartPeriod('year')">{{ 'Năm' if lang == 'vi' else '年' }}</button>
+            </div>
+        </div>
+        <div style="position: relative; height: 450px; width: 100%;">
+            <div id="chart-loader" style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(15, 23, 42, 0.5); z-index: 10; border-radius: 12px; backdrop-filter: blur(4px);">
+                <div class="spinner"></div>
+            </div>
+            <canvas id="monthlyTaskChart"></canvas>
+        </div>
+    </div>
+
+    <div class="dashboard-controls">
+
+        <div class="tab-bar">
+            <button class="tab-btn" data-tab="truoc" onclick="switchTab('truoc')">{{ t.tab0 }}</button>
++            if (monthDropdownList && monthDropdownList.children.length === 0) {
++                let optionsHtml = '';
++                for (let i = 1; i <= 12; i++) {
++                    const text = isVi ? `Tháng ${i}` : `${i}月`;
++                    optionsHtml += `<div class="lang-option" onclick="selectMonth(${i}, '${text}', event)">${text}</div>`;
++                }
++                monthDropdownList.innerHTML = optionsHtml;
++            }
++
+             labels = isVi ? ['Tuần 1', 'Tuần 2', 'Tuần 3', 'Tuần 4', 'Tuần 5'] : ['第1週', '第2週', '第3週', '第4週', '第5週'];
+             labels.forEach(l => groupedData[l] = []);
+             
+             let targetMonth = now.getMonth();
+             let targetYear = now.getFullYear();
+-            const hasDataThisMonth = vntaskDataList.some(item => {
+-                const d = new Date(item.date);
+-                return d.getMonth() === targetMonth && d.getFullYear() === targetYear;
+-            });
+-
+-            if (!hasDataThisMonth && vntaskDataList.length > 0) {
+-                const maxDate = new Date(Math.max(...vntaskDataList.map(item => new Date(item.date))));
+-                targetMonth = maxDate.getMonth();
+-                targetYear = maxDate.getFullYear();
++            const monthText = document.getElementById('month-text');
++            if (monthText && monthText.dataset.monthValue) {
++                targetMonth = parseInt(monthText.dataset.monthValue, 10) - 1;
+             }
+ 
+             vntaskDataList.forEach(item => {
+@@ -1022,10 +1050,6 @@ function updateAreaChart(period) {
+             labels.forEach(l => groupedData[l] = []);
+             
+             let targetYear = now.getFullYear();
+-            const hasDataThisYear = vntaskDataList.some(item => new Date(item.date).getFullYear() === targetYear);
+-            if (!hasDataThisYear && vntaskDataList.length > 0) {
+-                targetYear = new Date(Math.max(...vntaskDataList.map(item => new Date(item.date)))).getFullYear();
+-            }
+ 
+             vntaskDataList.forEach(item => {
+                 const d = new Date(item.date);
+@@ -1307,3 +1331,110 @@ function updateRole(username, btn) {
+         showToast('Lỗi kết nối!', 'error');
+     });
+ }
++
++
++
++// ======================================
++// CHART DROPDOWN FUNCTIONS
++// ======================================
++function toggleWeekSelect(e) {
++    if (e) e.stopPropagation();
++    const select = document.getElementById('custom-week-select');
++    if (select) {
++        select.classList.toggle('open');
++    }
++}
++
++function selectWeek(offset, text, e) {
++    if (e) e.stopPropagation();
++    const textSpan = document.getElementById('week-text');
++    if (textSpan) {
++        textSpan.innerText = text;
++        textSpan.dataset.weekOffset = offset;
++    }
++    const select = document.getElementById('custom-week-select');
++    if (select) {
++        select.classList.remove('open');
++    }
++    updateAreaChart('week');
++}
++
++function toggleMonthSelect(e) {
++    if (e) e.stopPropagation();
++    const select = document.getElementById('custom-month-select');
++    if (select) {
++        select.classList.toggle('open');
++    }
++}
++
++function selectMonth(monthVal, text, e) {
++    if (e) e.stopPropagation();
++    const textSpan = document.getElementById('month-text');
++    if (textSpan) {
++        textSpan.innerText = text;
++        textSpan.dataset.monthValue = monthVal;
++    }
++    const select = document.getElementById('custom-month-select');
++    if (select) {
++        select.classList.remove('open');
++    }
++    updateAreaChart('month');
++}
++
++// Close dropdowns when clicking outside
++document.addEventListener('click', function(e) {
++    if (!e.target.closest('#custom-week-select')) {
++        const dWeek = document.getElementById('custom-week-select');
++        if (dWeek) dWeek.classList.remove('open');
++    }
++    if (!e.target.closest('#custom-month-select')) {
++        const dMonth = document.getElementById('custom-month-select');
++        if (dMonth) dMonth.classList.remove('open');
++    }
++});
++
++// ======================================
++// GLOBAL SOCKET LISTENERS
++// ======================================
++document.addEventListener('DOMContentLoaded', () => {
++    if (typeof socket !== 'undefined' && socket) {
++        socket.on('online_users_update', function(users) {
++            console.log("Online users updated:", users);
++            const container = document.getElementById('global-online-users');
++            if (!container) return;
++            
++            const MAX_VISIBLE = 4;
++            let html = '';
++            
++            users.forEach((u, idx) => {
++                if (idx >= MAX_VISIBLE) return;
++                const zIndex = 100 - idx;
++                const initial = u.fullname ? u.fullname.charAt(0).toUpperCase() : 'U';
++                
++                html += `
++                    <span class="worker-avatar global-avatar" style="margin-left: ${idx > 0 ? '-8px' : '0'}; position: relative; z-index: ${zIndex}; border: 2px solid var(--bg-body);" title="${u.fullname}">
++                        ${u.avatar ? `<img src="${u.avatar}" alt="Avatar" class="avatar-img" referrerpolicy="no-referrer" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
++                        <span class="avatar-fallback" style="display:none;">${initial}</span>` : initial}
++                    </span>
++                `;
++            });
++            
++            if (users.length > MAX_VISIBLE) {
++                const extraCount = users.length - MAX_VISIBLE;
++                html += `
++                    <span class="worker-avatar global-avatar" style="margin-left: -8px; position: relative; z-index: 90; background: var(--bg-card); color: var(--text-2); font-size: 12px; border: 2px solid var(--bg-body);" title="+${extraCount} người nữa">
++                        +${extraCount}
++                    </span>
++                `;
++            }
++            
++            container.innerHTML = html;
++        });
++
++        // Request initial list
++        socket.emit('request_online_users');
++        socket.on('connect', () => {
++            socket.emit('request_online_users');
++        });
++    }
++});
+diff --git a/templates/base.html b/templates/base.html
+index 4d2b0a9..9b6eec0 100644
+--- a/templates/base.html
++++ b/templates/base.html
+@@ -16,7 +16,7 @@
+ <body>
+     <div id="toast-container" class="toast-container"></div>
+     {% block body %}{% endblock %}
+-    <script src="{{ url_for('static', filename='js/app.js') }}?v=125"></script>
++    <script src="{{ url_for('static', filename='js/app.js') }}?v={{ range(1, 1000000) | random }}"></script>
+     {% block scripts %}{% endblock %}
+ </body>
+ </html>
+diff --git a/templates/dashboard.html b/templates/dashboard.html
+index 66b9196..4ea973f 100644
+--- a/templates/dashboard.html
++++ b/templates/dashboard.html
+@@ -159,7 +159,7 @@
+                    <div class="modal-title">{{ tp_name_display }}</div>
+                    <div class="modal-worker" style="display: flex; align-items: center;">
+                        <div class="worker-avatars-group" style="display: flex;">
+                            {% set workers = worker.split(',') if worker else [] %}
+                            {% for w in workers %}
+                                {% set w_trim = w.strip() %}
+                                {% set ns = namespace(found_avatar=none) %}
+                                {% if user_profiles %}
+                                    {% for k, v in user_profiles.items() %}
+                                        {% if k|lower in w_trim|lower or w_trim|lower in k|lower %}
+                                            {% set ns.found_avatar = v.avatar %}
+                                        {% endif %}
+                                    {% endfor %}
+                                {% endif %}
+                                <span class="worker-avatar" style="{% if not loop.first %}margin-left: -8px;{% endif %} border: 2px solid var(--bg-card); position: relative; z-index: {{ 10 - loop.index0 }};" title="{{ w_trim }}">
+                                    {% if ns.found_avatar %}
+                                    <img src="{{ ns.found_avatar }}" alt="Avatar" class="avatar-img" referrerpolicy="no-referrer" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                    <span class="avatar-fallback" style="display:none;">{{ w_trim[0]|upper if w_trim else 'U' }}</span>
+                                    {% else %}
+                                    {{ w_trim[0]|upper if w_trim else 'U' }}
+                                    {% endif %}
+                                </span>
+                            {% endfor %}
+                        </div>
+                        <span style="margin-left: 8px;">{{ worker }}</span>
+                    </div>
+                </div>
+                
+                <!-- GHOST AVATARS CONTAINER -->
+                <div class="ghost-avatars" data-tp-key="{{ tp_key }}" style="display: flex; gap: -5px; align-items: center; margin-right: 10px;">
+                    <!-- Avatars injected by JS -->
+                </div>
+                
+                <button class="close-btn" onclick="closeModal('{{ tab_key }}-{{ loop.index0 }}', '{{ tp_key }}')">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                {{ render_checklist(tp_key, tab_key ~ '_' ~ loop.index0, lang, checklist_api, checked_ids_dict) }}
+                {{ render_logtime_form(row, tab_key ~ '_' ~ loop.index0, t, users, lang) }}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+{% endfor %}
+
+<!-- COMMAND PALETTE (CTRL + K) -->
+<div id="cmdk-overlay" class="cmdk-overlay" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); z-index: 9999; align-items: flex-start; justify-content: center; padding-top: 10vh;">
+    <div class="cmdk-container" style="width: 100%; max-width: 600px; background: var(--bg-card); border-radius: 12px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); border: 1px solid var(--border); overflow: hidden; display: flex; flex-direction: column;">
+        <div style="display: flex; align-items: center; padding: 0 16px; border-bottom: 1px solid var(--border);">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <input type="text" id="cmdk-input" placeholder="{{ 'Tìm kiếm task, nhân sự... (Esc để đóng)' if lang == 'vi' else 'タスクや担当者を検索...' }}" style="flex: 1; background: transparent; border: none; padding: 16px; color: var(--text); font-size: 16px; outline: none;">
+            <div style="font-size: 12px; color: var(--text-3); background: var(--bg-body); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border);">ESC</div>
+        </div>
+        <div id="cmdk-results" style="max-height: 400px; overflow-y: auto; padding: 8px;">
+            <!-- Results injected here by JS -->
+        </div>
+    </div>
+</div>
+
+<!-- MINI CHAT BOX -->
+<div id="mini-chat-widget" style="position: fixed; bottom: 20px; right: 20px; z-index: 9990; display: flex; flex-direction: column; align-items: flex-end;">
+    <!-- Chat Window -->
+    <div id="chat-window" style="display: none; width: 320px; height: 400px; background: var(--bg-card); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border-radius: 12px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5); border: 1px solid var(--border); flex-direction: column; margin-bottom: 10px; overflow: hidden; z-index: 10000;">
+        <div style="background: linear-gradient(135deg, #3b82f6, #8b5cf6); padding: 12px 16px; color: white; font-weight: 600; display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                Team Chat
+            </div>
+            <button onclick="toggleChat()" style="background: transparent; border: none; color: white; cursor: pointer; padding: 0;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+        </div>
+        <div id="chat-messages" style="flex: 1; padding: 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; font-size: 13px;">
+            <!-- Messages go here -->
+            <div style="text-align: center; color: var(--text-3); font-size: 12px; margin-bottom: 10px;">{{ 'Chào mừng bạn đến với kênh chat chung!' if lang == 'vi' else 'チャットへようこそ！' }}</div>
+        </div>
+        <div style="padding: 10px; border-top: 1px solid var(--border); display: flex; gap: 8px; background: var(--bg-body);">
+            <input type="text" id="chat-input" placeholder="{{ 'Nhập tin nhắn...' if lang == 'vi' else 'メッセージを入力...' }}" style="flex: 1; padding: 8px 12px; border-radius: 20px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text); outline: none;">
+            <button onclick="sendChatMessage()" style="background: #3b82f6; color: white; border: none; border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left: -2px; margin-top: 2px;"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+            </button>
+        </div>
+    </div>
+    
+    <!-- Chat Bubble -->
+    <button id="chat-bubble-btn" onclick="toggleChat()" style="width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, #3b82f6, #8b5cf6); color: white; border: none; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4); cursor: pointer; display: flex; align-items: center; justify-content: center; position: relative; transition: transform 0.2s;">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+        <div id="chat-badge" style="position: absolute; top: -5px; right: -5px; background: #ef4444; color: white; font-size: 11px; font-weight: bold; width: 20px; height: 20px; border-radius: 50%; display: none; align-items: center; justify-content: center; border: 2px solid var(--bg-body);">0</div>
+    </button>
+</div>
+
+<!-- LOFI RADIO WIDGET -->
+<div id="lofi-radio-widget" style="position: fixed; bottom: 20px; left: 20px; z-index: 9990; display: flex; flex-direction: column; align-items: flex-start; width: 280px; background: var(--bg-card); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border-radius: 12px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5); border: 1px solid var(--border); overflow: hidden; transition: transform 0.3s;">
+    <!-- Visualizer / Header -->
+    <div style="background: linear-gradient(135deg, #f59e0b, #ef4444); padding: 12px 16px; color: white; display: flex; justify-content: space-between; align-items: center; width: 100%;">
+        <div style="display: flex; align-items: center; gap: 8px; font-weight: 600;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
+            Lofi Co-listening
+        </div>
+        <div id="radio-dj-badge" style="font-size: 10px; background: rgba(255,255,255,0.2); padding: 2px 6px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.4); display: none;">DJ: Bạn</div>
+    </div>
+    
+    <!-- Track Info -->
+    <div style="padding: 16px 16px 8px 16px; width: 100%;">
+        <div id="radio-track-name" style="font-weight: 600; font-size: 14px; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Nhấn Play để tham gia Radio...</div>
+        <div id="radio-status" style="font-size: 12px; color: var(--text-3); display: flex; justify-content: space-between;">
+            <span id="radio-dj-name">Đang chờ...</span>
+        </div>
+    </div>
+    
+    <!-- Controls -->
+    <div style="padding: 8px 16px 16px 16px; width: 100%; display: flex; align-items: center; justify-content: center; gap: 16px;">
+        <button id="radio-prev-btn" onclick="radioPrev()" style="background: transparent; border: none; color: var(--text-2); cursor: pointer; padding: 4px; opacity: 0.5;" disabled>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="19 20 9 12 19 4 19 20"></polygon><line x1="5" y1="19" x2="5" y2="5"></line></svg>
+        </button>
+        
+        <button id="radio-play-btn" onclick="radioTogglePlay()" style="background: var(--bg-body); border: 1px solid var(--border); color: var(--text); border-radius: 50%; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
+            <svg id="radio-icon-play" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="none" style="margin-left: 2px;"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+            <svg id="radio-icon-pause" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="none" style="display: none;"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
+        </button>
+        
+        <button id="radio-next-btn" onclick="radioNext()" style="background: transparent; border: none; color: var(--text-2); cursor: pointer; padding: 4px; opacity: 0.5;" disabled>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4"></polygon><line x1="19" y1="5" x2="19" y2="19"></line></svg>
+        </button>
+    </div>
+    
+    <!-- DJ Mode Toggle -->
+    <div style="border-top: 1px solid var(--border); width: 100%; padding: 10px 16px; display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.1);">
+        <span style="font-size: 12px; color: var(--text-2);">Làm DJ (Phát nhạc cho team)</span>
+        <label class="switch" style="position: relative; display: inline-block; width: 34px; height: 20px;">
+            <input type="checkbox" id="radio-dj-toggle" onchange="toggleDJMode()" style="opacity: 0; width: 0; height: 0;">
+            <span class="slider round" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--border); transition: .4s; border-radius: 34px;">
+                <span style="position: absolute; content: ''; height: 16px; width: 16px; left: 2px; bottom: 2px; background-color: white; transition: .4s; border-radius: 50%;"></span>
+            </span>
+        </label>
+    </div>
+    
+    <!-- Hidden Audio Element -->
+    <audio id="lofi-audio-player" crossorigin="anonymous" preload="auto"></audio>
+</div>
+
+<style>
+#radio-dj-toggle:checked + .slider { background-color: #f59e0b; }
+#radio-dj-toggle:checked + .slider > span { transform: translateX(14px); }
+</style>
+
+{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
++                                    {% set w_trim = w.strip() %}
++                                    {% set ns = namespace(found_avatar=none) %}
++                                    {% if user_profiles %}
++                                        {% for k, v in user_profiles.items() %}
++                                            {% if k|lower in w_trim|lower or w_trim|lower in k|lower %}
++                                                {% set ns.found_avatar = v.avatar %}
++                                            {% endif %}
++                                        {% endfor %}
++                                    {% endif %}
++                                    <span class="worker-avatar" style="{% if not loop.first %}margin-left: -8px;{% endif %} border: 2px solid var(--bg-card); position: relative; z-index: {{ 10 - loop.index0 }};" title="{{ w_trim }}">
++                                        {% if ns.found_avatar %}
++                                        <img src="{{ ns.found_avatar }}" alt="Avatar" class="avatar-img" referrerpolicy="no-referrer" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
++                                        <span class="avatar-fallback" style="display:none;">{{ w_trim[0]|upper if w_trim else 'U' }}</span>
++                                        {% else %}
++                                        {{ w_trim[0]|upper if w_trim else 'U' }}
++                                        {% endif %}
++                                    </span>
++                                {% endfor %}
++                            </div>
++                            <span class="worker-name" style="margin-left: 8px;">{{ card.worker }}</span>
+                         </div>
+                         <div class="progress-info">
+                             <span class="status-text">
+@@ -530,24 +597,44 @@
+             <div class="modal-header">
+                 <div>
+                     <div class="modal-title">{{ tp_name_display }}</div>
+-                    <div class="modal-worker">
+-                        <span class="worker-avatar">
+        justify-content: center !important;
+        padding: 0 15px !important;
+        z-index: 3 !important;
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const CHECKLIST_API = "{{ checklist_api }}";
+    const CURRENT_LANG = "{{ lang }}";
+    const socket = typeof io !== 'undefined' ? io() : null;
+    
+    // Inject Detailed Task Data
+    let vntaskDataList = [];
+    const userProfilesDB = {{ user_profiles | tojson }};
+
+    // Store mappings from card name to modal ID
+    const modalMap = {};
+    {% for tab_key in ['truoc', 'nay', 'sau'] %}
+        modalMap['{{ tab_key }}'] = {};
+        {% for row in weeks[tab_key].tasks %}
+        {% set tp_key = row['tp_key'] %}
+        modalMap['{{ tab_key }}']["{{ tp_key }}"] = "{{ tab_key }}-{{ loop.index0 }}";
+        {% endfor %}
+    {% endfor %}
+</script>
+<!-- Confetti Library for Celebration Effects -->
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}?v={{ range(1, 100000) | random }}"></script>
+{% endblock %}
+<!-- MISSING LINE 831 -->
+<!-- MISSING LINE 832 -->
+<!-- MISSING LINE 833 -->
+<!-- MISSING LINE 834 -->
+<!-- MISSING LINE 835 -->
+<!-- MISSING LINE 836 -->
+<!-- MISSING LINE 837 -->
+<!-- MISSING LINE 838 -->
+<!-- MISSING LINE 839 -->
+<!-- MISSING LINE 840 -->
+<!-- MISSING LINE 841 -->
+<!-- MISSING LINE 842 -->
+<!-- MISSING LINE 843 -->
+<!-- MISSING LINE 844 -->
+<!-- MISSING LINE 845 -->
+<!-- MISSING LINE 846 -->
+<!-- MISSING LINE 847 -->
+<!-- MISSING LINE 848 -->
+<!-- MISSING LINE 849 -->
+<!-- MISSING LINE 850 -->
+<!-- MISSING LINE 851 -->
+<!-- MISSING LINE 852 -->
+<!-- MISSING LINE 853 -->
+<!-- MISSING LINE 854 -->
+<!-- MISSING LINE 855 -->
+<!-- MISSING LINE 856 -->
+<!-- MISSING LINE 857 -->
+<!-- MISSING LINE 858 -->
+<!-- MISSING LINE 859 -->
+<!-- MISSING LINE 860 -->
+<!-- MISSING LINE 861 -->
+<!-- MISSING LINE 862 -->
+<!-- MISSING LINE 863 -->
+<!-- MISSING LINE 864 -->
+<!-- MISSING LINE 865 -->
+<!-- MISSING LINE 866 -->
+<!-- MISSING LINE 867 -->
+<!-- MISSING LINE 868 -->
+<!-- MISSING LINE 869 -->
+    
+    // Inject Detailed Task Data
+    let vntaskDataList = [];
+    const userProfilesDB = {{ user_profiles | tojson }};
+
+    // Store mappings from card name to modal ID
+    const modalMap = {};
+    {% for tab_key in ['truoc', 'nay', 'sau'] %}
+        modalMap['{{ tab_key }}'] = {};
+        {% for row in weeks[tab_key].tasks %}
+        {% set tp_key = row['tp_key'] %}
+        modalMap['{{ tab_key }}']["{{ tp_key }}"] = "{{ tab_key }}-{{ loop.index0 }}";
+        {% endfor %}
+    {% endfor %}
+</script>
+<!-- Confetti Library for Celebration Effects -->
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}?v={{ range(1, 100000) | random }}"></script>
+{% endblock %}
+
+<!-- MISSING LINE 890 -->
+<!-- MISSING LINE 891 -->
+<!-- MISSING LINE 892 -->
+<!-- MISSING LINE 893 -->
+<!-- MISSING LINE 894 -->
+<!-- MISSING LINE 895 -->
+<!-- MISSING LINE 896 -->
+<!-- MISSING LINE 897 -->
+<!-- MISSING LINE 898 -->
+<!-- MISSING LINE 899 -->
+<!-- MISSING LINE 900 -->
+<!-- MISSING LINE 901 -->
+<!-- MISSING LINE 902 -->
+<!-- MISSING LINE 903 -->
+<!-- MISSING LINE 904 -->
+<!-- MISSING LINE 905 -->
+<!-- MISSING LINE 906 -->
+<!-- MISSING LINE 907 -->
+<!-- MISSING LINE 908 -->
+<!-- MISSING LINE 909 -->
+<!-- MISSING LINE 910 -->
+<!-- MISSING LINE 911 -->
+<!-- MISSING LINE 912 -->
+<!-- MISSING LINE 913 -->
+<!-- MISSING LINE 914 -->
+<!-- MISSING LINE 915 -->
+<!-- MISSING LINE 916 -->
+<!-- MISSING LINE 917 -->
+<!-- MISSING LINE 918 -->
+<!-- MISSING LINE 919 -->
+<!-- MISSING LINE 920 -->
+<!-- MISSING LINE 921 -->
+<!-- MISSING LINE 922 -->
+<!-- MISSING LINE 923 -->
+<!-- MISSING LINE 924 -->
+<!-- MISSING LINE 925 -->
+<!-- MISSING LINE 926 -->
+<!-- MISSING LINE 927 -->
+<!-- MISSING LINE 928 -->
+<!-- MISSING LINE 929 -->
+<!-- MISSING LINE 930 -->
+<!-- MISSING LINE 931 -->
+<!-- MISSING LINE 932 -->
+<!-- MISSING LINE 933 -->
+<!-- MISSING LINE 934 -->
+<!-- MISSING LINE 935 -->
+<!-- MISSING LINE 936 -->
+<!-- MISSING LINE 937 -->
+<!-- MISSING LINE 938 -->
+<!-- MISSING LINE 939 -->
+<!-- MISSING LINE 940 -->
+<!-- MISSING LINE 941 -->
+<!-- MISSING LINE 942 -->
+<!-- MISSING LINE 943 -->
+<!-- MISSING LINE 944 -->
+<!-- MISSING LINE 945 -->
+<!-- MISSING LINE 946 -->
+<!-- MISSING LINE 947 -->
+<!-- MISSING LINE 948 -->
+<!-- MISSING LINE 949 -->
+<!-- MISSING LINE 950 -->
+<!-- MISSING LINE 951 -->
+<!-- MISSING LINE 952 -->
+<!-- MISSING LINE 953 -->
+<!-- MISSING LINE 954 -->
+<!-- MISSING LINE 955 -->
+<!-- MISSING LINE 956 -->
+<!-- MISSING LINE 957 -->
+<!-- MISSING LINE 958 -->
+<!-- MISSING LINE 959 -->
+<!-- MISSING LINE 960 -->
+<!-- MISSING LINE 961 -->
+<!-- MISSING LINE 962 -->
