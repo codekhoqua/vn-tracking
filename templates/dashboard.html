@@ -222,7 +222,7 @@
             style="border-radius: var(--radius-sm); margin-right: 8px;">
         <div style="display: flex; flex-direction: column; justify-content: center;">
             <span>VN-Tracking</span>
-            <sup style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.3.68</i></sup>
+            <sup style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.3.69</i></sup>
         </div>
     </div>
 
@@ -919,6 +919,42 @@
                 <!-- Avatars -->
                 <div id="global-online-users" class="online-users-cluster"
                     style="background: rgba(255,255,255,0.05); padding: 4px 12px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1);">
+                </div>
+
+                <!-- Notification Bell (Alarm) Dropdown -->
+                <div class="notification-center-wrapper" style="position: relative;">
+                    <button class="notification-bell-btn" id="notification-bell-btn" onclick="toggleNotificationPanel(event)" title="{{ 'Thông báo' if lang == 'vi' else '通知' }}">
+                        <i class="far fa-bell"></i>
+                        <span class="notification-unread-badge" id="notification-unread-badge" style="display: none;">0</span>
+                    </button>
+
+                    <!-- Notification Dropdown Panel -->
+                    <div class="notification-dropdown-panel" id="notification-dropdown-panel" style="display: none;" onclick="event.stopPropagation()">
+                        <div class="notification-panel-header">
+                            <div class="notification-panel-title">
+                                <i class="fas fa-bell" style="color: #818cf8; margin-right: 6px;"></i>
+                                <span>{{ 'Thông báo & Tin nhắn' if lang == 'vi' else '通知・メッセージ' }}</span>
+                            </div>
+                            <div class="notification-header-actions">
+                                <button type="button" class="btn-notif-action" onclick="markAllNotificationsRead()" title="{{ 'Đánh dấu đã đọc' if lang == 'vi' else '既読にする' }}">
+                                    {{ 'Đã đọc' if lang == 'vi' else '既読' }}
+                                </button>
+                                <button type="button" class="btn-notif-action danger" onclick="clearAllNotifications()" title="{{ 'Xóa tất cả' if lang == 'vi' else '全て削除' }}">
+                                    {{ 'Xóa hết' if lang == 'vi' else 'クリア' }}
+                                </button>
+                            </div>
+                        </div>
+                        <div class="notification-items-list" id="notification-items-list">
+                            <div class="notification-empty-state">
+                                <i class="far fa-bell-slash" style="font-size: 24px; color: var(--text-4); margin-bottom: 8px;"></i>
+                                <span>{{ 'Không có thông báo nào' if lang == 'vi' else '通知はありません' }}</span>
+                            </div>
+                        </div>
+                        <div class="notification-panel-footer">
+                            <span id="notification-summary-count" style="font-size: 0.75rem; color: var(--text-4);">0 {{ 'thông báo' if lang == 'vi' else '件' }}</span>
+                            <button type="button" class="btn-notif-close-panel" onclick="toggleNotificationPanel(event)">{{ 'Đóng' if lang == 'vi' else '閉じる' }}</button>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Theme Toggle -->
