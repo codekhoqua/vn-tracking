@@ -211,6 +211,33 @@ def get_supabase_checklists():
         _checklist_cache = {}
     return _checklist_cache
 
+_task_comments_cache = None
+task_comments_lock = threading.Lock()
+
+def get_supabase_task_comments():
+    global _task_comments_cache
+    if _task_comments_cache is not None:
+        return _task_comments_cache
+    try:
+        data = sb_download_bytes('_system/task_comments.json')
+        if data:
+            _task_comments_cache = json.loads(data.decode('utf-8'))
+        else:
+            _task_comments_cache = {}
+    except Exception:
+        _task_comments_cache = {}
+    return _task_comments_cache
+
+def save_supabase_task_comments(data):
+    global _task_comments_cache
+    with task_comments_lock:
+        _task_comments_cache = data
+        try:
+            json_bytes = json.dumps(data, ensure_ascii=False).encode('utf-8')
+            sb_upload('_system/task_comments.json', json_bytes, content_type='application/json')
+        except Exception as e:
+            print("Error uploading task comments to Supabase:", e)
+
 def load_checklist_data(api_url=None):
     data = get_supabase_checklists()
     rows = []
@@ -406,6 +433,39 @@ def render_checklist_html(tac_pham_key, index, lang, api_url, checked_ids=None):
     def ch(tid):
         return 'checked' if tid in checked_ids else ''
 
+    is_combined = ('写植/ﾚﾀｯﾁ' in str(tac_pham_key) or '写植/レタッチ' in str(tac_pham_key) or 'Lettering/Retouch' in str(tac_pham_key) or 'lettering/retouch' in str(tac_pham_key).lower())
+
+    handover_html = ""
+    if is_combined:
+        handover_html = f'''
+        <div class="task-handover-box" id="handover_{index}" data-tp-key="{tac_pham_key}">
+            <div class="handover-header">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 1.1rem;">💬</span>
+                    <span style="font-weight: 700; color: var(--text); font-size: 0.95rem;">{ "Trao đổi & Bàn giao khâu" if lang == "vi" else "引き継ぎ・連絡ノート" }</span>
+                    <span class="handover-tag">Retouch ⇄ Lettering</span>
+                </div>
+            </div>
+            <div class="handover-body" id="handover_body_{index}">
+                <div class="quick-handover-actions">
+                    <span style="font-size: 0.75rem; color: var(--text-3); font-weight: 600; text-transform: uppercase;">{ "Ghi chú nhanh:" if lang == "vi" else "クイックメモ:" }</span>
+                    <button type="button" class="btn-quick-tag done-retouch" onclick="sendQuickHandover('{index}', '{tac_pham_key}', '{ "🎨 Đã xong Retouch ➔ Chuyển giao Lettering" if lang == "vi" else "🎨 レタッチ完了 ➔ 写植へ引き継ぎ" }', 'handover')">🎨 { "Đã xong Retouch ➔ Lettering" if lang == "vi" else "レタッチ完了 ➔ 写植へ" }</button>
+                    <button type="button" class="btn-quick-tag in-progress" onclick="sendQuickHandover('{index}', '{tac_pham_key}', '{ "⏳ Đang làm dở trang..." if lang == "vi" else "⏳ 作業中..." }', 'progress')">⏳ { "Đang làm dở" if lang == "vi" else "作業中" }</button>
+                    <button type="button" class="btn-quick-tag note" onclick="sendQuickHandover('{index}', '{tac_pham_key}', '{ "⚠️ Có lưu ý font/style đặc biệt" if lang == "vi" else "⚠️ フォント・スタイルの注意事項あり" }', 'warning')">⚠️ { "Lưu ý font/style" if lang == "vi" else "注意事項" }</button>
+                </div>
+
+                <div class="handover-comments-list" id="comments_list_{index}">
+                    <div class="handover-empty">{ "Chưa có ghi chú trao đổi nào. Hãy để lại lời nhắn cho đồng đội!" if lang == "vi" else "メッセージはまだありません。メモを残してください。" }</div>
+                </div>
+
+                <div class="handover-input-group">
+                    <input type="text" id="handover_input_{index}" class="handover-input" placeholder="{ "Nhập tin nhắn hoặc ghi chú bàn giao..." if lang == "vi" else "引き継ぎメッセージを入力..." }" onkeydown="if(event.key==='Enter') sendTaskComment('{index}', '{tac_pham_key}')">
+                    <button type="button" class="btn-handover-send" onclick="sendTaskComment('{index}', '{tac_pham_key}')">{ "Gửi" if lang == "vi" else "送信" }</button>
+                </div>
+            </div>
+        </div>
+        '''
+
     tracker_html = f'''<div class="time-tracker-box" id="tracker_{index}" data-tp-key="{tac_pham_key}">
         <div class="tracker-header">
             ⏱️ { "Theo dõi thời gian" if lang == "vi" else "タイムトラッカー" }
@@ -467,6 +527,7 @@ def render_checklist_html(tac_pham_key, index, lang, api_url, checked_ids=None):
         </div>
     </div>
     
+    {handover_html}
     {tracker_html}
     '''
 
@@ -925,6 +986,52 @@ def api_checklist_sync():
     except Exception as e:
         print("Error saving checklist:", e)
         return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route('/api/task_comments', methods=['GET', 'POST'])
+def api_task_comments():
+    if not session.get('logged_in'):
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+    
+    if request.method == 'GET':
+        tp_key = request.args.get('tp_key', '').strip()
+        comments_db = get_supabase_task_comments()
+        if tp_key:
+            return jsonify({"status": "success", "comments": comments_db.get(tp_key, [])})
+        return jsonify({"status": "success", "comments_db": comments_db})
+        
+    if request.method == 'POST':
+        data = request.get_json() or {}
+        tp_key = data.get('tp_key', '').strip()
+        message = data.get('message', '').strip()
+        tag = data.get('tag', 'chat')
+        user = session.get('user', '')
+        
+        if not tp_key or not message:
+            return jsonify({"status": "error", "message": "Missing task or message"}), 400
+            
+        now = datetime.now()
+        comment_item = {
+            "id": f"{int(time.time()*1000)}",
+            "user": user,
+            "message": message,
+            "tag": tag,
+            "time": now.strftime('%H:%M %d/%m'),
+            "timestamp": int(time.time())
+        }
+        
+        comments_db = get_supabase_task_comments()
+        if tp_key not in comments_db:
+            comments_db[tp_key] = []
+        comments_db[tp_key].append(comment_item)
+        save_supabase_task_comments(comments_db)
+        
+        # Broadcast via SocketIO
+        socketio.emit('task_comment_new', {
+            "tp_key": tp_key,
+            "comment": comment_item
+        })
+        
+        return jsonify({"status": "success", "comment": comment_item})
 
 @app.route('/api/weather')
 def api_weather():
