@@ -345,6 +345,148 @@ async function fetchAiInsights() {
     }
 }
 
+// ==================== TASK HANDOVER & COMMENTS ====================
+function getAvatarForUser(username) {
+    if (typeof userProfilesDB !== 'undefined' && userProfilesDB[username] && userProfilesDB[username].avatar) {
+        return userProfilesDB[username].avatar;
+    }
+    return '';
+}
+
+function createCommentItemHtml(c) {
+    const avatar = getAvatarForUser(c.user);
+    const initial = (c.user || 'U').charAt(0).toUpperCase();
+    
+    let tagBadge = '';
+    if (c.tag === 'handover') {
+        tagBadge = `<span class="comment-tag handover">🎨 Bàn giao</span>`;
+    } else if (c.tag === 'progress') {
+        tagBadge = `<span class="comment-tag progress">⏳ Tiến độ</span>`;
+    } else if (c.tag === 'warning') {
+        tagBadge = `<span class="comment-tag warning">⚠️ Lưu ý</span>`;
+    }
+
+    const avatarHtml = avatar 
+        ? `<img src="${avatar}" alt="${c.user}" class="comment-avatar-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><div class="comment-avatar-fallback" style="display:none;">${initial}</div>`
+        : `<div class="comment-avatar-fallback">${initial}</div>`;
+
+    return `
+        <div class="handover-comment-item" id="comment_${c.id || Date.now()}">
+            <div class="comment-avatar">${avatarHtml}</div>
+            <div class="comment-content">
+                <div class="comment-meta">
+                    <span class="comment-user">${c.user || 'Thành viên'}</span>
+                    ${tagBadge}
+                    <span class="comment-time">${c.time || ''}</span>
+                </div>
+                <div class="comment-text">${c.message}</div>
+            </div>
+        </div>
+    `;
+}
+
+async function loadTaskComments(index, tpKey) {
+    const list = document.getElementById(`comments_list_${index}`);
+    if (!list) return;
+    try {
+        const res = await fetch(`/api/task_comments?tp_key=${encodeURIComponent(tpKey)}`);
+        const data = await res.json();
+        if (data.status === 'success' && data.comments && data.comments.length > 0) {
+            list.innerHTML = '';
+            data.comments.forEach(c => {
+                list.insertAdjacentHTML('beforeend', createCommentItemHtml(c));
+            });
+            list.scrollTop = list.scrollHeight;
+        } else {
+            const isVN = (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi');
+            list.innerHTML = `<div class="handover-empty">${isVN ? 'Chưa có ghi chú trao đổi nào. Hãy để lại lời nhắn cho đồng đội!' : 'メッセージはまだありません。メモを残してください。'}</div>`;
+        }
+    } catch (e) {
+        console.error('Error loading task comments:', e);
+    }
+}
+
+async function sendTaskComment(index, tpKey, messageOverride = null, tag = 'chat') {
+    const input = document.getElementById(`handover_input_${index}`);
+    const message = messageOverride ? messageOverride.trim() : (input ? input.value.trim() : '');
+    if (!message) return;
+
+    if (input && !messageOverride) {
+        input.value = '';
+    }
+
+    try {
+        const res = await fetch('/api/task_comments', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                tp_key: tpKey,
+                message: message,
+                tag: tag
+            })
+        });
+        const data = await res.json();
+        if (data.status === 'success' && data.comment) {
+            const list = document.getElementById(`comments_list_${index}`);
+            if (list) {
+                const empty = list.querySelector('.handover-empty');
+                if (empty) empty.remove();
+                list.insertAdjacentHTML('beforeend', createCommentItemHtml(data.comment));
+                list.scrollTop = list.scrollHeight;
+            }
+        }
+    } catch (e) {
+        console.error('Error sending task comment:', e);
+    }
+}
+
+function sendQuickHandover(index, tpKey, text, tag = 'handover') {
+    sendTaskComment(index, tpKey, text, tag);
+}
+
+function showTaskToast(user, tpKey, message) {
+    let container = document.getElementById('task-toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'task-toast-container';
+        container.style.cssText = 'position: fixed; bottom: 24px; right: 24px; z-index: 999999; display: flex; flex-direction: column; gap: 10px; max-width: 380px; pointer-events: none;';
+        document.body.appendChild(container);
+    }
+
+    const toast = document.createElement('div');
+    toast.className = 'task-handover-toast';
+    toast.style.cssText = 'pointer-events: auto; background: rgba(15, 23, 42, 0.95); border: 1px solid rgba(99, 102, 241, 0.4); backdrop-filter: blur(12px); border-radius: 12px; padding: 12px 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.5), 0 0 15px rgba(99,102,241,0.2); display: flex; gap: 12px; align-items: flex-start; color: #fff; animation: toastSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1); transition: all 0.3s ease;';
+    
+    const avatar = getAvatarForUser(user);
+    const initial = (user || 'U').charAt(0).toUpperCase();
+    const avatarHtml = avatar 
+        ? `<img src="${avatar}" style="width:36px; height:36px; border-radius:50%; object-fit:cover; border:2px solid #6366f1;">`
+        : `<div style="width:36px; height:36px; border-radius:50%; background:#6366f1; display:flex; align-items:center; justify-content:center; font-weight:bold; color:#fff;">${initial}</div>`;
+
+    const shortTp = tpKey.split(' - ')[1] || tpKey;
+
+    toast.innerHTML = `
+        <div style="flex-shrink: 0;">${avatarHtml}</div>
+        <div style="flex: 1; min-width: 0;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+                <span style="font-weight: 700; font-size: 0.85rem; color: #818cf8;">${user}</span>
+                <span style="font-size: 0.75rem; color: rgba(255,255,255,0.5);">Vừa xong</span>
+            </div>
+            <div style="font-size: 0.75rem; color: #fbbf24; font-weight: 600; margin-bottom: 4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">📚 ${shortTp}</div>
+            <div style="font-size: 0.85rem; color: rgba(255,255,255,0.9); line-height: 1.3;">${message}</div>
+        </div>
+        <button onclick="this.parentElement.remove()" style="background:none; border:none; color:rgba(255,255,255,0.4); cursor:pointer; font-size:16px; padding:0; margin-left:4px;">&times;</button>
+    `;
+
+    container.appendChild(toast);
+
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(20px)';
+        setTimeout(() => toast.remove(), 300);
+    }, 6000);
+}
+
 // ===================== MODAL =====================
 function openModal(tabKey, cardName) {
     if (typeof modalMap === 'undefined') return;
@@ -355,6 +497,14 @@ function openModal(tabKey, cardName) {
             modal.classList.add('open');
             document.body.style.overflow = 'hidden';
             initChecklistInContainer(modal.querySelector('.modal-body'));
+
+            // Load Task Handover Comments if combined task
+            const handoverBox = modal.querySelector('.task-handover-box');
+            if (handoverBox) {
+                const index = handoverBox.id.replace('handover_', '');
+                const tpKey = handoverBox.getAttribute('data-tp-key');
+                loadTaskComments(index, tpKey);
+            }
         }
     }
 }
@@ -1013,6 +1163,30 @@ document.addEventListener('DOMContentLoaded', () => {
     if (scrollContainer) {
         fetchAiInsights();
         setInterval(fetchAiInsights, 600000);
+    }
+
+    // Socket listener for Task Comments
+    if (window.socket) {
+        window.socket.on('task_comment_new', function(data) {
+            if (!data || !data.tp_key || !data.comment) return;
+            
+            // Append to open handover boxes with this tp_key
+            document.querySelectorAll(`.task-handover-box[data-tp-key="${data.tp_key}"]`).forEach(box => {
+                const index = box.id.replace('handover_', '');
+                const list = document.getElementById(`comments_list_${index}`);
+                if (list) {
+                    const empty = list.querySelector('.handover-empty');
+                    if (empty) empty.remove();
+                    list.insertAdjacentHTML('beforeend', createCommentItemHtml(data.comment));
+                    list.scrollTop = list.scrollHeight;
+                }
+            });
+
+            // Show Toast if current user is not sender
+            if (typeof CURRENT_USER !== 'undefined' && data.comment.user && data.comment.user !== CURRENT_USER) {
+                showTaskToast(data.comment.user, data.tp_key, data.comment.message);
+            }
+        });
     }
 
     // Background Sync for Server Truth
