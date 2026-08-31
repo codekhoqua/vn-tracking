@@ -634,6 +634,111 @@ function toggleNotificationPanel(event) {
     }
 }
 
+function navigateToTask(tpKey) {
+    if (!tpKey) return;
+    const cleanKey = String(tpKey).trim();
+    
+    // Close notification dropdown panel if open
+    const panel = document.getElementById('notification-dropdown-panel');
+    if (panel) panel.style.display = 'none';
+
+    // Remove any existing toast
+    document.querySelectorAll('.task-handover-toast').forEach(t => t.remove());
+
+    const tabs = ['nay', 'truoc', 'sau'];
+    let targetTab = null;
+    let targetModalId = null;
+
+    if (typeof modalMap !== 'undefined') {
+        const activeTab = sessionStorage.getItem('activeTab') || 'nay';
+        const searchTabs = [activeTab, ...tabs.filter(t => t !== activeTab)];
+
+        for (const tab of searchTabs) {
+            if (!modalMap[tab]) continue;
+
+            // 1. Exact match
+            if (modalMap[tab][cleanKey]) {
+                targetTab = tab;
+                targetModalId = modalMap[tab][cleanKey];
+                break;
+            }
+
+            // 2. Volume match (e.g. key ends with cleanKey or contains cleanKey)
+            for (const [k, mId] of Object.entries(modalMap[tab])) {
+                const kVol = k.includes(' - ') ? k.split(' - ')[1].trim() : k.trim();
+                const cVol = cleanKey.includes(' - ') ? cleanKey.split(' - ')[1].trim() : cleanKey;
+                if (kVol === cVol || k === cleanKey || k.includes(cleanKey) || cleanKey.includes(k)) {
+                    targetTab = tab;
+                    targetModalId = mId;
+                    break;
+                }
+            }
+            if (targetModalId) break;
+        }
+    }
+
+    if (targetTab && targetModalId) {
+        // Switch tab if different
+        const currentTab = sessionStorage.getItem('activeTab') || 'nay';
+        if (currentTab !== targetTab && typeof switchTab === 'function') {
+            switchTab(targetTab);
+        }
+
+        // Open modal
+        const modal = document.getElementById(`modal-${targetModalId}`);
+        if (modal) {
+            modal.classList.add('open');
+            document.body.style.overflow = 'hidden';
+            if (typeof initChecklistInContainer === 'function') {
+                initChecklistInContainer(modal.querySelector('.modal-body'));
+            }
+
+            const handoverBox = modal.querySelector('.task-handover-box');
+            if (handoverBox) {
+                if (typeof setupTaskCommentsSocket === 'function') setupTaskCommentsSocket();
+                const index = handoverBox.id.replace('handover_', '');
+                const boxTpKey = handoverBox.getAttribute('data-tp-key');
+                if (typeof loadTaskComments === 'function') loadTaskComments(index, boxTpKey);
+
+                // Auto-scroll directly to the Comment box and highlight input
+                setTimeout(() => {
+                    handoverBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    const input = document.getElementById(`handover_input_${index}`);
+                    if (input) {
+                        input.focus();
+                        input.style.boxShadow = '0 0 0 3px rgba(129, 140, 248, 0.5)';
+                        setTimeout(() => input.style.boxShadow = '', 2000);
+                    }
+                }, 250);
+            }
+            return;
+        }
+    }
+
+    // Fallback: search card in DOM
+    const card = document.querySelector(`.progress-card[data-tp-key*="${cleanKey}"]`) || 
+                 document.querySelector(`.card-comment-alarm[data-alarm-key*="${cleanKey}"]`)?.closest('.progress-card');
+    if (card) {
+        card.click();
+        setTimeout(() => {
+            const openModalEl = document.querySelector('.modal-overlay.open');
+            if (openModalEl) {
+                const handoverBox = openModalEl.querySelector('.task-handover-box');
+                if (handoverBox) {
+                    handoverBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    const index = handoverBox.id.replace('handover_', '');
+                    const input = document.getElementById(`handover_input_${index}`);
+                    if (input) {
+                        input.focus();
+                        input.style.boxShadow = '0 0 0 3px rgba(129, 140, 248, 0.5)';
+                        setTimeout(() => input.style.boxShadow = '', 2000);
+                    }
+                }
+            }
+        }, 300);
+    }
+}
+
 function handleNotificationClick(notifId, tpKey) {
     const list = getStoredNotifications();
     const item = list.find(n => n.id === notifId);
@@ -641,14 +746,7 @@ function handleNotificationClick(notifId, tpKey) {
         item.isRead = true;
         saveStoredNotifications(list);
     }
-
-    const panel = document.getElementById('notification-dropdown-panel');
-    if (panel) panel.style.display = 'none';
-
-    if (tpKey) {
-        const activeTab = sessionStorage.getItem('activeTab') || 'nay';
-        openModal(activeTab, tpKey);
-    }
+    navigateToTask(tpKey);
 }
 
 function dismissNotification(notifId) {
@@ -701,9 +799,7 @@ function showTaskToast(user, tpKey, message, id = null) {
     const shortTp = tpKey.includes(' - ') ? tpKey.split(' - ')[1] : tpKey;
 
     toast.onclick = function() {
-        const activeTab = sessionStorage.getItem('activeTab') || 'nay';
-        openModal(activeTab, tpKey);
-        toast.remove();
+        navigateToTask(tpKey);
     };
 
     toast.innerHTML = `
