@@ -371,7 +371,7 @@ function createCommentItemHtml(c, tpKey) {
     const currentLoggedUser = typeof CURRENT_USER !== 'undefined' ? CURRENT_USER : '';
     const canDelete = (c.user === currentLoggedUser || (typeof USER_ROLE !== 'undefined' && ['admin', 'manager', 'leader'].includes(USER_ROLE)));
     const deleteBtnHtml = canDelete 
-        ? `<button type="button" class="btn-delete-comment" onclick="deleteTaskComment('${c.id}', '${tpKey}', this)" title="Xóa">&times;</button>`
+        ? `<button type="button" class="btn-delete-comment" onclick="deleteTaskComment('${c.id}', '${tpKey}', this)" title="Xóa"><i class="fas fa-trash-alt"></i></button>`
         : '';
 
     const avatarHtml = avatar 
@@ -463,7 +463,6 @@ function sendQuickHandover(index, tpKey, text, tag = 'handover') {
 async function deleteTaskComment(commentId, tpKey, btnEl) {
     if (!commentId || !tpKey) return;
     const isVN = (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi');
-    if (!confirm(isVN ? 'Bạn có chắc chắn muốn xóa tin nhắn này?' : 'このメッセージを削除しますか？')) return;
 
     try {
         const res = await fetch('/api/task_comments/delete', {
