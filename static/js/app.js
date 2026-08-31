@@ -371,7 +371,7 @@ function createCommentItemHtml(c, tpKey) {
     const currentLoggedUser = typeof CURRENT_USER !== 'undefined' ? CURRENT_USER : '';
     const canDelete = (c.user === currentLoggedUser || (typeof USER_ROLE !== 'undefined' && ['admin', 'manager', 'leader'].includes(USER_ROLE)));
     const deleteBtnHtml = canDelete 
-        ? `<button type="button" class="btn-delete-comment" onclick="deleteTaskComment('${c.id}', '${tpKey}', this)" title="Xóa"><i class="fas fa-trash-alt"></i></button>`
+        ? `<button type="button" class="btn-delete-comment" onclick="event.stopPropagation(); event.preventDefault(); deleteTaskComment('${c.id}', '${tpKey}', this)" title="Xóa"><i class="fas fa-trash-alt" style="pointer-events: none;"></i></button>`
         : '';
 
     const avatarHtml = avatar 
@@ -463,6 +463,25 @@ function sendQuickHandover(index, tpKey, text, tag = 'handover') {
 async function deleteTaskComment(commentId, tpKey, btnEl) {
     if (!commentId || !tpKey) return;
     const isVN = (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi');
+    const el = document.getElementById(`comment_${commentId}`);
+    if (!el || el.dataset.deleting === 'true') return;
+
+    // Instant 1-touch optimistic UI update
+    el.dataset.deleting = 'true';
+    el.style.transition = 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)';
+    el.style.opacity = '0';
+    el.style.transform = 'scale(0.9) translateY(-6px)';
+    el.style.pointerEvents = 'none';
+
+    setTimeout(() => {
+        if (el && el.parentElement) {
+            const list = el.parentElement;
+            el.remove();
+            if (list && list.querySelectorAll('.handover-comment-item').length === 0) {
+                list.innerHTML = `<div class="handover-empty">${isVN ? 'Chưa có ghi chú nào. Hãy để lại lời nhắn cho đồng đội!' : 'メッセージはまだありません。'}</div>`;
+            }
+        }
+    }, 250);
 
     try {
         const res = await fetch('/api/task_comments/delete', {
@@ -471,21 +490,14 @@ async function deleteTaskComment(commentId, tpKey, btnEl) {
             body: JSON.stringify({ id: commentId, tp_key: tpKey })
         });
         const data = await res.json();
-        if (data.status === 'success') {
-            const el = document.getElementById(`comment_${commentId}`);
-            if (el) {
-                el.style.opacity = '0';
-                el.style.transform = 'scale(0.9)';
-                setTimeout(() => {
-                    const list = el.parentElement;
-                    el.remove();
-                    if (list && list.children.length === 0) {
-                        list.innerHTML = `<div class="handover-empty">${isVN ? 'Chưa có ghi chú nào. Hãy để lại lời nhắn cho đồng đội!' : 'メッセージはまだありません。'}</div>`;
-                    }
-                }, 200);
-            }
-        } else {
+        if (data.status !== 'success') {
             showToast(data.message || (isVN ? 'Không thể xóa tin nhắn' : '削除できませんでした'), 'error');
+            // Reload comments on error
+            const box = el ? el.closest('.task-handover-box') : document.querySelector(`.task-handover-box[data-tp-key="${tpKey}"]`);
+            if (box) {
+                const index = box.id.replace('handover_', '');
+                loadTaskComments(index, tpKey);
+            }
         }
     } catch (e) {
         console.error('Error deleting task comment:', e);

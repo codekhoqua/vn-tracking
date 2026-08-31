@@ -1138,26 +1138,41 @@ def api_task_comments_delete():
     user = session.get('user', '')
     role = session.get('role', 'member')
     
-    if not tp_key or not comment_id:
-        return jsonify({"status": "error", "message": "Missing parameters"}), 400
+    if not comment_id:
+        return jsonify({"status": "error", "message": "Missing comment ID"}), 400
         
     comments_db = get_supabase_task_comments()
-    if tp_key in comments_db:
-        original = [c for c in comments_db[tp_key] if str(c.get('id')) == comment_id]
-        if original:
-            comment_owner = original[0].get('user', '')
-            if user == comment_owner or role in ['admin', 'manager', 'leader']:
-                comments_db[tp_key] = [c for c in comments_db[tp_key] if str(c.get('id')) != comment_id]
-                save_supabase_task_comments(comments_db)
+    found_key = None
+    target_comment = None
+    
+    if tp_key and tp_key in comments_db:
+        matches = [c for c in comments_db[tp_key] if str(c.get('id')) == comment_id]
+        if matches:
+            found_key = tp_key
+            target_comment = matches[0]
+            
+    if not found_key:
+        for k, clist in comments_db.items():
+            matches = [c for c in clist if str(c.get('id')) == comment_id]
+            if matches:
+                found_key = k
+                target_comment = matches[0]
+                break
                 
-                socketio.emit('task_comment_deleted', {
-                    "tp_key": tp_key,
-                    "id": comment_id
-                })
-                return jsonify({"status": "success"})
-            else:
-                return jsonify({"status": "error", "message": "Permission denied"}), 403
-                
+    if found_key and target_comment:
+        comment_owner = target_comment.get('user', '')
+        if user == comment_owner or role in ['admin', 'manager', 'leader']:
+            comments_db[found_key] = [c for c in comments_db[found_key] if str(c.get('id')) != comment_id]
+            save_supabase_task_comments(comments_db)
+            
+            socketio.emit('task_comment_deleted', {
+                "tp_key": found_key,
+                "id": comment_id
+            })
+            return jsonify({"status": "success"})
+        else:
+            return jsonify({"status": "error", "message": "Permission denied"}), 403
+            
     return jsonify({"status": "success"})
 
 @app.route('/api/weather')
