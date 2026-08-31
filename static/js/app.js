@@ -502,13 +502,12 @@ function isTaskAssignedToMe(tpKey, assignees = []) {
     const currentLoggedUser = (typeof CURRENT_USER !== 'undefined' ? CURRENT_USER : '').trim().toLowerCase();
     if (!currentLoggedUser) return false;
 
-    // 1. Check server-provided assignees list
+    // 1. Check server-provided assignees list first (most accurate)
     if (Array.isArray(assignees) && assignees.length > 0) {
-        const matched = assignees.some(w => {
+        return assignees.some(w => {
             const wLower = String(w).trim().toLowerCase();
             return wLower === currentLoggedUser || wLower.includes(currentLoggedUser) || currentLoggedUser.includes(wLower);
         });
-        if (matched) return true;
     }
 
     // 2. Check modalMap on this user's page (which only contains the user's tasks if member)
@@ -525,14 +524,6 @@ function isTaskAssignedToMe(tpKey, assignees = []) {
                 }
             }
         }
-    }
-
-    // 3. Check if card or handover box exists in DOM on this user's dashboard
-    if (cleanKey) {
-        const hasCard = !!(document.querySelector(`.progress-card[data-tp-key*="${tpKey}"]`) || 
-                           document.querySelector(`.card-comment-alarm[data-alarm-key*="${tpKey}"]`) ||
-                           document.querySelector(`.task-handover-box[data-tp-key*="${tpKey}"]`));
-        if (hasCard) return true;
     }
 
     return false;
@@ -1641,29 +1632,8 @@ document.addEventListener('DOMContentLoaded', () => {
         setInterval(fetchAiInsights, 600000);
     }
 
-    // Socket listener for Task Comments
-    if (window.socket) {
-        window.socket.on('task_comment_new', function(data) {
-            if (!data || !data.tp_key || !data.comment) return;
-            
-            // Append to open handover boxes with this tp_key
-            document.querySelectorAll(`.task-handover-box[data-tp-key="${data.tp_key}"]`).forEach(box => {
-                const index = box.id.replace('handover_', '');
-                const list = document.getElementById(`comments_list_${index}`);
-                if (list) {
-                    const empty = list.querySelector('.handover-empty');
-                    if (empty) empty.remove();
-                    list.insertAdjacentHTML('beforeend', createCommentItemHtml(data.comment));
-                    list.scrollTop = list.scrollHeight;
-                }
-            });
-
-            // Show Toast if current user is not sender
-            if (typeof CURRENT_USER !== 'undefined' && data.comment.user && data.comment.user !== CURRENT_USER) {
-                showTaskToast(data.comment.user, data.tp_key, data.comment.message);
-            }
-        });
-    }
+    // Init Task Comments Socket
+    setupTaskCommentsSocket();
 
     // Background Sync for Server Truth
     backgroundSyncChecklist();
