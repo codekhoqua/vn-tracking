@@ -1107,7 +1107,7 @@ function updateTaskLinksUI(tpKey, links) {
 
     document.querySelectorAll(`.task-links-box`).forEach(box => {
         const boxKey = box.getAttribute('data-tp-key');
-        if (boxKey === tpKey || (boxKey && tpKey && (boxKey.includes(tpKey) || tpKey.includes(boxKey)))) {
+        if (boxKey === tpKey) {
             tools.forEach(tool => {
                 const card = box.querySelector(`.task-link-card.${tool}`);
                 if (card) {

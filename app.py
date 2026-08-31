@@ -467,10 +467,10 @@ def render_checklist_html(tac_pham_key, index, lang, api_url, checked_ids=None, 
     partner_worker = (row_data and row_data.get('partner_worker')) or ''
     partner_cv = (row_data and row_data.get('partner_cv')) or ''
 
-    # Task Resource Links (Mikan, Notion, Asana, Dropbox)
+    # Task Resource Links (Mikan, Notion, Asana, Dropbox) - Keyed strictly by individual task role (tac_pham_key)
     t_links = {}
     if task_links_dict:
-        t_links = task_links_dict.get(volume_key) or task_links_dict.get(tac_pham_key) or {}
+        t_links = task_links_dict.get(tac_pham_key) or {}
 
     mikan_url = t_links.get('mikan', '').strip()
     notion_url = t_links.get('notion', '').strip()
@@ -481,7 +481,7 @@ def render_checklist_html(tac_pham_key, index, lang, api_url, checked_ids=None, 
         has_url = bool(url)
         href_val = url if has_url else "javascript:void(0)"
         target_val = 'target="_blank" rel="noopener noreferrer"' if has_url else ''
-        onclick_val = '' if has_url else f"openEditTaskLinksModal('{volume_key}', '{tool_key}'); return false;"
+        onclick_val = '' if has_url else f"openEditTaskLinksModal('{tac_pham_key}', '{tool_key}'); return false;"
         badge_text = ("Mở link ↗" if lang == 'vi' else "開く ↗") if has_url else ("+ Thêm link" if lang == 'vi' else "+ リンク追加")
         status_cls = "has-url" if has_url else "empty"
         
@@ -492,15 +492,15 @@ def render_checklist_html(tac_pham_key, index, lang, api_url, checked_ids=None, 
                 <span class="task-link-name">{name}</span>
                 <span class="task-link-status">{badge_text}</span>
             </div>
-            <span class="task-link-edit-btn" onclick="event.preventDefault(); event.stopPropagation(); openEditTaskLinksModal('{volume_key}', '{tool_key}')" title="{ 'Sửa link' if lang == 'vi' else 'リンク編集' }"><i class="fas fa-pen"></i></span>
+            <span class="task-link-edit-btn" onclick="event.preventDefault(); event.stopPropagation(); openEditTaskLinksModal('{tac_pham_key}', '{tool_key}')" title="{ 'Sửa link' if lang == 'vi' else 'リンク編集' }"><i class="fas fa-pen"></i></span>
         </a>
         '''
 
     links_html = f'''
-    <div class="task-links-box" id="task_links_{index}" data-tp-key="{volume_key}">
+    <div class="task-links-box" id="task_links_{index}" data-tp-key="{tac_pham_key}">
         <div class="task-links-header">
             <span class="task-links-title"><i class="fas fa-link" style="color: var(--primary); margin-right: 6px;"></i>{ "Liên kết làm việc:" if lang == "vi" else "作業リンク:" }</span>
-            <button type="button" class="btn-manage-links" onclick="openEditTaskLinksModal('{volume_key}')" title="{ 'Cài đặt liên kết' if lang == "vi" else 'リンク設定' }">
+            <button type="button" class="btn-manage-links" onclick="openEditTaskLinksModal('{tac_pham_key}')" title="{ 'Cài đặt liên kết' if lang == "vi" else 'リンク設定' }">
                 <i class="fas fa-cog"></i> { "Cài đặt link" if lang == "vi" else "設定" }
             </button>
         </div>
