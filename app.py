@@ -238,6 +238,33 @@ def save_supabase_task_comments(data):
         except Exception as e:
             print("Error uploading task comments to Supabase:", e)
 
+_task_links_cache = None
+task_links_lock = threading.Lock()
+
+def get_supabase_task_links():
+    global _task_links_cache
+    if _task_links_cache is not None:
+        return _task_links_cache
+    try:
+        data = sb_download_bytes('_system/task_links.json')
+        if data:
+            _task_links_cache = json.loads(data.decode('utf-8'))
+        else:
+            _task_links_cache = {}
+    except Exception:
+        _task_links_cache = {}
+    return _task_links_cache
+
+def save_supabase_task_links(data):
+    global _task_links_cache
+    with task_links_lock:
+        _task_links_cache = data
+        try:
+            json_bytes = json.dumps(data, ensure_ascii=False).encode('utf-8')
+            sb_upload('_system/task_links.json', json_bytes, content_type='application/json')
+        except Exception as e:
+            print("Error uploading task links to Supabase:", e)
+
 def load_checklist_data(api_url=None):
     data = get_supabase_checklists()
     rows = []
@@ -423,7 +450,7 @@ CHECKLIST_TEXT = {
 # =====================================================================
 # 7. JINJA2 HELPER FUNCTIONS (Render checklist & logtime inline)
 # =====================================================================
-def render_checklist_html(tac_pham_key, index, lang, api_url, checked_ids=None, row_data=None):
+def render_checklist_html(tac_pham_key, index, lang, api_url, checked_ids=None, row_data=None, task_links_dict=None):
     l = CHECKLIST_TEXT.get(lang, CHECKLIST_TEXT['vi'])
     if checked_ids is None:
         checked_ids = set()
@@ -439,6 +466,52 @@ def render_checklist_html(tac_pham_key, index, lang, api_url, checked_ids=None, 
     volume_key = (row_data and row_data.get('volume_key')) or (tac_pham_key.split(' - ')[1] if ' - ' in str(tac_pham_key) else str(tac_pham_key))
     partner_worker = (row_data and row_data.get('partner_worker')) or ''
     partner_cv = (row_data and row_data.get('partner_cv')) or ''
+
+    # Task Resource Links (Mikan, Notion, Asana, Dropbox)
+    t_links = {}
+    if task_links_dict:
+        t_links = task_links_dict.get(volume_key) or task_links_dict.get(tac_pham_key) or {}
+
+    mikan_url = t_links.get('mikan', '').strip()
+    notion_url = t_links.get('notion', '').strip()
+    asana_url = t_links.get('asana', '').strip()
+    dropbox_url = t_links.get('dropbox', '').strip()
+
+    def render_link_card(tool_key, name, icon_class, url):
+        has_url = bool(url)
+        href_val = url if has_url else "javascript:void(0)"
+        target_val = 'target="_blank" rel="noopener noreferrer"' if has_url else ''
+        onclick_val = '' if has_url else f"openEditTaskLinksModal('{volume_key}', '{tool_key}'); return false;"
+        badge_text = ("Mở link ↗" if lang == 'vi' else "開く ↗") if has_url else ("+ Thêm link" if lang == 'vi' else "+ リンク追加")
+        status_cls = "has-url" if has_url else "empty"
+        
+        return f'''
+        <a href="{href_val}" class="task-link-card {tool_key} {status_cls}" {target_val} onclick="{onclick_val}" data-tool="{tool_key}" data-url="{url}" title="{url if has_url else ('Chưa có link ' + name)}">
+            <div class="task-link-icon"><i class="{icon_class}"></i></div>
+            <div class="task-link-info">
+                <span class="task-link-name">{name}</span>
+                <span class="task-link-status">{badge_text}</span>
+            </div>
+            <span class="task-link-edit-btn" onclick="event.preventDefault(); event.stopPropagation(); openEditTaskLinksModal('{volume_key}', '{tool_key}')" title="{ 'Sửa link' if lang == 'vi' else 'リンク編集' }"><i class="fas fa-pen"></i></span>
+        </a>
+        '''
+
+    links_html = f'''
+    <div class="task-links-box" id="task_links_{index}" data-tp-key="{volume_key}">
+        <div class="task-links-header">
+            <span class="task-links-title"><i class="fas fa-link" style="color: var(--primary); margin-right: 6px;"></i>{ "Liên kết làm việc:" if lang == "vi" else "作業リンク:" }</span>
+            <button type="button" class="btn-manage-links" onclick="openEditTaskLinksModal('{volume_key}')" title="{ 'Cài đặt liên kết' if lang == "vi" else 'リンク設定' }">
+                <i class="fas fa-cog"></i> { "Cài đặt link" if lang == "vi" else "設定" }
+            </button>
+        </div>
+        <div class="task-links-grid">
+            {render_link_card('mikan', 'MIKAN', 'fas fa-tasks', mikan_url)}
+            {render_link_card('notion', 'NOTION', 'fas fa-book-open', notion_url)}
+            {render_link_card('asana', 'ASANA', 'fas fa-circle-notch', asana_url)}
+            {render_link_card('dropbox', 'DROPBOX', 'fab fa-dropbox', dropbox_url)}
+        </div>
+    </div>
+    '''
 
     if partner_worker:
         partner_info_text = f"Đồng đội: <strong>{partner_worker}</strong> ({partner_cv})" if partner_cv else f"Đồng đội: <strong>{partner_worker}</strong>"
@@ -482,7 +555,7 @@ def render_checklist_html(tac_pham_key, index, lang, api_url, checked_ids=None, 
         <div class="tracker-header">
             ⏱️ { "Theo dõi thời gian" if lang == "vi" else "タイムトラッカー" }
             <label style="float: right; font-size: 0.8rem; font-weight: normal; cursor: pointer; color: var(--text-2);">
-                 <input type="checkbox" id="manual_time_cb_{index}" onchange="toggleManualTime('{index}')"> { "Nhập tay" if lang == "vi" else "手動入力" }
+                 <input type="checkbox" id="manual_time_cb_{index}" onchange="toggleManualTime('{index}')"> { "Nhập tay" if lang == "vi" else "手 động入力" }
             </label>
         </div>
         
@@ -507,6 +580,7 @@ def render_checklist_html(tac_pham_key, index, lang, api_url, checked_ids=None, 
     </div>'''
 
     return f'''
+    {links_html}
     <div class="checklist-grid" data-tp-key="{tac_pham_key}">
         <div class="step-col">
             <div class="step-header">{l['step1']}</div>
@@ -618,9 +692,10 @@ def render_logtime_form_html(row, index, t, users, lang):
 # Register template helpers
 @app.context_processor
 def utility_processor():
-    def render_checklist(tp_key, idx, lang, api_url, checked_ids_dict=None, row_data=None):
+    def render_checklist(tp_key, idx, lang, api_url, checked_ids_dict=None, row_data=None, task_links_dict=None):
         ids = (checked_ids_dict or {}).get(tp_key, [])
-        return Markup(render_checklist_html(tp_key, idx, lang, api_url, ids, row_data=row_data))
+        links_db = task_links_dict if task_links_dict is not None else get_supabase_task_links()
+        return Markup(render_checklist_html(tp_key, idx, lang, api_url, ids, row_data=row_data, task_links_dict=links_db))
     def render_logtime_form(row, idx, t, users, lang):
         return Markup(render_logtime_form_html(row, idx, t, users, lang))
     return dict(render_checklist=render_checklist, render_logtime_form=render_logtime_form)
@@ -1177,11 +1252,55 @@ def api_task_comments_delete():
                 "tp_key": found_key,
                 "id": comment_id
             })
-            return jsonify({"status": "success"})
         else:
             return jsonify({"status": "error", "message": "Permission denied"}), 403
             
     return jsonify({"status": "success"})
+
+@app.route('/api/task_links', methods=['GET', 'POST'])
+def api_task_links():
+    if not session.get('logged_in'):
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+        
+    if request.method == 'GET':
+        tp_key = request.args.get('tp_key', '').strip()
+        links_db = get_supabase_task_links()
+        if tp_key:
+            return jsonify({"status": "success", "links": links_db.get(tp_key, {})})
+        return jsonify({"status": "success", "links_db": links_db})
+        
+    if request.method == 'POST':
+        data = request.get_json() or {}
+        tp_key = data.get('tp_key', '').strip()
+        raw_links = data.get('links', {})
+        if not tp_key:
+            return jsonify({"status": "error", "message": "Missing tp_key"}), 400
+            
+        def sanitize_url(u):
+            if not u: return ""
+            u = str(u).strip()
+            if u and not u.startswith(('http://', 'https://', 'javascript:')):
+                u = 'https://' + u
+            return u
+            
+        sanitized_links = {
+            "mikan": sanitize_url(raw_links.get('mikan', '')),
+            "notion": sanitize_url(raw_links.get('notion', '')),
+            "asana": sanitize_url(raw_links.get('asana', '')),
+            "dropbox": sanitize_url(raw_links.get('dropbox', ''))
+        }
+        
+        links_db = get_supabase_task_links()
+        links_db[tp_key] = sanitized_links
+        save_supabase_task_links(links_db)
+        
+        # Broadcast via SocketIO
+        socketio.emit('task_links_updated', {
+            "tp_key": tp_key,
+            "links": sanitized_links
+        })
+        
+        return jsonify({"status": "success", "links": sanitized_links})
 
 @app.route('/api/weather')
 def api_weather():

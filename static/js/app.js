@@ -972,6 +972,174 @@ function setupTaskCommentsSocket() {
             });
         }
     });
+
+    // Real-time synchronization of Task Resource Links across teammates
+    window.socket.on('task_links_updated', function(data) {
+        if (data && data.tp_key && data.links) {
+            updateTaskLinksUI(data.tp_key, data.links);
+        }
+    });
+}
+
+// =====================================================================
+// TASK RESOURCE LINKS (Mikan, Notion, Asana, Dropbox)
+// =====================================================================
+function openEditTaskLinksModal(tpKey, focusTool) {
+    if (!tpKey) return;
+    const modal = document.getElementById('edit-task-links-modal');
+    if (!modal) return;
+
+    document.getElementById('edit-task-links-key').value = tpKey;
+    const subTitleEl = document.getElementById('edit-task-links-subtitle');
+    if (subTitleEl) subTitleEl.textContent = tpKey;
+
+    const tools = ['mikan', 'notion', 'asana', 'dropbox'];
+    tools.forEach(tool => {
+        const input = document.getElementById(`link_input_${tool}`);
+        if (input) {
+            input.value = '';
+            const card = document.querySelector(`.task-links-box[data-tp-key="${tpKey}"] .task-link-card.${tool}`);
+            if (card && card.getAttribute('data-url')) {
+                input.value = card.getAttribute('data-url');
+            }
+        }
+    });
+
+    fetch(`/api/task_links?tp_key=${encodeURIComponent(tpKey)}`)
+        .then(r => r.json())
+        .then(data => {
+            if (data && data.status === 'success' && data.links) {
+                tools.forEach(tool => {
+                    const input = document.getElementById(`link_input_${tool}`);
+                    if (input && data.links[tool] !== undefined) {
+                        input.value = data.links[tool] || '';
+                    }
+                });
+            }
+        })
+        .catch(() => {});
+
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+
+    if (focusTool) {
+        setTimeout(() => {
+            const targetInput = document.getElementById(`link_input_${focusTool}`);
+            if (targetInput) {
+                targetInput.focus();
+                targetInput.select();
+            }
+        }, 120);
+    }
+}
+
+function closeEditTaskLinksModal() {
+    const modal = document.getElementById('edit-task-links-modal');
+    if (modal) {
+        modal.style.display = 'none';
+        document.body.style.overflow = '';
+    }
+}
+
+async function pasteClipboardToInput(inputId) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    try {
+        if (navigator.clipboard && navigator.clipboard.readText) {
+            const text = await navigator.clipboard.readText();
+            if (text) {
+                input.value = text.trim();
+                input.focus();
+                return;
+            }
+        }
+    } catch (err) {}
+    input.focus();
+    input.select();
+}
+
+async function submitSaveTaskLinks() {
+    const tpKey = document.getElementById('edit-task-links-key').value;
+    if (!tpKey) return;
+
+    const btn = document.getElementById('btn-save-task-links');
+    const oldText = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang lưu...';
+    }
+
+    const links = {
+        mikan: (document.getElementById('link_input_mikan')?.value || '').trim(),
+        notion: (document.getElementById('link_input_notion')?.value || '').trim(),
+        asana: (document.getElementById('link_input_asana')?.value || '').trim(),
+        dropbox: (document.getElementById('link_input_dropbox')?.value || '').trim()
+    };
+
+    try {
+        const res = await fetch('/api/task_links', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tp_key: tpKey, links: links })
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+            updateTaskLinksUI(tpKey, data.links || links);
+            closeEditTaskLinksModal();
+            showTaskToast('Hệ thống', tpKey, '✓ Đã cập nhật liên kết làm việc!', `link_${Date.now()}`);
+        } else {
+            alert('Lỗi lưu liên kết: ' + (data.message || 'Không xác định'));
+        }
+    } catch (e) {
+        alert('Lỗi lưu liên kết: ' + e.message);
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = oldText;
+        }
+    }
+}
+
+function updateTaskLinksUI(tpKey, links) {
+    if (!tpKey || !links) return;
+    const isVN = (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi');
+    const tools = ['mikan', 'notion', 'asana', 'dropbox'];
+
+    document.querySelectorAll(`.task-links-box`).forEach(box => {
+        const boxKey = box.getAttribute('data-tp-key');
+        if (boxKey === tpKey || (boxKey && tpKey && (boxKey.includes(tpKey) || tpKey.includes(boxKey)))) {
+            tools.forEach(tool => {
+                const card = box.querySelector(`.task-link-card.${tool}`);
+                if (card) {
+                    const url = (links[tool] || '').trim();
+                    const hasUrl = Boolean(url);
+                    
+                    card.setAttribute('data-url', url);
+                    if (hasUrl) {
+                        card.classList.remove('empty');
+                        card.classList.add('has-url');
+                        card.href = url;
+                        card.target = '_blank';
+                        card.rel = 'noopener noreferrer';
+                        card.onclick = null;
+                        card.title = url;
+                        const statusSpan = card.querySelector('.task-link-status');
+                        if (statusSpan) statusSpan.textContent = isVN ? 'Mở link ↗' : '開く ↗';
+                    } else {
+                        card.classList.remove('has-url');
+                        card.classList.add('empty');
+                        card.href = 'javascript:void(0)';
+                        card.target = '_self';
+                        card.removeAttribute('rel');
+                        card.onclick = function() { openEditTaskLinksModal(tpKey, tool); return false; };
+                        card.title = isVN ? `Chưa có link ${tool.toUpperCase()}` : `リンクなし`;
+                        const statusSpan = card.querySelector('.task-link-status');
+                        if (statusSpan) statusSpan.textContent = isVN ? '+ Thêm link' : '+ リンク追加';
+                    }
+                }
+            });
+        }
+    });
 }
 
 // ===================== MODAL =====================
