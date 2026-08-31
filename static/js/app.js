@@ -492,18 +492,192 @@ async function deleteTaskComment(commentId, tpKey, btnEl) {
     }
 }
 
+// ==================== NOTIFICATION CENTER (TOP RIGHT ALARM) ====================
+const NOTIF_STORAGE_KEY = 'vn_tracking_notifications_v1';
+
+function getStoredNotifications() {
+    try {
+        const data = localStorage.getItem(NOTIF_STORAGE_KEY);
+        return data ? JSON.parse(data) : [];
+    } catch (e) {
+        return [];
+    }
+}
+
+function saveStoredNotifications(list) {
+    try {
+        localStorage.setItem(NOTIF_STORAGE_KEY, JSON.stringify(list.slice(0, 50)));
+    } catch (e) {}
+    renderNotificationCenter();
+}
+
+function addNotification(item) {
+    const list = getStoredNotifications();
+    const now = new Date();
+    const notif = {
+        id: item.id || `notif_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+        type: item.type || 'comment',
+        user: item.user || 'Hệ thống',
+        tpKey: item.tpKey || '',
+        message: item.message || '',
+        time: item.time || `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')} ${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}`,
+        timestamp: Date.now(),
+        isRead: false
+    };
+
+    // Avoid exact duplicate within 3 seconds
+    const isDup = list.some(n => n.message === notif.message && n.tpKey === notif.tpKey && (Date.now() - n.timestamp < 3000));
+    if (!isDup) {
+        list.unshift(notif);
+        saveStoredNotifications(list);
+
+        // Animate bell
+        const bellBtn = document.getElementById('notification-bell-btn');
+        if (bellBtn) {
+            bellBtn.classList.remove('ringing');
+            void bellBtn.offsetWidth;
+            bellBtn.classList.add('ringing');
+            setTimeout(() => bellBtn.classList.remove('ringing'), 1000);
+        }
+    }
+}
+
+function renderNotificationCenter() {
+    const list = getStoredNotifications();
+    const unreadCount = list.filter(n => !n.isRead).length;
+
+    // Update bell badge
+    const badge = document.getElementById('notification-unread-badge');
+    const bellBtn = document.getElementById('notification-bell-btn');
+    if (badge) {
+        if (unreadCount > 0) {
+            badge.style.display = 'flex';
+            badge.textContent = unreadCount > 99 ? '99+' : unreadCount;
+        } else {
+            badge.style.display = 'none';
+        }
+    }
+    if (bellBtn) {
+        bellBtn.classList.toggle('has-unread', unreadCount > 0);
+    }
+
+    // Update summary count
+    const summaryCount = document.getElementById('notification-summary-count');
+    if (summaryCount) {
+        const isVN = (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi');
+        summaryCount.textContent = `${list.length} ${isVN ? 'thông báo' : '件'}`;
+    }
+
+    // Render items list
+    const container = document.getElementById('notification-items-list');
+    if (!container) return;
+
+    if (list.length === 0) {
+        const isVN = (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi');
+        container.innerHTML = `
+            <div class="notification-empty-state">
+                <i class="far fa-bell-slash" style="font-size: 24px; color: var(--text-4); margin-bottom: 8px;"></i>
+                <span>${isVN ? 'Không có thông báo nào' : '通知はありません'}</span>
+            </div>
+        `;
+        return;
+    }
+
+    let html = '';
+    list.forEach(n => {
+        const avatar = getAvatarForUser(n.user);
+        const initial = (n.user || 'U').charAt(0).toUpperCase();
+        const avatarHtml = avatar 
+            ? `<img src="${avatar}" class="notif-avatar" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><div class="notif-avatar-fallback" style="display:none;">${initial}</div>`
+            : `<div class="notif-avatar-fallback">${initial}</div>`;
+        
+        const shortTp = n.tpKey.includes(' - ') ? n.tpKey.split(' - ')[1] : n.tpKey;
+
+        html += `
+            <div class="notification-item ${n.isRead ? '' : 'unread'}" id="notif_item_${n.id}" onclick="handleNotificationClick('${n.id}', '${(n.tpKey || '').replace(/'/g, "\\'")}')">
+                ${avatarHtml}
+                <div class="notif-body">
+                    <div class="notif-header-row">
+                        <span class="notif-user-name">${n.user}</span>
+                        <span class="notif-time">${n.time}</span>
+                    </div>
+                    ${shortTp ? `<div class="notif-task-title">📖 ${shortTp}</div>` : ''}
+                    <div class="notif-message-text">${n.message}</div>
+                </div>
+                <button type="button" class="btn-notif-dismiss" onclick="event.stopPropagation(); dismissNotification('${n.id}')" title="Bỏ qua">&times;</button>
+            </div>
+        `;
+    });
+    container.innerHTML = html;
+}
+
+function toggleNotificationPanel(event) {
+    if (event) event.stopPropagation();
+    const panel = document.getElementById('notification-dropdown-panel');
+    if (!panel) return;
+    const isOpen = panel.style.display !== 'none';
+    if (isOpen) {
+        panel.style.display = 'none';
+    } else {
+        renderNotificationCenter();
+        panel.style.display = 'flex';
+
+        const closeHandler = function(e) {
+            if (!panel.contains(e.target) && e.target !== document.getElementById('notification-bell-btn')) {
+                panel.style.display = 'none';
+                document.removeEventListener('click', closeHandler);
+            }
+        };
+        setTimeout(() => document.addEventListener('click', closeHandler), 10);
+    }
+}
+
+function handleNotificationClick(notifId, tpKey) {
+    const list = getStoredNotifications();
+    const item = list.find(n => n.id === notifId);
+    if (item) {
+        item.isRead = true;
+        saveStoredNotifications(list);
+    }
+
+    const panel = document.getElementById('notification-dropdown-panel');
+    if (panel) panel.style.display = 'none';
+
+    if (tpKey) {
+        const activeTab = sessionStorage.getItem('activeTab') || 'nay';
+        openModal(activeTab, tpKey);
+    }
+}
+
+function dismissNotification(notifId) {
+    const list = getStoredNotifications().filter(n => n.id !== notifId);
+    saveStoredNotifications(list);
+}
+
+function markAllNotificationsRead() {
+    const list = getStoredNotifications().map(n => ({ ...n, isRead: true }));
+    saveStoredNotifications(list);
+}
+
+function clearAllNotifications() {
+    saveStoredNotifications([]);
+}
+
 function showTaskToast(user, tpKey, message) {
+    // Add to Notification Center
+    addNotification({ user, tpKey, message });
+
     let container = document.getElementById('task-toast-container');
     if (!container) {
         container = document.createElement('div');
         container.id = 'task-toast-container';
-        container.style.cssText = 'position: fixed; bottom: 24px; right: 24px; z-index: 999999; display: flex; flex-direction: column; gap: 10px; max-width: 360px; pointer-events: none;';
+        container.style.cssText = 'position: fixed; top: 24px; right: 24px; z-index: 999999; display: flex; flex-direction: column; gap: 10px; max-width: 360px; pointer-events: none;';
         document.body.appendChild(container);
     }
 
     const toast = document.createElement('div');
     toast.className = 'task-handover-toast';
-    toast.style.cssText = 'pointer-events: auto; background: rgba(17, 24, 39, 0.95); border: 1px solid rgba(129, 140, 248, 0.35); backdrop-filter: blur(12px); border-radius: 10px; padding: 10px 14px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); display: flex; gap: 10px; align-items: flex-start; color: #fff; animation: toastSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1); transition: all 0.3s ease;';
+    toast.style.cssText = 'pointer-events: auto; background: rgba(17, 24, 39, 0.96); border: 1px solid rgba(129, 140, 248, 0.4); backdrop-filter: blur(12px); border-radius: 10px; padding: 10px 14px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); display: flex; gap: 10px; align-items: flex-start; color: #fff; animation: toastSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1); transition: all 0.3s ease; cursor: pointer;';
     
     const avatar = getAvatarForUser(user);
     const initial = (user || 'U').charAt(0).toUpperCase();
@@ -511,7 +685,13 @@ function showTaskToast(user, tpKey, message) {
         ? `<img src="${avatar}" style="width:32px; height:32px; border-radius:50%; object-fit:cover; border:1.5px solid #818cf8;">`
         : `<div style="width:32px; height:32px; border-radius:50%; background:#4f46e5; display:flex; align-items:center; justify-content:center; font-weight:bold; color:#fff; font-size:12px;">${initial}</div>`;
 
-    const shortTp = tpKey.split(' - ')[1] || tpKey;
+    const shortTp = tpKey.includes(' - ') ? tpKey.split(' - ')[1] : tpKey;
+
+    toast.onclick = function() {
+        const activeTab = sessionStorage.getItem('activeTab') || 'nay';
+        openModal(activeTab, tpKey);
+        toast.remove();
+    };
 
     toast.innerHTML = `
         <div style="flex-shrink: 0;">${avatarHtml}</div>
@@ -523,16 +703,16 @@ function showTaskToast(user, tpKey, message) {
             <div style="font-size: 0.72rem; color: #fbbf24; font-weight: 600; margin-bottom: 3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">📖 ${shortTp}</div>
             <div style="font-size: 0.82rem; color: var(--text); line-height: 1.3;">${message}</div>
         </div>
-        <button onclick="this.parentElement.remove()" style="background:none; border:none; color:var(--text-4); cursor:pointer; font-size:16px; padding:0; line-height:1;">&times;</button>
+        <button onclick="event.stopPropagation(); this.parentElement.remove()" style="background:none; border:none; color:var(--text-4); cursor:pointer; font-size:16px; padding:0; line-height:1;">&times;</button>
     `;
 
     container.appendChild(toast);
 
     setTimeout(() => {
         toast.style.opacity = '0';
-        toast.style.transform = 'translateX(20px)';
+        toast.style.transform = 'translateY(-15px)';
         setTimeout(() => toast.remove(), 300);
-    }, 5000);
+    }, 4500);
 }
 
 function setupTaskCommentsSocket() {
@@ -5416,4 +5596,18 @@ window.toggleExternalStart = function(tpKey, element) {
         updateTaskProgressLocally(tpKey, modalCb.closest('.checklist-grid').parentElement);
     }
 };
+
+// Initialize Notification Center and Task Sockets on load
+if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+            renderNotificationCenter();
+            setTimeout(setupTaskCommentsSocket, 500);
+        });
+    } else {
+        renderNotificationCenter();
+        setTimeout(setupTaskCommentsSocket, 500);
+    }
+}
+
 
