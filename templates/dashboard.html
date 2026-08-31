@@ -222,7 +222,7 @@
             style="border-radius: var(--radius-sm); margin-right: 8px;">
         <div style="display: flex; flex-direction: column; justify-content: center;">
             <span>VN-Tracking</span>
-            <sup style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.3.72</i></sup>
+            <sup style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.3.73</i></sup>
         </div>
     </div>
 
@@ -1364,6 +1364,12 @@
 
                                 {% if card.is_coop and card.partner_worker %}
                                 {% set p_worker = card.partner_worker.strip() %}
+                                {% set is_retouch = ('レタッチ' in card.partner_cv or 'Retouch' in card.partner_cv or 'ﾚﾀｯﾁ' in card.partner_cv) %}
+                                {% set is_lettering = ('写植' in card.partner_cv or 'Lettering' in card.partner_cv) %}
+                                {% set partner_color = '#60a5fa' if is_retouch else ('#4ade80' if is_lettering else '#c084fc') %}
+                                {% set partner_bg = 'rgba(59, 130, 246, 0.08)' if is_retouch else ('rgba(16, 185, 129, 0.08)' if is_lettering else 'rgba(168, 85, 247, 0.08)') %}
+                                {% set partner_border = 'rgba(59, 130, 246, 0.25)' if is_retouch else ('rgba(16, 185, 129, 0.25)' if is_lettering else 'rgba(168, 85, 247, 0.25)') %}
+                                {% set partner_avatar_bg = '#2563eb' if is_retouch else ('#059669' if is_lettering else '#6366f1') %}
                                 {% set ns_p = namespace(found_avatar=none) %}
                                 {% if user_profiles %}
                                 {% for k, v in user_profiles.items() %}
@@ -1372,11 +1378,11 @@
                                 {% endif %}
                                 {% endfor %}
                                 {% endif %}
-                                <div class="card-partner-box" style="margin-top: 6px; padding: 4px 8px; background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(168, 85, 247, 0.25); border-radius: 6px; display: flex; align-items: center; justify-content: space-between; font-size: 0.73rem;">
+                                <div class="card-partner-box" style="margin-top: 6px; padding: 4px 8px; background: {{ partner_bg }}; border: 1px solid {{ partner_border }}; border-radius: 6px; display: flex; align-items: center; justify-content: space-between; font-size: 0.73rem;">
                                     <div style="display: flex; align-items: center; gap: 6px;">
-                                        <span style="color: #c084fc; font-weight: 600; font-size: 0.72rem;">{{ card.partner_cv }}:</span>
+                                        <span style="color: {{ partner_color }}; font-weight: 600; font-size: 0.72rem;">{{ card.partner_cv }}:</span>
                                         <div style="display: flex; align-items: center; gap: 5px;">
-                                            <span class="partner-mini-avatar" style="width: 18px; height: 18px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; background: #6366f1; color: #fff; font-size: 0.58rem; font-weight: 700; flex-shrink: 0; border: 1px solid rgba(255,255,255,0.2);">
+                                            <span class="partner-mini-avatar" style="width: 18px; height: 18px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; background: {{ partner_avatar_bg }}; color: #fff; font-size: 0.58rem; font-weight: 700; flex-shrink: 0; border: 1px solid rgba(255,255,255,0.2);">
                                                 {% if ns_p.found_avatar %}
                                                 <img src="{{ ns_p.found_avatar }}" alt="{{ p_worker }}" style="width: 100%; height: 100%; object-fit: cover;" referrerpolicy="no-referrer" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
                                                 <span style="display: none; width: 100%; height: 100%; align-items: center; justify-content: center;">{{ p_worker[0]|upper }}</span>
@@ -1481,6 +1487,12 @@
 
                             {% if card.is_coop and card.partner_worker %}
                             {% set p_worker = card.partner_worker.strip() %}
+                            {% set is_retouch = ('レタッチ' in card.partner_cv or 'Retouch' in card.partner_cv or 'ﾚﾀｯﾁ' in card.partner_cv) %}
+                            {% set is_lettering = ('写植' in card.partner_cv or 'Lettering' in card.partner_cv) %}
+                            {% set partner_color = '#60a5fa' if is_retouch else ('#4ade80' if is_lettering else '#c084fc') %}
+                            {% set partner_bg = 'rgba(59, 130, 246, 0.08)' if is_retouch else ('rgba(16, 185, 129, 0.08)' if is_lettering else 'rgba(168, 85, 247, 0.08)') %}
+                            {% set partner_border = 'rgba(59, 130, 246, 0.25)' if is_retouch else ('rgba(16, 185, 129, 0.25)' if is_lettering else 'rgba(168, 85, 247, 0.25)') %}
+                            {% set partner_avatar_bg = '#2563eb' if is_retouch else ('#059669' if is_lettering else '#6366f1') %}
                             {% set ns_p = namespace(found_avatar=none) %}
                             {% if user_profiles %}
                             {% for k, v in user_profiles.items() %}
@@ -1489,11 +1501,11 @@
                             {% endif %}
                             {% endfor %}
                             {% endif %}
-                            <div class="card-partner-box" style="margin-top: 6px; padding: 4px 8px; background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(168, 85, 247, 0.25); border-radius: 6px; display: flex; align-items: center; justify-content: space-between; font-size: 0.73rem;">
+                            <div class="card-partner-box" style="margin-top: 6px; padding: 4px 8px; background: {{ partner_bg }}; border: 1px solid {{ partner_border }}; border-radius: 6px; display: flex; align-items: center; justify-content: space-between; font-size: 0.73rem;">
                                 <div style="display: flex; align-items: center; gap: 6px;">
-                                    <span style="color: #c084fc; font-weight: 600; font-size: 0.72rem;">{{ card.partner_cv }}:</span>
+                                    <span style="color: {{ partner_color }}; font-weight: 600; font-size: 0.72rem;">{{ card.partner_cv }}:</span>
                                     <div style="display: flex; align-items: center; gap: 5px;">
-                                        <span class="partner-mini-avatar" style="width: 18px; height: 18px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; background: #6366f1; color: #fff; font-size: 0.58rem; font-weight: 700; flex-shrink: 0; border: 1px solid rgba(255,255,255,0.2);">
+                                        <span class="partner-mini-avatar" style="width: 18px; height: 18px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; background: {{ partner_avatar_bg }}; color: #fff; font-size: 0.58rem; font-weight: 700; flex-shrink: 0; border: 1px solid rgba(255,255,255,0.2);">
                                             {% if ns_p.found_avatar %}
                                             <img src="{{ ns_p.found_avatar }}" alt="{{ p_worker }}" style="width: 100%; height: 100%; object-fit: cover;" referrerpolicy="no-referrer" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
                                             <span style="display: none; width: 100%; height: 100%; align-items: center; justify-content: center;">{{ p_worker[0]|upper }}</span>
@@ -1674,6 +1686,12 @@
 
                                 {% if card.is_coop and card.partner_worker %}
                                 {% set p_worker = card.partner_worker.strip() %}
+                                {% set is_retouch = ('レタッチ' in card.partner_cv or 'Retouch' in card.partner_cv or 'ﾚﾀｯﾁ' in card.partner_cv) %}
+                                {% set is_lettering = ('写植' in card.partner_cv or 'Lettering' in card.partner_cv) %}
+                                {% set partner_color = '#60a5fa' if is_retouch else ('#4ade80' if is_lettering else '#c084fc') %}
+                                {% set partner_bg = 'rgba(59, 130, 246, 0.08)' if is_retouch else ('rgba(16, 185, 129, 0.08)' if is_lettering else 'rgba(168, 85, 247, 0.08)') %}
+                                {% set partner_border = 'rgba(59, 130, 246, 0.25)' if is_retouch else ('rgba(16, 185, 129, 0.25)' if is_lettering else 'rgba(168, 85, 247, 0.25)') %}
+                                {% set partner_avatar_bg = '#2563eb' if is_retouch else ('#059669' if is_lettering else '#6366f1') %}
                                 {% set ns_p = namespace(found_avatar=none) %}
                                 {% if user_profiles %}
                                 {% for k, v in user_profiles.items() %}
@@ -1682,11 +1700,11 @@
                                 {% endif %}
                                 {% endfor %}
                                 {% endif %}
-                                <div class="card-partner-box" style="margin-top: 6px; padding: 4px 8px; background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(168, 85, 247, 0.25); border-radius: 6px; display: flex; align-items: center; justify-content: space-between; font-size: 0.73rem;">
+                                <div class="card-partner-box" style="margin-top: 6px; padding: 4px 8px; background: {{ partner_bg }}; border: 1px solid {{ partner_border }}; border-radius: 6px; display: flex; align-items: center; justify-content: space-between; font-size: 0.73rem;">
                                     <div style="display: flex; align-items: center; gap: 6px;">
-                                        <span style="color: #c084fc; font-weight: 600; font-size: 0.72rem;">{{ card.partner_cv }}:</span>
+                                        <span style="color: {{ partner_color }}; font-weight: 600; font-size: 0.72rem;">{{ card.partner_cv }}:</span>
                                         <div style="display: flex; align-items: center; gap: 5px;">
-                                            <span class="partner-mini-avatar" style="width: 18px; height: 18px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; background: #6366f1; color: #fff; font-size: 0.58rem; font-weight: 700; flex-shrink: 0; border: 1px solid rgba(255,255,255,0.2);">
+                                            <span class="partner-mini-avatar" style="width: 18px; height: 18px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; background: {{ partner_avatar_bg }}; color: #fff; font-size: 0.58rem; font-weight: 700; flex-shrink: 0; border: 1px solid rgba(255,255,255,0.2);">
                                                 {% if ns_p.found_avatar %}
                                                 <img src="{{ ns_p.found_avatar }}" alt="{{ p_worker }}" style="width: 100%; height: 100%; object-fit: cover;" referrerpolicy="no-referrer" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
                                                 <span style="display: none; width: 100%; height: 100%; align-items: center; justify-content: center;">{{ p_worker[0]|upper }}</span>
@@ -1791,6 +1809,12 @@
 
                             {% if card.is_coop and card.partner_worker %}
                             {% set p_worker = card.partner_worker.strip() %}
+                            {% set is_retouch = ('レタッチ' in card.partner_cv or 'Retouch' in card.partner_cv or 'ﾚﾀｯﾁ' in card.partner_cv) %}
+                            {% set is_lettering = ('写植' in card.partner_cv or 'Lettering' in card.partner_cv) %}
+                            {% set partner_color = '#60a5fa' if is_retouch else ('#4ade80' if is_lettering else '#c084fc') %}
+                            {% set partner_bg = 'rgba(59, 130, 246, 0.08)' if is_retouch else ('rgba(16, 185, 129, 0.08)' if is_lettering else 'rgba(168, 85, 247, 0.08)') %}
+                            {% set partner_border = 'rgba(59, 130, 246, 0.25)' if is_retouch else ('rgba(16, 185, 129, 0.25)' if is_lettering else 'rgba(168, 85, 247, 0.25)') %}
+                            {% set partner_avatar_bg = '#2563eb' if is_retouch else ('#059669' if is_lettering else '#6366f1') %}
                             {% set ns_p = namespace(found_avatar=none) %}
                             {% if user_profiles %}
                             {% for k, v in user_profiles.items() %}
@@ -1799,11 +1823,11 @@
                             {% endif %}
                             {% endfor %}
                             {% endif %}
-                            <div class="card-partner-box" style="margin-top: 6px; padding: 4px 8px; background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(168, 85, 247, 0.25); border-radius: 6px; display: flex; align-items: center; justify-content: space-between; font-size: 0.73rem;">
+                            <div class="card-partner-box" style="margin-top: 6px; padding: 4px 8px; background: {{ partner_bg }}; border: 1px solid {{ partner_border }}; border-radius: 6px; display: flex; align-items: center; justify-content: space-between; font-size: 0.73rem;">
                                 <div style="display: flex; align-items: center; gap: 6px;">
-                                    <span style="color: #c084fc; font-weight: 600; font-size: 0.72rem;">{{ card.partner_cv }}:</span>
+                                    <span style="color: {{ partner_color }}; font-weight: 600; font-size: 0.72rem;">{{ card.partner_cv }}:</span>
                                     <div style="display: flex; align-items: center; gap: 5px;">
-                                        <span class="partner-mini-avatar" style="width: 18px; height: 18px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; background: #6366f1; color: #fff; font-size: 0.58rem; font-weight: 700; flex-shrink: 0; border: 1px solid rgba(255,255,255,0.2);">
+                                        <span class="partner-mini-avatar" style="width: 18px; height: 18px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; background: {{ partner_avatar_bg }}; color: #fff; font-size: 0.58rem; font-weight: 700; flex-shrink: 0; border: 1px solid rgba(255,255,255,0.2);">
                                             {% if ns_p.found_avatar %}
                                             <img src="{{ ns_p.found_avatar }}" alt="{{ p_worker }}" style="width: 100%; height: 100%; object-fit: cover;" referrerpolicy="no-referrer" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
                                             <span style="display: none; width: 100%; height: 100%; align-items: center; justify-content: center;">{{ p_worker[0]|upper }}</span>
@@ -1984,6 +2008,12 @@
 
                                 {% if card.is_coop and card.partner_worker %}
                                 {% set p_worker = card.partner_worker.strip() %}
+                                {% set is_retouch = ('レタッチ' in card.partner_cv or 'Retouch' in card.partner_cv or 'ﾚﾀｯﾁ' in card.partner_cv) %}
+                                {% set is_lettering = ('写植' in card.partner_cv or 'Lettering' in card.partner_cv) %}
+                                {% set partner_color = '#60a5fa' if is_retouch else ('#4ade80' if is_lettering else '#c084fc') %}
+                                {% set partner_bg = 'rgba(59, 130, 246, 0.08)' if is_retouch else ('rgba(16, 185, 129, 0.08)' if is_lettering else 'rgba(168, 85, 247, 0.08)') %}
+                                {% set partner_border = 'rgba(59, 130, 246, 0.25)' if is_retouch else ('rgba(16, 185, 129, 0.25)' if is_lettering else 'rgba(168, 85, 247, 0.25)') %}
+                                {% set partner_avatar_bg = '#2563eb' if is_retouch else ('#059669' if is_lettering else '#6366f1') %}
                                 {% set ns_p = namespace(found_avatar=none) %}
                                 {% if user_profiles %}
                                 {% for k, v in user_profiles.items() %}
@@ -1992,11 +2022,11 @@
                                 {% endif %}
                                 {% endfor %}
                                 {% endif %}
-                                <div class="card-partner-box" style="margin-top: 6px; padding: 4px 8px; background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(168, 85, 247, 0.25); border-radius: 6px; display: flex; align-items: center; justify-content: space-between; font-size: 0.73rem;">
+                                <div class="card-partner-box" style="margin-top: 6px; padding: 4px 8px; background: {{ partner_bg }}; border: 1px solid {{ partner_border }}; border-radius: 6px; display: flex; align-items: center; justify-content: space-between; font-size: 0.73rem;">
                                     <div style="display: flex; align-items: center; gap: 6px;">
-                                        <span style="color: #c084fc; font-weight: 600; font-size: 0.72rem;">{{ card.partner_cv }}:</span>
+                                        <span style="color: {{ partner_color }}; font-weight: 600; font-size: 0.72rem;">{{ card.partner_cv }}:</span>
                                         <div style="display: flex; align-items: center; gap: 5px;">
-                                            <span class="partner-mini-avatar" style="width: 18px; height: 18px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; background: #6366f1; color: #fff; font-size: 0.58rem; font-weight: 700; flex-shrink: 0; border: 1px solid rgba(255,255,255,0.2);">
+                                            <span class="partner-mini-avatar" style="width: 18px; height: 18px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; background: {{ partner_avatar_bg }}; color: #fff; font-size: 0.58rem; font-weight: 700; flex-shrink: 0; border: 1px solid rgba(255,255,255,0.2);">
                                                 {% if ns_p.found_avatar %}
                                                 <img src="{{ ns_p.found_avatar }}" alt="{{ p_worker }}" style="width: 100%; height: 100%; object-fit: cover;" referrerpolicy="no-referrer" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
                                                 <span style="display: none; width: 100%; height: 100%; align-items: center; justify-content: center;">{{ p_worker[0]|upper }}</span>
@@ -2101,6 +2131,12 @@
 
                             {% if card.is_coop and card.partner_worker %}
                             {% set p_worker = card.partner_worker.strip() %}
+                            {% set is_retouch = ('レタッチ' in card.partner_cv or 'Retouch' in card.partner_cv or 'ﾚﾀｯﾁ' in card.partner_cv) %}
+                            {% set is_lettering = ('写植' in card.partner_cv or 'Lettering' in card.partner_cv) %}
+                            {% set partner_color = '#60a5fa' if is_retouch else ('#4ade80' if is_lettering else '#c084fc') %}
+                            {% set partner_bg = 'rgba(59, 130, 246, 0.08)' if is_retouch else ('rgba(16, 185, 129, 0.08)' if is_lettering else 'rgba(168, 85, 247, 0.08)') %}
+                            {% set partner_border = 'rgba(59, 130, 246, 0.25)' if is_retouch else ('rgba(16, 185, 129, 0.25)' if is_lettering else 'rgba(168, 85, 247, 0.25)') %}
+                            {% set partner_avatar_bg = '#2563eb' if is_retouch else ('#059669' if is_lettering else '#6366f1') %}
                             {% set ns_p = namespace(found_avatar=none) %}
                             {% if user_profiles %}
                             {% for k, v in user_profiles.items() %}
@@ -2109,11 +2145,11 @@
                             {% endif %}
                             {% endfor %}
                             {% endif %}
-                            <div class="card-partner-box" style="margin-top: 6px; padding: 4px 8px; background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(168, 85, 247, 0.25); border-radius: 6px; display: flex; align-items: center; justify-content: space-between; font-size: 0.73rem;">
+                            <div class="card-partner-box" style="margin-top: 6px; padding: 4px 8px; background: {{ partner_bg }}; border: 1px solid {{ partner_border }}; border-radius: 6px; display: flex; align-items: center; justify-content: space-between; font-size: 0.73rem;">
                                 <div style="display: flex; align-items: center; gap: 6px;">
-                                    <span style="color: #c084fc; font-weight: 600; font-size: 0.72rem;">{{ card.partner_cv }}:</span>
+                                    <span style="color: {{ partner_color }}; font-weight: 600; font-size: 0.72rem;">{{ card.partner_cv }}:</span>
                                     <div style="display: flex; align-items: center; gap: 5px;">
-                                        <span class="partner-mini-avatar" style="width: 18px; height: 18px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; background: #6366f1; color: #fff; font-size: 0.58rem; font-weight: 700; flex-shrink: 0; border: 1px solid rgba(255,255,255,0.2);">
+                                        <span class="partner-mini-avatar" style="width: 18px; height: 18px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; background: {{ partner_avatar_bg }}; color: #fff; font-size: 0.58rem; font-weight: 700; flex-shrink: 0; border: 1px solid rgba(255,255,255,0.2);">
                                             {% if ns_p.found_avatar %}
                                             <img src="{{ ns_p.found_avatar }}" alt="{{ p_worker }}" style="width: 100%; height: 100%; object-fit: cover;" referrerpolicy="no-referrer" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
                                             <span style="display: none; width: 100%; height: 100%; align-items: center; justify-content: center;">{{ p_worker[0]|upper }}</span>
