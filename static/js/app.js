@@ -379,7 +379,7 @@ function createCommentItemHtml(c, tpKey) {
         : `<div class="comment-avatar-fallback">${initial}</div>`;
 
     return `
-        <div class="handover-comment-item" id="comment_${c.id || Date.now()}">
+        <div class="handover-comment-item" id="comment_${c.id || Date.now()}" data-comment-id="${c.id || ''}">
             <div class="comment-avatar">${avatarHtml}</div>
             <div class="comment-content">
                 <div class="comment-meta">
@@ -395,7 +395,8 @@ function createCommentItemHtml(c, tpKey) {
 }
 
 async function loadTaskComments(index, tpKey) {
-    const list = document.getElementById(`comments_list_${index}`);
+    const box = document.getElementById(`handover_${index}`) || document.querySelector(`.task-handover-box[data-tp-key="${tpKey}"]`);
+    const list = box ? box.querySelector('.handover-comments-list') : document.getElementById(`comments_list_${index}`);
     if (!list) return;
     try {
         const res = await fetch(`/api/task_comments?tp_key=${encodeURIComponent(tpKey)}`);
@@ -417,12 +418,13 @@ async function loadTaskComments(index, tpKey) {
 
 async function sendTaskComment(index, tpKey, messageOverride = null, tag = 'chat') {
     if (isSendingTaskComment) return;
-    const input = document.getElementById(`handover_input_${index}`);
+    const box = document.getElementById(`handover_${index}`) || document.querySelector(`.task-handover-box[data-tp-key="${tpKey}"]`);
+    const input = box ? box.querySelector('.handover-input') : document.getElementById(`handover_input_${index}`);
     const message = messageOverride ? messageOverride.trim() : (input ? input.value.trim() : '');
     if (!message) return;
 
     isSendingTaskComment = true;
-    const sendBtn = document.getElementById(`btn_send_comment_${index}`);
+    const sendBtn = box ? box.querySelector('.btn-handover-send') : document.getElementById(`btn_send_comment_${index}`);
     if (sendBtn) { sendBtn.disabled = true; sendBtn.style.opacity = '0.5'; }
     if (input && !messageOverride) { input.value = ''; }
 
@@ -438,15 +440,23 @@ async function sendTaskComment(index, tpKey, messageOverride = null, tag = 'chat
         });
         const data = await res.json();
         if (data.status === 'success' && data.comment) {
-            const list = document.getElementById(`comments_list_${index}`);
-            if (list) {
-                const empty = list.querySelector('.handover-empty');
-                if (empty) empty.remove();
-                if (!document.getElementById(`comment_${data.comment.id}`)) {
-                    list.insertAdjacentHTML('beforeend', createCommentItemHtml(data.comment, tpKey));
-                    list.scrollTop = list.scrollHeight;
+            // Append to ALL handover boxes in DOM matching this task/index immediately
+            document.querySelectorAll('.task-handover-box').forEach(hBox => {
+                const boxKey = hBox.getAttribute('data-tp-key');
+                if (boxKey === tpKey || (boxKey && tpKey && (boxKey.includes(tpKey) || tpKey.includes(boxKey))) || hBox.id === `handover_${index}`) {
+                    const list = hBox.querySelector('.handover-comments-list');
+                    if (list) {
+                        const empty = list.querySelector('.handover-empty');
+                        if (empty) empty.remove();
+                        if (!list.querySelector(`[data-comment-id="${data.comment.id}"]`) && !list.querySelector(`[id="comment_${data.comment.id}"]`)) {
+                            list.insertAdjacentHTML('beforeend', createCommentItemHtml(data.comment, tpKey));
+                            list.scrollTop = list.scrollHeight;
+                        }
+                    }
                 }
-            }
+            });
+        } else {
+            showToast(data.message || 'Lỗi gửi tin nhắn', 'error');
         }
     } catch (e) {
         console.error('Error sending task comment:', e);
@@ -463,25 +473,25 @@ function sendQuickHandover(index, tpKey, text, tag = 'handover') {
 async function deleteTaskComment(commentId, tpKey, btnEl) {
     if (!commentId || !tpKey) return;
     const isVN = (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi');
-    const el = document.getElementById(`comment_${commentId}`);
-    if (!el || el.dataset.deleting === 'true') return;
 
-    // Instant 1-touch optimistic UI update
-    el.dataset.deleting = 'true';
-    el.style.transition = 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)';
-    el.style.opacity = '0';
-    el.style.transform = 'scale(0.9) translateY(-6px)';
-    el.style.pointerEvents = 'none';
+    // Instant 1-touch optimistic UI update across all matching boxes
+    document.querySelectorAll(`[id="comment_${commentId}"], .handover-comment-item[data-comment-id="${commentId}"]`).forEach(el => {
+        el.dataset.deleting = 'true';
+        el.style.transition = 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)';
+        el.style.opacity = '0';
+        el.style.transform = 'scale(0.9) translateY(-6px)';
+        el.style.pointerEvents = 'none';
 
-    setTimeout(() => {
-        if (el && el.parentElement) {
-            const list = el.parentElement;
-            el.remove();
-            if (list && list.querySelectorAll('.handover-comment-item').length === 0) {
-                list.innerHTML = `<div class="handover-empty">${isVN ? 'Chưa có ghi chú nào. Hãy để lại lời nhắn cho đồng đội!' : 'メッセージはまだありません。'}</div>`;
+        setTimeout(() => {
+            if (el && el.parentElement) {
+                const list = el.parentElement;
+                el.remove();
+                if (list && list.querySelectorAll('.handover-comment-item').length === 0) {
+                    list.innerHTML = `<div class="handover-empty">${isVN ? 'Chưa có ghi chú nào. Hãy để lại lời nhắn cho đồng đội!' : 'メッセージはまだありません。'}</div>`;
+                }
             }
-        }
-    }, 250);
+        }, 250);
+    });
 
     try {
         const res = await fetch('/api/task_comments/delete', {
@@ -492,8 +502,7 @@ async function deleteTaskComment(commentId, tpKey, btnEl) {
         const data = await res.json();
         if (data.status !== 'success') {
             showToast(data.message || (isVN ? 'Không thể xóa tin nhắn' : '削除できませんでした'), 'error');
-            // Reload comments on error
-            const box = el ? el.closest('.task-handover-box') : document.querySelector(`.task-handover-box[data-tp-key="${tpKey}"]`);
+            const box = document.querySelector(`.task-handover-box[data-tp-key="${tpKey}"]`);
             if (box) {
                 const index = box.id.replace('handover_', '');
                 loadTaskComments(index, tpKey);
@@ -887,15 +896,15 @@ function setupTaskCommentsSocket() {
     window.socket.on('task_comment_new', function(data) {
         if (!data || !data.tp_key || !data.comment) return;
         
-        // 1. Update any open modal handover box in DOM if viewing this task
+        // 1. Real-time update in open modal comment box (User B and User A)
         document.querySelectorAll('.task-handover-box').forEach(box => {
-            if (box.getAttribute('data-tp-key') === data.tp_key) {
-                const index = box.id.replace('handover_', '');
-                const list = document.getElementById(`comments_list_${index}`);
+            const boxKey = box.getAttribute('data-tp-key');
+            if (boxKey === data.tp_key || (boxKey && data.tp_key && (boxKey.includes(data.tp_key) || data.tp_key.includes(boxKey)))) {
+                const list = box.querySelector('.handover-comments-list');
                 if (list) {
                     const empty = list.querySelector('.handover-empty');
                     if (empty) empty.remove();
-                    if (!document.getElementById(`comment_${data.comment.id}`)) {
+                    if (!list.querySelector(`[data-comment-id="${data.comment.id}"]`) && !list.querySelector(`[id="comment_${data.comment.id}"]`)) {
                         list.insertAdjacentHTML('beforeend', createCommentItemHtml(data.comment, data.tp_key));
                         list.scrollTop = list.scrollHeight;
                     }
@@ -906,7 +915,6 @@ function setupTaskCommentsSocket() {
         // 2. Filter: ONLY users assigned to this task receive notifications & card alarm updates!
         const isMyTask = isTaskAssignedToMe(data.tp_key, data.assignees || []);
         if (!isMyTask) {
-            // Task not assigned to current user -> Do not notify, do not show alarm bell on unrelated cards
             return;
         }
 
@@ -930,37 +938,38 @@ function setupTaskCommentsSocket() {
 
     window.socket.on('task_comment_deleted', function(data) {
         if (!data || !data.id) return;
-        const el = document.getElementById(`comment_${data.id}`);
-        if (el) {
+        
+        // Real-time remove on User B's screen across all open modal boxes
+        document.querySelectorAll(`[id="comment_${data.id}"], .handover-comment-item[data-comment-id="${data.id}"]`).forEach(el => {
+            el.style.transition = 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)';
             el.style.opacity = '0';
-            el.style.transform = 'scale(0.9)';
+            el.style.transform = 'scale(0.85) translateY(-5px)';
             setTimeout(() => {
                 const list = el.parentElement;
                 el.remove();
                 if (list && list.querySelectorAll('.handover-comment-item').length === 0) {
                     const isVN = (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi');
                     list.innerHTML = `<div class="handover-empty">${isVN ? 'Chưa có ghi chú nào. Hãy để lại lời nhắn cho đồng đội!' : 'メッセージはまだありません。'}</div>`;
-                    
-                    // Hide card alarm if all comments deleted
-                    if (data.tp_key) {
-                        document.querySelectorAll(`.card-comment-alarm[data-alarm-key="${data.tp_key}"]`).forEach(alarm => {
-                            alarm.style.display = 'none';
-                            const countSpan = alarm.querySelector('.alarm-count-badge');
-                            if (countSpan) countSpan.remove();
-                        });
-                    }
-                } else if (data.tp_key && list) {
-                    const remaining = list.querySelectorAll('.handover-comment-item').length;
-                    document.querySelectorAll(`.card-comment-alarm[data-alarm-key="${data.tp_key}"]`).forEach(alarm => {
-                        const countSpan = alarm.querySelector('.alarm-count-badge');
-                        if (remaining <= 1) {
-                            if (countSpan) countSpan.remove();
-                        } else {
-                            if (countSpan) countSpan.textContent = remaining;
-                        }
-                    });
                 }
-            }, 200);
+            }, 250);
+        });
+
+        // Update card alarms in real time on both User A and User B
+        const volKey = data.tp_key;
+        if (volKey) {
+            document.querySelectorAll(`.card-comment-alarm[data-alarm-key="${volKey}"]`).forEach(alarm => {
+                const countSpan = alarm.querySelector('.alarm-count-badge');
+                if (countSpan) {
+                    const currentCount = parseInt(countSpan.textContent) || 1;
+                    if (currentCount <= 2) {
+                        countSpan.remove();
+                    } else {
+                        countSpan.textContent = currentCount - 1;
+                    }
+                } else {
+                    alarm.style.display = 'none';
+                }
+            });
         }
     });
 }
