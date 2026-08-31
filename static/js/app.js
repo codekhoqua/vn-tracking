@@ -756,6 +756,17 @@ function setupTaskCommentsSocket() {
             }
         });
 
+        // Update alarms on Kanban cards immediately
+        const volKey = data.tp_key;
+        document.querySelectorAll(`.card-comment-alarm[data-alarm-key="${volKey}"]`).forEach(alarm => {
+            alarm.style.display = 'inline-flex';
+            const countSpan = alarm.querySelector('.alarm-count-badge');
+            if (countSpan) {
+                const currentCount = parseInt(countSpan.textContent) || 1;
+                countSpan.textContent = currentCount + 1;
+            }
+        });
+
         if (data.comment.user !== (typeof CURRENT_USER !== 'undefined' ? CURRENT_USER : '')) {
             showTaskToast(data.comment.user, data.tp_key, data.comment.message, data.comment.id);
         }
@@ -770,9 +781,28 @@ function setupTaskCommentsSocket() {
             setTimeout(() => {
                 const list = el.parentElement;
                 el.remove();
-                if (list && list.children.length === 0) {
+                if (list && list.querySelectorAll('.handover-comment-item').length === 0) {
                     const isVN = (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi');
                     list.innerHTML = `<div class="handover-empty">${isVN ? 'Chưa có ghi chú nào. Hãy để lại lời nhắn cho đồng đội!' : 'メッセージはまだありません。'}</div>`;
+                    
+                    // Hide card alarm if all comments deleted
+                    if (data.tp_key) {
+                        document.querySelectorAll(`.card-comment-alarm[data-alarm-key="${data.tp_key}"]`).forEach(alarm => {
+                            alarm.style.display = 'none';
+                            const countSpan = alarm.querySelector('.alarm-count-badge');
+                            if (countSpan) countSpan.remove();
+                        });
+                    }
+                } else if (data.tp_key && list) {
+                    const remaining = list.querySelectorAll('.handover-comment-item').length;
+                    document.querySelectorAll(`.card-comment-alarm[data-alarm-key="${data.tp_key}"]`).forEach(alarm => {
+                        const countSpan = alarm.querySelector('.alarm-count-badge');
+                        if (remaining <= 1) {
+                            if (countSpan) countSpan.remove();
+                        } else {
+                            if (countSpan) countSpan.textContent = remaining;
+                        }
+                    });
                 }
             }, 200);
         }

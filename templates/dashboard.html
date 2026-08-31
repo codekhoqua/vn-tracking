@@ -222,7 +222,7 @@
             style="border-radius: var(--radius-sm); margin-right: 8px;">
         <div style="display: flex; flex-direction: column; justify-content: center;">
             <span>VN-Tracking</span>
-            <sup style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.3.74</i></sup>
+            <sup style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.3.75</i></sup>
         </div>
     </div>
 
@@ -1317,6 +1317,17 @@
                                     ('tag-lettering' if '写植' in cv or 'Lettering' in cv else 
                                     ('tag-retouch' if 'レタッチ' in cv or 'ﾚﾀｯﾁ' in cv or 'Retouch' in cv else ('tag-prep' if 'Prep' in cv else '')))) %}
                                     <span class="tag {{ tag_class }}">{{ cv }}</span>
+
+                                    {% if card.has_comments %}
+                                    <span class="card-comment-alarm" data-alarm-key="{{ card.volume_key or card.key }}" title="Có {{ card.comments_count }} ghi chú/comment">
+                                        <i class="fas fa-bell"></i>
+                                        {% if card.comments_count > 1 %}<span class="alarm-count-badge">{{ card.comments_count }}</span>{% endif %}
+                                    </span>
+                                    {% else %}
+                                    <span class="card-comment-alarm" data-alarm-key="{{ card.volume_key or card.key }}" style="display: none;" title="Có ghi chú/comment">
+                                        <i class="fas fa-bell"></i>
+                                    </span>
+                                    {% endif %}
                                 </div>
                                 <div class="card-title">{{ card.name }}</div>
                                 {% if card.start_date or card.end_date %}
@@ -1440,6 +1451,17 @@
                                 ('tag-lettering' if '写植' in cv or 'Lettering' in cv else 
                                 ('tag-retouch' if 'レタッチ' in cv or 'ﾚﾀｯﾁ' in cv or 'Retouch' in cv else ('tag-prep' if 'Prep' in cv else '')))) %}
                                 <span class="tag {{ tag_class }}">{{ cv }}</span>
+
+                                {% if card.has_comments %}
+                                <span class="card-comment-alarm" data-alarm-key="{{ card.volume_key or card.key }}" title="Có {{ card.comments_count }} ghi chú/comment">
+                                    <i class="fas fa-bell"></i>
+                                    {% if card.comments_count > 1 %}<span class="alarm-count-badge">{{ card.comments_count }}</span>{% endif %}
+                                </span>
+                                {% else %}
+                                <span class="card-comment-alarm" data-alarm-key="{{ card.volume_key or card.key }}" style="display: none;" title="Có ghi chú/comment">
+                                    <i class="fas fa-bell"></i>
+                                </span>
+                                {% endif %}
                             </div>
                             <div class="card-title">{{ card.name }}</div>
                             {% if card.start_date or card.end_date %}
@@ -1639,6 +1661,17 @@
                                     ('tag-lettering' if '写植' in cv or 'Lettering' in cv else 
                                     ('tag-retouch' if 'レタッチ' in cv or 'ﾚﾀｯﾁ' in cv or 'Retouch' in cv else ('tag-prep' if 'Prep' in cv else '')))) %}
                                     <span class="tag {{ tag_class }}">{{ cv }}</span>
+
+                                    {% if card.has_comments %}
+                                    <span class="card-comment-alarm" data-alarm-key="{{ card.volume_key or card.key }}" title="Có {{ card.comments_count }} ghi chú/comment">
+                                        <i class="fas fa-bell"></i>
+                                        {% if card.comments_count > 1 %}<span class="alarm-count-badge">{{ card.comments_count }}</span>{% endif %}
+                                    </span>
+                                    {% else %}
+                                    <span class="card-comment-alarm" data-alarm-key="{{ card.volume_key or card.key }}" style="display: none;" title="Có ghi chú/comment">
+                                        <i class="fas fa-bell"></i>
+                                    </span>
+                                    {% endif %}
                                 </div>
                                 <div class="card-title">{{ card.name }}</div>
                                 {% if card.start_date or card.end_date %}
@@ -1762,6 +1795,17 @@
                                 ('tag-lettering' if '写植' in cv or 'Lettering' in cv else 
                                 ('tag-retouch' if 'レタッチ' in cv or 'ﾚﾀｯﾁ' in cv or 'Retouch' in cv else ('tag-prep' if 'Prep' in cv else '')))) %}
                                 <span class="tag {{ tag_class }}">{{ cv }}</span>
+
+                                {% if card.has_comments %}
+                                <span class="card-comment-alarm" data-alarm-key="{{ card.volume_key or card.key }}" title="Có {{ card.comments_count }} ghi chú/comment">
+                                    <i class="fas fa-bell"></i>
+                                    {% if card.comments_count > 1 %}<span class="alarm-count-badge">{{ card.comments_count }}</span>{% endif %}
+                                </span>
+                                {% else %}
+                                <span class="card-comment-alarm" data-alarm-key="{{ card.volume_key or card.key }}" style="display: none;" title="Có ghi chú/comment">
+                                    <i class="fas fa-bell"></i>
+                                </span>
+                                {% endif %}
                             </div>
                             <div class="card-title">{{ card.name }}</div>
                             {% if card.start_date or card.end_date %}
@@ -1961,6 +2005,17 @@
                                     ('tag-lettering' if '写植' in cv or 'Lettering' in cv else 
                                     ('tag-retouch' if 'レタッチ' in cv or 'ﾚﾀｯﾁ' in cv or 'Retouch' in cv else ('tag-prep' if 'Prep' in cv else '')))) %}
                                     <span class="tag {{ tag_class }}">{{ cv }}</span>
+
+                                    {% if card.has_comments %}
+                                    <span class="card-comment-alarm" data-alarm-key="{{ card.volume_key or card.key }}" title="Có {{ card.comments_count }} ghi chú/comment">
+                                        <i class="fas fa-bell"></i>
+                                        {% if card.comments_count > 1 %}<span class="alarm-count-badge">{{ card.comments_count }}</span>{% endif %}
+                                    </span>
+                                    {% else %}
+                                    <span class="card-comment-alarm" data-alarm-key="{{ card.volume_key or card.key }}" style="display: none;" title="Có ghi chú/comment">
+                                        <i class="fas fa-bell"></i>
+                                    </span>
+                                    {% endif %}
                                 </div>
                                 <div class="card-title">{{ card.name }}</div>
                                 {% if card.start_date or card.end_date %}
@@ -2084,6 +2139,17 @@
                                 ('tag-lettering' if '写植' in cv or 'Lettering' in cv else 
                                 ('tag-retouch' if 'レタッチ' in cv or 'ﾚﾀｯﾁ' in cv or 'Retouch' in cv else ('tag-prep' if 'Prep' in cv else '')))) %}
                                 <span class="tag {{ tag_class }}">{{ cv }}</span>
+
+                                {% if card.has_comments %}
+                                <span class="card-comment-alarm" data-alarm-key="{{ card.volume_key or card.key }}" title="Có {{ card.comments_count }} ghi chú/comment">
+                                    <i class="fas fa-bell"></i>
+                                    {% if card.comments_count > 1 %}<span class="alarm-count-badge">{{ card.comments_count }}</span>{% endif %}
+                                </span>
+                                {% else %}
+                                <span class="card-comment-alarm" data-alarm-key="{{ card.volume_key or card.key }}" style="display: none;" title="Có ghi chú/comment">
+                                    <i class="fas fa-bell"></i>
+                                </span>
+                                {% endif %}
                             </div>
                             <div class="card-title">{{ card.name }}</div>
                             {% if card.start_date or card.end_date %}
