@@ -493,12 +493,56 @@ async function deleteTaskComment(commentId, tpKey, btnEl) {
 }
 
 // ==================== NOTIFICATION CENTER (TOP RIGHT ALARM) ====================
-const NOTIF_STORAGE_KEY = 'vn_tracking_notifications_v1';
+function getNotifStorageKey() {
+    const user = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER) ? CURRENT_USER.trim() : 'default';
+    return `vn_tracking_notifications_${user}`;
+}
+
+function isTaskAssignedToMe(tpKey, assignees = []) {
+    const currentLoggedUser = (typeof CURRENT_USER !== 'undefined' ? CURRENT_USER : '').trim().toLowerCase();
+    if (!currentLoggedUser) return false;
+
+    // 1. Check server-provided assignees list
+    if (Array.isArray(assignees) && assignees.length > 0) {
+        const matched = assignees.some(w => {
+            const wLower = String(w).trim().toLowerCase();
+            return wLower === currentLoggedUser || wLower.includes(currentLoggedUser) || currentLoggedUser.includes(wLower);
+        });
+        if (matched) return true;
+    }
+
+    // 2. Check modalMap on this user's page (which only contains the user's tasks if member)
+    const cleanKey = String(tpKey || '').trim().toLowerCase();
+    if (cleanKey && typeof modalMap !== 'undefined') {
+        for (const tab of ['nay', 'truoc', 'sau']) {
+            if (!modalMap[tab]) continue;
+            for (const [k, mId] of Object.entries(modalMap[tab])) {
+                const kLower = k.toLowerCase();
+                const kVol = kLower.includes(' - ') ? kLower.split(' - ')[1].trim() : kLower;
+                const cVol = cleanKey.includes(' - ') ? cleanKey.split(' - ')[1].trim() : cleanKey;
+                if (kVol === cVol || kLower === cleanKey || kLower.includes(cleanKey) || cleanKey.includes(kLower)) {
+                    return true;
+                }
+            }
+        }
+    }
+
+    // 3. Check if card or handover box exists in DOM on this user's dashboard
+    if (cleanKey) {
+        const hasCard = !!(document.querySelector(`.progress-card[data-tp-key*="${tpKey}"]`) || 
+                           document.querySelector(`.card-comment-alarm[data-alarm-key*="${tpKey}"]`) ||
+                           document.querySelector(`.task-handover-box[data-tp-key*="${tpKey}"]`));
+        if (hasCard) return true;
+    }
+
+    return false;
+}
 
 function getStoredNotifications() {
     try {
-        const data = localStorage.getItem(NOTIF_STORAGE_KEY);
-        return data ? JSON.parse(data) : [];
+        const data = localStorage.getItem(getNotifStorageKey());
+        const list = data ? JSON.parse(data) : [];
+        return list.filter(n => isTaskAssignedToMe(n.tpKey));
     } catch (e) {
         return [];
     }
@@ -506,12 +550,15 @@ function getStoredNotifications() {
 
 function saveStoredNotifications(list) {
     try {
-        localStorage.setItem(NOTIF_STORAGE_KEY, JSON.stringify(list.slice(0, 50)));
+        localStorage.setItem(getNotifStorageKey(), JSON.stringify(list.slice(0, 50)));
     } catch (e) {}
     renderNotificationCenter();
 }
 
 function addNotification(item) {
+    // Only add if the task is assigned to this user
+    if (item.tpKey && !isTaskAssignedToMe(item.tpKey)) return;
+
     const list = getStoredNotifications();
     const notifId = item.id || `notif_${Date.now()}`;
 
@@ -837,6 +884,7 @@ function setupTaskCommentsSocket() {
     window.socket.on('task_comment_new', function(data) {
         if (!data || !data.tp_key || !data.comment) return;
         
+        // 1. Update any open modal handover box in DOM if viewing this task
         document.querySelectorAll('.task-handover-box').forEach(box => {
             if (box.getAttribute('data-tp-key') === data.tp_key) {
                 const index = box.id.replace('handover_', '');
@@ -852,7 +900,14 @@ function setupTaskCommentsSocket() {
             }
         });
 
-        // Update alarms on Kanban cards immediately
+        // 2. Filter: ONLY users assigned to this task receive notifications & card alarm updates!
+        const isMyTask = isTaskAssignedToMe(data.tp_key, data.assignees || []);
+        if (!isMyTask) {
+            // Task not assigned to current user -> Do not notify, do not show alarm bell on unrelated cards
+            return;
+        }
+
+        // 3. Update alarm bells on this user's Kanban cards
         const volKey = data.tp_key;
         document.querySelectorAll(`.card-comment-alarm[data-alarm-key="${volKey}"]`).forEach(alarm => {
             alarm.style.display = 'inline-flex';
@@ -863,7 +918,9 @@ function setupTaskCommentsSocket() {
             }
         });
 
-        if (data.comment.user !== (typeof CURRENT_USER !== 'undefined' ? CURRENT_USER : '')) {
+        // 4. Show Toast and add to top-right Notification Center (if sent by another user)
+        const currentLoggedUser = (typeof CURRENT_USER !== 'undefined' ? CURRENT_USER : '').trim();
+        if (data.comment.user !== currentLoggedUser) {
             showTaskToast(data.comment.user, data.tp_key, data.comment.message, data.comment.id);
         }
     });
