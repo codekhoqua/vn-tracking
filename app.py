@@ -442,32 +442,31 @@ def render_checklist_html(tac_pham_key, index, lang, api_url, checked_ids=None, 
 
     handover_html = ""
     if is_coop:
-        partner_info_text = f"🤝 Đồng đội: <strong style='color:#fff;'>{partner_worker}</strong> ({partner_cv})" if partner_worker else "Retouch ⇄ Lettering"
+        partner_info_text = f"Đồng đội: <strong>{partner_worker}</strong> ({partner_cv})" if partner_worker else "Retouch ⇄ Lettering"
         handover_html = f'''
         <div class="task-handover-box" id="handover_{index}" data-tp-key="{volume_key}">
             <div class="handover-header">
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <span style="font-size: 1.1rem;">💬</span>
-                    <span style="font-weight: 700; color: var(--text); font-size: 0.95rem;">{ "Trao đổi & Bàn giao khâu" if lang == "vi" else "引き継ぎ・連絡ノート" }: <span style="color:#fbbf24;">{volume_key}</span></span>
-                    <span class="handover-tag">{partner_info_text}</span>
+                <div class="handover-title-row">
+                    <span class="handover-title"><i class="far fa-comments" style="margin-right: 6px; color: #818cf8;"></i>{ "Trao đổi & Bàn giao:" if lang == "vi" else "引き継ぎ・連絡ノート:" } <span class="handover-volume-name">{volume_key}</span></span>
+                    <span class="handover-partner-badge">{partner_info_text}</span>
                 </div>
             </div>
             <div class="handover-body" id="handover_body_{index}">
                 <div class="quick-handover-actions">
-                    <span style="font-size: 0.75rem; color: var(--text-3); font-weight: 600; text-transform: uppercase;">{ "Ghi chú nhanh:" if lang == "vi" else "クイックメモ:" }</span>
-                    <button type="button" class="btn-quick-tag done-retouch" onclick="sendQuickHandover('{index}', '{volume_key}', '{ "🎨 Đã xong Retouch ➔ Chuyển giao Lettering" if lang == "vi" else "🎨 レタッチ完了 ➔ 写植へ引き継ぎ" }', 'handover')">🎨 { "Đã xong Retouch ➔ Lettering" if lang == "vi" else "レタッチ完了 ➔ 写植へ" }</button>
-                    <button type="button" class="btn-quick-tag in-progress" onclick="sendQuickHandover('{index}', '{volume_key}', '{ "✍️ Đã nhận & Đang xử lý Lettering..." if lang == "vi" else "✍️ 写植作業中..." }', 'progress')">✍️ { "Đang làm Lettering" if lang == "vi" else "写植作業中" }</button>
-                    <button type="button" class="btn-quick-tag in-progress" onclick="sendQuickHandover('{index}', '{volume_key}', '{ "⏳ Đang làm dở trang..." if lang == "vi" else "⏳ 作業中..." }', 'progress')">⏳ { "Đang làm dở" if lang == "vi" else "作業中" }</button>
-                    <button type="button" class="btn-quick-tag note" onclick="sendQuickHandover('{index}', '{volume_key}', '{ "⚠️ Có lưu ý font/style đặc biệt" if lang == "vi" else "⚠️ フォント・スタイルの注意事項あり" }', 'warning')">⚠️ { "Lưu ý font/style" if lang == "vi" else "注意事項" }</button>
+                    <span class="quick-handover-label">{ "Mẫu nhanh:" if lang == "vi" else "定型文:" }</span>
+                    <button type="button" class="btn-quick-tag done-retouch" onclick="sendQuickHandover('{index}', '{volume_key}', '{ "✓ Đã xong Retouch ➔ Chuyển giao Lettering" if lang == "vi" else "✓ レタッチ完了 ➔ 写植へ引き継ぎ" }', 'handover')">{ "✓ Xong Retouch ➔ Lettering" if lang == "vi" else "✓ レタッチ完了 ➔ 写植へ" }</button>
+                    <button type="button" class="btn-quick-tag in-progress" onclick="sendQuickHandover('{index}', '{volume_key}', '{ "Đang xử lý khâu Lettering..." if lang == "vi" else "写植作業中..." }', 'progress')">{ "Đang làm Lettering" if lang == "vi" else "写植作業中" }</button>
+                    <button type="button" class="btn-quick-tag in-progress" onclick="sendQuickHandover('{index}', '{volume_key}', '{ "Đang làm dở trang..." if lang == "vi" else "作業中..." }', 'progress')">{ "Đang làm dở" if lang == "vi" else "作業中" }</button>
+                    <button type="button" class="btn-quick-tag note" onclick="sendQuickHandover('{index}', '{volume_key}', '{ "Lưu ý font / style đặc biệt" if lang == "vi" else "フォント・スタイルの注意事項あり" }', 'warning')">{ "Lưu ý font/style" if lang == "vi" else "注意事項" }</button>
                 </div>
 
                 <div class="handover-comments-list" id="comments_list_{index}">
-                    <div class="handover-empty">{ "Chưa có ghi chú trao đổi nào. Hãy để lại lời nhắn cho đồng đội!" if lang == "vi" else "メッセージはまだありません。メモを残してください。" }</div>
+                    <div class="handover-empty">{ "Chưa có ghi chú nào. Hãy để lại lời nhắn cho đồng đội!" if lang == "vi" else "メッセージはまだありません。" }</div>
                 </div>
 
                 <div class="handover-input-group">
                     <input type="text" id="handover_input_{index}" class="handover-input" placeholder="{ "Nhập tin nhắn hoặc ghi chú bàn giao..." if lang == "vi" else "引き継ぎメッセージを入力..." }" onkeydown="if(event.key==='Enter') sendTaskComment('{index}', '{volume_key}')">
-                    <button type="button" class="btn-handover-send" onclick="sendTaskComment('{index}', '{volume_key}')">{ "Gửi" if lang == "vi" else "送信" }</button>
+                    <button type="button" class="btn-handover-send" id="btn_send_comment_{index}" onclick="sendTaskComment('{index}', '{volume_key}')">{ "Gửi" if lang == "vi" else "送信" }</button>
                 </div>
             </div>
         </div>
@@ -1097,6 +1096,39 @@ def api_task_comments():
         })
         
         return jsonify({"status": "success", "comment": comment_item})
+
+@app.route('/api/task_comments/delete', methods=['POST'])
+def api_task_comments_delete():
+    if not session.get('logged_in'):
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+    
+    data = request.get_json() or {}
+    tp_key = data.get('tp_key', '').strip()
+    comment_id = str(data.get('id', '')).strip()
+    user = session.get('user', '')
+    role = session.get('role', 'member')
+    
+    if not tp_key or not comment_id:
+        return jsonify({"status": "error", "message": "Missing parameters"}), 400
+        
+    comments_db = get_supabase_task_comments()
+    if tp_key in comments_db:
+        original = [c for c in comments_db[tp_key] if str(c.get('id')) == comment_id]
+        if original:
+            comment_owner = original[0].get('user', '')
+            if user == comment_owner or role in ['admin', 'manager', 'leader']:
+                comments_db[tp_key] = [c for c in comments_db[tp_key] if str(c.get('id')) != comment_id]
+                save_supabase_task_comments(comments_db)
+                
+                socketio.emit('task_comment_deleted', {
+                    "tp_key": tp_key,
+                    "id": comment_id
+                })
+                return jsonify({"status": "success"})
+            else:
+                return jsonify({"status": "error", "message": "Permission denied"}), 403
+                
+    return jsonify({"status": "success"})
 
 @app.route('/api/weather')
 def api_weather():
