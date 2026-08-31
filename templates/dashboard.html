@@ -222,7 +222,7 @@
             style="border-radius: var(--radius-sm); margin-right: 8px;">
         <div style="display: flex; flex-direction: column; justify-content: center;">
             <span>VN-Tracking</span>
-            <sup style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.3.75</i></sup>
+            <sup style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.3.76</i></sup>
         </div>
     </div>
 
@@ -1319,12 +1319,12 @@
                                     <span class="tag {{ tag_class }}">{{ cv }}</span>
 
                                     {% if card.has_comments %}
-                                    <span class="card-comment-alarm" data-alarm-key="{{ card.volume_key or card.key }}" title="Có {{ card.comments_count }} ghi chú/comment">
+                                    <span class="card-comment-alarm" data-alarm-key="{{ card.volume_key or card.key }}" onclick="event.stopPropagation(); navigateToTask('{{ card.volume_key or card.key }}');" title="Có {{ card.comments_count }} ghi chú/comment">
                                         <i class="fas fa-bell"></i>
                                         {% if card.comments_count > 1 %}<span class="alarm-count-badge">{{ card.comments_count }}</span>{% endif %}
                                     </span>
                                     {% else %}
-                                    <span class="card-comment-alarm" data-alarm-key="{{ card.volume_key or card.key }}" style="display: none;" title="Có ghi chú/comment">
+                                    <span class="card-comment-alarm" data-alarm-key="{{ card.volume_key or card.key }}" onclick="event.stopPropagation(); navigateToTask('{{ card.volume_key or card.key }}');" style="display: none;" title="Có ghi chú/comment">
                                         <i class="fas fa-bell"></i>
                                     </span>
                                     {% endif %}
@@ -1453,12 +1453,12 @@
                                 <span class="tag {{ tag_class }}">{{ cv }}</span>
 
                                 {% if card.has_comments %}
-                                <span class="card-comment-alarm" data-alarm-key="{{ card.volume_key or card.key }}" title="Có {{ card.comments_count }} ghi chú/comment">
+                                <span class="card-comment-alarm" data-alarm-key="{{ card.volume_key or card.key }}" onclick="event.stopPropagation(); navigateToTask('{{ card.volume_key or card.key }}');" title="Có {{ card.comments_count }} ghi chú/comment">
                                     <i class="fas fa-bell"></i>
                                     {% if card.comments_count > 1 %}<span class="alarm-count-badge">{{ card.comments_count }}</span>{% endif %}
                                 </span>
                                 {% else %}
-                                <span class="card-comment-alarm" data-alarm-key="{{ card.volume_key or card.key }}" style="display: none;" title="Có ghi chú/comment">
+                                <span class="card-comment-alarm" data-alarm-key="{{ card.volume_key or card.key }}" onclick="event.stopPropagation(); navigateToTask('{{ card.volume_key or card.key }}');" style="display: none;" title="Có ghi chú/comment">
                                     <i class="fas fa-bell"></i>
                                 </span>
                                 {% endif %}
@@ -1663,12 +1663,12 @@
                                     <span class="tag {{ tag_class }}">{{ cv }}</span>
 
                                     {% if card.has_comments %}
-                                    <span class="card-comment-alarm" data-alarm-key="{{ card.volume_key or card.key }}" title="Có {{ card.comments_count }} ghi chú/comment">
+                                    <span class="card-comment-alarm" data-alarm-key="{{ card.volume_key or card.key }}" onclick="event.stopPropagation(); navigateToTask('{{ card.volume_key or card.key }}');" title="Có {{ card.comments_count }} ghi chú/comment">
                                         <i class="fas fa-bell"></i>
                                         {% if card.comments_count > 1 %}<span class="alarm-count-badge">{{ card.comments_count }}</span>{% endif %}
                                     </span>
                                     {% else %}
-                                    <span class="card-comment-alarm" data-alarm-key="{{ card.volume_key or card.key }}" style="display: none;" title="Có ghi chú/comment">
+                                    <span class="card-comment-alarm" data-alarm-key="{{ card.volume_key or card.key }}" onclick="event.stopPropagation(); navigateToTask('{{ card.volume_key or card.key }}');" style="display: none;" title="Có ghi chú/comment">
                                         <i class="fas fa-bell"></i>
                                     </span>
                                     {% endif %}
@@ -1797,12 +1797,12 @@
                                 <span class="tag {{ tag_class }}">{{ cv }}</span>
 
                                 {% if card.has_comments %}
-                                <span class="card-comment-alarm" data-alarm-key="{{ card.volume_key or card.key }}" title="Có {{ card.comments_count }} ghi chú/comment">
+                                <span class="card-comment-alarm" data-alarm-key="{{ card.volume_key or card.key }}" onclick="event.stopPropagation(); navigateToTask('{{ card.volume_key or card.key }}');" title="Có {{ card.comments_count }} ghi chú/comment">
                                     <i class="fas fa-bell"></i>
                                     {% if card.comments_count > 1 %}<span class="alarm-count-badge">{{ card.comments_count }}</span>{% endif %}
                                 </span>
                                 {% else %}
-                                <span class="card-comment-alarm" data-alarm-key="{{ card.volume_key or card.key }}" style="display: none;" title="Có ghi chú/comment">
+                                <span class="card-comment-alarm" data-alarm-key="{{ card.volume_key or card.key }}" onclick="event.stopPropagation(); navigateToTask('{{ card.volume_key or card.key }}');" style="display: none;" title="Có ghi chú/comment">
                                     <i class="fas fa-bell"></i>
                                 </span>
                                 {% endif %}
@@ -2007,12 +2007,12 @@
                                     <span class="tag {{ tag_class }}">{{ cv }}</span>
 
                                     {% if card.has_comments %}
-                                    <span class="card-comment-alarm" data-alarm-key="{{ card.volume_key or card.key }}" title="Có {{ card.comments_count }} ghi chú/comment">
+                                    <span class="card-comment-alarm" data-alarm-key="{{ card.volume_key or card.key }}" onclick="event.stopPropagation(); navigateToTask('{{ card.volume_key or card.key }}');" title="Có {{ card.comments_count }} ghi chú/comment">
                                         <i class="fas fa-bell"></i>
                                         {% if card.comments_count > 1 %}<span class="alarm-count-badge">{{ card.comments_count }}</span>{% endif %}
                                     </span>
                                     {% else %}
-                                    <span class="card-comment-alarm" data-alarm-key="{{ card.volume_key or card.key }}" style="display: none;" title="Có ghi chú/comment">
+                                    <span class="card-comment-alarm" data-alarm-key="{{ card.volume_key or card.key }}" onclick="event.stopPropagation(); navigateToTask('{{ card.volume_key or card.key }}');" style="display: none;" title="Có ghi chú/comment">
                                         <i class="fas fa-bell"></i>
                                     </span>
                                     {% endif %}
@@ -2141,12 +2141,12 @@
                                 <span class="tag {{ tag_class }}">{{ cv }}</span>
 
                                 {% if card.has_comments %}
-                                <span class="card-comment-alarm" data-alarm-key="{{ card.volume_key or card.key }}" title="Có {{ card.comments_count }} ghi chú/comment">
+                                <span class="card-comment-alarm" data-alarm-key="{{ card.volume_key or card.key }}" onclick="event.stopPropagation(); navigateToTask('{{ card.volume_key or card.key }}');" title="Có {{ card.comments_count }} ghi chú/comment">
                                     <i class="fas fa-bell"></i>
                                     {% if card.comments_count > 1 %}<span class="alarm-count-badge">{{ card.comments_count }}</span>{% endif %}
                                 </span>
                                 {% else %}
-                                <span class="card-comment-alarm" data-alarm-key="{{ card.volume_key or card.key }}" style="display: none;" title="Có ghi chú/comment">
+                                <span class="card-comment-alarm" data-alarm-key="{{ card.volume_key or card.key }}" onclick="event.stopPropagation(); navigateToTask('{{ card.volume_key or card.key }}');" style="display: none;" title="Có ghi chú/comment">
                                     <i class="fas fa-bell"></i>
                                 </span>
                                 {% endif %}
