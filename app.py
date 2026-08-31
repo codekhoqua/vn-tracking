@@ -348,13 +348,13 @@ DICT_LANG = {
         'tab0': "THÔNG TIN TUẦN TRƯỚC", 'tab1': "THÔNG TIN TUẦN NÀY", 'tab2': "THÔNG TIN TUẦN SAU",
         'time': "Thời gian làm việc:", 'deadline': "Deadline chú ý:",
         'no_filter': "Không có tác phẩm nào khớp với bộ lọc hoặc không có task của bạn!", 'no_task': "Hiện chưa có task nào được phân công!",
-        'metric_total': "Tổng số Task", 'metric_retouch': "Số task Retouch", 'metric_type': "Số task Lettering",
+        'metric_total': "Tổng số Task", 'metric_retouch': "Số task Retouch", 'metric_type': "Số task Lettering", 'metric_lettering_qc': "Số task Lettering QC", 'metric_lettering_retouch': "Số task Lettering/Retouch", 'metric_prep': "Số task Prep",
         'not_update': "Chưa cập nhật",
         'cols': ['Công việc', 'Tên tác phẩm', 'Chương', 'Tập', 'Số trang', 'NXB', 'Ngày bắt đầu', 'Deadline (Nộp)', 'VN', 'Người thực hiện', 'QC Nội bộ', 'Quản lý', 'Trạng thái', 'Bắt đầu', 'Ghi chú'],
         'logtime_title': "⏱️ KHU VỰC BÁO CÁO TIẾN ĐỘ (LOGTIME & CHECKLIST)",
         'logtime_empty': "Hiện không có task nào để logtime.",
         'f_date': "📅 Ngày làm việc:", 'f_cat': "📚 Loại truyện:", 'f_diff': "🔥 Độ khó:", 'f_worker': "👤 Người làm:",
-        'f_hours': "⏳ Giờ làm hôm nay:", 'f_pages': "📄 Số page HT (Tổng: {total}):", 'f_note': "📝 Ghi chú thêm:",
+        'f_hours': "⏱ Giờ làm hôm nay:", 'f_total_pages': "📄 Tổng số trang:", 'f_pages': "✅ Số page HT:", 'f_note': "📝 Ghi chú thêm:",
         'f_btn': "Lưu Logtime",
     },
     'ja': {
@@ -365,13 +365,13 @@ DICT_LANG = {
         'tab0': "先週の情報", 'tab1': "今週の情報", 'tab2': "来週の情報",
         'time': "勤務期間:", 'deadline': "ご注意の締め切り:",
         'no_filter': "フィルターに一致する作品はありません！", 'no_task': "タスクはまだ割り当てられていません！",
-        'metric_total': "表示中のタスク総数", 'metric_retouch': "レタッチタスク数", 'metric_type': "写植タスク数",
+        'metric_total': "表示中のタスク総数", 'metric_retouch': "レタッチタスク数", 'metric_type': "写植タスク数", 'metric_lettering_qc': "修正写植タスク数", 'metric_lettering_retouch': "写植/ﾚﾀｯﾁタスク数", 'metric_prep': "Prepタスク数",
         'not_update': "未更新",
         'cols': ['作業内容', '作品名', '話数', '巻数', 'ページ', '出版社', '開始日', '提出日', 'VN', '作業者', '社内QC', '進行管理', 'ステータス', '開始', '備考'],
         'logtime_title': "⏱️ 進捗報告エリア (ログタイム＆チェックリスト)",
         'logtime_empty': "現在、報告するタスクはありません。",
         'f_date': "📅 作業日:", 'f_cat': "📚 カテゴリ:", 'f_diff': "🔥 難易度:", 'f_worker': "👤 作業者:",
-        'f_hours': "⏳ 今日の作業時間:", 'f_pages': "📄 完了ページ数 (計: {total}):", 'f_note': "📝 備考:",
+        'f_hours': "⏱ 今日の作業時間:", 'f_total_pages': "📄 ページ数:", 'f_pages': "✅ 完了したページ数:", 'f_note': "📝 備考:",
         'f_btn': "保存する",
     }
 }
@@ -406,6 +406,34 @@ def render_checklist_html(tac_pham_key, index, lang, api_url, checked_ids=None):
     def ch(tid):
         return 'checked' if tid in checked_ids else ''
 
+    tracker_html = f'''<div class="time-tracker-box" id="tracker_{index}" data-tp-key="{tac_pham_key}">
+        <div class="tracker-header">
+            ⏱️ { "Theo dõi thời gian" if lang == "vi" else "タイムトラッカー" }
+            <label style="float: right; font-size: 0.8rem; font-weight: normal; cursor: pointer; color: var(--text-2);">
+                 <input type="checkbox" id="manual_time_cb_{index}" onchange="toggleManualTime('{index}')"> { "Nhập tay" if lang == "vi" else "手動入力" }
+            </label>
+        </div>
+        
+        <div class="tracker-controls" id="auto_controls_{index}">
+            <button class="btn-tracker start" id="btn_start_{index}" onclick="startTracker('{index}')">▶ { "Bắt đầu" if lang == "vi" else "開始" }</button>
+            <button class="btn-tracker end" id="btn_end_{index}" onclick="endTracker('{index}')" disabled>⏹ { "Kết thúc" if lang == "vi" else "終了" }</button>
+            <span class="tracker-time" id="time_display_{index}">00:00:00</span>
+        </div>
+        
+        <div class="tracker-controls" id="manual_controls_{index}" style="display: none;">
+            <input type="text" id="manual_start_{index}" class="tracker-note" style="width: 140px;" placeholder="{ "Chọn Giờ Bắt Đầu" if lang == "vi" else "開始時刻" }">
+            <span style="color: var(--text-2);">→</span>
+            <input type="text" id="manual_end_{index}" class="tracker-note" style="width: 140px;" placeholder="{ "Chọn Giờ Kết Thúc" if lang == "vi" else "終了時刻" }">
+            <span style="color: var(--text-2);">{ "hoặc" if lang == "vi" else "または" }</span>
+            <input type="number" id="manual_duration_{index}" class="tracker-note" style="width: 80px;" step="0.01" placeholder="{ "Giờ (h)" if lang == "vi" else "時間 (h)" }" oninput="calcManualTime('{index}', 'dur')">
+        </div>
+
+        <div class="tracker-inputs">
+            <input type="text" id="tracker_note_{index}" placeholder="{ "Mô tả công việc..." if lang == "vi" else "備考..." }" class="tracker-note">
+            <button class="btn-tracker save" id="btn_save_{index}" onclick="saveTracker('{index}', '{tac_pham_key}')">{ "Lưu Log" if lang == "vi" else "保存" }</button>
+        </div>
+    </div>'''
+
     return f'''
     <div class="checklist-grid" data-tp-key="{tac_pham_key}">
         <div class="step-col">
@@ -438,6 +466,8 @@ def render_checklist_html(tac_pham_key, index, lang, api_url, checked_ids=None):
             <div class="task-row"><span class="platform-badge mikan">Mikan</span><label class="check-label"><input type="checkbox" data-checklist data-check-id="t9" {ch('t9')}><span class="checkmark"></span><span class="action-text">{l['t9']}</span></label></div>
         </div>
     </div>
+    
+    {tracker_html}
     '''
 
 def render_logtime_form_html(row, index, t, users, lang):
@@ -462,7 +492,6 @@ def render_logtime_form_html(row, index, t, users, lang):
             <input type="hidden" name="tac_pham" value="{tac_pham}">
             <input type="hidden" name="chuong" value="{chuong if pd.notna(chuong) else ''}">
             <input type="hidden" name="tap" value="{tap if pd.notna(tap) else ''}">
-            <input type="hidden" name="so_trang_tong" value="{so_trang}">
             <div class="form-row cols-4">
                 <div class="form-group">
                     <label>{t['f_cat']}</label>
@@ -481,13 +510,17 @@ def render_logtime_form_html(row, index, t, users, lang):
                     <input type="date" name="ngay_log" value="{today}">
                 </div>
             </div>
-            <div class="form-row cols-3">
+            <div class="form-row cols-4">
                 <div class="form-group">
                     <label>{t['f_hours']}</label>
                     <input type="number" name="so_gio" min="0" step="0.5">
                 </div>
                 <div class="form-group">
-                    <label>{t['f_pages'].format(total=so_trang)}</label>
+                    <label>{t['f_total_pages']}</label>
+                    <input type="number" name="so_trang_tong" value="{so_trang}" min="0" step="1">
+                </div>
+                <div class="form-group">
+                    <label>{t['f_pages']}</label>
                     <input type="number" name="so_page" min="0" step="1">
                 </div>
                 <div class="form-group">
@@ -496,6 +529,15 @@ def render_logtime_form_html(row, index, t, users, lang):
                 </div>
             </div>
             <button type="submit" class="btn btn-primary">{t['f_btn']}</button>
+            <div class="logtime-progress" id="progress-{index}" style="display:none; margin-top: 10px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 0.8rem; color: var(--text-3);">
+                    <span class="progress-label">{ 'Đang gửi dữ liệu...' if lang == 'vi' else 'データを送信中...' }</span>
+                    <span class="progress-time"></span>
+                </div>
+                <div style="width: 100%; height: 6px; background: var(--border); border-radius: 100px; overflow: hidden;">
+                    <div class="progress-fill" style="width: 0%; height: 100%; background: linear-gradient(90deg, var(--primary), #818cf8); border-radius: 100px; transition: width 0.3s ease;"></div>
+                </div>
+            </div>
         </form>
     </div>
     '''
@@ -608,11 +650,21 @@ def process_dashboard_data():
 
     def build_dashboard(df_target):
         data = []
+        current_year = date.today().year
+        def format_jp_date(d_str):
+            if not d_str or str(d_str).strip() in ['nan', 'NaN', 'None', '']: return ''
+            clean_d = re.sub(r'\([A-Za-z]+\)', '', str(d_str)).strip().replace('-', ' ')
+            try:
+                dt = date_parser.parse(clean_d, default=datetime(current_year, 1, 1))
+                return dt.strftime('%m/%d/%Y')
+            except:
+                return str(d_str)
         records = df_to_records(df_target)
         for row in records:
             tp_key = row['tp_key']
             tp_name = row['tp_name']
             worker = str(row.get('Người thực hiện', '')).strip()
+            qc_person = str(row.get('QC Nội bộ', '')).strip()
             checked = check_counts.get(tp_key, 0)
             checked_ids = ','.join(checked_ids_dict.get(tp_key, []))
             if checked == 0:
@@ -622,14 +674,45 @@ def process_dashboard_data():
             else:
                 status, status_class = "🔥 Đang Tiến Hành", "in-progress"
             progress = int((checked / 9) * 100)
-            data.append({"key": tp_key, "name": tp_name, "worker": worker, "progress": progress, "status": status, "status_class": status_class, "checked_ids": checked_ids})
+            cv = str(row.get('Công việc', '')).strip()
+            if '写植/ﾚﾀｯﾁ' in cv or '写植/レタッチ' in cv or 'Lettering/Retouch' in cv: job_type = 'Lettering/Retouch'
+            elif '修正' in cv or 'Lettering QC' in cv: job_type = 'Lettering QC'
+            elif '写植' in cv or 'Lettering' in cv: job_type = 'Lettering'
+            elif 'レタッチ' in cv or 'ﾚﾀｯﾁ' in cv or 'Retouch' in cv: job_type = 'Retouch'
+            else: job_type = 'Prep'
+            
+            start_date = format_jp_date(str(row.get('Ngày bắt đầu', '')).strip())
+            end_date = format_jp_date(str(row.get('Deadline (Nộp)', row.get('Hạn chót', row.get('Deadline', '')))).strip())
+            
+            data.append({"key": tp_key, "name": tp_name, "worker": worker, "qc_person": qc_person, "progress": progress, "status": status, "status_class": status_class, "checked_ids": checked_ids, "job_type": job_type, "start_date": start_date, "end_date": end_date})
         return data
 
     def get_metrics(df_target):
+        if df_target.empty:
+            return {"total": 0, "retouch": 0, "lettering": 0, "lettering_qc": 0, "lettering_retouch": 0, "prep": 0}
+        retouch_count = 0
+        lettering_count = 0
+        lettering_qc_count = 0
+        lettering_retouch_count = 0
+        for cv_val in df_target["Công việc"].astype(str):
+            cv = cv_val.strip()
+            if '写植/ﾚﾀｯﾁ' in cv or '写植/レタッチ' in cv or 'Lettering/Retouch' in cv:
+                lettering_retouch_count += 1
+            elif '修正' in cv or 'Lettering QC' in cv:
+                lettering_qc_count += 1
+            elif '写植' in cv or 'Lettering' in cv:
+                lettering_count += 1
+            elif 'レタッチ' in cv or 'ﾚﾀｯﾁ' in cv or 'Retouch' in cv:
+                retouch_count += 1
+        total_count = len(df_target)
+        prep_count = total_count - (retouch_count + lettering_count + lettering_qc_count + lettering_retouch_count)
         return {
-            "total": len(df_target),
-            "retouch": len(df_target[df_target["Công việc"].astype(str).str.contains("Retouch|レタッチ", case=False, na=False)]) if not df_target.empty else 0,
-            "lettering": len(df_target[df_target["Công việc"].astype(str).str.contains("Lettering|写植", case=False, na=False)]) if not df_target.empty else 0
+            "total": total_count,
+            "retouch": retouch_count,
+            "lettering": lettering_count,
+            "lettering_qc": lettering_qc_count,
+            "lettering_retouch": lettering_retouch_count,
+            "prep": prep_count
         }
 
     def generate_ai_insights(dash_nay, dash_truoc, lang):
@@ -888,6 +971,111 @@ def api_weather():
             "weather": [{"maxtempC": "32", "mintempC": "25"}]
         }
         return jsonify(dummy_data)
+
+@app.route('/api/insights', methods=['POST'])
+def api_insights():
+    try:
+        data = request.json or {}
+        lang = data.get('lang', 'vi')
+        summary = data.get('summary', {})
+        
+        is_vi = lang == 'vi'
+        insights = []
+        
+        total_nay = int(summary.get('total_nay', 0))
+        total_truoc = int(summary.get('total_truoc', 0))
+        completed = int(summary.get('completed', 0))
+        not_started = int(summary.get('not_started', 0))
+        
+        # 1. Weather Insight
+        try:
+            loc = 'Ho+Chi+Minh' if is_vi else 'Gifu'
+            now = time.time()
+            loc_insight = loc + '_insight'
+            if loc_insight in weather_cache and now - weather_cache[loc_insight]['time'] < 1800:
+                om_data = weather_cache[loc_insight]['data']
+            else:
+                lat, lon = (10.823, 106.6296) if loc == 'Ho+Chi+Minh' else (35.4233, 136.7607)
+                url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&daily=weather_code&timezone=Asia%2FBangkok"
+                om_data = requests.get(url, timeout=3).json()
+                weather_cache[loc_insight] = {'time': now, 'data': om_data, 'open_meteo': True}
+            
+            if 'daily' in om_data and 'weather_code' in om_data['daily']:
+                today_code = om_data['daily']['weather_code'][0]
+                if today_code >= 51:
+                    insights.append("🌧️ Sắp tới có khả năng mưa, bạn ra ngoài nhớ mang theo ô nhé!" if is_vi else "🌧️ もうすぐ雨が降る可能性があります。外出時は傘をお忘れなく！")
+                else:
+                    insights.append("☀️ Thời tiết khá đẹp, chúc bạn một ngày làm việc tràn đầy năng lượng!" if is_vi else "☀️ 天気は良好です。今日も一日頑張りましょう！")
+        except Exception as e:
+            print(f"Weather prediction error in insights API: {e}")
+            
+        # 2. Basic Statistical Insights
+        if total_truoc > 0:
+            diff = ((total_nay - total_truoc) / total_truoc) * 100
+            if diff > 0:
+                insights.append(f"📈 Khối lượng task tăng {diff:.0f}% so với tuần trước." if is_vi else f"📈 今週のタスク量は先週より{diff:.0f}%増加。")
+            elif diff < 0:
+                insights.append(f"📉 Khối lượng task giảm {-diff:.0f}% so với tuần trước." if is_vi else f"📉 今週のタスク量は先週より{-diff:.0f}%減少。")
+            else:
+                insights.append(f"⚖️ Khối lượng task ổn định so với tuần trước." if is_vi else f"⚖️ 今週のタスク量は先週と同じです。")
+        else:
+            insights.append(f"🚀 Một tuần mới đầy năng lượng! Hãy lập kế hoạch thật tốt nhé." if is_vi else f"🚀 新しい一週間の始まりです！計画をしっかり立てましょう。")
+        
+        if total_nay > 0:
+            completion_rate = (completed / total_nay) * 100
+            if completion_rate >= 100:
+                insights.append(f"🏆 Xuất sắc! Toàn bộ công việc tuần này đã được hoàn thành 100%." if is_vi else f"🏆 素晴らしい！全てのタスクが完了しました。")
+            elif completion_rate >= 80:
+                insights.append(f"🔥 Tuyệt vời! Đã hoàn thành {completion_rate:.0f}% công việc." if is_vi else f"🔥 素晴らしい！タスクの{completion_rate:.0f}%が完了しました。")
+            elif completion_rate > 0:
+                insights.append(f"📊 Tiến độ: {completion_rate:.0f}% task đã hoàn thành." if is_vi else f"📊 現在の進捗：タスクの{completion_rate:.0f}%が完了。")
+            else:
+                insights.append(f"🎯 Hãy bắt tay vào hoàn thành task đầu tiên của tuần này nhé!" if is_vi else f"🎯 今週の最初のタスクを完了させましょう！")
+                
+            in_progress = total_nay - completed - not_started
+            if in_progress > 0:
+                insights.append(f"⏳ Đang xử lý {in_progress} task, cố lên nào team!" if is_vi else f"⏳ 現在{in_progress}件のタスクが進行中です。頑張って！")
+                
+            if not_started > 0:
+                insights.append(f"⚠️ Chú ý: Còn {not_started} task chưa bắt đầu." if is_vi else f"⚠️ 注意：まだ開始されていないタスクが{not_started}件。")
+            else:
+                if completed < total_nay:
+                    insights.append(f"✨ Tuyệt vời! Tất cả các task đều đã được bắt đầu triển khai." if is_vi else f"✨ 素晴らしい！全てのタスクが開始されました。")
+
+        # 3. LLM Insights via Groq
+        groq_api_key = os.environ.get('GROQ_API_KEY', '')
+        if groq_api_key:
+            prompt = f"Bạn là một trợ lý AI thông minh phân tích tiến độ công việc của team dựa trên dữ liệu sau:\n"
+            prompt += f"Ngôn ngữ: {'Tiếng Việt' if is_vi else '日本語'}\n"
+            prompt += f"Tổng số task tuần này: {total_nay}\n"
+            prompt += f"Tổng số task tuần trước: {total_truoc}\n"
+            prompt += f"Số task đã hoàn thành tuần này: {completed}\n"
+            prompt += f"Số task chưa bắt đầu: {not_started}\n"
+            prompt += f"Hãy viết NGẮN GỌN (tối đa 2 câu) nhận xét về tiến độ và khích lệ team. Trả lời duy nhất nội dung nhận xét, bắt đầu bằng emoji phù hợp (như 🚀, 🔥, 📉, ⚠️)."
+            
+            try:
+                res = requests.post(
+                    "https://api.groq.com/openai/v1/chat/completions",
+                    headers={"Authorization": f"Bearer {groq_api_key}", "Content-Type": "application/json"},
+                    json={
+                        "model": "llama-3.1-8b-instant",
+                        "messages": [{"role": "user", "content": prompt}],
+                        "temperature": 0.7,
+                        "max_tokens": 100
+                    },
+                    timeout=5
+                )
+                if res.status_code == 200:
+                    ai_text = res.json()["choices"][0]["message"]["content"].strip()
+                    if ai_text:
+                        insights.append(ai_text)
+            except Exception as e:
+                print(f"Groq API error in insights: {e}")
+                
+        return jsonify({"status": "success", "insights": insights})
+    except Exception as e:
+        print("API Insights error:", e)
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route('/api/chart_data')
 def api_chart_data():
@@ -1522,6 +1710,34 @@ def api_logtime():
         return jsonify(resp)
     else:
         return jsonify({"status": "error", "message": "Lỗi khi lưu logtime"}), 500
+
+@app.route('/api/log_member_time', methods=['POST'])
+def api_log_member_time():
+    if not session.get('logged_in'):
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+    
+    data = request.get_json()
+    username = session.get('user', '')
+    payload = {
+        "action": "log_member_time",
+        "username": username,
+        "task_name": data.get('task_name', ''),
+        "duration": data.get('duration', '0'),
+        "start_time": data.get('start_time', ''),
+        "end_time": data.get('end_time', ''),
+        "start_date": data.get('start_date', ''),
+        "end_date": data.get('end_date', ''),
+        "note": data.get('note', '')
+    }
+    
+    try:
+        res = requests.post(LOGTIME_API_URL, json=payload)
+        if res.status_code == 200 and res.json().get('status') == 'success':
+            return jsonify({"status": "success"})
+        return jsonify({"status": "error", "message": "Apps Script error"})
+    except Exception as e:
+        print("Log member time error:", e)
+        return jsonify({"status": "error", "message": "Server error"}), 500
 
 @app.route('/api/change-password', methods=['POST'])
 def api_change_password():

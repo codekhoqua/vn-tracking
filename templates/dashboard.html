@@ -150,62 +150,7 @@
 
 
 
-<!-- ============ GIEO QUẺ MODAL ============ -->
-<div id="fortune-overlay" class="cp-overlay" onclick="closeFortuneModal()"></div>
-<div id="fortune-modal" class="cp-modal fortune-modal-container">
-    <button class="modal-close fortune-close-btn" onclick="closeFortuneModal()">✕</button>
 
-    <!-- STEP 1: PROMPT TO DRAW -->
-    <div id="fortune-step-intro" class="fortune-step active">
-        <div class="fortune-header">
-            <div class="fortune-icon-anim">🔮</div>
-            <h3>Gieo Quẻ Đầu Ngày</h3>
-            <p>Xem vận may, công việc & lời chúc cho ngày hôm nay!</p>
-        </div>
-        <div class="fortune-tube-wrapper">
-            <div class="fortune-tube" id="fortune-tube-el">🎋</div>
-        </div>
-        <div class="fortune-actions">
-            <button class="btn fortune-draw-btn" onclick="triggerDrawFortune()">
-                🧧 Gieo Quẻ Ngay
-            </button>
-            <button class="btn btn-outline" style="color: #bbb; border-color: rgba(255,255,255,0.2);" onclick="closeFortuneModal(true)">
-                Bỏ qua hôm nay
-            </button>
-        </div>
-    </div>
-
-    <!-- STEP 2: ANIMATION SHAKING -->
-    <div id="fortune-step-anim" class="fortune-step">
-        <div class="fortune-header">
-            <div class="fortune-icon-anim shaking-tube">🎋</div>
-            <h3>Đang lắc quẻ...</h3>
-            <p>Đang xin quẻ linh nghiệm cho ngày mới...</p>
-        </div>
-    </div>
-
-    <!-- STEP 3: RESULT CARD -->
-    <div id="fortune-step-result" class="fortune-step">
-        <div class="fortune-result-card" id="fortune-card-el">
-            <div class="fortune-badge" id="fortune-rarity-badge">大吉 • ĐẠI CÁT</div>
-            <h2 class="fortune-title" id="fortune-card-title">Quẻ Số 88: Thuận Thủy Thôi Châu</h2>
-            <div class="fortune-divider">✦ ✧ ✦</div>
-            <div class="fortune-poem" id="fortune-card-poem">"Code một lần chạy ngay - Bug thấy phải né xa"</div>
-            <div class="fortune-body" id="fortune-card-body">Hôm nay vận khí cực thịnh! Mọi tác vụ logic đều hanh thông...</div>
-            <div class="fortune-stats" id="fortune-card-stats">
-                <div class="f-stat"><span class="f-lbl">May Mắn</span><span class="f-val" id="f-stat-luck">98%</span></div>
-                <div class="f-stat"><span class="f-lbl">Năng Lượng</span><span class="f-val" id="f-stat-energy">95%</span></div>
-                <div class="f-stat"><span class="f-lbl">Né Bug</span><span class="f-val" id="f-stat-bug">100%</span></div>
-            </div>
-            <div class="fortune-date-stamp" id="fortune-card-date">Ngày: 2026-08-14</div>
-        </div>
-        <div class="fortune-actions" style="margin-top: 15px;">
-            <button class="btn fortune-draw-btn" onclick="closeFortuneModal()">
-                ✨ Nhận Lộc & Đóng
-            </button>
-        </div>
-    </div>
-</div>
 
 <!-- ============ FILTER DRAWER (RIGHT SIDE) ============ -->
 {% if role in ['admin', 'manager', 'leader'] %}
@@ -277,7 +222,7 @@
             style="border-radius: var(--radius-sm); margin-right: 8px;">
         <div style="display: flex; flex-direction: column; justify-content: center;">
             <span>VN-Tracking</span>
-            <sup style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.3.55</i></sup>
+            <sup style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.3.64</i></sup>
         </div>
     </div>
 
@@ -330,13 +275,7 @@
             Team Calendar
         </div>
     </div>
-    <div class="nav-item" onclick="openFortuneModal(true)" style="cursor: pointer;" id="nav-fortune-item">
-        <div class="nav-item-content">
-            <span style="font-size: 16px; margin-right: 4px;">🔮</span>
-            <span>Gieo Quẻ Hàng Ngày</span>
-            <span id="fortune-nav-badge" style="display: none; margin-left: auto; background: #e74c3c; color: white; border-radius: 10px; padding: 2px 6px; font-size: 10px; font-weight: bold;">Mới</span>
-        </div>
-    </div>
+
     <a href="/psd-tool" target="_blank" class="nav-item" style="text-decoration: none; color: inherit;">
         <div class="nav-item-content">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -779,6 +718,86 @@
                 opacity: 1;
                 border-radius: 8px !important;
             }
+
+            /* Time Tracker CSS */
+            .time-tracker-box {
+                margin-top: 15px;
+                padding: 15px;
+                background: rgba(255, 255, 255, 0.05);
+                border: 1px solid var(--border);
+                border-radius: 12px;
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+            }
+            .tracker-header {
+                font-weight: 600;
+                color: var(--text-2);
+                font-size: 0.95rem;
+            }
+            .tracker-controls {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+            }
+            .btn-tracker {
+                padding: 8px 16px;
+                border-radius: 8px;
+                border: none;
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 0.2s;
+                font-size: 0.9rem;
+            }
+            .btn-tracker.start {
+                background: rgba(46, 213, 115, 0.2);
+                color: #2ed573;
+            }
+            .btn-tracker.start:hover {
+                background: rgba(46, 213, 115, 0.3);
+            }
+            .btn-tracker.end {
+                background: rgba(255, 71, 87, 0.2);
+                color: #ff4757;
+            }
+            .btn-tracker.end:hover:not([disabled]) {
+                background: rgba(255, 71, 87, 0.3);
+            }
+            .btn-tracker[disabled] {
+                opacity: 0.5;
+                cursor: not-allowed;
+            }
+            .tracker-time {
+                font-family: monospace;
+                font-size: 1.2rem;
+                font-weight: bold;
+                color: var(--text);
+                margin-left: auto;
+                background: rgba(0,0,0,0.3);
+                padding: 4px 12px;
+                border-radius: 6px;
+                border: 1px solid var(--border);
+            }
+            .tracker-inputs {
+                display: flex;
+                gap: 10px;
+            }
+            .tracker-note {
+                flex: 1;
+                padding: 8px 12px;
+                border-radius: 8px;
+                border: 1px solid var(--border);
+                background: var(--surface);
+                color: var(--text);
+                outline: none;
+            }
+            .btn-tracker.save {
+                background: var(--primary);
+                color: white;
+            }
+            .btn-tracker.save:hover {
+                filter: brightness(1.1);
+            }
         </style>
 
         <!-- Profile Slide-Up Panel -->
@@ -926,7 +945,6 @@
         </div>
 
         <!-- AI Insights integrated as a sleek bottom bar -->
-        {% if ai_insights and ai_insights|length > 0 %}
         <style>
             @keyframes marqueeScroll {
                 0% {
@@ -1027,19 +1045,10 @@
 
             <div class="ai-insights-track">
                 <div class="ai-insights-scroll" id="aiInsightsScroll">
-                    {% for insight in ai_insights %}
-                    <div class="ai-insight-item">
+                    <div class="ai-insight-item" style="opacity: 0.7;">
                         <span class="ai-insight-dot"></span>
-                        {{ insight }}
+                        {{ '✨ Đang phân tích dữ liệu & thời tiết...' if lang == 'vi' else '✨ データと天気を分析中...' }}
                     </div>
-                    {% endfor %}
-                    <!-- Duplicate for seamless loop -->
-                    {% for insight in ai_insights %}
-                    <div class="ai-insight-item">
-                        <span class="ai-insight-dot"></span>
-                        {{ insight }}
-                    </div>
-                    {% endfor %}
                 </div>
             </div>
         </div>
@@ -1054,7 +1063,6 @@
                 }
             });
         </script>
-        {% endif %}
     </div>
 
 
@@ -1207,10 +1215,47 @@
                 <div class="metric-value">{{ weeks.truoc.metrics.lettering }}</div>
             </div>
         </div>
+        
+        <div class="kanban-controls notion-controls" style="display: flex; align-items: center;">
+            <!-- Search Box -->
+            <div class="notion-search-wrapper" style="margin-left: auto; gap: 8px; position: relative; max-width: 200px;">
+                <i class="fas fa-search" style="color: #9ca3af; font-size: 0.95rem;"></i>
+                <input type="text" class="kanban-search notion-search-input" placeholder="{{ 'Type to search...' if lang == 'vi' else '検索...' }}" oninput="filterKanban(this)" style="color: #9ca3af; width: 150px; padding-right: 20px;">
+                <i class="fas fa-times clear-search" style="display: none; color: #9ca3af; font-size: 0.85rem; cursor: pointer; position: absolute; right: 8px;" onclick="this.previousElementSibling.value=''; filterKanban(this.previousElementSibling); this.style.display='none';"></i>
+            </div>
+            
+            <!-- Sort (with custom dropdown) -->
+            <div class="notion-icon-btn kanban-sort-btn" style="color: #9ca3af; position: relative; display: flex; align-items: center; gap: 6px; margin-left: 12px; border-radius: var(--radius-md);" title="Sort" onclick="toggleNotionDropdown(event, this)">
+                <i class="fas fa-sort-amount-down"></i> <span style="font-size: 0.85rem; font-weight: 500;">Sort</span>
+                <div class="notion-dropdown-menu">
+                    <div class="notion-dropdown-item active" data-type="group" data-value="job" onclick="handleSortOptionClick(event, this)">
+                        <span>{{ 'Group by Job Type' if lang == 'vi' else '作業内容でグループ化' }}</span>
+                        <i class="fas fa-check"></i>
+                    </div>
+                    <div class="notion-dropdown-divider"></div>
+                    <div class="notion-dropdown-item" data-type="sort" data-value="name_asc" onclick="handleSortOptionClick(event, this)">
+                        <span>{{ 'Name (A-Z)' if lang == 'vi' else '名前順 (A-Z)' }}</span>
+                        <i class="fas fa-check"></i>
+                    </div>
+                    <div class="notion-dropdown-item" data-type="sort" data-value="name_desc" onclick="handleSortOptionClick(event, this)">
+                        <span>{{ 'Name (Z-A)' if lang == 'vi' else '名前順 (Z-A)' }}</span>
+                        <i class="fas fa-check"></i>
+                    </div>
+                    <div class="notion-dropdown-item" data-type="sort" data-value="date_asc" onclick="handleSortOptionClick(event, this)">
+                        <span>{{ 'Date (Earliest)' if lang == 'vi' else '日付 (早い順)' }}</span>
+                        <i class="fas fa-check"></i>
+                    </div>
+                    <div class="notion-dropdown-item" data-type="sort" data-value="date_desc" onclick="handleSortOptionClick(event, this)">
+                        <span>{{ 'Date (Latest)' if lang == 'vi' else '日付 (遅い順)' }}</span>
+                        <i class="fas fa-check"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
         <div class="kanban-board">
-            {% set statuses = [('not-started', 'To Do', weeks.truoc.dashboard|selectattr("status_class", "equalto",
-            "not-started")|list), ('in-progress', 'In Progress', weeks.truoc.dashboard|selectattr("status_class",
-            "equalto", "in-progress")|list), ('delivered', 'Completed',
+            {% set statuses = [('not-started', 'To Do' if lang == 'vi' else '未着手', weeks.truoc.dashboard|selectattr("status_class", "equalto",
+            "not-started")|list), ('in-progress', 'In Progress' if lang == 'vi' else '進行中', weeks.truoc.dashboard|selectattr("status_class",
+            "equalto", "in-progress")|list), ('delivered', 'Completed' if lang == 'vi' else '納品済み',
             weeks.truoc.dashboard|selectattr("status_class", "equalto", "delivered")|list)] %}
             {% for status_id, status_name, cards in statuses %}
             <div class="kanban-column" data-status="{{ status_id }}">
@@ -1219,63 +1264,178 @@
                     <span class="count kanban-col-count">{{ cards|length }}</span>
                 </div>
                 <div class="kanban-cards">
-                    {% for card in cards %}
-                    <div class="progress-card status-{{ card.status_class }}" data-tp-key="{{ card.key }}"
-                        data-checked-ids="{{ card.checked_ids }}" onclick="openModal('truoc', '{{ card.key }}')">
-                        <div class="card-tags">
-                            {% set cv = card.name.split(' - ')[0] %}
-                            {% set tag_class = 'tag-lettering' if '写植' in cv or 'Lettering' in cv else
-                            ('tag-retouch' if 'レタッチ' in cv or 'Retouch' in cv else '') %}
-                            <span class="tag {{ tag_class }}">{{ cv }}</span>
-                        </div>
-                        <div class="card-title">{{ card.name }}</div>
-                        <div class="card-worker">
-                            <div class="worker-avatars-group" style="display: flex;">
-                                {% set workers = card.worker.split(',') if card.worker else [] %}
-                                {% for w in workers %}
-                                {% set w_trim = w.strip() %}
-                                {% set ns = namespace(found_avatar=none) %}
-                                {% if user_profiles %}
-                                {% for k, v in user_profiles.items() %}
-                                {% if k|lower in w_trim|lower or w_trim|lower in k|lower %}
-                                {% set ns.found_avatar = v.avatar %}
+                    {% set job_order = ['Prep', 'Lettering', 'Lettering QC', 'Retouch', 'Lettering/Retouch'] %}
+                    {% for jt in job_order %}
+                        {% set group_cards = cards|selectattr('job_type', 'equalto', jt)|list %}
+                        {% if group_cards|length > 0 %}
+                            <div class="job-group-header">{{ jt }}</div>
+                            {% for card in group_cards %}
+                            <div class="progress-card status-{{ card.status_class }}" data-tp-key="{{ card.key }}"
+                                data-checked-ids="{{ card.checked_ids }}" onclick="openModal('truoc', '{{ card.key }}')">
+                                <div class="card-tags">
+                                    {% set cv = card.name.split(' - ')[0] %}
+                                    {% set tag_class = 'tag-lettering-retouch' if '写植/ﾚﾀｯﾁ' in cv or '写植/レタッチ' in cv or 'Lettering/Retouch' in cv else
+                                    ('tag-correction' if '修正' in cv or 'Correction' in cv or 'Lettering QC' in cv else
+                                    ('tag-lettering' if '写植' in cv or 'Lettering' in cv else 
+                                    ('tag-retouch' if 'レタッチ' in cv or 'ﾚﾀｯﾁ' in cv or 'Retouch' in cv else ('tag-prep' if 'Prep' in cv else '')))) %}
+                                    <span class="tag {{ tag_class }}">{{ cv }}</span>
+                                </div>
+                                <div class="card-title">{{ card.name }}</div>
+                                {% if card.start_date or card.end_date %}
+                                <div class="card-dates" style="font-size: 0.75rem; color: var(--text-3); margin-top: 4px; margin-bottom: 8px; display: flex; gap: 8px;">
+                                    <span title="Start / End Date" style="background: var(--surface); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border);"><i class="fas fa-calendar-alt" style="margin-right: 4px; color: var(--primary);"></i>{{ card.start_date }} ~ {{ card.end_date }}</span>
+                                </div>
                                 {% endif %}
-                                {% endfor %}
+                                <div class="card-worker" style="justify-content: space-between; width: 100%;">
+                                    <div style="display: flex; align-items: center;">
+                                        <div class="worker-avatars-group" style="display: flex;">
+                                        {% set workers = card.worker.split(',') if card.worker else [] %}
+                                        {% for w in workers %}
+                                        {% set w_trim = w.strip() %}
+                                        {% set ns = namespace(found_avatar=none) %}
+                                        {% if user_profiles %}
+                                        {% for k, v in user_profiles.items() %}
+                                        {% if k|lower in w_trim|lower or w_trim|lower in k|lower %}
+                                        {% set ns.found_avatar = v.avatar %}
+                                        {% endif %}
+                                        {% endfor %}
+                                        {% endif %}
+                                        <span class="worker-avatar"
+                                            style="{% if not loop.first %}margin-left: -8px;{% endif %} border: 2px solid var(--bg-card); position: relative; z-index: {{ 10 - loop.index0 }};"
+                                            title="{{ w_trim }}">
+                                            {% if ns.found_avatar %}
+                                            <img src="{{ ns.found_avatar }}" alt="Avatar" class="avatar-img"
+                                                referrerpolicy="no-referrer"
+                                                onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                            <span class="avatar-fallback" style="display:none;">{{ w_trim[0]|upper if w_trim
+                                                else 'U' }}</span>
+                                            {% else %}
+                                            {{ w_trim[0]|upper if w_trim else 'U' }}
+                                            {% endif %}
+                                        </span>
+                                        {% endfor %}
+                                        </div>
+                                        <span class="worker-name" style="margin-left: 8px;">{{ card.worker }}</span>
+                                    </div>
+                                    {% if card.qc_person and card.qc_person|lower not in ['nan', 'none', ''] %}
+                                    <div class="qc-badge" style="font-size: 0.75rem; color: var(--warning); background: rgba(255, 167, 38, 0.1); border: 1px solid rgba(255, 167, 38, 0.3); padding: 2px 6px; border-radius: 4px; display: flex; align-items: center; gap: 4px;" title="QC Nội bộ">
+                                        QC: {{ card.qc_person }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="t4-external-toggle" style="margin-top: 8px;">
+                                    {% set is_started = ('t4' in card.checked_ids) %}
+                                    <div onclick="event.stopPropagation(); toggleExternalStart('{{ card.key }}', this)" style="font-size: 0.75rem; color: {% if is_started %}var(--primary){% else %}var(--text-3){% endif %}; background: {% if is_started %}rgba(16, 185, 129, 0.1){% else %}var(--bg-page){% endif %}; border: 1px solid {% if is_started %}rgba(16, 185, 129, 0.3){% else %}var(--border){% endif %}; padding: 4px 8px; border-radius: 4px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; transition: all 0.2s;" title="Đánh dấu Bắt đầu">
+                                        <span class="platform-badge sheet" style="font-size: 0.65rem; padding: 2px 4px; line-height: 1; border-radius: 2px; background: #10b981; color: white;">SHEET</span>
+                                        <input type="checkbox" style="pointer-events: none; margin:0; width: 14px; height: 14px;" {% if is_started %}checked{% endif %}>
+                                        <span class="t4-text" style="font-weight: 500;">{{ ('O: 開始 (Bắt đầu)' if lang == 'vi' else 'O列：開始') if is_started else ('Chưa bắt đầu' if lang == 'vi' else '未着手') }}</span>
+                                    </div>
+                                </div>
+                                <div class="progress-info">
+                                    <span class="status-text">
+                                        {% if card.status_class == 'not-started' %}
+                                        {{ 'To Do' if lang == 'vi' else '未着手' }}
+                                        {% elif card.status_class == 'delivered' %}
+                                        {{ 'Completed' if lang == 'vi' else '納品済み' }}
+                                        {% else %}
+                                        {{ 'In Progress' if lang == 'vi' else '進行中' }}
+                                        {% endif %}
+                                    </span>
+                                    <span>{{ card.progress }}%</span>
+                                </div>
+                                <div class="progress-track">
+                                    <div class="progress-fill" style="width: {{ card.progress }}%"></div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% set other_cards = cards|rejectattr('job_type', 'in', job_order)|list %}
+                    {% if other_cards|length > 0 %}
+                        <div class="job-group-header">Other</div>
+                        {% for card in other_cards %}
+                        <div class="progress-card status-{{ card.status_class }}" data-tp-key="{{ card.key }}"
+                            data-checked-ids="{{ card.checked_ids }}" onclick="openModal('truoc', '{{ card.key }}')">
+                            <div class="card-tags">
+                                {% set cv = card.name.split(' - ')[0] %}
+                                {% set tag_class = 'tag-lettering-retouch' if '写植/ﾚﾀｯﾁ' in cv or '写植/レタッチ' in cv or 'Lettering/Retouch' in cv else
+                                ('tag-correction' if '修正' in cv or 'Correction' in cv or 'Lettering QC' in cv else
+                                ('tag-lettering' if '写植' in cv or 'Lettering' in cv else 
+                                ('tag-retouch' if 'レタッチ' in cv or 'ﾚﾀｯﾁ' in cv or 'Retouch' in cv else ('tag-prep' if 'Prep' in cv else '')))) %}
+                                <span class="tag {{ tag_class }}">{{ cv }}</span>
+                            </div>
+                            <div class="card-title">{{ card.name }}</div>
+                            {% if card.start_date or card.end_date %}
+                            <div class="card-dates" style="font-size: 0.75rem; color: var(--text-3); margin-top: 4px; margin-bottom: 8px; display: flex; gap: 8px;">
+                                <span title="Start / End Date" style="background: var(--surface); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border);"><i class="fas fa-calendar-alt" style="margin-right: 4px; color: var(--primary);"></i>{{ card.start_date }} ~ {{ card.end_date }}</span>
+                            </div>
+                            {% endif %}
+                            <div class="card-worker" style="justify-content: space-between; width: 100%;">
+                                <div style="display: flex; align-items: center;">
+                                    <div class="worker-avatars-group" style="display: flex;">
+                                    {% set workers = card.worker.split(',') if card.worker else [] %}
+                                    {% for w in workers %}
+                                    {% set w_trim = w.strip() %}
+                                    {% set ns = namespace(found_avatar=none) %}
+                                    {% if user_profiles %}
+                                    {% for k, v in user_profiles.items() %}
+                                    {% if k|lower in w_trim|lower or w_trim|lower in k|lower %}
+                                    {% set ns.found_avatar = v.avatar %}
+                                    {% endif %}
+                                    {% endfor %}
+                                    {% endif %}
+                                    <span class="worker-avatar"
+                                        style="{% if not loop.first %}margin-left: -8px;{% endif %} border: 2px solid var(--bg-card); position: relative; z-index: {{ 10 - loop.index0 }};"
+                                        title="{{ w_trim }}">
+                                        {% if ns.found_avatar %}
+                                        <img src="{{ ns.found_avatar }}" alt="Avatar" class="avatar-img"
+                                            referrerpolicy="no-referrer"
+                                            onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                        <span class="avatar-fallback" style="display:none;">{{ w_trim[0]|upper if w_trim
+                                            else 'U' }}</span>
+                                        {% else %}
+                                        {{ w_trim[0]|upper if w_trim else 'U' }}
+                                        {% endif %}
+                                    </span>
+                                    {% endfor %}
+                                    </div>
+                                    <span class="worker-name" style="margin-left: 8px;">{{ card.worker }}</span>
+                                </div>
+                                {% if card.qc_person and card.qc_person|lower not in ['nan', 'none', ''] %}
+                                <div class="qc-badge" style="font-size: 0.75rem; color: var(--warning); background: rgba(255, 167, 38, 0.1); border: 1px solid rgba(255, 167, 38, 0.3); padding: 2px 6px; border-radius: 4px; display: flex; align-items: center; gap: 4px;" title="QC Nội bộ">
+                                    QC: {{ card.qc_person }}
+                                </div>
                                 {% endif %}
-                                <span class="worker-avatar"
-                                    style="{% if not loop.first %}margin-left: -8px;{% endif %} border: 2px solid var(--bg-card); position: relative; z-index: {{ 10 - loop.index0 }};"
-                                    title="{{ w_trim }}">
-                                    {% if ns.found_avatar %}
-                                    <img src="{{ ns.found_avatar }}" alt="Avatar" class="avatar-img"
-                                        referrerpolicy="no-referrer"
-                                        onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                                    <span class="avatar-fallback" style="display:none;">{{ w_trim[0]|upper if w_trim
-                                        else 'U' }}</span>
+                            </div>
+
+                            <div class="t4-external-toggle" style="margin-top: 8px;">
+                                {% set is_started = ('t4' in card.checked_ids) %}
+                                <div onclick="event.stopPropagation(); toggleExternalStart('{{ card.key }}', this)" style="font-size: 0.75rem; color: {% if is_started %}var(--primary){% else %}var(--text-3){% endif %}; background: {% if is_started %}rgba(16, 185, 129, 0.1){% else %}var(--bg-page){% endif %}; border: 1px solid {% if is_started %}rgba(16, 185, 129, 0.3){% else %}var(--border){% endif %}; padding: 4px 8px; border-radius: 4px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; transition: all 0.2s;" title="Đánh dấu Bắt đầu">
+                                    <span class="platform-badge sheet" style="font-size: 0.65rem; padding: 2px 4px; line-height: 1; border-radius: 2px; background: #10b981; color: white;">SHEET</span>
+                                    <input type="checkbox" style="pointer-events: none; margin:0; width: 14px; height: 14px;" {% if is_started %}checked{% endif %}>
+                                    <span class="t4-text" style="font-weight: 500;">{{ ('O: 開始 (Bắt đầu)' if lang == 'vi' else 'O列：開始') if is_started else ('Chưa bắt đầu' if lang == 'vi' else '未着手') }}</span>
+                                </div>
+                            </div>
+                            <div class="progress-info">
+                                <span class="status-text">
+                                    {% if card.status_class == 'not-started' %}
+                                    {{ 'To Do' if lang == 'vi' else '未着手' }}
+                                    {% elif card.status_class == 'delivered' %}
+                                    {{ 'Completed' if lang == 'vi' else '納品済み' }}
                                     {% else %}
-                                    {{ w_trim[0]|upper if w_trim else 'U' }}
+                                    {{ 'In Progress' if lang == 'vi' else '進行中' }}
                                     {% endif %}
                                 </span>
-                                {% endfor %}
+                                <span>{{ card.progress }}%</span>
                             </div>
-                            <span class="worker-name" style="margin-left: 8px;">{{ card.worker }}</span>
+                            <div class="progress-track">
+                                <div class="progress-fill" style="width: {{ card.progress }}%"></div>
+                            </div>
                         </div>
-                        <div class="progress-info">
-                            <span class="status-text">
-                                {% if card.status_class == 'not-started' %}
-                                {{ 'To Do' if lang == 'vi' else '未着手' }}
-                                {% elif card.status_class == 'delivered' %}
-                                {{ 'Completed' if lang == 'vi' else '納品済み' }}
-                                {% else %}
-                                {{ 'In Progress' if lang == 'vi' else '進行中' }}
-                                {% endif %}
-                            </span>
-                            <span>{{ card.progress }}%</span>
-                        </div>
-                        <div class="progress-track">
-                            <div class="progress-fill" style="width: {{ card.progress }}%"></div>
-                        </div>
-                    </div>
-                    {% endfor %}
+                        {% endfor %}
+                    {% endif %}
                 </div>
             </div>
             {% endfor %}
@@ -1302,6 +1462,43 @@
                 <div class="metric-value">{{ weeks.nay.metrics.lettering }}</div>
             </div>
         </div>
+
+        <div class="kanban-controls notion-controls" style="display: flex; align-items: center;">
+            <!-- Search Box -->
+            <div class="notion-search-wrapper" style="margin-left: auto; gap: 8px; position: relative; max-width: 200px;">
+                <i class="fas fa-search" style="color: #9ca3af; font-size: 0.95rem;"></i>
+                <input type="text" class="kanban-search notion-search-input" placeholder="{{ 'Type to search...' if lang == 'vi' else '検索...' }}" oninput="filterKanban(this)" style="color: #9ca3af; width: 150px; padding-right: 20px;">
+                <i class="fas fa-times clear-search" style="display: none; color: #9ca3af; font-size: 0.85rem; cursor: pointer; position: absolute; right: 8px;" onclick="this.previousElementSibling.value=''; filterKanban(this.previousElementSibling); this.style.display='none';"></i>
+            </div>
+            
+            <!-- Sort (with custom dropdown) -->
+            <div class="notion-icon-btn kanban-sort-btn" style="color: #9ca3af; position: relative; display: flex; align-items: center; gap: 6px; margin-left: 12px; border-radius: var(--radius-md);" title="Sort" onclick="toggleNotionDropdown(event, this)">
+                <i class="fas fa-sort-amount-down"></i> <span style="font-size: 0.85rem; font-weight: 500;">Sort</span>
+                <div class="notion-dropdown-menu">
+                    <div class="notion-dropdown-item active" data-type="group" data-value="job" onclick="handleSortOptionClick(event, this)">
+                        <span>{{ 'Group by Job Type' if lang == 'vi' else '作業内容でグループ化' }}</span>
+                        <i class="fas fa-check"></i>
+                    </div>
+                    <div class="notion-dropdown-divider"></div>
+                    <div class="notion-dropdown-item" data-type="sort" data-value="name_asc" onclick="handleSortOptionClick(event, this)">
+                        <span>{{ 'Name (A-Z)' if lang == 'vi' else '名前順 (A-Z)' }}</span>
+                        <i class="fas fa-check"></i>
+                    </div>
+                    <div class="notion-dropdown-item" data-type="sort" data-value="name_desc" onclick="handleSortOptionClick(event, this)">
+                        <span>{{ 'Name (Z-A)' if lang == 'vi' else '名前順 (Z-A)' }}</span>
+                        <i class="fas fa-check"></i>
+                    </div>
+                    <div class="notion-dropdown-item" data-type="sort" data-value="date_asc" onclick="handleSortOptionClick(event, this)">
+                        <span>{{ 'Date (Earliest)' if lang == 'vi' else '日付 (早い順)' }}</span>
+                        <i class="fas fa-check"></i>
+                    </div>
+                    <div class="notion-dropdown-item" data-type="sort" data-value="date_desc" onclick="handleSortOptionClick(event, this)">
+                        <span>{{ 'Date (Latest)' if lang == 'vi' else '日付 (遅い順)' }}</span>
+                        <i class="fas fa-check"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
         <div class="kanban-board">
             {% set statuses = [('not-started', 'To Do' if lang == 'vi' else '未着手',
             weeks.nay.dashboard|selectattr("status_class", "equalto", "not-started")|list), ('in-progress', 'In
@@ -1315,63 +1512,178 @@
                     <span class="count kanban-col-count">{{ cards|length }}</span>
                 </div>
                 <div class="kanban-cards">
-                    {% for card in cards %}
-                    <div class="progress-card status-{{ card.status_class }}" data-tp-key="{{ card.key }}"
-                        data-checked-ids="{{ card.checked_ids }}" onclick="openModal('nay', '{{ card.key }}')">
-                        <div class="card-tags">
-                            {% set cv = card.name.split(' - ')[0] %}
-                            {% set tag_class = 'tag-lettering' if '写植' in cv or 'Lettering' in cv else
-                            ('tag-retouch' if 'レタッチ' in cv or 'Retouch' in cv else '') %}
-                            <span class="tag {{ tag_class }}">{{ cv }}</span>
-                        </div>
-                        <div class="card-title">{{ card.name }}</div>
-                        <div class="card-worker">
-                            <div class="worker-avatars-group" style="display: flex;">
-                                {% set workers = card.worker.split(',') if card.worker else [] %}
-                                {% for w in workers %}
-                                {% set w_trim = w.strip() %}
-                                {% set ns = namespace(found_avatar=none) %}
-                                {% if user_profiles %}
-                                {% for k, v in user_profiles.items() %}
-                                {% if k|lower in w_trim|lower or w_trim|lower in k|lower %}
-                                {% set ns.found_avatar = v.avatar %}
+                    {% set job_order = ['Prep', 'Lettering', 'Lettering QC', 'Retouch', 'Lettering/Retouch'] %}
+                    {% for jt in job_order %}
+                        {% set group_cards = cards|selectattr('job_type', 'equalto', jt)|list %}
+                        {% if group_cards|length > 0 %}
+                            <div class="job-group-header">{{ jt }}</div>
+                            {% for card in group_cards %}
+                            <div class="progress-card status-{{ card.status_class }}" data-tp-key="{{ card.key }}"
+                                data-checked-ids="{{ card.checked_ids }}" onclick="openModal('nay', '{{ card.key }}')">
+                                <div class="card-tags">
+                                    {% set cv = card.name.split(' - ')[0] %}
+                                    {% set tag_class = 'tag-lettering-retouch' if '写植/ﾚﾀｯﾁ' in cv or '写植/レタッチ' in cv or 'Lettering/Retouch' in cv else
+                                    ('tag-correction' if '修正' in cv or 'Correction' in cv or 'Lettering QC' in cv else
+                                    ('tag-lettering' if '写植' in cv or 'Lettering' in cv else 
+                                    ('tag-retouch' if 'レタッチ' in cv or 'ﾚﾀｯﾁ' in cv or 'Retouch' in cv else ('tag-prep' if 'Prep' in cv else '')))) %}
+                                    <span class="tag {{ tag_class }}">{{ cv }}</span>
+                                </div>
+                                <div class="card-title">{{ card.name }}</div>
+                                {% if card.start_date or card.end_date %}
+                                <div class="card-dates" style="font-size: 0.75rem; color: var(--text-3); margin-top: 4px; margin-bottom: 8px; display: flex; gap: 8px;">
+                                    <span title="Start / End Date" style="background: var(--surface); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border);"><i class="fas fa-calendar-alt" style="margin-right: 4px; color: var(--primary);"></i>{{ card.start_date }} ~ {{ card.end_date }}</span>
+                                </div>
                                 {% endif %}
-                                {% endfor %}
+                                <div class="card-worker" style="justify-content: space-between; width: 100%;">
+                                    <div style="display: flex; align-items: center;">
+                                        <div class="worker-avatars-group" style="display: flex;">
+                                        {% set workers = card.worker.split(',') if card.worker else [] %}
+                                        {% for w in workers %}
+                                        {% set w_trim = w.strip() %}
+                                        {% set ns = namespace(found_avatar=none) %}
+                                        {% if user_profiles %}
+                                        {% for k, v in user_profiles.items() %}
+                                        {% if k|lower in w_trim|lower or w_trim|lower in k|lower %}
+                                        {% set ns.found_avatar = v.avatar %}
+                                        {% endif %}
+                                        {% endfor %}
+                                        {% endif %}
+                                        <span class="worker-avatar"
+                                            style="{% if not loop.first %}margin-left: -8px;{% endif %} border: 2px solid var(--bg-card); position: relative; z-index: {{ 10 - loop.index0 }};"
+                                            title="{{ w_trim }}">
+                                            {% if ns.found_avatar %}
+                                            <img src="{{ ns.found_avatar }}" alt="Avatar" class="avatar-img"
+                                                referrerpolicy="no-referrer"
+                                                onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                            <span class="avatar-fallback" style="display:none;">{{ w_trim[0]|upper if w_trim
+                                                else 'U' }}</span>
+                                            {% else %}
+                                            {{ w_trim[0]|upper if w_trim else 'U' }}
+                                            {% endif %}
+                                        </span>
+                                        {% endfor %}
+                                        </div>
+                                        <span class="worker-name" style="margin-left: 8px;">{{ card.worker }}</span>
+                                    </div>
+                                    {% if card.qc_person and card.qc_person|lower not in ['nan', 'none', ''] %}
+                                    <div class="qc-badge" style="font-size: 0.75rem; color: var(--warning); background: rgba(255, 167, 38, 0.1); border: 1px solid rgba(255, 167, 38, 0.3); padding: 2px 6px; border-radius: 4px; display: flex; align-items: center; gap: 4px;" title="QC Nội bộ">
+                                        QC: {{ card.qc_person }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="t4-external-toggle" style="margin-top: 8px;">
+                                    {% set is_started = ('t4' in card.checked_ids) %}
+                                    <div onclick="event.stopPropagation(); toggleExternalStart('{{ card.key }}', this)" style="font-size: 0.75rem; color: {% if is_started %}var(--primary){% else %}var(--text-3){% endif %}; background: {% if is_started %}rgba(16, 185, 129, 0.1){% else %}var(--bg-page){% endif %}; border: 1px solid {% if is_started %}rgba(16, 185, 129, 0.3){% else %}var(--border){% endif %}; padding: 4px 8px; border-radius: 4px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; transition: all 0.2s;" title="Đánh dấu Bắt đầu">
+                                        <span class="platform-badge sheet" style="font-size: 0.65rem; padding: 2px 4px; line-height: 1; border-radius: 2px; background: #10b981; color: white;">SHEET</span>
+                                        <input type="checkbox" style="pointer-events: none; margin:0; width: 14px; height: 14px;" {% if is_started %}checked{% endif %}>
+                                        <span class="t4-text" style="font-weight: 500;">{{ ('O: 開始 (Bắt đầu)' if lang == 'vi' else 'O列：開始') if is_started else ('Chưa bắt đầu' if lang == 'vi' else '未着手') }}</span>
+                                    </div>
+                                </div>
+                                <div class="progress-info">
+                                    <span class="status-text">
+                                        {% if card.status_class == 'not-started' %}
+                                        {{ 'To Do' if lang == 'vi' else '未着手' }}
+                                        {% elif card.status_class == 'delivered' %}
+                                        {{ 'Completed' if lang == 'vi' else '納品済み' }}
+                                        {% else %}
+                                        {{ 'In Progress' if lang == 'vi' else '進行中' }}
+                                        {% endif %}
+                                    </span>
+                                    <span>{{ card.progress }}%</span>
+                                </div>
+                                <div class="progress-track">
+                                    <div class="progress-fill" style="width: {{ card.progress }}%"></div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% set other_cards = cards|rejectattr('job_type', 'in', job_order)|list %}
+                    {% if other_cards|length > 0 %}
+                        <div class="job-group-header">Other</div>
+                        {% for card in other_cards %}
+                        <div class="progress-card status-{{ card.status_class }}" data-tp-key="{{ card.key }}"
+                            data-checked-ids="{{ card.checked_ids }}" onclick="openModal('nay', '{{ card.key }}')">
+                            <div class="card-tags">
+                                {% set cv = card.name.split(' - ')[0] %}
+                                {% set tag_class = 'tag-lettering-retouch' if '写植/ﾚﾀｯﾁ' in cv or '写植/レタッチ' in cv or 'Lettering/Retouch' in cv else
+                                ('tag-correction' if '修正' in cv or 'Correction' in cv or 'Lettering QC' in cv else
+                                ('tag-lettering' if '写植' in cv or 'Lettering' in cv else 
+                                ('tag-retouch' if 'レタッチ' in cv or 'ﾚﾀｯﾁ' in cv or 'Retouch' in cv else ('tag-prep' if 'Prep' in cv else '')))) %}
+                                <span class="tag {{ tag_class }}">{{ cv }}</span>
+                            </div>
+                            <div class="card-title">{{ card.name }}</div>
+                            {% if card.start_date or card.end_date %}
+                            <div class="card-dates" style="font-size: 0.75rem; color: var(--text-3); margin-top: 4px; margin-bottom: 8px; display: flex; gap: 8px;">
+                                <span title="Start / End Date" style="background: var(--surface); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border);"><i class="fas fa-calendar-alt" style="margin-right: 4px; color: var(--primary);"></i>{{ card.start_date }} ~ {{ card.end_date }}</span>
+                            </div>
+                            {% endif %}
+                            <div class="card-worker" style="justify-content: space-between; width: 100%;">
+                                <div style="display: flex; align-items: center;">
+                                    <div class="worker-avatars-group" style="display: flex;">
+                                    {% set workers = card.worker.split(',') if card.worker else [] %}
+                                    {% for w in workers %}
+                                    {% set w_trim = w.strip() %}
+                                    {% set ns = namespace(found_avatar=none) %}
+                                    {% if user_profiles %}
+                                    {% for k, v in user_profiles.items() %}
+                                    {% if k|lower in w_trim|lower or w_trim|lower in k|lower %}
+                                    {% set ns.found_avatar = v.avatar %}
+                                    {% endif %}
+                                    {% endfor %}
+                                    {% endif %}
+                                    <span class="worker-avatar"
+                                        style="{% if not loop.first %}margin-left: -8px;{% endif %} border: 2px solid var(--bg-card); position: relative; z-index: {{ 10 - loop.index0 }};"
+                                        title="{{ w_trim }}">
+                                        {% if ns.found_avatar %}
+                                        <img src="{{ ns.found_avatar }}" alt="Avatar" class="avatar-img"
+                                            referrerpolicy="no-referrer"
+                                            onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                        <span class="avatar-fallback" style="display:none;">{{ w_trim[0]|upper if w_trim
+                                            else 'U' }}</span>
+                                        {% else %}
+                                        {{ w_trim[0]|upper if w_trim else 'U' }}
+                                        {% endif %}
+                                    </span>
+                                    {% endfor %}
+                                    </div>
+                                    <span class="worker-name" style="margin-left: 8px;">{{ card.worker }}</span>
+                                </div>
+                                {% if card.qc_person and card.qc_person|lower not in ['nan', 'none', ''] %}
+                                <div class="qc-badge" style="font-size: 0.75rem; color: var(--warning); background: rgba(255, 167, 38, 0.1); border: 1px solid rgba(255, 167, 38, 0.3); padding: 2px 6px; border-radius: 4px; display: flex; align-items: center; gap: 4px;" title="QC Nội bộ">
+                                    QC: {{ card.qc_person }}
+                                </div>
                                 {% endif %}
-                                <span class="worker-avatar"
-                                    style="{% if not loop.first %}margin-left: -8px;{% endif %} border: 2px solid var(--bg-card); position: relative; z-index: {{ 10 - loop.index0 }};"
-                                    title="{{ w_trim }}">
-                                    {% if ns.found_avatar %}
-                                    <img src="{{ ns.found_avatar }}" alt="Avatar" class="avatar-img"
-                                        referrerpolicy="no-referrer"
-                                        onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                                    <span class="avatar-fallback" style="display:none;">{{ w_trim[0]|upper if w_trim
-                                        else 'U' }}</span>
+                            </div>
+
+                            <div class="t4-external-toggle" style="margin-top: 8px;">
+                                {% set is_started = ('t4' in card.checked_ids) %}
+                                <div onclick="event.stopPropagation(); toggleExternalStart('{{ card.key }}', this)" style="font-size: 0.75rem; color: {% if is_started %}var(--primary){% else %}var(--text-3){% endif %}; background: {% if is_started %}rgba(16, 185, 129, 0.1){% else %}var(--bg-page){% endif %}; border: 1px solid {% if is_started %}rgba(16, 185, 129, 0.3){% else %}var(--border){% endif %}; padding: 4px 8px; border-radius: 4px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; transition: all 0.2s;" title="Đánh dấu Bắt đầu">
+                                    <span class="platform-badge sheet" style="font-size: 0.65rem; padding: 2px 4px; line-height: 1; border-radius: 2px; background: #10b981; color: white;">SHEET</span>
+                                    <input type="checkbox" style="pointer-events: none; margin:0; width: 14px; height: 14px;" {% if is_started %}checked{% endif %}>
+                                    <span class="t4-text" style="font-weight: 500;">{{ ('O: 開始 (Bắt đầu)' if lang == 'vi' else 'O列：開始') if is_started else ('Chưa bắt đầu' if lang == 'vi' else '未着手') }}</span>
+                                </div>
+                            </div>
+                            <div class="progress-info">
+                                <span class="status-text">
+                                    {% if card.status_class == 'not-started' %}
+                                    {{ 'To Do' if lang == 'vi' else '未着手' }}
+                                    {% elif card.status_class == 'delivered' %}
+                                    {{ 'Completed' if lang == 'vi' else '納品済み' }}
                                     {% else %}
-                                    {{ w_trim[0]|upper if w_trim else 'U' }}
+                                    {{ 'In Progress' if lang == 'vi' else '進行中' }}
                                     {% endif %}
                                 </span>
-                                {% endfor %}
+                                <span>{{ card.progress }}%</span>
                             </div>
-                            <span class="worker-name" style="margin-left: 8px;">{{ card.worker }}</span>
+                            <div class="progress-track">
+                                <div class="progress-fill" style="width: {{ card.progress }}%"></div>
+                            </div>
                         </div>
-                        <div class="progress-info">
-                            <span class="status-text">
-                                {% if card.status_class == 'not-started' %}
-                                {{ 'To Do' if lang == 'vi' else '未着手' }}
-                                {% elif card.status_class == 'delivered' %}
-                                {{ 'Completed' if lang == 'vi' else '納品済み' }}
-                                {% else %}
-                                {{ 'In Progress' if lang == 'vi' else '進行中' }}
-                                {% endif %}
-                            </span>
-                            <span>{{ card.progress }}%</span>
-                        </div>
-                        <div class="progress-track">
-                            <div class="progress-fill" style="width: {{ card.progress }}%"></div>
-                        </div>
-                    </div>
-                    {% endfor %}
+                        {% endfor %}
+                    {% endif %}
                 </div>
             </div>
             {% endfor %}
@@ -1398,6 +1710,43 @@
                 <div class="metric-value">{{ weeks.sau.metrics.lettering }}</div>
             </div>
         </div>
+
+        <div class="kanban-controls notion-controls" style="display: flex; align-items: center;">
+            <!-- Search Box -->
+            <div class="notion-search-wrapper" style="margin-left: auto; gap: 8px; position: relative; max-width: 200px;">
+                <i class="fas fa-search" style="color: #9ca3af; font-size: 0.95rem;"></i>
+                <input type="text" class="kanban-search notion-search-input" placeholder="{{ 'Type to search...' if lang == 'vi' else '検索...' }}" oninput="filterKanban(this)" style="color: #9ca3af; width: 150px; padding-right: 20px;">
+                <i class="fas fa-times clear-search" style="display: none; color: #9ca3af; font-size: 0.85rem; cursor: pointer; position: absolute; right: 8px;" onclick="this.previousElementSibling.value=''; filterKanban(this.previousElementSibling); this.style.display='none';"></i>
+            </div>
+            
+            <!-- Sort (with custom dropdown) -->
+            <div class="notion-icon-btn kanban-sort-btn" style="color: #9ca3af; position: relative; display: flex; align-items: center; gap: 6px; margin-left: 12px; border-radius: var(--radius-md);" title="Sort" onclick="toggleNotionDropdown(event, this)">
+                <i class="fas fa-sort-amount-down"></i> <span style="font-size: 0.85rem; font-weight: 500;">Sort</span>
+                <div class="notion-dropdown-menu">
+                    <div class="notion-dropdown-item active" data-type="group" data-value="job" onclick="handleSortOptionClick(event, this)">
+                        <span>{{ 'Group by Job Type' if lang == 'vi' else '作業内容でグループ化' }}</span>
+                        <i class="fas fa-check"></i>
+                    </div>
+                    <div class="notion-dropdown-divider"></div>
+                    <div class="notion-dropdown-item" data-type="sort" data-value="name_asc" onclick="handleSortOptionClick(event, this)">
+                        <span>{{ 'Name (A-Z)' if lang == 'vi' else '名前順 (A-Z)' }}</span>
+                        <i class="fas fa-check"></i>
+                    </div>
+                    <div class="notion-dropdown-item" data-type="sort" data-value="name_desc" onclick="handleSortOptionClick(event, this)">
+                        <span>{{ 'Name (Z-A)' if lang == 'vi' else '名前順 (Z-A)' }}</span>
+                        <i class="fas fa-check"></i>
+                    </div>
+                    <div class="notion-dropdown-item" data-type="sort" data-value="date_asc" onclick="handleSortOptionClick(event, this)">
+                        <span>{{ 'Date (Earliest)' if lang == 'vi' else '日付 (早い順)' }}</span>
+                        <i class="fas fa-check"></i>
+                    </div>
+                    <div class="notion-dropdown-item" data-type="sort" data-value="date_desc" onclick="handleSortOptionClick(event, this)">
+                        <span>{{ 'Date (Latest)' if lang == 'vi' else '日付 (遅い順)' }}</span>
+                        <i class="fas fa-check"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
         <div class="kanban-board">
             {% set statuses = [('not-started', 'To Do' if lang == 'vi' else '未着手',
             weeks.sau.dashboard|selectattr("status_class", "equalto", "not-started")|list), ('in-progress', 'In
@@ -1411,63 +1760,178 @@
                     <span class="count kanban-col-count">{{ cards|length }}</span>
                 </div>
                 <div class="kanban-cards">
-                    {% for card in cards %}
-                    <div class="progress-card status-{{ card.status_class }}" data-tp-key="{{ card.key }}"
-                        data-checked-ids="{{ card.checked_ids }}" onclick="openModal('sau', '{{ card.key }}')">
-                        <div class="card-tags">
-                            {% set cv = card.name.split(' - ')[0] %}
-                            {% set tag_class = 'tag-lettering' if '写植' in cv or 'Lettering' in cv else
-                            ('tag-retouch' if 'レタッチ' in cv or 'Retouch' in cv else '') %}
-                            <span class="tag {{ tag_class }}">{{ cv }}</span>
-                        </div>
-                        <div class="card-title">{{ card.name }}</div>
-                        <div class="card-worker">
-                            <div class="worker-avatars-group" style="display: flex;">
-                                {% set workers = card.worker.split(',') if card.worker else [] %}
-                                {% for w in workers %}
-                                {% set w_trim = w.strip() %}
-                                {% set ns = namespace(found_avatar=none) %}
-                                {% if user_profiles %}
-                                {% for k, v in user_profiles.items() %}
-                                {% if k|lower in w_trim|lower or w_trim|lower in k|lower %}
-                                {% set ns.found_avatar = v.avatar %}
+                    {% set job_order = ['Prep', 'Lettering', 'Lettering QC', 'Retouch', 'Lettering/Retouch'] %}
+                    {% for jt in job_order %}
+                        {% set group_cards = cards|selectattr('job_type', 'equalto', jt)|list %}
+                        {% if group_cards|length > 0 %}
+                            <div class="job-group-header">{{ jt }}</div>
+                            {% for card in group_cards %}
+                            <div class="progress-card status-{{ card.status_class }}" data-tp-key="{{ card.key }}"
+                                data-checked-ids="{{ card.checked_ids }}" onclick="openModal('sau', '{{ card.key }}')">
+                                <div class="card-tags">
+                                    {% set cv = card.name.split(' - ')[0] %}
+                                    {% set tag_class = 'tag-lettering-retouch' if '写植/ﾚﾀｯﾁ' in cv or '写植/レタッチ' in cv or 'Lettering/Retouch' in cv else
+                                    ('tag-correction' if '修正' in cv or 'Correction' in cv or 'Lettering QC' in cv else
+                                    ('tag-lettering' if '写植' in cv or 'Lettering' in cv else 
+                                    ('tag-retouch' if 'レタッチ' in cv or 'ﾚﾀｯﾁ' in cv or 'Retouch' in cv else ('tag-prep' if 'Prep' in cv else '')))) %}
+                                    <span class="tag {{ tag_class }}">{{ cv }}</span>
+                                </div>
+                                <div class="card-title">{{ card.name }}</div>
+                                {% if card.start_date or card.end_date %}
+                                <div class="card-dates" style="font-size: 0.75rem; color: var(--text-3); margin-top: 4px; margin-bottom: 8px; display: flex; gap: 8px;">
+                                    <span title="Start / End Date" style="background: var(--surface); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border);"><i class="fas fa-calendar-alt" style="margin-right: 4px; color: var(--primary);"></i>{{ card.start_date }} ~ {{ card.end_date }}</span>
+                                </div>
                                 {% endif %}
-                                {% endfor %}
+                                <div class="card-worker" style="justify-content: space-between; width: 100%;">
+                                    <div style="display: flex; align-items: center;">
+                                        <div class="worker-avatars-group" style="display: flex;">
+                                        {% set workers = card.worker.split(',') if card.worker else [] %}
+                                        {% for w in workers %}
+                                        {% set w_trim = w.strip() %}
+                                        {% set ns = namespace(found_avatar=none) %}
+                                        {% if user_profiles %}
+                                        {% for k, v in user_profiles.items() %}
+                                        {% if k|lower in w_trim|lower or w_trim|lower in k|lower %}
+                                        {% set ns.found_avatar = v.avatar %}
+                                        {% endif %}
+                                        {% endfor %}
+                                        {% endif %}
+                                        <span class="worker-avatar"
+                                            style="{% if not loop.first %}margin-left: -8px;{% endif %} border: 2px solid var(--bg-card); position: relative; z-index: {{ 10 - loop.index0 }};"
+                                            title="{{ w_trim }}">
+                                            {% if ns.found_avatar %}
+                                            <img src="{{ ns.found_avatar }}" alt="Avatar" class="avatar-img"
+                                                referrerpolicy="no-referrer"
+                                                onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                            <span class="avatar-fallback" style="display:none;">{{ w_trim[0]|upper if w_trim
+                                                else 'U' }}</span>
+                                            {% else %}
+                                            {{ w_trim[0]|upper if w_trim else 'U' }}
+                                            {% endif %}
+                                        </span>
+                                        {% endfor %}
+                                        </div>
+                                        <span class="worker-name" style="margin-left: 8px;">{{ card.worker }}</span>
+                                    </div>
+                                    {% if card.qc_person and card.qc_person|lower not in ['nan', 'none', ''] %}
+                                    <div class="qc-badge" style="font-size: 0.75rem; color: var(--warning); background: rgba(255, 167, 38, 0.1); border: 1px solid rgba(255, 167, 38, 0.3); padding: 2px 6px; border-radius: 4px; display: flex; align-items: center; gap: 4px;" title="QC Nội bộ">
+                                        QC: {{ card.qc_person }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="t4-external-toggle" style="margin-top: 8px;">
+                                    {% set is_started = ('t4' in card.checked_ids) %}
+                                    <div onclick="event.stopPropagation(); toggleExternalStart('{{ card.key }}', this)" style="font-size: 0.75rem; color: {% if is_started %}var(--primary){% else %}var(--text-3){% endif %}; background: {% if is_started %}rgba(16, 185, 129, 0.1){% else %}var(--bg-page){% endif %}; border: 1px solid {% if is_started %}rgba(16, 185, 129, 0.3){% else %}var(--border){% endif %}; padding: 4px 8px; border-radius: 4px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; transition: all 0.2s;" title="Đánh dấu Bắt đầu">
+                                        <span class="platform-badge sheet" style="font-size: 0.65rem; padding: 2px 4px; line-height: 1; border-radius: 2px; background: #10b981; color: white;">SHEET</span>
+                                        <input type="checkbox" style="pointer-events: none; margin:0; width: 14px; height: 14px;" {% if is_started %}checked{% endif %}>
+                                        <span class="t4-text" style="font-weight: 500;">{{ ('O: 開始 (Bắt đầu)' if lang == 'vi' else 'O列：開始') if is_started else ('Chưa bắt đầu' if lang == 'vi' else '未着手') }}</span>
+                                    </div>
+                                </div>
+                                <div class="progress-info">
+                                    <span class="status-text">
+                                        {% if card.status_class == 'not-started' %}
+                                        {{ 'To Do' if lang == 'vi' else '未着手' }}
+                                        {% elif card.status_class == 'delivered' %}
+                                        {{ 'Completed' if lang == 'vi' else '納品済み' }}
+                                        {% else %}
+                                        {{ 'In Progress' if lang == 'vi' else '進行中' }}
+                                        {% endif %}
+                                    </span>
+                                    <span>{{ card.progress }}%</span>
+                                </div>
+                                <div class="progress-track">
+                                    <div class="progress-fill" style="width: {{ card.progress }}%"></div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% set other_cards = cards|rejectattr('job_type', 'in', job_order)|list %}
+                    {% if other_cards|length > 0 %}
+                        <div class="job-group-header">Other</div>
+                        {% for card in other_cards %}
+                        <div class="progress-card status-{{ card.status_class }}" data-tp-key="{{ card.key }}"
+                            data-checked-ids="{{ card.checked_ids }}" onclick="openModal('sau', '{{ card.key }}')">
+                            <div class="card-tags">
+                                {% set cv = card.name.split(' - ')[0] %}
+                                {% set tag_class = 'tag-lettering-retouch' if '写植/ﾚﾀｯﾁ' in cv or '写植/レタッチ' in cv or 'Lettering/Retouch' in cv else
+                                ('tag-correction' if '修正' in cv or 'Correction' in cv or 'Lettering QC' in cv else
+                                ('tag-lettering' if '写植' in cv or 'Lettering' in cv else 
+                                ('tag-retouch' if 'レタッチ' in cv or 'ﾚﾀｯﾁ' in cv or 'Retouch' in cv else ('tag-prep' if 'Prep' in cv else '')))) %}
+                                <span class="tag {{ tag_class }}">{{ cv }}</span>
+                            </div>
+                            <div class="card-title">{{ card.name }}</div>
+                            {% if card.start_date or card.end_date %}
+                            <div class="card-dates" style="font-size: 0.75rem; color: var(--text-3); margin-top: 4px; margin-bottom: 8px; display: flex; gap: 8px;">
+                                <span title="Start / End Date" style="background: var(--surface); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border);"><i class="fas fa-calendar-alt" style="margin-right: 4px; color: var(--primary);"></i>{{ card.start_date }} ~ {{ card.end_date }}</span>
+                            </div>
+                            {% endif %}
+                            <div class="card-worker" style="justify-content: space-between; width: 100%;">
+                                <div style="display: flex; align-items: center;">
+                                    <div class="worker-avatars-group" style="display: flex;">
+                                    {% set workers = card.worker.split(',') if card.worker else [] %}
+                                    {% for w in workers %}
+                                    {% set w_trim = w.strip() %}
+                                    {% set ns = namespace(found_avatar=none) %}
+                                    {% if user_profiles %}
+                                    {% for k, v in user_profiles.items() %}
+                                    {% if k|lower in w_trim|lower or w_trim|lower in k|lower %}
+                                    {% set ns.found_avatar = v.avatar %}
+                                    {% endif %}
+                                    {% endfor %}
+                                    {% endif %}
+                                    <span class="worker-avatar"
+                                        style="{% if not loop.first %}margin-left: -8px;{% endif %} border: 2px solid var(--bg-card); position: relative; z-index: {{ 10 - loop.index0 }};"
+                                        title="{{ w_trim }}">
+                                        {% if ns.found_avatar %}
+                                        <img src="{{ ns.found_avatar }}" alt="Avatar" class="avatar-img"
+                                            referrerpolicy="no-referrer"
+                                            onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                        <span class="avatar-fallback" style="display:none;">{{ w_trim[0]|upper if w_trim
+                                            else 'U' }}</span>
+                                        {% else %}
+                                        {{ w_trim[0]|upper if w_trim else 'U' }}
+                                        {% endif %}
+                                    </span>
+                                    {% endfor %}
+                                    </div>
+                                    <span class="worker-name" style="margin-left: 8px;">{{ card.worker }}</span>
+                                </div>
+                                {% if card.qc_person and card.qc_person|lower not in ['nan', 'none', ''] %}
+                                <div class="qc-badge" style="font-size: 0.75rem; color: var(--warning); background: rgba(255, 167, 38, 0.1); border: 1px solid rgba(255, 167, 38, 0.3); padding: 2px 6px; border-radius: 4px; display: flex; align-items: center; gap: 4px;" title="QC Nội bộ">
+                                    QC: {{ card.qc_person }}
+                                </div>
                                 {% endif %}
-                                <span class="worker-avatar"
-                                    style="{% if not loop.first %}margin-left: -8px;{% endif %} border: 2px solid var(--bg-card); position: relative; z-index: {{ 10 - loop.index0 }};"
-                                    title="{{ w_trim }}">
-                                    {% if ns.found_avatar %}
-                                    <img src="{{ ns.found_avatar }}" alt="Avatar" class="avatar-img"
-                                        referrerpolicy="no-referrer"
-                                        onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                                    <span class="avatar-fallback" style="display:none;">{{ w_trim[0]|upper if w_trim
-                                        else 'U' }}</span>
+                            </div>
+
+                            <div class="t4-external-toggle" style="margin-top: 8px;">
+                                {% set is_started = ('t4' in card.checked_ids) %}
+                                <div onclick="event.stopPropagation(); toggleExternalStart('{{ card.key }}', this)" style="font-size: 0.75rem; color: {% if is_started %}var(--primary){% else %}var(--text-3){% endif %}; background: {% if is_started %}rgba(16, 185, 129, 0.1){% else %}var(--bg-page){% endif %}; border: 1px solid {% if is_started %}rgba(16, 185, 129, 0.3){% else %}var(--border){% endif %}; padding: 4px 8px; border-radius: 4px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; transition: all 0.2s;" title="Đánh dấu Bắt đầu">
+                                    <span class="platform-badge sheet" style="font-size: 0.65rem; padding: 2px 4px; line-height: 1; border-radius: 2px; background: #10b981; color: white;">SHEET</span>
+                                    <input type="checkbox" style="pointer-events: none; margin:0; width: 14px; height: 14px;" {% if is_started %}checked{% endif %}>
+                                    <span class="t4-text" style="font-weight: 500;">{{ ('O: 開始 (Bắt đầu)' if lang == 'vi' else 'O列：開始') if is_started else ('Chưa bắt đầu' if lang == 'vi' else '未着手') }}</span>
+                                </div>
+                            </div>
+                            <div class="progress-info">
+                                <span class="status-text">
+                                    {% if card.status_class == 'not-started' %}
+                                    {{ 'To Do' if lang == 'vi' else '未着手' }}
+                                    {% elif card.status_class == 'delivered' %}
+                                    {{ 'Completed' if lang == 'vi' else '納品済み' }}
                                     {% else %}
-                                    {{ w_trim[0]|upper if w_trim else 'U' }}
+                                    {{ 'In Progress' if lang == 'vi' else '進行中' }}
                                     {% endif %}
                                 </span>
-                                {% endfor %}
+                                <span>{{ card.progress }}%</span>
                             </div>
-                            <span class="worker-name" style="margin-left: 8px;">{{ card.worker }}</span>
+                            <div class="progress-track">
+                                <div class="progress-fill" style="width: {{ card.progress }}%"></div>
+                            </div>
                         </div>
-                        <div class="progress-info">
-                            <span class="status-text">
-                                {% if card.status_class == 'not-started' %}
-                                {{ 'To Do' if lang == 'vi' else '未着手' }}
-                                {% elif card.status_class == 'delivered' %}
-                                {{ 'Completed' if lang == 'vi' else '納品済み' }}
-                                {% else %}
-                                {{ 'In Progress' if lang == 'vi' else '進行中' }}
-                                {% endif %}
-                            </span>
-                            <span>{{ card.progress }}%</span>
-                        </div>
-                        <div class="progress-track">
-                            <div class="progress-fill" style="width: {{ card.progress }}%"></div>
-                        </div>
-                    </div>
-                    {% endfor %}
+                        {% endfor %}
+                    {% endif %}
                 </div>
             </div>
             {% endfor %}
@@ -1651,6 +2115,11 @@
                         {% endfor %}
                     </div>
                     <span style="margin-left: 8px;">{{ worker }}</span>
+                    {% if row.get('QC Nội bộ') and row.get('QC Nội bộ')|string|trim|lower not in ['nan', 'none', ''] %}
+                    <div class="qc-badge" style="font-size: 0.8rem; color: var(--warning); background: rgba(255, 167, 38, 0.1); border: 1px solid rgba(255, 167, 38, 0.3); padding: 2px 8px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px; margin-left: 12px;" title="QC Nội bộ">
+                        QC: {{ row.get('QC Nội bộ') }}
+                    </div>
+                    {% endif %}
                 </div>
             </div>
 
@@ -3020,6 +3489,15 @@ document.addEventListener('DOMContentLoaded', () => setTimeout(initPet, 1500));
     const CURRENT_USER = "{{ user }}";
     window.socket = typeof io !== 'undefined' ? io() : null;
 
+    // Summary data for AI Insights API
+    window.DASHBOARD_SUMMARY = {
+        total_nay: {{ weeks.nay.tasks|length }},
+        total_truoc: {{ weeks.truoc.tasks|length }},
+        completed: {{ weeks.nay.tasks | selectattr('status_class', 'equalto', 'delivered') | list | length }},
+        not_started: {{ weeks.nay.tasks | selectattr('status_class', 'equalto', 'not-started') | list | length }},
+        lang: "{{ lang }}"
+    };
+
     // Inject Detailed Task Data
     let vntaskDataList = [];
     const userProfilesDB = {{ user_profiles | tojson }};
@@ -3036,386 +3514,5 @@ document.addEventListener('DOMContentLoaded', () => setTimeout(initPet, 1500));
 </script>
 <!-- Confetti Library for Celebration Effects -->
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-
-<!-- Daily Fortune Telling Script -->
-<script>
-    const FORTUNES_DB = [
-        {
-            rarity: "大吉 • THƯỢNG THƯỢNG CÁT",
-            title: "Quẻ Số 88: Thuận Thủy Thôi Châu",
-            poem: "💻 Code một lần chạy ngay - Bug thấy phải né xa!",
-            body: "Hôm nay vận khí cực thịnh! Mọi tác vụ logic đều hanh thông, công việc trôi chảy như nước chảy mây trôi.",
-            luck: "99%", energy: "98%", bug: "100%"
-        },
-        {
-            rarity: "大吉 • ĐẠI CÁT",
-            title: "Quẻ Số 66: Thần Tài Ghé Thăm",
-            poem: "☕ Cà phê thơm phức đầu ngày - Task khó đến mấy giải ngay tức thì!",
-            body: "Hôm nay năng lượng tràn đầy. Bạn sẽ tìm ra giải pháp tối ưu cho những vấn đề hóc húa nhất.",
-            luck: "95%", energy: "96%", bug: "95%"
-        },
-        {
-            rarity: "吉 • THƯỢNG CÁT",
-            title: "Quẻ Số 38: Vạn Sự Như Ý",
-            poem: "✨ Đồng nghiệp hỗ trợ nhiệt tình - Sếp duyệt đề xuất trong trình một giây!",
-            body: "Các mối quan hệ công việc hôm nay rất thuận lợi. Mọi trao đổi, làm việc nhóm đều đạt kết quả cao.",
-            luck: "92%", energy: "90%", bug: "90%"
-        },
-        {
-            rarity: "吉 • THƯỢNG CÁT",
-            title: "Quẻ Số 28: Kim Bảng Đề Danh",
-            poem: "🏆 Task xong sớm trước deadline - Thảnh thơi nhâm nhi tách trà chiều!",
-            body: "Tốc độ xử lý công việc vượt trội. Đừng quên dành thời gian thư giãn để duy trì phong độ đỉnh cao nhé.",
-            luck: "90%", energy: "94%", bug: "92%"
-        },
-        {
-            rarity: "中吉 • TRUNG CÁT",
-            title: "Quẻ Số 18: An Hòa Bình Tĩnh",
-            poem: "🌿 Việc nhỏ việc lớn bình an - Tâm trí minh mẫn thấu quan mọi đường!",
-            body: "Một ngày làm việc êm đềm và ổn định. Phù hợp để kiểm tra lại công việc cũ và sắp xếp kế hoạch tuần.",
-            luck: "85%", energy: "88%", bug: "88%"
-        },
-        {
-            rarity: "吉 • THƯỢNG CÁT",
-            title: "Quẻ Số 77: Đột Phá Sáng Tạo",
-            poem: "💡 Ý tưởng nảy số liên hồi - Giải pháp mới mẻ khiến ai cũng trầm trồ!",
-            body: "Khả năng sáng tạo đột phá! Hãy mạnh dạn thử nghiệm những góc nhìn mới trong công việc hôm nay.",
-            luck: "94%", energy: "92%", bug: "89%"
-        },
-        {
-            rarity: "大吉 • ĐẠI CÁT",
-            title: "Quẻ Số 99: Cát Tường Như Ý",
-            poem: "🧧 Lộc vào tận cửa ban mai - Nụ cười rạng rỡ suôn sẻ cả ngày!",
-            body: "Ngày hôm nay ngập tràn niềm vui và sự ủng hộ. Bạn làm gì cũng dễ dàng gặt hái thành công.",
-            luck: "98%", energy: "95%", bug: "98%"
-        },
-        {
-            rarity: "中吉 • TRUNG CÁT",
-            title: "Quẻ Số 55: Tích Tiểu Thành Đại",
-            poem: "🎯 Từng bước vững chắc tiến lên - Thành quả tích tụ vững bền tương lai!",
-            body: "Tập trung giải quyết tốt từng việc nhỏ. Sự kiên trì hôm nay sẽ đem lại thành quả lớn vào cuối tuần.",
-            luck: "86%", energy: "86%", bug: "90%"
-        },
-        {
-            rarity: "吉 • THƯỢNG CÁT",
-            title: "Quẻ Số 52: Quang Minh Chính Đại",
-            poem: "☀️ Màn hình sáng trưng nụ cười - Bug rượt đuổi người chứ người không lo!",
-            body: "Tâm lý thoải mái mang lại hiệu suất làm việc ấn tượng. Hãy giữ tinh thần tích cực này nhé!",
-            luck: "91%", energy: "93%", bug: "93%"
-        },
-        {
-            rarity: "大吉 • THƯỢNG THƯỢNG CÁT",
-            title: "Quẻ Số 100: Bách Phát Bách Trúng",
-            poem: "🚀 Deploy thành công rực rỡ - Cả team thán phục vỗ tay rầm rầm!",
-            body: "Vận may tuyệt đối! Mọi bản release hoặc báo cáo hôm nay đều mượt mà hoàn hảo không một vết xước.",
-            luck: "100%", energy: "99%", bug: "100%"
-        },
-        {
-            rarity: "吉 • THƯỢNG CÁT",
-            title: "Quẻ Số 12: Phong Thủy Hảo Hợp",
-            poem: "🍀 Ngồi đúng hướng gió hanh thông - Việc khó bỗng hóa hư không nhẹ nhàng!",
-            body: "Hôm nay trực giác và may mắn đồng hành cùng bạn. Hãy tự tin giải quyết công việc tồn đọng.",
-            luck: "93%", energy: "91%", bug: "94%"
-        },
-        {
-            rarity: "中吉 • TRUNG CÁT",
-            title: "Quẻ Số 33: Tĩnh Tâm Dưỡng Khí",
-            poem: "🍵 Một tách trà nóng thảnh thơi - Tập trung một hướng chẳng rơi nhịp nào!",
-            body: "Tập trung cao độ giúp bạn giải quyết tốt công việc. Tránh xao nhãng để đạt hiệu quả cao nhất.",
-            luck: "87%", energy: "89%", bug: "91%"
-        },
-        {
-            rarity: "吉 • THƯỢNG CÁT",
-            title: "Quẻ Số 68: Thiên Thời Địa Lợi",
-            poem: "🌟 Đúng lúc đúng thời điểm vàng - Quý nhân xuất hiện sẵn sàng giúp tay!",
-            body: "Mọi cuộc trao đổi công việc đều thuận lợi nhờ có sự hỗ trợ đắc lực từ đồng nghiệp.",
-            luck: "94%", energy: "92%", bug: "95%"
-        },
-        {
-            rarity: "大吉 • ĐẠI CÁT",
-            title: "Quẻ Số 89: Phúc Lộc Song Toàn",
-            poem: "🎁 Bất ngờ tin tốt trao tay - Niềm vui lan tỏa suốt ngày làm hăng!",
-            body: "Cả may mắn tài lộc lẫn công việc đều rực rỡ. Đừng ngần ngại chia sẻ niềm vui với mọi người.",
-            luck: "97%", energy: "96%", bug: "97%"
-        },
-        {
-            rarity: "吉 • THƯỢNG CÁT",
-            title: "Quẻ Số 45: Hợp Tác Thành Công",
-            poem: "🤝 Kết nối nhịp nhàng cùng team - Dự án hoàn thành êm điềm đẹp sao!",
-            body: "Làm việc nhóm mang lại thành tích bất ngờ. Tinh thần đồng đội lên cao trào hôm nay.",
-            luck: "92%", energy: "93%", bug: "92%"
-        }
-    ];
-
-    function getTodayKey() {
-        const d = new Date();
-        const yyyy = d.getFullYear();
-        const mm = String(d.getMonth() + 1).padStart(2, '0');
-        const dd = String(d.getDate()).padStart(2, '0');
-        return `${CURRENT_USER}_fortune_${yyyy}-${mm}-${dd}`;
-    }
-
-    function checkDailyFortuneOnLoad() {
-        const todayKey = getTodayKey();
-        const savedData = localStorage.getItem(todayKey);
-
-        if (!savedData) {
-            // Show badge on nav item
-            const badge = document.getElementById('fortune-nav-badge');
-            if (badge) badge.style.display = 'inline-block';
-            
-            // Automatically open Fortune modal on first visit of the day after 1s
-            setTimeout(() => {
-                openFortuneModal(false);
-            }, 1000);
-        } else {
-            const data = JSON.parse(savedData);
-            const badge = document.getElementById('fortune-nav-badge');
-            if (badge) badge.style.display = 'none';
-        }
-    }
-
-    function openFortuneModal(force = true) {
-        const todayKey = getTodayKey();
-        const savedData = localStorage.getItem(todayKey);
-        const overlay = document.getElementById('fortune-overlay');
-        const modal = document.getElementById('fortune-modal');
-
-        if (!overlay || !modal) return;
-
-        // Reset steps
-        document.getElementById('fortune-step-intro').classList.remove('active');
-        document.getElementById('fortune-step-anim').classList.remove('active');
-        document.getElementById('fortune-step-result').classList.remove('active');
-
-        if (savedData) {
-            const data = JSON.parse(savedData);
-            if (data.status === 'dismissed' && !force) {
-                return; // User dismissed today, don't auto-open
-            }
-            if (data.status === 'drawn') {
-                // Show result directly
-                renderFortuneResult(data.fortune, data.dateStr);
-                document.getElementById('fortune-step-result').classList.add('active');
-            } else {
-                document.getElementById('fortune-step-intro').classList.add('active');
-            }
-        } else {
-            document.getElementById('fortune-step-intro').classList.add('active');
-        }
-
-        overlay.classList.add('active');
-        modal.classList.add('active');
-    }
-
-    function closeFortuneModal(skipToday = false) {
-        const overlay = document.getElementById('fortune-overlay');
-        const modal = document.getElementById('fortune-modal');
-        if (overlay) overlay.classList.remove('active');
-        if (modal) modal.classList.remove('active');
-
-        if (skipToday) {
-            const todayKey = getTodayKey();
-            const d = new Date();
-            const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-            localStorage.setItem(todayKey, JSON.stringify({ status: 'dismissed', dateStr: dateStr }));
-            const badge = document.getElementById('fortune-nav-badge');
-            if (badge) badge.style.display = 'none';
-        }
-    }
-
-    function triggerDrawFortune() {
-        // Step 1 -> Step 2 (Animation)
-        document.getElementById('fortune-step-intro').classList.remove('active');
-        document.getElementById('fortune-step-anim').classList.add('active');
-
-        // Play shaking for 1.8 seconds then reveal result
-        setTimeout(() => {
-            // Pick deterministic/random fortune based on date & user to maintain consistency
-            const todayKey = getTodayKey();
-            let hash = 0;
-            for (let i = 0; i < todayKey.length; i++) {
-                hash = (hash << 5) - hash + todayKey.charCodeAt(i);
-                hash |= 0;
-            }
-            const fortuneIndex = Math.abs(hash) % FORTUNES_DB.length;
-            const drawnFortune = FORTUNES_DB[fortuneIndex];
-
-            const d = new Date();
-            const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-
-            // Save state to localStorage
-            localStorage.setItem(todayKey, JSON.stringify({
-                status: 'drawn',
-                fortune: drawnFortune,
-                dateStr: dateStr
-            }));
-
-            // Hide badge
-            const badge = document.getElementById('fortune-nav-badge');
-            if (badge) badge.style.display = 'none';
-
-            // Render result
-            renderFortuneResult(drawnFortune, dateStr);
-            document.getElementById('fortune-step-anim').classList.remove('active');
-            document.getElementById('fortune-step-result').classList.add('active');
-
-            // Trigger celebratory Confetti!
-            if (typeof confetti === 'function') {
-                confetti({
-                    particleCount: 80,
-                    spread: 70,
-                    origin: { y: 0.6 }
-                });
-            }
-        }, 1800);
-    }
-
-    function renderFortuneResult(fortune, dateStr) {
-        document.getElementById('fortune-rarity-badge').innerText = fortune.rarity;
-        document.getElementById('fortune-card-title').innerText = fortune.title;
-        document.getElementById('fortune-card-poem').innerText = fortune.poem;
-        document.getElementById('fortune-card-body').innerText = fortune.body;
-        document.getElementById('f-stat-luck').innerText = fortune.luck;
-        document.getElementById('f-stat-energy').innerText = fortune.energy;
-        document.getElementById('f-stat-bug').innerText = fortune.bug;
-        document.getElementById('fortune-card-date').innerText = `Ngày: ${dateStr}`;
-    }
-
-    // Run check on page load
-    document.addEventListener('DOMContentLoaded', function() {
-        checkDailyFortuneOnLoad();
-    });
-</script>
-
-<!-- Mid-Autumn Festival Effect -->
-<script>
-    document.addEventListener("DOMContentLoaded", function() {
-        // 1. Play Audio for 20s (Tùng tùng dinh dinh)
-        const audio = new Audio("{{ url_for('static', filename='media/trungthu.mp3') }}");
-        audio.volume = 0.5;
-        // Attempt to play (might be blocked by browser without interaction)
-        audio.play().catch(e => console.log("Audio autoplay blocked by browser. User interaction needed.", e));
-        setTimeout(() => {
-            audio.pause();
-        }, 20000);
-
-        // 2. Varied lanterns floating down slowly
-        const lanternTypes = ['🏮', '🪔', '🌕', '⭐', '🎆', '🥮', '✨', '🏮', '🏮'];
-        const lanternContainer = document.createElement('div');
-        lanternContainer.style.position = 'fixed';
-        lanternContainer.style.top = '0';
-        lanternContainer.style.left = '0';
-        lanternContainer.style.width = '100%';
-        lanternContainer.style.height = '100%';
-        lanternContainer.style.pointerEvents = 'none';
-        lanternContainer.style.zIndex = '9999';
-        document.body.appendChild(lanternContainer);
-
-        const totalLanterns = 35;
-        for (let i = 0; i < totalLanterns; i++) {
-            let lantern = document.createElement('div');
-            const icon = lanternTypes[Math.floor(Math.random() * lanternTypes.length)];
-            lantern.innerHTML = icon;
-            lantern.style.position = 'absolute';
-            lantern.style.left = (Math.random() * 95) + 'vw';
-            lantern.style.top = '-60px';
-            lantern.style.fontSize = (Math.random() * 24 + 20) + 'px';
-            
-            // Randomize speed, delay, and filter effects for variation
-            const duration = 8 + Math.random() * 8; // 8s to 16s fall duration (much slower)
-            const delay = Math.random() * 5; // Stagger start up to 5s
-            const hueRotate = Math.floor(Math.random() * 360);
-            lantern.style.filter = `hue-rotate(${hueRotate}deg) drop-shadow(0 0 6px rgba(255,215,0,0.6))`;
-            lantern.style.animation = `fallLanternSlow ${duration}s ease-in-out ${delay}s forwards`;
-            lanternContainer.appendChild(lantern);
-        }
-
-        let style = document.createElement('style');
-        style.innerHTML = `
-            @keyframes fallLanternSlow {
-                0% { 
-                    transform: translateY(-60px) translateX(0) rotate(-15deg); 
-                    opacity: 0; 
-                }
-                10% { opacity: 1; }
-                50% { 
-                    transform: translateY(50vh) translateX(30px) rotate(15deg); 
-                    opacity: 0.9; 
-                }
-                100% { 
-                    transform: translateY(105vh) translateX(-20px) rotate(-10deg); 
-                    opacity: 0; 
-                }
-            }
-            @keyframes walkAcross {
-                0% { transform: translateX(-100%); }
-                100% { transform: translateX(100vw); }
-            }
-        `;
-        document.head.appendChild(style);
-
-        // Remove lanterns container after slow fall finishes (~18s total)
-        setTimeout(() => {
-            lanternContainer.remove();
-        }, 18000);
-
-        // 3. Children playing Video, GIF or PNG moving for 15s
-        // Supports ruoc-den.mp4, ruoc-den.webm, ruoc-den.gif, or ruoc-den.png
-        const videoSrcMp4 = "{{ url_for('static', filename='videos/ruoc-den.mp4') }}";
-        const videoSrcWebm = "{{ url_for('static', filename='videos/ruoc-den.webm') }}";
-        const gifSrc = "{{ url_for('static', filename='images/ruoc-den.gif') }}";
-        const pngSrc = "{{ url_for('static', filename='images/ruoc-den.png') }}";
-
-        let kidsElement = document.createElement('video');
-        kidsElement.autoplay = true;
-        kidsElement.loop = true;
-        kidsElement.muted = true;
-        kidsElement.playsInline = true;
-        kidsElement.src = videoSrcMp4;
-
-        kidsElement.style.position = 'fixed';
-        kidsElement.style.bottom = '20px';
-        kidsElement.style.left = '0';
-        kidsElement.style.height = '150px';
-        kidsElement.style.zIndex = '9998';
-        kidsElement.style.pointerEvents = 'none';
-        kidsElement.style.objectFit = 'contain';
-        kidsElement.style.animation = 'walkAcross 15s linear forwards';
-
-        // Auto fallback from MP4 -> WebM -> GIF -> PNG if file not found
-        kidsElement.onerror = function() {
-            if (kidsElement.tagName.toLowerCase() === 'video') {
-                if (kidsElement.src.includes('ruoc-den.mp4')) {
-                    kidsElement.src = videoSrcWebm;
-                } else {
-                    const imgFallback = document.createElement('img');
-                    imgFallback.src = gifSrc;
-                    imgFallback.alt = "Rước đèn Trung Thu";
-                    imgFallback.style.cssText = kidsElement.style.cssText;
-                    imgFallback.onerror = function() {
-                        if (imgFallback.src.includes('ruoc-den.gif')) {
-                            imgFallback.src = pngSrc;
-                        } else {
-                            console.log('Không tìm thấy file ruoc-den.mp4, ruoc-den.webm, ruoc-den.gif hoặc ruoc-den.png');
-                        }
-                    };
-                    if (kidsElement.parentNode) {
-                        kidsElement.replaceWith(imgFallback);
-                    }
-                    kidsElement = imgFallback;
-                }
-            }
-        };
-
-        document.body.appendChild(kidsElement);
-
-        setTimeout(() => {
-            if (kidsElement && kidsElement.parentNode) {
-                kidsElement.remove();
-            }
-        }, 15000);
-    });
-</script>
 
 {% endblock %}

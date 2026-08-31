@@ -21,7 +21,7 @@ function showToast(message, type = 'info') {
 }
 
 // ===================== TAB MANAGEMENT =====================
-function switchTab(tabId) {
+function switchTab(tabId, syncChart = true) {
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tabId));
     document.querySelectorAll('.tab-content').forEach(c => c.classList.toggle('active', c.id === `tab-${tabId}`));
     document.querySelectorAll('.info-banner').forEach(b => b.style.display = b.id === `banner-${tabId}` ? 'flex' : 'none');
@@ -32,6 +32,31 @@ function switchTab(tabId) {
     });
 
     sessionStorage.setItem('activeTab', tabId);
+
+    // Sync chart week if applicable
+    if (syncChart && typeof selectWeek === 'function') {
+        const isVi = (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi');
+        
+        // Ensure the chart period "week" button is active
+        document.querySelectorAll('.chart-time-controls button').forEach(btn => {
+            if (btn.dataset.period === 'week') {
+                btn.classList.add('active', 'btn-primary');
+                btn.classList.remove('btn-outline');
+            } else {
+                btn.classList.remove('active', 'btn-primary');
+                btn.classList.add('btn-outline');
+            }
+        });
+        
+        const weekSelect = document.getElementById('custom-week-select');
+        const monthSelect = document.getElementById('custom-month-select');
+        if (weekSelect) weekSelect.style.display = 'block';
+        if (monthSelect) monthSelect.style.display = 'none';
+        
+        if (tabId === 'truoc') selectWeek(-1, isVi ? 'Tuần trước' : '先週', null, false);
+        else if (tabId === 'nay') selectWeek(0, isVi ? 'Tuần này' : '今週', null, false);
+        else if (tabId === 'sau') selectWeek(1, isVi ? 'Tuần sau' : '来週', null, false);
+    }
 }
 
 // ===================== DRAWER FILTER =====================
@@ -274,6 +299,52 @@ function initWeatherTime() {
         });
 }
 
+// ==================== AI INSIGHTS REALTIME ====================
+async function fetchAiInsights() {
+    if (!window.DASHBOARD_SUMMARY) return;
+    try {
+        const res = await fetch('/api/insights', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                lang: window.DASHBOARD_SUMMARY.lang,
+                summary: window.DASHBOARD_SUMMARY
+            })
+        });
+        const data = await res.json();
+        
+        const container = document.getElementById('aiInsightsScroll');
+        if (container && data.status === 'success' && data.insights && data.insights.length > 0) {
+            container.innerHTML = '';
+            
+            // Multiply the insights to ensure they easily overflow the screen width for seamless looping
+            let itemsHtml = '';
+            data.insights.forEach(insight => {
+                itemsHtml += `
+                    <div class="ai-insight-item">
+                        <span class="ai-insight-dot"></span>
+                        ${insight}
+                    </div>
+                `;
+            });
+            
+            // Repeat 10 times to form a massive seamless chain
+            for (let i = 0; i < 10; i++) {
+                container.innerHTML += itemsHtml;
+            }
+            
+            // Recalculate duration based on half width (since animation translates -50%)
+            requestAnimationFrame(() => {
+                const halfWidth = container.scrollWidth / 2;
+                const duration = Math.max(15, halfWidth / 60); // ~60px/s
+                container.style.setProperty('--marquee-duration', duration + 's');
+            });
+        }
+    } catch (e) {
+        console.error("AI Insights fetch error:", e);
+    }
+}
+
 // ===================== MODAL =====================
 function openModal(tabKey, cardName) {
     if (typeof modalMap === 'undefined') return;
@@ -440,6 +511,32 @@ function updateTaskProgressLocally(tpKey, modalBody) {
                 fill.style.width = `${progress}%`;
             }
 
+            // Sync external start toggle
+            const externalToggle = card.querySelector('.t4-external-toggle > div');
+            if (externalToggle) {
+                const t4Checkbox = modalBody.querySelector('input[data-check-id="t4"]');
+                if (t4Checkbox) {
+                    const isChecked = t4Checkbox.checked;
+                    const extCb = externalToggle.querySelector('input[type="checkbox"]');
+                    const textSpan = externalToggle.querySelector('.t4-text');
+                    
+                    if (extCb) extCb.checked = isChecked;
+                    if (textSpan) {
+                        if (isChecked) {
+                            externalToggle.style.color = 'var(--primary)';
+                            externalToggle.style.background = 'rgba(16, 185, 129, 0.1)';
+                            externalToggle.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+                            textSpan.textContent = (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi') ? 'O: 開始 (Bắt đầu)' : 'O列：開始';
+                        } else {
+                            externalToggle.style.color = 'var(--text-3)';
+                            externalToggle.style.background = 'var(--bg-page)';
+                            externalToggle.style.borderColor = 'var(--border)';
+                            textSpan.textContent = (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi') ? 'Chưa bắt đầu' : '未着手';
+                        }
+                    }
+                }
+            }
+
             // Move card to correct column
             const newStatusClass = checkedCount === 0 ? 'not-started' : (checkedCount >= total ? 'delivered' : 'in-progress');
             const currentStatusClass = Array.from(card.classList).find(c => c.startsWith('status-'));
@@ -461,7 +558,7 @@ function updateTaskProgressLocally(tpKey, modalBody) {
                 if (tab) {
                     const targetCol = tab.querySelector(`.kanban-column[data-status="${newStatusClass}"] .kanban-cards`);
                     if (targetCol) {
-                        targetCol.appendChild(card);
+                        moveCardToColumn(card, targetCol);
                     }
 
                     // Update column badges
@@ -470,6 +567,7 @@ function updateTaskProgressLocally(tpKey, modalBody) {
                         const badge = col.querySelector('.kanban-col-count');
                         if (badge) badge.textContent = count;
                     });
+                    updateKanbanGroups(tab);
                 }
             }
         }
@@ -567,11 +665,63 @@ function showSuccessModal() {
     overlay.classList.add('open');
 }
 
+// ===================== CONFIRMATION MODAL =====================
+function showConfirmDateModal(logDate, todayDate, onConfirm, onCancel) {
+    let overlay = document.getElementById('confirm-modal-overlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'confirm-modal-overlay';
+        overlay.className = 'modal-overlay';
+        overlay.style.zIndex = '100002'; // Above task modal
+        document.body.appendChild(overlay);
+    }
+
+    const isVi = (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi');
+    const titleText = isVi ? 'Xác nhận ngày làm việc' : '作業日の確認';
+    const subText = isVi 
+        ? `Ngày bạn chọn (<strong style="color: #f59e0b;">${logDate}</strong>) không phải là hôm nay (<strong style="color: #10b981;">${todayDate}</strong>).`
+        : `選択された日付 (<strong style="color: #f59e0b;">${logDate}</strong>) は本日 (<strong style="color: #10b981;">${todayDate}</strong>) と異なります。`;
+    const promptText = isVi
+        ? 'Bạn có chắc chắn muốn ghi nhận Logtime cho ngày này không?'
+        : 'この日付でログタイムを保存してもよろしいですか？';
+    const btnCancelText = isVi ? 'Hủy bỏ' : 'キャンセル';
+    const btnConfirmText = isVi ? 'Đồng ý' : 'はい、保存します';
+
+    overlay.innerHTML = `
+        <div class="modal-content" style="max-width: 440px; text-align: center; padding: 32px 28px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-xl); box-shadow: var(--shadow-lg); animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
+            <div style="width: 56px; height: 56px; border-radius: 50%; background: rgba(245, 158, 11, 0.15); color: #f59e0b; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; font-size: 26px; border: 1px solid rgba(245, 158, 11, 0.3);">
+                ⚠️
+            </div>
+            <h2 style="font-size: 1.3rem; font-weight: 800; margin-bottom: 10px; color: var(--text);">${titleText}</h2>
+            <p style="color: var(--text-2); font-size: 0.92rem; margin-bottom: 8px; line-height: 1.5;">${subText}</p>
+            <p style="color: var(--text-3); font-size: 0.88rem; margin-bottom: 24px;">${promptText}</p>
+            <div style="display: flex; gap: 12px; justify-content: center;">
+                <button id="btn-confirm-modal-cancel" class="btn btn-outline" style="flex: 1; justify-content: center; padding: 10px 16px; border-radius: var(--radius-md); font-weight: 600;">${btnCancelText}</button>
+                <button id="btn-confirm-modal-ok" class="btn btn-primary" style="flex: 1; justify-content: center; padding: 10px 16px; border-radius: var(--radius-md); font-weight: 600; background: linear-gradient(135deg, var(--primary), var(--primary-hover));">${btnConfirmText}</button>
+            </div>
+        </div>
+    `;
+
+    overlay.classList.add('open');
+
+    document.getElementById('btn-confirm-modal-cancel').onclick = () => {
+        overlay.classList.remove('open');
+        if (typeof onCancel === 'function') onCancel();
+    };
+
+    document.getElementById('btn-confirm-modal-ok').onclick = () => {
+        overlay.classList.remove('open');
+        if (typeof onConfirm === 'function') onConfirm();
+    };
+}
+
 // ===================== LOGTIME FORM =====================
-const logtimeCooldowns = {};
+var logtimeCooldowns = {};
+var logtimeAvgTime = 3000; // Average save time in ms (starts at 3s, adapts over time)
 
 function handleLogtime(event, formId) {
     event.preventDefault();
+    const isVi = typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi';
     const form = document.getElementById(formId);
     if (!form) return;
 
@@ -581,7 +731,7 @@ function handleLogtime(event, formId) {
 
     if (diff < 300) {
         const rem = 300 - Math.floor(diff);
-        showToast(`⏳ Vui lòng chờ ${Math.floor(rem / 60)}p ${rem % 60}s nữa!`, 'warning');
+        showToast(isVi ? `⏳ Vui lòng chờ ${Math.floor(rem / 60)}p ${rem % 60}s nữa!` : `⏳ あと ${Math.floor(rem / 60)}分 ${rem % 60}秒お待ちください！`, 'warning');
         return;
     }
 
@@ -589,26 +739,107 @@ function handleLogtime(event, formId) {
     const hours = parseFloat(data.so_gio) || 0;
     const pages = parseInt(data.so_page) || 0;
 
-    if (hours === 0 && pages === 0) { showToast('⚠️ Vui lòng nhập số giờ hoặc số trang!', 'warning'); return; }
+    if (hours === 0 && pages === 0) { 
+        showToast(isVi ? '⚠️ Vui lòng nhập số giờ hoặc số trang!' : '⚠️ 作業時間またはページ数を入力してください！', 'warning'); 
+        return; 
+    }
 
+    // Check if the log date is today
+    if (data.ngay_log) {
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        const todayStr = `${yyyy}-${mm}-${dd}`;
+
+        if (data.ngay_log !== todayStr) {
+            showConfirmDateModal(data.ngay_log, todayStr, () => {
+                executeLogtimeSubmit(form, formId, data);
+            });
+            return;
+        }
+    }
+
+    executeLogtimeSubmit(form, formId, data);
+}
+
+function executeLogtimeSubmit(form, formId, data) {
+    const isVi = typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi';
     const btn = form.querySelector('button[type="submit"]');
-    const orig = btn.textContent;
+    const orig = btn.innerHTML; // Keep HTML if there are icons
     btn.disabled = true;
-    btn.innerHTML = '<span class="loading-spinner" style="width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-radius: 50%; border-top-color: #fff; animation: spin 1s linear infinite; display: inline-block; margin-right: 8px;"></span>ĐANG LƯU...';
+    btn.textContent = isVi ? '⏳ ĐANG LƯU...' : '⏳ 保存中...';
+
+    // Show progress bar
+    const formIndex = formId.replace('logtime-', '');
+    const progressEl = document.getElementById('progress-' + formIndex);
+    var progressFill, progressLabel, progressTime, progressInterval, startTime;
+
+    if (progressEl) {
+        progressEl.style.display = 'block';
+        progressFill = progressEl.querySelector('.progress-fill');
+        progressLabel = progressEl.querySelector('.progress-label');
+        progressTime = progressEl.querySelector('.progress-time');
+        startTime = Date.now();
+        var estimatedMs = logtimeAvgTime;
+
+        if (progressFill) progressFill.style.width = '0%';
+        if (progressLabel) progressLabel.textContent = isVi ? 'Đang gửi dữ liệu lên Google Sheet...' : 'Googleスプレッドシートに送信中...';
+        if (progressTime) progressTime.textContent = '~' + Math.ceil(estimatedMs / 1000) + 's';
+
+        // Animate progress: fast at first, slows down as it approaches 90%
+        progressInterval = setInterval(function() {
+            var elapsed = Date.now() - startTime;
+            var ratio = elapsed / estimatedMs;
+            // Ease-out curve: fast start, slow near end. Caps at 92%.
+            var pct = Math.min(92, ratio * 100 * (1 - ratio * 0.3));
+            if (progressFill) progressFill.style.width = pct + '%';
+
+            var remaining = Math.max(0, Math.ceil((estimatedMs - elapsed) / 1000));
+            if (progressTime) progressTime.textContent = remaining > 0 ? '~' + remaining + 's' : '...';
+
+            // Update label based on progress
+            if (pct > 60 && progressLabel) progressLabel.textContent = isVi ? 'Đang lưu vào Google Sheet...' : 'Googleスプレッドシートに保存中...';
+            if (pct > 85 && progressLabel) progressLabel.textContent = isVi ? 'Sắp xong...' : 'もうすぐ完了します...';
+        }, 100);
+    }
 
     fetch('/api/logtime', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
         .then(r => r.json())
         .then(result => {
+            var actualTime = Date.now() - startTime;
+            // Adapt average: weighted moving average (70% old, 30% new)
+            logtimeAvgTime = Math.round(logtimeAvgTime * 0.7 + actualTime * 0.3);
+
+            if (progressInterval) clearInterval(progressInterval);
+            if (progressFill) progressFill.style.width = '100%';
+            if (progressLabel) progressLabel.textContent = result.status === 'success' ? (isVi ? '✅ Hoàn tất!' : '✅ 完了！') : (isVi ? '❌ Lỗi!' : '❌ エラー！');
+            if (progressTime) progressTime.textContent = (actualTime / 1000).toFixed(1) + 's';
+
             if (result.status === 'success') {
+                if (progressFill) progressFill.style.background = 'linear-gradient(90deg, #22c55e, #4ade80)';
                 logtimeCooldowns[formId] = Date.now();
-                showSuccessModal();
+                setTimeout(function() {
+                    showSuccessModal();
+                    if (progressEl) progressEl.style.display = 'none';
+                    if (progressFill) { progressFill.style.width = '0%'; progressFill.style.background = 'linear-gradient(90deg, var(--primary), #818cf8)'; }
+                }, 600);
                 if (typeof handlePetXPResponse === 'function') handlePetXPResponse(result);
             } else {
-                showToast('❌ ' + (result.message || 'Có lỗi xảy ra.'), 'error');
+                if (progressFill) progressFill.style.background = 'linear-gradient(90deg, #ef4444, #f87171)';
+                showToast('❌ ' + (result.message || (isVi ? 'Có lỗi xảy ra.' : 'エラーが発生しました。')), 'error');
+                setTimeout(function() { if (progressEl) progressEl.style.display = 'none'; if (progressFill) { progressFill.style.width = '0%'; progressFill.style.background = 'linear-gradient(90deg, var(--primary), #818cf8)'; } }, 2000);
             }
         })
-        .catch(() => showToast('❌ Lỗi kết nối!', 'error'))
-        .finally(() => { btn.disabled = false; btn.textContent = orig; });
+        .catch(function() {
+            if (progressInterval) clearInterval(progressInterval);
+            if (progressFill) { progressFill.style.width = '100%'; progressFill.style.background = 'linear-gradient(90deg, #ef4444, #f87171)'; }
+            if (progressLabel) progressLabel.textContent = isVi ? '❌ Lỗi kết nối!' : '❌ 接続エラー！';
+            if (progressTime) progressTime.textContent = '';
+            showToast(isVi ? '❌ Lỗi kết nối!' : '❌ 接続エラー！', 'error');
+            setTimeout(function() { if (progressEl) progressEl.style.display = 'none'; if (progressFill) { progressFill.style.width = '0%'; progressFill.style.background = 'linear-gradient(90deg, var(--primary), #818cf8)'; } }, 2000);
+        })
+        .finally(() => { btn.disabled = false; btn.innerHTML = orig; });
 }
 
 // ===================== UTILS =====================
@@ -777,6 +1008,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // Init Weather & Time
     initWeatherTime();
 
+    // Init AI Insights
+    const scrollContainer = document.getElementById('aiInsightsScroll');
+    if (scrollContainer) {
+        fetchAiInsights();
+        setInterval(fetchAiInsights, 600000);
+    }
+
     // Background Sync for Server Truth
     backgroundSyncChecklist();
 
@@ -789,6 +1027,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 vntaskDataList = data;
                 if (chartLoader) chartLoader.style.display = 'none';
                 setChartPeriod('week');
+                
+                // Sync chart with active tab
+                const currentTab = sessionStorage.getItem('activeTab') || 'nay';
+                const isVi = (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi');
+                if (currentTab === 'truoc') selectWeek(-1, isVi ? 'Tuần trước' : '先週', null, false);
+                else if (currentTab === 'nay') selectWeek(0, isVi ? 'Tuần này' : '今週', null, false);
+                else if (currentTab === 'sau') selectWeek(1, isVi ? 'Tuần sau' : '来週', null, false);
             }
         })
         .catch(err => {
@@ -1511,7 +1756,7 @@ function toggleWeekSelect(e) {
     }
 }
 
-function selectWeek(offset, text, e) {
+function selectWeek(offset, text, e, syncTab = true) {
     if (e) e.stopPropagation();
     const textSpan = document.getElementById('week-text');
     if (textSpan) {
@@ -1522,6 +1767,18 @@ function selectWeek(offset, text, e) {
     if (select) {
         select.classList.remove('open');
     }
+    
+    if (syncTab && typeof switchTab === 'function') {
+        let tabId = 'nay';
+        if (offset === -1) tabId = 'truoc';
+        else if (offset === 1) tabId = 'sau';
+        
+        const currentActive = sessionStorage.getItem('activeTab');
+        if (currentActive !== tabId) {
+            switchTab(tabId, false);
+        }
+    }
+    
     updateAreaChart('week');
 }
 
@@ -1652,80 +1909,496 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ======================================
-// MINI CHAT BOX
+// MINI CHAT BOX (Redesigned v1.3.28)
 // ======================================
 let unreadChatCount = 0;
 let isChatOpen = false;
+let currentChatFile = null;
+
+// Messenger-style notification sound using Web Audio API
+function playChatNotification() {
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        // First tone (higher pitch "ding")
+        const osc1 = ctx.createOscillator();
+        const gain1 = ctx.createGain();
+        osc1.type = 'sine';
+        osc1.frequency.setValueAtTime(830, ctx.currentTime);
+        gain1.gain.setValueAtTime(0.3, ctx.currentTime);
+        gain1.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+        osc1.connect(gain1);
+        gain1.connect(ctx.destination);
+        osc1.start(ctx.currentTime);
+        osc1.stop(ctx.currentTime + 0.15);
+
+        // Second tone (slightly higher, delayed)
+        const osc2 = ctx.createOscillator();
+        const gain2 = ctx.createGain();
+        osc2.type = 'sine';
+        osc2.frequency.setValueAtTime(1050, ctx.currentTime + 0.12);
+        gain2.gain.setValueAtTime(0.01, ctx.currentTime);
+        gain2.gain.setValueAtTime(0.25, ctx.currentTime + 0.12);
+        gain2.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+        osc2.connect(gain2);
+        gain2.connect(ctx.destination);
+        osc2.start(ctx.currentTime + 0.12);
+        osc2.stop(ctx.currentTime + 0.3);
+
+        // Cleanup
+        setTimeout(() => ctx.close(), 500);
+    } catch(e) {
+        console.log('Notification sound failed:', e);
+    }
+}
 
 window.toggleChat = function () {
-    const win = document.getElementById('chat-window');
+    const panel = document.getElementById('chat-panel');
     const badge = document.getElementById('chat-badge');
-    if (!win) return;
+    const bubbleBtn = document.getElementById('chat-bubble-btn');
+    if (!panel) return;
 
-    isChatOpen = win.style.display === 'flex';
+    isChatOpen = panel.classList.contains('open');
     if (isChatOpen) {
-        win.style.display = 'none';
+        panel.classList.remove('open');
         isChatOpen = false;
+        // Close emoji picker too
+        const emojiPicker = document.getElementById('emoji-picker');
+        if (emojiPicker) emojiPicker.classList.remove('open');
     } else {
-        win.style.display = 'flex';
+        panel.classList.add('open');
         isChatOpen = true;
+        window.socket && window.socket.emit('chat_mark_read');
         unreadChatCount = 0;
         if (badge) badge.style.display = 'none';
+        if (bubbleBtn) bubbleBtn.classList.remove('has-unread');
         const input = document.getElementById('chat-input');
-        if (input) input.focus();
-
-        // Scroll to bottom
+        if (input) setTimeout(() => input.focus(), 100);
         const msgs = document.getElementById('chat-messages');
         if (msgs) msgs.scrollTop = msgs.scrollHeight;
     }
 };
 
-window.sendChatMessage = function () {
+// ---- EMOJI PICKER ----
+const EMOJI_DATA = {
+    '😀': { cat: 'smileys', keywords: 'grinning happy smile vui cuoi' },
+    '😂': { cat: 'smileys', keywords: 'joy tears laughing cuoi khoc' },
+    '🤣': { cat: 'smileys', keywords: 'rofl rolling laugh' },
+    '😊': { cat: 'smileys', keywords: 'blush shy smile' },
+    '😍': { cat: 'smileys', keywords: 'heart eyes love yeu' },
+    '🥰': { cat: 'smileys', keywords: 'smiling hearts love' },
+    '😘': { cat: 'smileys', keywords: 'kiss wink hon' },
+    '😜': { cat: 'smileys', keywords: 'wink tongue playful' },
+    '😎': { cat: 'smileys', keywords: 'cool sunglasses' },
+    '🤩': { cat: 'smileys', keywords: 'star struck excited' },
+    '😢': { cat: 'smileys', keywords: 'cry sad buon' },
+    '😭': { cat: 'smileys', keywords: 'sob crying khoc' },
+    '😤': { cat: 'smileys', keywords: 'angry mad gian' },
+    '😡': { cat: 'smileys', keywords: 'rage angry' },
+    '🤔': { cat: 'smileys', keywords: 'thinking hmm suy nghi' },
+    '😏': { cat: 'smileys', keywords: 'smirk sly' },
+    '🙄': { cat: 'smileys', keywords: 'eye roll' },
+    '😴': { cat: 'smileys', keywords: 'sleeping zzz ngu' },
+    '🤗': { cat: 'smileys', keywords: 'hugging hug om' },
+    '🤭': { cat: 'smileys', keywords: 'hand over mouth oops' },
+    '😇': { cat: 'smileys', keywords: 'angel halo innocent' },
+    '🥺': { cat: 'smileys', keywords: 'pleading puppy eyes xin' },
+    '😱': { cat: 'smileys', keywords: 'scream shock so' },
+    '🤯': { cat: 'smileys', keywords: 'exploding head mind blown' },
+    '👍': { cat: 'hands', keywords: 'thumbs up ok good tot' },
+    '👎': { cat: 'hands', keywords: 'thumbs down bad' },
+    '👏': { cat: 'hands', keywords: 'clap bravo vo tay' },
+    '🙏': { cat: 'hands', keywords: 'pray please thanks cam on' },
+    '✌️': { cat: 'hands', keywords: 'peace victory' },
+    '🤝': { cat: 'hands', keywords: 'handshake deal' },
+    '💪': { cat: 'hands', keywords: 'muscle strong suc manh' },
+    '👋': { cat: 'hands', keywords: 'wave hello hi chao' },
+    '🫡': { cat: 'hands', keywords: 'salute respect' },
+    '🫶': { cat: 'hands', keywords: 'heart hands love' },
+    '❤️': { cat: 'symbols', keywords: 'red heart love tim' },
+    '🔥': { cat: 'symbols', keywords: 'fire hot lit lua' },
+    '⭐': { cat: 'symbols', keywords: 'star sao' },
+    '✅': { cat: 'symbols', keywords: 'check done xong' },
+    '❌': { cat: 'symbols', keywords: 'cross no wrong sai' },
+    '⚡': { cat: 'symbols', keywords: 'lightning fast nhanh' },
+    '💯': { cat: 'symbols', keywords: 'hundred perfect' },
+    '💀': { cat: 'symbols', keywords: 'skull dead' },
+    '🎯': { cat: 'symbols', keywords: 'target bullseye muc tieu' },
+    '💡': { cat: 'symbols', keywords: 'light bulb idea y tuong' },
+    '💬': { cat: 'symbols', keywords: 'speech bubble chat' },
+    '🔔': { cat: 'symbols', keywords: 'bell notification thong bao' },
+    '⏰': { cat: 'symbols', keywords: 'alarm clock time gio' },
+    '🎉': { cat: 'activities', keywords: 'party celebration chuc mung' },
+    '🎊': { cat: 'activities', keywords: 'confetti celebrate' },
+    '🎁': { cat: 'activities', keywords: 'gift present qua' },
+    '🏆': { cat: 'activities', keywords: 'trophy winner giai' },
+    '🎮': { cat: 'activities', keywords: 'game controller choi game' },
+    '🎵': { cat: 'activities', keywords: 'music note nhac' },
+    '📸': { cat: 'activities', keywords: 'camera photo anh' },
+    '☕': { cat: 'food', keywords: 'coffee cafe ca phe' },
+    '🍕': { cat: 'food', keywords: 'pizza' },
+    '🍜': { cat: 'food', keywords: 'noodle ramen pho' },
+    '🍻': { cat: 'food', keywords: 'beer cheers bia' },
+    '🧋': { cat: 'food', keywords: 'bubble tea tra sua' },
+    '🍩': { cat: 'food', keywords: 'donut doughnut' },
+    '🍰': { cat: 'food', keywords: 'cake shortcake banh' },
+    '🌈': { cat: 'nature', keywords: 'rainbow cau vong' },
+    '🌙': { cat: 'nature', keywords: 'moon night dem trang' },
+    '☀️': { cat: 'nature', keywords: 'sun sunny nang' },
+    '🌸': { cat: 'nature', keywords: 'cherry blossom flower hoa' },
+    '🐱': { cat: 'nature', keywords: 'cat meo' },
+    '🐶': { cat: 'nature', keywords: 'dog cho' },
+    '🦊': { cat: 'nature', keywords: 'fox cao' },
+    '💻': { cat: 'objects', keywords: 'laptop computer may tinh' },
+    '📱': { cat: 'objects', keywords: 'phone dien thoai' },
+    '📁': { cat: 'objects', keywords: 'folder file thu muc' },
+    '✏️': { cat: 'objects', keywords: 'pencil edit viet' },
+    '📝': { cat: 'objects', keywords: 'memo note ghi chu' },
+    '🗂️': { cat: 'objects', keywords: 'card index files' },
+    '📊': { cat: 'objects', keywords: 'chart graph bieu do' },
+    '🚀': { cat: 'objects', keywords: 'rocket launch ship' },
+};
+
+const EMOJI_CATEGORIES = {
+    'smileys': '😀',
+    'hands': '👍',
+    'symbols': '❤️',
+    'activities': '🎉',
+    'food': '☕',
+    'nature': '🌸',
+    'objects': '💻'
+};
+
+let currentEmojiCat = 'smileys';
+
+function initEmojiPicker() {
+    const tabsEl = document.getElementById('emoji-tabs');
+    const gridEl = document.getElementById('emoji-grid');
+    const searchEl = document.getElementById('emoji-search');
+    if (!tabsEl || !gridEl) return;
+
+    // Build tabs
+    tabsEl.innerHTML = Object.entries(EMOJI_CATEGORIES).map(([cat, icon]) =>
+        `<button class="emoji-tab ${cat === currentEmojiCat ? 'active' : ''}" data-cat="${cat}" onclick="selectEmojiCategory('${cat}')">${icon}</button>`
+    ).join('');
+
+    renderEmojiGrid();
+
+    if (searchEl) {
+        searchEl.addEventListener('input', (e) => {
+            const q = e.target.value.toLowerCase().trim();
+            renderEmojiGrid(q);
+        });
+    }
+}
+
+function renderEmojiGrid(search) {
+    const gridEl = document.getElementById('emoji-grid');
+    if (!gridEl) return;
+
+    let emojis = Object.entries(EMOJI_DATA);
+    if (search) {
+        emojis = emojis.filter(([_, data]) => data.keywords.includes(search));
+    } else {
+        emojis = emojis.filter(([_, data]) => data.cat === currentEmojiCat);
+    }
+
+    gridEl.innerHTML = emojis.map(([emoji]) =>
+        `<button class="emoji-item" onclick="insertEmoji('${emoji}')">${emoji}</button>`
+    ).join('');
+}
+
+window.selectEmojiCategory = function(cat) {
+    currentEmojiCat = cat;
+    document.querySelectorAll('.emoji-tab').forEach(t => t.classList.toggle('active', t.dataset.cat === cat));
+    document.getElementById('emoji-search').value = '';
+    renderEmojiGrid();
+};
+
+window.insertEmoji = function(emoji) {
     const input = document.getElementById('chat-input');
-    if (!input || !window.socket) return;
-    const msg = input.value.trim();
-    if (msg) {
-        window.socket.emit('chat_message', { msg: msg });
-        input.value = '';
+    if (!input) return;
+    const start = input.selectionStart;
+    const end = input.selectionEnd;
+    input.value = input.value.substring(0, start) + emoji + input.value.substring(end);
+    input.focus();
+    input.setSelectionRange(start + emoji.length, start + emoji.length);
+};
+
+window.toggleEmojiPicker = function() {
+    const picker = document.getElementById('emoji-picker');
+    if (!picker) return;
+    const isOpen = picker.classList.contains('open');
+    if (isOpen) {
+        picker.classList.remove('open');
+    } else {
+        picker.classList.add('open');
+        initEmojiPicker();
+        const searchEl = document.getElementById('emoji-search');
+        if (searchEl) setTimeout(() => searchEl.focus(), 50);
     }
 };
 
+// Close emoji picker when clicking outside
+document.addEventListener('click', (e) => {
+    const picker = document.getElementById('emoji-picker');
+    const toggleBtn = document.getElementById('emoji-toggle-btn');
+    if (picker && picker.classList.contains('open')) {
+        if (!picker.contains(e.target) && !toggleBtn.contains(e.target)) {
+            picker.classList.remove('open');
+        }
+    }
+});
+
+// ---- FILE HANDLING (Auto-send on attach) ----
+window.handleChatFileSelect = function (e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+        alert("File quá lớn. Vui lòng chọn file dưới 5MB.");
+        e.target.value = '';
+        return;
+    }
+    const reader = new FileReader();
+    reader.onload = function(evt) {
+        currentChatFile = {
+            name: file.name,
+            type: file.type,
+            data: evt.target.result
+        };
+        // Auto-send immediately when file is selected
+        sendChatMessage();
+    };
+    reader.readAsDataURL(file);
+};
+
+window.cancelChatFile = function() {
+    currentChatFile = null;
+    const fileInput = document.getElementById('chat-file-input');
+    const preview = document.getElementById('chat-file-preview');
+    if (fileInput) fileInput.value = '';
+    if (preview) preview.classList.remove('active');
+};
+
+// ---- SEND MESSAGE ----
+window.sendChatMessage = function () {
+    const input = document.getElementById('chat-input');
+    const fileInput = document.getElementById('chat-file-input');
+    if (!input || !window.socket) return;
+    
+    const msg = input.value.trim();
+    if (msg || currentChatFile) {
+        let payload = { msg: msg };
+        if (currentChatFile) {
+            payload.file_name = currentChatFile.name;
+            payload.file_type = currentChatFile.type;
+            payload.file_data = currentChatFile.data;
+        }
+        window.socket.emit('chat_message', payload);
+        window.socket.emit('chat_stop_typing');
+        
+        input.value = '';
+        if (fileInput) fileInput.value = '';
+        currentChatFile = null;
+        const preview = document.getElementById('chat-file-preview');
+        if (preview) preview.classList.remove('active');
+        
+        // Close emoji picker after send
+        const emojiPicker = document.getElementById('emoji-picker');
+        if (emojiPicker) emojiPicker.classList.remove('open');
+    }
+};
+
+// ---- CHAT INIT & SOCKET EVENTS ----
 document.addEventListener('DOMContentLoaded', () => {
     const input = document.getElementById('chat-input');
     if (input) {
+        let typingTimeout;
+        input.addEventListener('input', function(e) {
+            if (!window.socket) return;
+            if (this.value.trim() === '') {
+                window.socket.emit('chat_stop_typing');
+                clearTimeout(typingTimeout);
+                return;
+            }
+            window.socket.emit('chat_typing');
+            clearTimeout(typingTimeout);
+            typingTimeout = setTimeout(() => {
+                window.socket.emit('chat_stop_typing');
+            }, 2000);
+        });
         input.addEventListener('keypress', function (e) {
             if (e.key === 'Enter') sendChatMessage();
         });
     }
 
     if (typeof window.socket !== 'undefined' && window.socket) {
+        
+        window.socket.on('connect', () => {
+            window.socket.emit('request_chat_history');
+        });
+
+        window.socket.on('chat_history', function (messages) {
+            const msgs = document.getElementById('chat-messages');
+            if (!msgs) return;
+            
+            const welcomeText = typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi' 
+                ? 'Chào mừng bạn đến với kênh chat chung! 💬' 
+                : 'グループチャットへようこそ！💬';
+            msgs.innerHTML = `<div class="chat-welcome">${welcomeText}</div>`;
+            
+            messages.forEach(data => appendChatMessage(msgs, data, false));
+            msgs.scrollTop = msgs.scrollHeight;
+            if (isChatOpen) {
+                window.socket.emit('chat_mark_read');
+            }
+        });
+
+        const typingUsers = new Map();
+        window.socket.on('chat_typing', function(data) {
+            if (typeof CURRENT_USER !== 'undefined' && data.username === CURRENT_USER) return;
+            typingUsers.set(data.username, data.fullname || data.username);
+            updateTypingIndicator();
+        });
+        window.socket.on('chat_stop_typing', function(data) {
+            typingUsers.delete(data.username);
+            updateTypingIndicator();
+        });
+        function updateTypingIndicator() {
+            const ind = document.getElementById('chat-typing-indicator');
+            const txt = document.getElementById('chat-typing-text');
+            if (!ind || !txt) return;
+            if (typingUsers.size > 0) {
+                const names = Array.from(typingUsers.values()).join(', ');
+                const isVi = typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi';
+                txt.textContent = names + (isVi ? ' đang soạn tin' : ' が入力中');
+                ind.style.display = 'flex';
+                const msgs = document.getElementById('chat-messages');
+                if (msgs && msgs.scrollHeight - msgs.scrollTop <= msgs.clientHeight + 50) {
+                    setTimeout(() => msgs.scrollTop = msgs.scrollHeight, 10);
+                }
+            } else {
+                ind.style.display = 'none';
+            }
+        }
+        
+        window.socket.on('chat_read_update', function(data) {
+            const { message_ids, user } = data;
+            message_ids.forEach(id => {
+                const container = document.getElementById(`read-avatars-${id}`);
+                if (container) {
+                    const existing = container.querySelector(`img[data-user="${user.username}"]`);
+                    if (!existing) {
+                        const img = document.createElement('img');
+                        img.src = user.avatar;
+                        img.title = user.username;
+                        img.dataset.user = user.username;
+                        img.onerror = function() { this.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.username)}&background=random&size=30`; };
+                        container.appendChild(img);
+                    }
+                }
+            });
+        });
+
         window.socket.on('chat_message', function (data) {
             const msgs = document.getElementById('chat-messages');
             if (!msgs) return;
 
-            const isMe = data.username === (document.querySelector('.user-name')?.innerText || '');
-
-            let html = `
-                <div style="display: flex; flex-direction: column; align-items: ${isMe ? 'flex-end' : 'flex-start'}; margin-bottom: 4px;">
-                    <span style="font-size: 10px; color: var(--text-3); margin-bottom: 2px;">${isMe ? 'Bạn' : data.fullname} - ${data.time}</span>
-                    <div style="background: ${isMe ? 'var(--primary)' : 'var(--bg-body)'}; color: ${isMe ? 'white' : 'var(--text)'}; padding: 8px 12px; border-radius: 12px; max-width: 85%; word-wrap: break-word;">
-                        ${data.msg}
-                    </div>
-                </div>
-            `;
-
-            msgs.innerHTML += html;
+            const isMe = appendChatMessage(msgs, data, true);
             msgs.scrollTop = msgs.scrollHeight;
 
             if (!isChatOpen) {
                 unreadChatCount++;
                 const badge = document.getElementById('chat-badge');
+                const bubbleBtn = document.getElementById('chat-bubble-btn');
                 if (badge) {
                     badge.innerText = unreadChatCount;
                     badge.style.display = 'flex';
                 }
+                if (bubbleBtn) bubbleBtn.classList.add('has-unread');
+            } else {
+                window.socket.emit('chat_mark_read');
+            }
+            
+            if (!isMe && !isChatOpen) {
+                playChatNotification();
             }
         });
+
+        // Update online count in chat header
+        window.socket.on('online_users_update', (users) => {
+            const countEl = document.getElementById('chat-online-count');
+            if (countEl && users) {
+                const count = Array.isArray(users) ? users.length : 0;
+                const langStr = typeof CURRENT_LANG !== 'undefined' ? CURRENT_LANG : 'vi';
+                countEl.textContent = langStr === 'vi' 
+                    ? `🟢 ${count} người đang online` 
+                    : `🟢 ${count}人がオンライン`;
+            }
+        });
+        
+        function appendChatMessage(container, data, animate) {
+            const isMe = data.username === (typeof CURRENT_USER !== 'undefined' ? CURRENT_USER : '');
+            let contentHtml = '';
+            
+            // File content
+            if (data.file_data) {
+                if (data.file_type && data.file_type.startsWith('image/')) {
+                    contentHtml += `<div style="margin-bottom: 4px;"><img src="${data.file_data}" onclick="window.open('${data.file_data}', '_blank')" alt="image" /></div>`;
+                } else {
+                    contentHtml += `<div style="margin-bottom: 4px;"><a href="${data.file_data}" download="${data.file_name}" class="file-link">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                        ${data.file_name || 'Download file'}
+                    </a></div>`;
+                }
+            }
+            
+            // Text content — check if it's emoji-only
+            if (data.msg) {
+                const escapedMsg = data.msg.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                const emojiOnlyRegex = /^[\p{Emoji}\p{Emoji_Component}\s]+$/u;
+                const isEmojiOnly = emojiOnlyRegex.test(data.msg) && data.msg.trim().length <= 8 && !data.file_data;
+                if (isEmojiOnly) {
+                    contentHtml += `<div class="msg-only-emoji">${escapedMsg}</div>`;
+                } else {
+                    contentHtml += `<div>${escapedMsg}</div>`;
+                }
+            }
+            
+            const avatarUrl = data.avatar || `/static/img/pet/1.gif`;
+            const senderName = isMe 
+                ? (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi' ? 'Bạn' : 'あなた')
+                : (data.fullname || data.username);
+
+            let readAvatarsHtml = '';
+            if (data.read_by && data.read_by.length > 0) {
+                data.read_by.forEach(u => {
+                    readAvatarsHtml += `<img src="${u.avatar}" title="${u.username}" data-user="${u.username}" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(u.username)}&background=random&size=30'" />`;
+                });
+            }
+
+            const row = document.createElement('div');
+            row.className = `chat-msg-row ${isMe ? 'me' : ''}`;
+            if (!animate) row.style.animation = 'none';
+            
+            row.innerHTML = `
+                <img src="${avatarUrl}" class="chat-msg-avatar" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(data.username)}&background=random&size=30'" />
+                <div class="chat-msg-content">
+                    <div class="chat-msg-meta">
+                        <span class="msg-sender">${senderName}</span> • ${data.time}
+                    </div>
+                    <div class="chat-msg-bubble ${isMe ? 'me' : 'other'}">
+                        ${contentHtml}
+                    </div>
+                    <div class="chat-msg-read-avatars" id="read-avatars-${data.id || ''}">
+                        ${readAvatarsHtml}
+                    </div>
+                </div>
+            `;
+            
+            container.appendChild(row);
+            return isMe;
+        }
     }
 });
 
@@ -2929,19 +3602,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const wrapper = document.getElementById('radio-video-wrapper');
         const btn = document.getElementById('radio-video-toggle');
+        const popoutIconBtn = document.getElementById('radio-video-popout-icon');
         if (wrapper && btn) {
-            if (radioState.video_active) {
+            if (window.isRadioPoppedOut) {
+                wrapper.style.display = 'flex';
+                btn.style.color = '#6366f1';
+                if (popoutIconBtn) popoutIconBtn.style.color = '#6366f1';
+            } else if (radioState.video_active) {
                 wrapper.style.display = 'block';
                 btn.style.color = '#34c759';
+                if (popoutIconBtn) popoutIconBtn.style.color = 'rgba(255,255,255,0.45)';
             } else {
                 wrapper.style.display = 'none';
                 btn.style.color = 'rgba(255,255,255,0.4)';
+                if (popoutIconBtn) popoutIconBtn.style.color = 'rgba(255,255,255,0.45)';
             }
-            if (!isRadioDJ) {
-                btn.style.cursor = 'default';
-            } else {
-                btn.style.cursor = 'pointer';
-            }
+            btn.style.cursor = 'pointer';
         }
 
         if (isRadioDJ || isListening) {
@@ -3316,12 +3992,196 @@ async function submitComparePsd() {
 
 window.toggleRadioVideo = function() {
     if (!isRadioDJ) {
-        showToast(CURRENT_LANG === 'vi' ? 'Chỉ DJ mới có thể chuyển đổi hiển thị video' : 'DJのみがビデオ表示を切り替えることができます', 'info');
+        window.toggleRadioPopout(true);
         return;
     }
     radioState.video_active = !radioState.video_active;
     if (window.updateRadioUI) updateRadioUI();
     if (window.syncRadioToServer) syncRadioToServer();
+};
+
+window.toggleRadioPopout = function(show) {
+    const wrapper = document.getElementById('radio-video-wrapper');
+    if (!wrapper) return;
+
+    if (show === undefined) {
+        show = !window.isRadioPoppedOut;
+    }
+
+    if (show) {
+        window.isRadioPoppedOut = true;
+        wrapper.classList.add('is-popped-out');
+        wrapper.style.display = 'flex';
+
+        // Restore position & size from localStorage if valid
+        const savedPos = JSON.parse(localStorage.getItem('lsa_popout_pos') || 'null');
+        const savedSize = JSON.parse(localStorage.getItem('lsa_popout_size') || 'null');
+
+        if (savedPos && savedPos.left < window.innerWidth - 80 && savedPos.top < window.innerHeight - 80) {
+            wrapper.style.left = savedPos.left + 'px';
+            wrapper.style.top = savedPos.top + 'px';
+            wrapper.style.right = 'auto';
+            wrapper.style.bottom = 'auto';
+        } else {
+            wrapper.style.left = '';
+            wrapper.style.top = '';
+            wrapper.style.bottom = '90px';
+            wrapper.style.right = '320px';
+        }
+
+        if (savedSize && savedSize.width >= 260 && savedSize.height >= 180) {
+            wrapper.style.width = savedSize.width + 'px';
+            wrapper.style.height = savedSize.height + 'px';
+        } else {
+            wrapper.style.width = '480px';
+            wrapper.style.height = '310px';
+        }
+
+        initPopoutDragAndResize();
+    } else {
+        window.isRadioPoppedOut = false;
+        wrapper.classList.remove('is-popped-out');
+        wrapper.style.position = '';
+        wrapper.style.left = '';
+        wrapper.style.top = '';
+        wrapper.style.right = '';
+        wrapper.style.bottom = '';
+        wrapper.style.width = '';
+        wrapper.style.height = '';
+        wrapper.style.zIndex = '';
+    }
+
+    if (window.updateRadioUI) updateRadioUI();
+};
+
+window.closeRadioPopout = function() {
+    window.toggleRadioPopout(false);
+    const wrapper = document.getElementById('radio-video-wrapper');
+    if (wrapper) wrapper.style.display = 'none';
+    if (isRadioDJ && radioState.video_active) {
+        radioState.video_active = false;
+        if (window.syncRadioToServer) syncRadioToServer();
+    }
+    if (window.updateRadioUI) updateRadioUI();
+};
+
+let popoutDragInitialized = false;
+window.initPopoutDragAndResize = function() {
+    if (popoutDragInitialized) return;
+    popoutDragInitialized = true;
+
+    const wrapper = document.getElementById('radio-video-wrapper');
+    const header = document.getElementById('radio-popout-header');
+    const resizer = document.getElementById('radio-popout-resizer');
+    if (!wrapper || !header || !resizer) return;
+
+    // --- DRAG LOGIC ---
+    let isDragging = false;
+    let dragStartX = 0, dragStartY = 0;
+    let startLeft = 0, startTop = 0;
+
+    header.addEventListener('mousedown', function(e) {
+        if (e.target.closest('button')) return; // ignore clicks on buttons
+        isDragging = true;
+        const rect = wrapper.getBoundingClientRect();
+        dragStartX = e.clientX;
+        dragStartY = e.clientY;
+        startLeft = rect.left;
+        startTop = rect.top;
+
+        wrapper.style.left = startLeft + 'px';
+        wrapper.style.top = startTop + 'px';
+        wrapper.style.right = 'auto';
+        wrapper.style.bottom = 'auto';
+
+        document.addEventListener('mousemove', onDragMove);
+        document.addEventListener('mouseup', onDragEnd);
+        e.preventDefault();
+    });
+
+    function onDragMove(e) {
+        if (!isDragging) return;
+        const dx = e.clientX - dragStartX;
+        const dy = e.clientY - dragStartY;
+        let newLeft = startLeft + dx;
+        let newTop = startTop + dy;
+
+        const maxLeft = window.innerWidth - wrapper.offsetWidth - 10;
+        const maxTop = window.innerHeight - wrapper.offsetHeight - 10;
+        newLeft = Math.max(10, Math.min(newLeft, maxLeft));
+        newTop = Math.max(10, Math.min(newTop, maxTop));
+
+        wrapper.style.left = newLeft + 'px';
+        wrapper.style.top = newTop + 'px';
+    }
+
+    function onDragEnd() {
+        if (!isDragging) return;
+        isDragging = false;
+        document.removeEventListener('mousemove', onDragMove);
+        document.removeEventListener('mouseup', onDragEnd);
+        localStorage.setItem('lsa_popout_pos', JSON.stringify({
+            left: parseInt(wrapper.style.left, 10),
+            top: parseInt(wrapper.style.top, 10)
+        }));
+    }
+
+    // Double-click header to center and resize to 640x400
+    header.addEventListener('dblclick', function(e) {
+        if (e.target.closest('button')) return;
+        wrapper.style.width = '640px';
+        wrapper.style.height = '400px';
+        wrapper.style.left = Math.max(20, (window.innerWidth - 640) / 2) + 'px';
+        wrapper.style.top = Math.max(20, (window.innerHeight - 400) / 2) + 'px';
+        localStorage.setItem('lsa_popout_size', JSON.stringify({ width: 640, height: 400 }));
+        localStorage.setItem('lsa_popout_pos', JSON.stringify({
+            left: parseInt(wrapper.style.left, 10),
+            top: parseInt(wrapper.style.top, 10)
+        }));
+    });
+
+    // --- RESIZE LOGIC ---
+    let isResizing = false;
+    let resizeStartX = 0, resizeStartY = 0;
+    let startWidth = 0, startHeight = 0;
+
+    resizer.addEventListener('mousedown', function(e) {
+        isResizing = true;
+        resizeStartX = e.clientX;
+        resizeStartY = e.clientY;
+        startWidth = wrapper.offsetWidth;
+        startHeight = wrapper.offsetHeight;
+
+        document.addEventListener('mousemove', onResizeMove);
+        document.addEventListener('mouseup', onResizeEnd);
+        e.preventDefault();
+        e.stopPropagation();
+    });
+
+    function onResizeMove(e) {
+        if (!isResizing) return;
+        const dx = e.clientX - resizeStartX;
+        const dy = e.clientY - resizeStartY;
+        let newW = startWidth + dx;
+        let newH = startHeight + dy;
+
+        newW = Math.max(260, Math.min(newW, window.innerWidth - 30));
+        newH = Math.max(180, Math.min(newH, window.innerHeight - 30));
+
+        wrapper.style.width = newW + 'px';
+        wrapper.style.height = newH + 'px';
+    }
+
+    function onResizeEnd() {
+        if (!isResizing) return;
+        isResizing = false;
+        document.removeEventListener('mousemove', onResizeMove);
+        document.removeEventListener('mouseup', onResizeEnd);
+        localStorage.setItem('lsa_popout_size', JSON.stringify({
+            width: wrapper.offsetWidth,
+            height: wrapper.offsetHeight
+        }));
+    }
 };
 
 // ==========================================
@@ -3536,5 +4396,755 @@ window.removeLocalPlaylist = function(videoId, e) {
     list = list.filter(item => item.id !== videoId);
     localStorage.setItem('lsa_music_history', JSON.stringify(list));
     window.renderLocalPlaylist();
+};
+
+// ===================== TIME TRACKER =====================
+let trackerIntervals = {};
+
+function startTracker(index) {
+    const startTime = Date.now();
+    localStorage.setItem(`tracker_start_${index}`, startTime);
+    localStorage.removeItem(`tracker_end_${index}`);
+    
+    const startBtn = document.getElementById(`btn_start_${index}`);
+    const endBtn = document.getElementById(`btn_end_${index}`);
+    if (startBtn) startBtn.disabled = true;
+    if (endBtn) endBtn.disabled = false;
+    
+    updateTrackerDisplay(index);
+    trackerIntervals[index] = setInterval(() => updateTrackerDisplay(index), 1000);
 }
+
+function updateTrackerDisplay(index) {
+    const startTime = localStorage.getItem(`tracker_start_${index}`);
+    if (!startTime) return;
+    
+    const diff = Date.now() - parseInt(startTime);
+    let h = Math.floor(diff / 3600000).toString().padStart(2, '0');
+    let m = Math.floor((diff % 3600000) / 60000).toString().padStart(2, '0');
+    let s = Math.floor((diff % 60000) / 1000).toString().padStart(2, '0');
+    
+    const display = document.getElementById(`time_display_${index}`);
+    if(display) display.textContent = `${h}:${m}:${s}`;
+    
+    updateCardBadge(index, true, h, m);
+}
+
+function endTracker(index) {
+    const startTime = localStorage.getItem(`tracker_start_${index}`);
+    if (!startTime) return;
+    
+    const endTime = Date.now();
+    localStorage.setItem(`tracker_end_${index}`, endTime);
+    
+    clearInterval(trackerIntervals[index]);
+    const startBtn = document.getElementById(`btn_start_${index}`);
+    const endBtn = document.getElementById(`btn_end_${index}`);
+    if (startBtn) startBtn.disabled = false;
+    if (endBtn) endBtn.disabled = true;
+    
+    updateCardBadge(index, false);
+}
+
+function toggleManualTime(index) {
+    const cb = document.getElementById(`manual_time_cb_${index}`);
+    const autoControls = document.getElementById(`auto_controls_${index}`);
+    const manualControls = document.getElementById(`manual_controls_${index}`);
+    if (cb && cb.checked) {
+        if(autoControls) autoControls.style.display = 'none';
+        if(manualControls) {
+            manualControls.style.display = 'flex';
+            manualControls.style.alignItems = 'center';
+            manualControls.style.gap = '8px';
+            
+            if (typeof flatpickr !== 'undefined') {
+                const now = new Date();
+                const sEl = document.getElementById(`manual_start_${index}`);
+                const eEl = document.getElementById(`manual_end_${index}`);
+                if (sEl && !sEl._flatpickr) {
+                    flatpickr(`#manual_start_${index}`, {
+                        enableTime: true,
+                        time_24hr: true,
+                        dateFormat: "Y-m-d H:i",
+                        defaultDate: now,
+                        onChange: function() { calcManualTime(index, 'start'); }
+                    });
+                }
+                if (eEl && !eEl._flatpickr) {
+                    flatpickr(`#manual_end_${index}`, {
+                        enableTime: true,
+                        time_24hr: true,
+                        dateFormat: "Y-m-d H:i",
+                        defaultDate: now,
+                        onChange: function() { calcManualTime(index, 'end'); }
+                    });
+                }
+            }
+        }
+    } else {
+        if(autoControls) autoControls.style.display = 'flex';
+        if(manualControls) manualControls.style.display = 'none';
+    }
+}
+
+function calcManualTime(index, field) {
+    const startEl = document.getElementById(`manual_start_${index}`);
+    const endEl = document.getElementById(`manual_end_${index}`);
+    const durEl = document.getElementById(`manual_duration_${index}`);
+    
+    if (!startEl || !startEl.value) return; 
+    
+    let sDate = new Date(startEl.value.replace(' ', 'T'));
+    if (isNaN(sDate.getTime())) return;
+    
+    if (field === 'dur' || field === 'start') {
+        if (durEl && durEl.value && parseFloat(durEl.value) > 0) {
+            let durHours = parseFloat(durEl.value);
+            let eDate = new Date(sDate.getTime() + durHours * 3600000);
+            
+            if (endEl) {
+                if (endEl._flatpickr) {
+                    endEl._flatpickr.setDate(eDate);
+                } else {
+                    let tzOffset = eDate.getTimezoneOffset() * 60000;
+                    endEl.value = (new Date(eDate - tzOffset)).toISOString().slice(0, 16).replace('T', ' ');
+                }
+                endEl.disabled = true;
+            }
+        } else if (field === 'dur' && durEl && !durEl.value) {
+            if (endEl) {
+                endEl.disabled = false;
+                if (endEl._flatpickr) endEl._flatpickr.clear();
+                else endEl.value = ''; 
+            }
+        } else if (field === 'start') {
+            if (durEl && durEl.value) {
+                let durHours = parseFloat(durEl.value);
+                let eDate = new Date(sDate.getTime() + durHours * 3600000);
+                
+                if (endEl) {
+                    if (endEl._flatpickr) {
+                        endEl._flatpickr.setDate(eDate);
+                    } else {
+                        let tzOffset = eDate.getTimezoneOffset() * 60000;
+                        endEl.value = (new Date(eDate - tzOffset)).toISOString().slice(0, 16).replace('T', ' ');
+                    }
+                }
+            } else if (endEl && endEl.value) {
+                let eDate = new Date(endEl.value.replace(' ', 'T'));
+                let diffHours = (eDate - sDate) / 3600000;
+                if (diffHours < 0) diffHours += 24;
+                if (durEl) durEl.value = parseFloat(diffHours.toFixed(2));
+            }
+        }
+    }
+    
+    if (field === 'end') {
+        if (endEl && endEl.value) {
+            let eDate = new Date(endEl.value.replace(' ', 'T'));
+            let diffHours = (eDate - sDate) / 3600000;
+            if (diffHours < 0) diffHours += 24;
+            if (durEl) durEl.value = parseFloat(diffHours.toFixed(2));
+            endEl.disabled = false;
+        } else if (durEl) {
+            durEl.value = '';
+        }
+    }
+}
+
+function updateCardBadge(index, active, h='00', m='00') {
+    const trackerBox = document.getElementById(`tracker_${index}`);
+    if (!trackerBox) return;
+    const tpKey = trackerBox.getAttribute('data-tp-key');
+    document.querySelectorAll(`.progress-card[data-tp-key="${tpKey}"]`).forEach(card => {
+        let badge = card.querySelector('.tracker-badge');
+        if (!active) {
+            if (badge) badge.style.display = 'none';
+            return;
+        }
+        if (!badge) {
+            badge = document.createElement('span');
+            badge.className = 'tracker-badge';
+            badge.style.cssText = 'display: inline-flex; align-items: center; gap: 4px; font-size: 0.75rem; background: rgba(46, 213, 115, 0.2); color: #2ed573; padding: 2px 6px; border-radius: 4px; margin-left: 8px; font-family: monospace; font-weight: bold;';
+            const tagsDiv = card.querySelector('.card-tags');
+            if (tagsDiv) {
+                tagsDiv.appendChild(badge);
+            } else {
+                card.prepend(badge);
+            }
+        }
+        badge.style.display = 'inline-flex';
+        badge.innerHTML = `⏱️ ${h}:${m}`;
+    });
+}
+
+async function saveTracker(index, tpKey) {
+    const isManual = document.getElementById(`manual_time_cb_${index}`)?.checked;
+    
+    let durationHours = 0;
+    let finalStartTime = '';
+    let finalEndTime = '';
+    let finalStartDate = '';
+    let finalEndDate = '';
+    
+    if (isManual) {
+        const st = document.getElementById(`manual_start_${index}`)?.value;
+        const et = document.getElementById(`manual_end_${index}`)?.value;
+        const dur = document.getElementById(`manual_duration_${index}`)?.value;
+        
+        if (!st && !et && !dur) {
+            showToast((typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi') ? 'Vui lòng nhập Giờ Bắt Đầu & Kết Thúc HOẶC nhập số phút!' : '開始と終了の時間を入力するか、分を入力してください！', 'error');
+            return;
+        }
+
+        let formatTimeOnly = (date) => date.toLocaleTimeString('en-GB', {hour: '2-digit', minute:'2-digit'});
+        let formatDateOnly = (date) => date.toLocaleDateString('en-US'); // MM/DD/YYYY
+
+        if (dur) {
+            durationHours = parseFloat(dur);
+            let sD = st ? new Date(st.replace(' ', 'T')) : new Date();
+            let eD = et ? new Date(et.replace(' ', 'T')) : new Date(sD.getTime() + durationHours * 3600000);
+            finalStartTime = formatTimeOnly(sD);
+            finalEndTime = formatTimeOnly(eD);
+            finalStartDate = formatDateOnly(sD);
+            finalEndDate = formatDateOnly(eD);
+        } else if (st && et) {
+            let sDate = new Date(st.replace(' ', 'T'));
+            let eDate = new Date(et.replace(' ', 'T'));
+            if (eDate < sDate) {
+                eDate.setDate(eDate.getDate() + 1);
+            }
+            durationHours = (eDate - sDate) / 3600000;
+            finalStartTime = formatTimeOnly(sDate);
+            finalEndTime = formatTimeOnly(eDate);
+            finalStartDate = formatDateOnly(sDate);
+            finalEndDate = formatDateOnly(eDate);
+        } else {
+            showToast((typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi') ? 'Vui lòng nhập đủ thời gian!' : '時間を入力してください！', 'error');
+            return;
+        }
+    } else {
+        const startTimeStr = localStorage.getItem(`tracker_start_${index}`);
+        const endTimeStr = localStorage.getItem(`tracker_end_${index}`);
+        if (!startTimeStr || !endTimeStr) {
+            showToast((typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi') ? 'Vui lòng bắt đầu và kết thúc trước khi lưu!' : '保存する前に開始と終了を行ってください！', 'error');
+            return;
+        }
+        
+        const startTime = parseInt(startTimeStr);
+        const endTime = parseInt(endTimeStr);
+        durationHours = (endTime - startTime) / 3600000;
+        
+        let formatTimeOnly = (date) => date.toLocaleTimeString('en-GB', {hour: '2-digit', minute:'2-digit'});
+        let formatDateOnly = (date) => date.toLocaleDateString('en-US');
+        
+        let sD = new Date(startTime);
+        let eD = new Date(endTime);
+        finalStartTime = formatTimeOnly(sD);
+        finalEndTime = formatTimeOnly(eD);
+        finalStartDate = formatDateOnly(sD);
+        finalEndDate = formatDateOnly(eD);
+    }
+    
+    // Check if the log date is today in manual tracker
+    if (isManual && finalStartDate) {
+        const today = new Date();
+        const todayFormatted = today.toLocaleDateString('en-US'); // MM/DD/YYYY
+        if (finalStartDate !== todayFormatted) {
+            showConfirmDateModal(finalStartDate, todayFormatted, () => {
+                executeSaveTracker(index, tpKey, durationHours, finalStartTime, finalEndTime, finalStartDate, finalEndDate, isManual);
+            });
+            return;
+        }
+    }
+
+    executeSaveTracker(index, tpKey, durationHours, finalStartTime, finalEndTime, finalStartDate, finalEndDate, isManual);
+}
+
+async function executeSaveTracker(index, tpKey, durationHours, finalStartTime, finalEndTime, finalStartDate, finalEndDate, isManual) {
+    const note = document.getElementById(`tracker_note_${index}`)?.value || '';
+    
+    const payload = {
+        action: 'log_member_time',
+        task_name: tpKey,
+        duration: durationHours.toFixed(2),
+        start_time: finalStartTime,
+        end_time: finalEndTime,
+        start_date: finalStartDate,
+        end_date: finalEndDate,
+        note: note
+    };
+    
+    const btn = document.getElementById(`btn_save_${index}`);
+    const oldText = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.innerHTML = '...';
+        btn.disabled = true;
+    }
+    
+    try {
+        const res = await fetch('/api/log_member_time', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+            showToast((typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi') ? 'Đã lưu thời gian!' : '時間を保存しました！', 'success');
+            // Reset
+            if (!isManual) {
+                localStorage.removeItem(`tracker_start_${index}`);
+                localStorage.removeItem(`tracker_end_${index}`);
+                const td = document.getElementById(`time_display_${index}`);
+                if (td) td.textContent = '00:00:00';
+                const sBtn = document.getElementById(`btn_start_${index}`);
+                const eBtn = document.getElementById(`btn_end_${index}`);
+                if (sBtn) sBtn.disabled = false;
+                if (eBtn) eBtn.disabled = true;
+                updateCardBadge(index, false);
+            } else {
+                const sIn = document.getElementById(`manual_start_${index}`);
+                const eIn = document.getElementById(`manual_end_${index}`);
+                const dIn = document.getElementById(`manual_duration_${index}`);
+                if (sIn) sIn.value = '';
+                if (eIn) { eIn.value = ''; eIn.disabled = false; }
+                if (dIn) dIn.value = '';
+            }
+            const noteEl = document.getElementById(`tracker_note_${index}`);
+            if (noteEl) noteEl.value = '';
+        } else {
+            showToast('Error: ' + (data.message || 'Server error'), 'error');
+        }
+    } catch (e) {
+        showToast('Lỗi kết nối!', 'error');
+    } finally {
+        if (btn) {
+            btn.innerHTML = oldText;
+            btn.disabled = false;
+        }
+    }
+}
+
+// Khôi phục tracker đang chạy khi load lại trang
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.time-tracker-box').forEach(box => {
+        const index = box.id.replace('tracker_', '');
+        const startTime = localStorage.getItem(`tracker_start_${index}`);
+        const endTime = localStorage.getItem(`tracker_end_${index}`);
+        
+        if (startTime && !endTime) {
+            const sBtn = document.getElementById(`btn_start_${index}`);
+            const eBtn = document.getElementById(`btn_end_${index}`);
+            if (sBtn) sBtn.disabled = true;
+            if (eBtn) eBtn.disabled = false;
+            updateTrackerDisplay(index);
+            trackerIntervals[index] = setInterval(() => updateTrackerDisplay(index), 1000);
+        } else if (startTime && endTime) {
+            const sBtn = document.getElementById(`btn_start_${index}`);
+            const eBtn = document.getElementById(`btn_end_${index}`);
+            if (sBtn) sBtn.disabled = false;
+            if (eBtn) eBtn.disabled = true;
+            const diff = parseInt(endTime) - parseInt(startTime);
+            let h = Math.floor(diff / 3600000).toString().padStart(2, '0');
+            let m = Math.floor((diff % 3600000) / 60000).toString().padStart(2, '0');
+            let s = Math.floor((diff % 60000) / 1000).toString().padStart(2, '0');
+            const td = document.getElementById(`time_display_${index}`);
+            if (td) td.textContent = `${h}:${m}:${s}`;
+        }
+    });
+
+    // Store original DOM order for default sort
+    document.querySelectorAll('.kanban-cards').forEach(container => {
+        Array.from(container.children).forEach((child, idx) => {
+            child.dataset.defaultOrder = idx;
+        });
+    });
+});
+
+// --- Kanban Search & Sort Logic ---
+window.filterKanban = function(input) {
+    const clearBtn = input.nextElementSibling;
+    if (clearBtn && clearBtn.classList.contains('clear-search')) {
+        clearBtn.style.display = input.value ? 'block' : 'none';
+    }
+    const tabPane = input.closest('.tab-content');
+    if (!tabPane) return;
+    const query = input.value.toLowerCase();
+    const cards = tabPane.querySelectorAll('.progress-card');
+    
+    cards.forEach(card => {
+        const title = (card.querySelector('.card-title')?.textContent || '').toLowerCase();
+        const worker = (card.querySelector('.worker-name')?.textContent || '').toLowerCase();
+        const tag = (card.querySelector('.tag')?.textContent || '').toLowerCase();
+        const qc = (card.querySelector('.qc-badge')?.textContent || '').toLowerCase();
+        
+        if (title.includes(query) || worker.includes(query) || tag.includes(query) || qc.includes(query)) {
+            card.style.display = '';
+        } else {
+            card.style.display = 'none';
+        }
+    });
+    
+    updateKanbanCounts(tabPane);
+    updateKanbanGroups(tabPane);
+};
+
+window.sortKanban = function(select) {
+    const tabPane = select.closest('.tab-content');
+    if (!tabPane) return;
+    const sortValue = select.value;
+    const columns = tabPane.querySelectorAll('.kanban-column');
+    
+    columns.forEach(col => {
+        const container = col.querySelector('.kanban-cards');
+        const children = Array.from(container.children);
+        const headers = children.filter(c => c.classList.contains('job-group-header'));
+        const cards = children.filter(c => c.classList.contains('progress-card'));
+        
+        // Group cards by their closest preceding header
+        const groups = new Map();
+        headers.forEach(h => groups.set(h, []));
+        const unassigned = [];
+        
+        let currentHeader = null;
+        children.forEach(c => {
+            if (c.classList.contains('job-group-header')) {
+                currentHeader = c;
+            } else if (c.classList.contains('progress-card')) {
+                if (currentHeader) {
+                    groups.get(currentHeader).push(c);
+                } else {
+                    unassigned.push(c);
+                }
+            }
+        });
+        
+        const sortCards = (cardArray) => {
+            if (sortValue === 'default' || sortValue === 'job_asc') {
+                cardArray.sort((a, b) => parseInt(a.dataset.defaultOrder) - parseInt(b.dataset.defaultOrder));
+            } else {
+                cardArray.sort((a, b) => {
+                    if (sortValue === 'name_asc' || sortValue === 'name_desc') {
+                        const nameA = (a.querySelector('.card-title')?.textContent || '').trim();
+                        const nameB = (b.querySelector('.card-title')?.textContent || '').trim();
+                        return sortValue === 'name_asc' ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA);
+                    }
+                    if (sortValue === 'date_asc' || sortValue === 'date_desc') {
+                        const dateTextA = a.querySelector('.card-dates span')?.textContent || '';
+                        const dateTextB = b.querySelector('.card-dates span')?.textContent || '';
+                        const extractDate = (text) => {
+                            const matches = text.match(/\d{2}\/\d{2}\/\d{4}/g);
+                            const dateStr = matches && matches.length > 1 ? matches[1] : (matches ? matches[0] : null);
+                            return dateStr ? new Date(dateStr).getTime() : (sortValue === 'date_asc' ? Infinity : -Infinity);
+                        };
+                        const dA = extractDate(dateTextA);
+                        const dB = extractDate(dateTextB);
+                        return sortValue === 'date_asc' ? dA - dB : dB - dA;
+                    }
+                    return 0;
+                });
+            }
+        };
+
+        container.innerHTML = '';
+        
+        if (unassigned.length > 0) {
+            sortCards(unassigned);
+            unassigned.forEach(c => container.appendChild(c));
+        }
+        
+        headers.forEach(h => {
+            container.appendChild(h);
+            const cardArray = groups.get(h);
+            sortCards(cardArray);
+            cardArray.forEach(c => container.appendChild(c));
+        });
+    });
+    
+    updateKanbanGroups(tabPane);
+};
+
+function updateKanbanCounts(tabPane) {
+    const columns = tabPane.querySelectorAll('.kanban-column');
+    columns.forEach(col => {
+        const visibleCards = Array.from(col.querySelectorAll('.progress-card')).filter(c => c.style.display !== 'none').length;
+        const countSpan = col.querySelector('.kanban-col-count');
+        if (countSpan) countSpan.textContent = visibleCards;
+    });
+}
+
+function moveCardToColumn(card, targetCol) {
+    const tagText = (card.querySelector('.tag')?.textContent || '').trim();
+    let jobType = 'Prep';
+    if (tagText.includes('写植/ﾚﾀｯﾁ') || tagText.includes('写植/レタッチ') || tagText.includes('Lettering/Retouch')) jobType = 'Lettering/Retouch';
+    else if (tagText.includes('修正') || tagText.includes('Correction') || tagText.includes('Lettering QC')) jobType = 'Lettering QC';
+    else if (tagText.includes('写植') || tagText.includes('Lettering')) jobType = 'Lettering';
+    else if (tagText.includes('レタッチ') || tagText.includes('ﾚﾀｯﾁ') || tagText.includes('Retouch')) jobType = 'Retouch';
+    else if (tagText.includes('Prep')) jobType = 'Prep';
+
+    const jobOrder = ['Prep', 'Lettering', 'Lettering QC', 'Retouch', 'Lettering/Retouch'];
+    
+    let header = Array.from(targetCol.querySelectorAll('.job-group-header')).find(h => h.textContent.trim() === jobType);
+    
+    if (!header) {
+        header = document.createElement('div');
+        header.className = 'job-group-header';
+        header.textContent = jobType;
+        
+        const headers = Array.from(targetCol.querySelectorAll('.job-group-header'));
+        const myIndex = jobOrder.indexOf(jobType);
+        let inserted = false;
+        for (let h of headers) {
+            const hIndex = jobOrder.indexOf(h.textContent.trim());
+            if (hIndex > myIndex || hIndex === -1) {
+                targetCol.insertBefore(header, h);
+                inserted = true;
+                break;
+            }
+        }
+        if (!inserted) {
+            targetCol.appendChild(header);
+        }
+    }
+    
+    let nextNode = header.nextElementSibling;
+    let lastCardInGroup = header;
+    while (nextNode && !nextNode.classList.contains('job-group-header')) {
+        lastCardInGroup = nextNode;
+        nextNode = nextNode.nextElementSibling;
+    }
+    
+    if (lastCardInGroup.nextSibling) {
+        targetCol.insertBefore(card, lastCardInGroup.nextSibling);
+    } else {
+        targetCol.appendChild(card);
+    }
+}
+
+function updateKanbanGroups(tab) {
+    tab.querySelectorAll('.kanban-column').forEach(col => {
+        const container = col.querySelector('.kanban-cards');
+        if (!container) return;
+        const children = Array.from(container.children);
+        const headers = children.filter(c => c.classList.contains('job-group-header'));
+        
+        headers.forEach(h => {
+            let nextNode = h.nextElementSibling;
+            let hasVisibleCard = false;
+            while (nextNode && !nextNode.classList.contains('job-group-header')) {
+                if (nextNode.classList.contains('progress-card') && nextNode.style.display !== 'none') {
+                    hasVisibleCard = true;
+                    break;
+                }
+                nextNode = nextNode.nextElementSibling;
+            }
+            h.style.display = hasVisibleCard ? '' : 'none';
+        });
+    });
+}
+
+window.toggleNotionDropdown = function(e, btn) {
+    e.stopPropagation();
+    document.querySelectorAll('.notion-dropdown-menu').forEach(menu => {
+        if (menu !== btn.querySelector('.notion-dropdown-menu')) {
+            menu.style.display = 'none';
+        }
+    });
+    
+    const menu = btn.querySelector('.notion-dropdown-menu');
+    if (menu) {
+        menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+    }
+};
+
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.notion-icon-btn.kanban-sort-btn')) {
+        document.querySelectorAll('.notion-dropdown-menu').forEach(menu => {
+            menu.style.display = 'none';
+        });
+    }
+});
+
+window.handleSortOptionClick = function(e, item) {
+    e.stopPropagation();
+    const type = item.getAttribute('data-type');
+    
+    if (type === 'group') {
+        item.classList.toggle('active');
+    } else if (type === 'sort') {
+        const isActive = item.classList.contains('active');
+        const menu = item.closest('.notion-dropdown-menu');
+        menu.querySelectorAll('.notion-dropdown-item[data-type="sort"]').forEach(i => i.classList.remove('active'));
+        if (!isActive) {
+            item.classList.add('active');
+        }
+    }
+    
+    const tabPane = item.closest('.tab-content');
+    if (tabPane) {
+        applyKanbanSort(tabPane, item.closest('.notion-dropdown-menu'));
+    }
+};
+
+window.applyKanbanSort = function(tabPane, menu) {
+    const isGrouped = menu.querySelector('.notion-dropdown-item[data-type="group"]')?.classList.contains('active');
+    const activeSortItem = menu.querySelector('.notion-dropdown-item[data-type="sort"].active');
+    const sortValue = activeSortItem ? activeSortItem.getAttribute('data-value') : 'default';
+    
+    const columns = tabPane.querySelectorAll('.kanban-column');
+    columns.forEach(col => {
+        const container = col.querySelector('.kanban-cards');
+        const children = Array.from(container.children);
+        const headers = children.filter(c => c.classList.contains('job-group-header'));
+        
+        const groups = new Map();
+        headers.forEach(h => groups.set(h, []));
+        const unassigned = [];
+        
+        children.forEach(c => {
+            if (c.classList.contains('progress-card')) {
+                const tagText = (c.querySelector('.tag')?.textContent || '').trim();
+                let jobType = 'Prep';
+                if (tagText.includes('写植/ﾚﾀｯﾁ') || tagText.includes('写植/レタッチ') || tagText.includes('Lettering/Retouch')) jobType = 'Lettering/Retouch';
+                else if (tagText.includes('修正') || tagText.includes('Correction') || tagText.includes('Lettering QC')) jobType = 'Lettering QC';
+                else if (tagText.includes('写植') || tagText.includes('Lettering')) jobType = 'Lettering';
+                else if (tagText.includes('レタッチ') || tagText.includes('ﾚﾀｯﾁ') || tagText.includes('Retouch')) jobType = 'Retouch';
+                else if (tagText.includes('Prep')) jobType = 'Prep';
+                
+                const matchingHeader = headers.find(h => h.textContent.trim().toUpperCase() === jobType.toUpperCase());
+                
+                if (matchingHeader) {
+                    groups.get(matchingHeader).push(c);
+                } else {
+                    const fallbackHeader = headers.find(h => h.textContent.trim().toUpperCase() === tagText.toUpperCase());
+                    if (fallbackHeader) {
+                        groups.get(fallbackHeader).push(c);
+                    } else {
+                        unassigned.push(c);
+                    }
+                }
+            }
+        });
+        
+        const sortCards = (cardArray) => {
+            if (sortValue === 'default') {
+                cardArray.sort((a, b) => parseInt(a.dataset.defaultOrder || 0) - parseInt(b.dataset.defaultOrder || 0));
+            } else {
+                cardArray.sort((a, b) => {
+                    if (sortValue === 'name_asc' || sortValue === 'name_desc') {
+                        const nameA = (a.querySelector('.card-title')?.textContent || '').trim();
+                        const nameB = (b.querySelector('.card-title')?.textContent || '').trim();
+                        return sortValue === 'name_asc' ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA);
+                    }
+                    if (sortValue === 'date_asc' || sortValue === 'date_desc') {
+                        const dateTextA = a.querySelector('.card-dates span')?.textContent || '';
+                        const dateTextB = b.querySelector('.card-dates span')?.textContent || '';
+                        const extractDate = (text) => {
+                            const matches = text.match(/\d{2}\/\d{2}\/\d{4}/g);
+                            const dateStr = matches && matches.length > 1 ? matches[1] : (matches ? matches[0] : null);
+                            return dateStr ? new Date(dateStr).getTime() : (sortValue === 'date_asc' ? Infinity : -Infinity);
+                        };
+                        const dA = extractDate(dateTextA);
+                        const dB = extractDate(dateTextB);
+                        return sortValue === 'date_asc' ? dA - dB : dB - dA;
+                    }
+                    return 0;
+                });
+            }
+        };
+
+        container.innerHTML = '';
+        
+        if (isGrouped) {
+            if (unassigned.length > 0) {
+                sortCards(unassigned);
+                unassigned.forEach(c => container.appendChild(c));
+            }
+            headers.forEach(h => {
+                container.appendChild(h);
+                const cardArray = groups.get(h);
+                sortCards(cardArray);
+                cardArray.forEach(c => container.appendChild(c));
+            });
+        } else {
+            headers.forEach(h => {
+                h.style.display = 'none';
+                container.appendChild(h);
+            });
+            const allCards = [...unassigned];
+            headers.forEach(h => allCards.push(...groups.get(h)));
+            sortCards(allCards);
+            allCards.forEach(c => container.appendChild(c));
+        }
+    });
+    
+    tabPane.querySelectorAll('.kanban-column').forEach(col => {
+        const container = col.querySelector('.kanban-cards');
+        if (!container) return;
+        const headers = Array.from(container.children).filter(c => c.classList.contains('job-group-header'));
+        headers.forEach(h => {
+            if (!isGrouped) {
+                h.style.display = 'none';
+                return;
+            }
+            let nextNode = h.nextElementSibling;
+            let hasVisibleCard = false;
+            while (nextNode && !nextNode.classList.contains('job-group-header')) {
+                if (nextNode.classList.contains('progress-card') && nextNode.style.display !== 'none') {
+                    hasVisibleCard = true;
+                    break;
+                }
+                nextNode = nextNode.nextElementSibling;
+            }
+            h.style.display = hasVisibleCard ? '' : 'none';
+        });
+    });
+};
+
+window.toggleExternalStart = function(tpKey, element) {
+    const checkbox = element.querySelector('input[type="checkbox"]');
+    const textSpan = element.querySelector('.t4-text');
+    const isChecked = !checkbox.checked;
+    
+    checkbox.checked = isChecked;
+    
+    // Update visuals
+    if (isChecked) {
+        element.style.color = 'var(--primary)';
+        element.style.background = 'rgba(16, 185, 129, 0.1)';
+        element.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+        textSpan.textContent = (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi') ? 'O: 開始 (Bắt đầu)' : 'O列：開始';
+    } else {
+        element.style.color = 'var(--text-3)';
+        element.style.background = 'var(--bg-page)';
+        element.style.borderColor = 'var(--border)';
+        textSpan.textContent = (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi') ? 'Chưa bắt đầu' : '未着手';
+    }
+    
+    // Update dataset on card
+    const card = element.closest('.progress-card');
+    if (card) {
+        let checkedIds = (card.dataset.checkedIds || '').split(',').filter(Boolean);
+        if (isChecked && !checkedIds.includes('t4')) {
+            checkedIds.push('t4');
+        } else if (!isChecked) {
+            checkedIds = checkedIds.filter(id => id !== 't4');
+        }
+        card.dataset.checkedIds = checkedIds.join(',');
+    }
+    
+    // Sync with server
+    fetch(typeof CHECKLIST_API_POST !== 'undefined' && CHECKLIST_API_POST ? CHECKLIST_API_POST : '/api/checklist_sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tac_pham: tpKey, checkbox_id: 't4', status: isChecked })
+    }).catch(console.error);
+    
+    // If modal for this task is open, sync it too
+    const modalCb = document.querySelector(`.checklist-grid[data-tp-key="${tpKey}"] input[data-check-id="t4"]`);
+    if (modalCb) {
+        modalCb.checked = isChecked;
+        updateTaskProgressLocally(tpKey, modalCb.closest('.checklist-grid').parentElement);
+    }
+};
 
