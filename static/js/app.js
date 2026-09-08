@@ -1239,6 +1239,16 @@ document.addEventListener('click', (e) => {
 });
 
 // ===================== CHECKLIST =====================
+// ===================== CHECKLIST =====================
+function getProgressCardsByTpKey(tpKey) {
+    if (!tpKey) return [];
+    const results = [];
+    document.querySelectorAll('.progress-card').forEach(c => {
+        if (c.dataset.tpKey === tpKey) results.push(c);
+    });
+    return results;
+}
+
 function initChecklistInContainer(container) {
     if (!container || container.dataset.checklistInit) return;
     container.dataset.checklistInit = 'true';
@@ -1254,9 +1264,9 @@ function initChecklistInContainer(container) {
             cb.addEventListener('change', (e) => {
                 cb.dataset.userModified = 'true';
 
-                // Keep the card's local checked_ids up to date
-                const card = document.querySelector(`.progress-card[data-tp-key="${tpKey}"]`);
-                if (card) {
+                // Keep ALL matching cards across all tabs up to date
+                const cards = getProgressCardsByTpKey(tpKey);
+                cards.forEach(card => {
                     let checkedIds = (card.dataset.checkedIds || '').split(',').filter(Boolean);
                     if (e.target.checked) {
                         if (!checkedIds.includes(rawId)) checkedIds.push(rawId);
@@ -1264,24 +1274,24 @@ function initChecklistInContainer(container) {
                         checkedIds = checkedIds.filter(id => id !== rawId);
                     }
                     card.dataset.checkedIds = checkedIds.join(',');
-                }
+                });
 
-                if (true) {
-                    fetch('/api/checklist_sync', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ tac_pham: tpKey, checkbox_id: rawId, status: e.target.checked })
-                    }).then(r => r.json()).then(data => {
-                        if (typeof handlePetXPResponse === 'function') handlePetXPResponse(data);
-                    }).catch(() => {});
-                }
+                fetch('/api/checklist_sync', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ tac_pham: tpKey, checkbox_id: rawId, status: e.target.checked })
+                }).then(r => r.json()).then(data => {
+                    if (typeof handlePetXPResponse === 'function') handlePetXPResponse(data);
+                }).catch(() => {});
+
                 updateTaskProgressLocally(tpKey, container);
             });
         });
 
         // 1. FAST LOCAL RENDER FROM CARD DATA (Injected by Python)
-        const card = document.querySelector(`.progress-card[data-tp-key="${tpKey}"]`);
-        if (card) {
+        const matchedCards = getProgressCardsByTpKey(tpKey);
+        if (matchedCards.length > 0) {
+            const card = matchedCards[0];
             const checkedIds = (card.dataset.checkedIds || '').toLowerCase().split(',').filter(Boolean);
             checkboxes.forEach(cb => {
                 const rawId = (cb.dataset.checkId || '').toLowerCase();
@@ -1745,11 +1755,14 @@ function backgroundSyncChecklist() {
                             freshCheckedIds.push(checkId);
                         }
                         
-                        // Update checkboxes inside the modal
-                        const escapedTpKey = tpKey.replace(/"/g, '\\"');
-                        const checkboxes = document.querySelectorAll(`.checklist-grid[data-tp-key="${escapedTpKey}"] input[data-check-id="${checkId}"]`);
-                        checkboxes.forEach(cb => {
-                            cb.checked = finalChecked;
+                        // Update checkboxes inside the modal safely without DOM query selector errors
+                        document.querySelectorAll('.checklist-grid').forEach(g => {
+                            if (g.dataset.tpKey === tpKey) {
+                                const cb = g.querySelector(`input[data-check-id="${checkId}"]`);
+                                if (cb && !cb.matches(':focus') && !cb.matches(':active')) {
+                                    cb.checked = finalChecked;
+                                }
+                            }
                         });
                     }
 
@@ -5949,8 +5962,14 @@ window.toggleExternalStart = function(tpKey, element) {
         body: JSON.stringify({ tac_pham: tpKey, checkbox_id: 't4', status: isChecked })
     }).catch(console.error);
     
-    // If modal for this task is open, sync it too
-    const modalCb = document.querySelector(`.checklist-grid[data-tp-key="${tpKey}"] input[data-check-id="t4"]`);
+    // If modal for this task is open, sync it too safely
+    let modalCb = null;
+    document.querySelectorAll('.checklist-grid').forEach(g => {
+        if (g.dataset.tpKey === tpKey) {
+            const found = g.querySelector('input[data-check-id="t4"]');
+            if (found) modalCb = found;
+        }
+    });
     if (modalCb) {
         modalCb.checked = isChecked;
         updateTaskProgressLocally(tpKey, modalCb.closest('.checklist-grid').parentElement);
