@@ -432,18 +432,32 @@ DICT_LANG = {
 
 CHECKLIST_TEXT = {
     'vi': {
-        'step1': 'STEP 1: CHUẨN BỊ', 'step2': 'STEP 2: BẮT ĐẦU', 'step3': 'STEP 3: GIAO HÀNG',
+        'phase1': 'CHUẨN BỊ', 'phase1_sub': 'Khởi tạo & nhận việc',
+        'phase2': 'BẮT ĐẦU', 'phase2_sub': 'Báo Asana & cập nhật',
+        'phase3': 'GIAO HÀNG', 'phase3_sub': 'Hoàn thành & bàn giao',
+        'step1': 'BƯỚC 1: CHUẨN BỊ', 'step2': 'BƯỚC 2: BẮT ĐẦU', 'step3': 'BƯỚC 3: GIAO HÀNG',
         't1': 'Tạo Task DB_工程管理', 't2': 'N: notion済', 't3': 'Báo bắt đầu', 't4': 'O: 開始 (Bắt đầu)', 't5': 'Not Started → In Progress',
         't6': 'Báo hoàn thành', 't7': 'N: 納品済み', 't8': 'Trạng thái: Delivered', 't9': 'Tick comment & Tick checklist in Mikan',
-        'copy_start': '📋 Copy Báo Bắt Đầu', 'ask_task': 'Trễ chỉ thị? (Hỏi Task)', 'copy_ask': '📋 Copy Hỏi Task',
-        'copy_done': '📋 Copy Báo Hoàn Thành', 'copied': '✅ Đã Copy', 'copy_deliver': '📋 Copy Báo Giao Hàng'
+        'copy_start': 'Sao chép', 'ask_task': 'Trễ chỉ thị? (Hỏi Task)', 'copy_ask': 'Sao chép',
+        'copy_done': 'Sao chép', 'copied': 'Đã sao chép', 'copy_deliver': 'Sao chép',
+        'tmpl_start': 'Mẫu tin nhắn Asana (Bắt đầu)',
+        'tmpl_ask': 'Mẫu hỏi khi trễ chỉ thị (Tiếng Nhật)',
+        'tmpl_done': 'Mẫu tin nhắn Asana (Hoàn thành)',
+        'tmpl_deliver': 'Mẫu tin nhắn giao hàng (Tiếng Nhật)'
     },
     'ja': {
+        'phase1': '準備フェーズ', 'phase1_sub': 'タスク作成・確認',
+        'phase2': '着手フェーズ', 'phase2_sub': 'Asana報告・更新',
+        'phase3': '納品フェーズ', 'phase3_sub': '完了報告・納品',
         'step1': 'STEP 1: 準備', 'step2': 'STEP 2: 着手', 'step3': 'STEP 3: 納品',
         't1': 'DB_工程管理に作成', 't2': 'N列：notion済', 't3': '着手報告 (Asana)', 't4': 'O列：開始', 't5': 'Not Started → In Progress',
         't6': '完了報告 (Asana)', 't7': 'N列：納品済み', 't8': 'ステータス：Delivered', 't9': 'Mikanでコメント＆チェックリストをTick',
-        'copy_start': '📋 着手報告コピー', 'ask_task': '指示遅れ？', 'copy_ask': '📋 確認文コピー',
-        'copy_done': '📋 完了報告コピー', 'copied': '✅ コピー完了', 'copy_deliver': '📋 納品メッセージコピー'
+        'copy_start': 'コピー', 'ask_task': '指示遅れ？(確認文)', 'copy_ask': 'コピー',
+        'copy_done': 'コピー', 'copied': 'コピー完了', 'copy_deliver': 'コピー',
+        'tmpl_start': 'Asana着手報告テンプレート',
+        'tmpl_ask': '指示遅れ確認テンプレート',
+        'tmpl_done': 'Asana完了報告テンプレート',
+        'tmpl_deliver': '納品メッセージテンプレート'
     }
 }
 
@@ -582,34 +596,190 @@ def render_checklist_html(tac_pham_key, index, lang, api_url, checked_ids=None, 
     return f'''
     {links_html}
     <div class="checklist-grid" data-tp-key="{tac_pham_key}">
-        <div class="step-col">
-            <div class="step-header">{l['step1']}</div>
-            <div class="task-row"><span class="platform-badge notion">Notion</span><label class="check-label"><input type="checkbox" data-checklist data-check-id="t1" {ch('t1')}><span class="checkmark"></span><span class="action-text">{l['t1']}</span></label></div>
-            <div class="task-row"><span class="platform-badge sheet">Sheet</span><label class="check-label"><input type="checkbox" data-checklist data-check-id="t2" {ch('t2')}><span class="checkmark"></span><span class="action-text">{l['t2']}</span></label></div>
-        </div>
-        <div class="step-col">
-            <div class="step-header">{l['step2']}</div>
-            <div class="task-row"><span class="platform-badge asana">Asana</span><label class="check-label"><input type="checkbox" data-checklist data-check-id="t3" {ch('t3')}><span class="checkmark"></span><span class="action-text">{l['t3']}</span></label></div>
-            <div class="snippet-box" id="msg_t3_{index}">(PC) cc @Shiori Fujimura @Miho Osada @Erika Kawasaki\n===タスク着手===</div>
-            <button class="btn-copy" onclick="copyText(this, 'msg_t3_{index}')">{l['copy_start']}</button>
-            <div class="ask-task-toggle" onclick="toggleAskTask(this)">▸ {l['ask_task']}</div>
-            <div class="ask-task-content">
-                <div class="snippet-box" id="jp_t3_{index}">お疲れ様です。\n写植工程を担当しております○○です。\n本日が作業開始日となっておりますが、現時点でまだご指示をいただいておりません。\nお手数をおかけいたしますが、ご確認のほどよろしくお願いいたします。</div>
-                <button class="btn-copy" onclick="copyText(this, 'jp_t3_{index}')">{l['copy_ask']}</button>
+        <!-- GIAI ĐOẠN 1: CHUẨN BỊ -->
+        <div class="step-col" data-step="1">
+            <div class="step-header">
+                <div class="step-badge-wrap">
+                    <span class="step-num">01</span>
+                    <div class="step-meta">
+                        <span class="step-title">{l.get('phase1', 'CHUẨN BỊ')}</span>
+                        <span class="step-sub">{l.get('phase1_sub', 'Khởi tạo & nhận việc')}</span>
+                    </div>
+                </div>
+                <span class="step-count" id="count_s1_{index}">0/2</span>
             </div>
-            <div class="task-row"><span class="platform-badge sheet">Sheet</span><label class="check-label"><input type="checkbox" data-checklist data-check-id="t4" {ch('t4')}><span class="checkmark"></span><span class="action-text">{l['t4']}</span></label></div>
-            <div class="task-row"><span class="platform-badge notion">Notion</span><label class="check-label"><input type="checkbox" data-checklist data-check-id="t5" {ch('t5')}><span class="checkmark"></span><span class="action-text">{l['t5']}</span></label></div>
+            <div class="step-progress-bar"><div class="step-progress-fill" id="bar_s1_{index}"></div></div>
+
+            <div class="step-items">
+                <div class="task-row">
+                    <span class="platform-badge notion">Notion</span>
+                    <label class="check-label">
+                        <input type="checkbox" data-checklist data-check-id="t1" {ch('t1')}>
+                        <span class="checkmark"></span>
+                        <span class="action-text">{l['t1']}</span>
+                    </label>
+                </div>
+                <div class="task-row">
+                    <span class="platform-badge sheet">Sheet</span>
+                    <label class="check-label">
+                        <input type="checkbox" data-checklist data-check-id="t2" {ch('t2')}>
+                        <span class="checkmark"></span>
+                        <span class="action-text">{l['t2']}</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="step-hint-box">
+                <i class="far fa-lightbulb"></i>
+                <span>{ "Kiểm tra kỹ thông tin tác phẩm & file raw trước khi bắt đầu." if lang == "vi" else "作業開始前に作品情報と元データをご確認ください。" }</span>
+            </div>
         </div>
-        <div class="step-col">
-            <div class="step-header">{l['step3']}</div>
-            <div class="task-row"><span class="platform-badge asana">Asana</span><label class="check-label"><input type="checkbox" data-checklist data-check-id="t6" {ch('t6')}><span class="checkmark"></span><span class="action-text">{l['t6']}</span></label></div>
-            <div class="snippet-box" id="msg_t6_{index}">(PC) cc @Shiori Fujimura @Miho Osada @Erika Kawasaki\n===タスク完了===</div>
-            <button class="btn-copy" onclick="copyText(this, 'msg_t6_{index}')">{l['copy_done']}</button>
-            <div class="task-row"><span class="platform-badge sheet">Sheet</span><label class="check-label"><input type="checkbox" data-checklist data-check-id="t7" {ch('t7')}><span class="checkmark"></span><span class="action-text">{l['t7']}</span></label></div>
-            <div class="task-row"><span class="platform-badge notion">Notion</span><label class="check-label"><input type="checkbox" data-checklist data-check-id="t8" {ch('t8')}><span class="checkmark"></span><span class="action-text">{l['t8']}</span></label></div>
-            <div class="snippet-box" id="msg_t8_{index}">納品いたしました。\nご確認のほどよろしくお願いいたします。</div>
-            <button class="btn-copy" onclick="copyText(this, 'msg_t8_{index}')">{l['copy_deliver']}</button>
-            <div class="task-row"><span class="platform-badge mikan">Mikan</span><label class="check-label"><input type="checkbox" data-checklist data-check-id="t9" {ch('t9')}><span class="checkmark"></span><span class="action-text">{l['t9']}</span></label></div>
+
+        <!-- GIAI ĐOẠN 2: BẮT ĐẦU -->
+        <div class="step-col" data-step="2">
+            <div class="step-header">
+                <div class="step-badge-wrap">
+                    <span class="step-num">02</span>
+                    <div class="step-meta">
+                        <span class="step-title">{l.get('phase2', 'BẮT ĐẦU')}</span>
+                        <span class="step-sub">{l.get('phase2_sub', 'Báo Asana & cập nhật')}</span>
+                    </div>
+                </div>
+                <span class="step-count" id="count_s2_{index}">0/3</span>
+            </div>
+            <div class="step-progress-bar"><div class="step-progress-fill" id="bar_s2_{index}"></div></div>
+
+            <div class="step-items">
+                <div class="task-row">
+                    <span class="platform-badge asana">Asana</span>
+                    <label class="check-label">
+                        <input type="checkbox" data-checklist data-check-id="t3" {ch('t3')}>
+                        <span class="checkmark"></span>
+                        <span class="action-text">{l['t3']}</span>
+                    </label>
+                </div>
+
+                <!-- Template Card Start -->
+                <div class="msg-template-card">
+                    <div class="msg-template-header">
+                        <span class="msg-template-label"><i class="far fa-comment-dots"></i> {l.get('tmpl_start', 'Mẫu tin nhắn Asana')}</span>
+                        <button type="button" class="btn-copy-action" onclick="copyText(this, 'msg_t3_{index}')" title="{l.get('copy_start', 'Sao chép')}">
+                            <i class="far fa-clone"></i> <span>{l.get('copy_start', 'Copy')}</span>
+                        </button>
+                    </div>
+                    <div class="msg-template-body" id="msg_t3_{index}">(PC) cc @Shiori Fujimura @Miho Osada @Erika Kawasaki&#10;===タスク着手===</div>
+                </div>
+
+                <!-- Collapsible Ask Task Accordion -->
+                <div class="ask-task-accordion">
+                    <div class="ask-task-trigger" onclick="toggleAskTask(this)">
+                        <span><i class="far fa-question-circle"></i> {l['ask_task']}</span>
+                        <i class="fas fa-chevron-down arrow-icon"></i>
+                    </div>
+                    <div class="ask-task-panel">
+                        <div class="msg-template-card nested">
+                            <div class="msg-template-header">
+                                <span class="msg-template-label">{l.get('tmpl_ask', 'Mẫu hỏi trễ chỉ thị')}</span>
+                                <button type="button" class="btn-copy-action" onclick="copyText(this, 'jp_t3_{index}')" title="{l.get('copy_ask', 'Sao chép')}">
+                                    <i class="far fa-clone"></i> <span>{l.get('copy_ask', 'Copy')}</span>
+                                </button>
+                            </div>
+                            <div class="msg-template-body" id="jp_t3_{index}">お疲れ様です。&#10;写植工程を担当しております○○です。&#10;本日が作業開始日となっておりますが、現時点でまだご指示をいただいておりません。&#10;お手数をおかけいたしますが、ご確認のほどよろしくお願いいたします。</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="task-row">
+                    <span class="platform-badge sheet">Sheet</span>
+                    <label class="check-label">
+                        <input type="checkbox" data-checklist data-check-id="t4" {ch('t4')}>
+                        <span class="checkmark"></span>
+                        <span class="action-text">{l['t4']}</span>
+                    </label>
+                </div>
+                <div class="task-row">
+                    <span class="platform-badge notion">Notion</span>
+                    <label class="check-label">
+                        <input type="checkbox" data-checklist data-check-id="t5" {ch('t5')}>
+                        <span class="checkmark"></span>
+                        <span class="action-text">{l['t5']}</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- GIAI ĐOẠN 3: GIAO HÀNG -->
+        <div class="step-col" data-step="3">
+            <div class="step-header">
+                <div class="step-badge-wrap">
+                    <span class="step-num">03</span>
+                    <div class="step-meta">
+                        <span class="step-title">{l.get('phase3', 'GIAO HÀNG')}</span>
+                        <span class="step-sub">{l.get('phase3_sub', 'Hoàn thành & bàn giao')}</span>
+                    </div>
+                </div>
+                <span class="step-count" id="count_s3_{index}">0/4</span>
+            </div>
+            <div class="step-progress-bar"><div class="step-progress-fill" id="bar_s3_{index}"></div></div>
+
+            <div class="step-items">
+                <div class="task-row">
+                    <span class="platform-badge asana">Asana</span>
+                    <label class="check-label">
+                        <input type="checkbox" data-checklist data-check-id="t6" {ch('t6')}>
+                        <span class="checkmark"></span>
+                        <span class="action-text">{l['t6']}</span>
+                    </label>
+                </div>
+
+                <!-- Template Card Done -->
+                <div class="msg-template-card">
+                    <div class="msg-template-header">
+                        <span class="msg-template-label"><i class="far fa-check-circle"></i> {l.get('tmpl_done', 'Mẫu báo hoàn thành')}</span>
+                        <button type="button" class="btn-copy-action" onclick="copyText(this, 'msg_t6_{index}')" title="{l.get('copy_done', 'Sao chép')}">
+                            <i class="far fa-clone"></i> <span>{l.get('copy_done', 'Copy')}</span>
+                        </button>
+                    </div>
+                    <div class="msg-template-body" id="msg_t6_{index}">(PC) cc @Shiori Fujimura @Miho Osada @Erika Kawasaki&#10;===タスク完了===</div>
+                </div>
+
+                <div class="task-row">
+                    <span class="platform-badge sheet">Sheet</span>
+                    <label class="check-label">
+                        <input type="checkbox" data-checklist data-check-id="t7" {ch('t7')}>
+                        <span class="checkmark"></span>
+                        <span class="action-text">{l['t7']}</span>
+                    </label>
+                </div>
+                <div class="task-row">
+                    <span class="platform-badge notion">Notion</span>
+                    <label class="check-label">
+                        <input type="checkbox" data-checklist data-check-id="t8" {ch('t8')}>
+                        <span class="checkmark"></span>
+                        <span class="action-text">{l['t8']}</span>
+                    </label>
+                </div>
+
+                <!-- Template Card Deliver -->
+                <div class="msg-template-card">
+                    <div class="msg-template-header">
+                        <span class="msg-template-label"><i class="far fa-paper-plane"></i> {l.get('tmpl_deliver', 'Mẫu báo giao hàng')}</span>
+                        <button type="button" class="btn-copy-action" onclick="copyText(this, 'msg_t8_{index}')" title="{l.get('copy_deliver', 'Sao chép')}">
+                            <i class="far fa-clone"></i> <span>{l.get('copy_deliver', 'Copy')}</span>
+                        </button>
+                    </div>
+                    <div class="msg-template-body" id="msg_t8_{index}">納品いたしました。&#10;ご確認のほどよろしくお願いいたします。</div>
+                </div>
+
+                <div class="task-row">
+                    <span class="platform-badge mikan">Mikan</span>
+                    <label class="check-label">
+                        <input type="checkbox" data-checklist data-check-id="t9" {ch('t9')}>
+                        <span class="checkmark"></span>
+                        <span class="action-text">{l['t9']}</span>
+                    </label>
+                </div>
+            </div>
         </div>
     </div>
     
