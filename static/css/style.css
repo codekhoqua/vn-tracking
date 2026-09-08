@@ -853,11 +853,11 @@ select option { background: var(--surface); color: var(--text); }
 /* ======================== 9. MODALS & CHECKLISTS ======================== */
 .modal-overlay {
     position: fixed; inset: 0;
-    background: rgba(8, 12, 20, 0.75);
-    backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    background: rgba(8, 12, 20, 0.8);
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
     z-index: 300; display: none;
     align-items: center; justify-content: center; padding: 24px;
-    animation: fadeIn 0.25s ease;
+    animation: fadeIn 0.2s ease;
 }
 .modal-overlay.open { display: flex; }
 .modal-content {
@@ -867,19 +867,20 @@ select option { background: var(--surface); color: var(--text); }
     overflow-y: auto;
     box-shadow: var(--shadow-xl), 0 0 0 1px var(--border);
     border: 1px solid var(--border);
-    animation: modalSpringIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    animation: modalSpringIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    contain: layout paint;
 }
 @keyframes modalSpringIn {
-    from { opacity: 0; transform: scale(0.94) translateY(16px); }
+    from { opacity: 0; transform: scale(0.96) translateY(12px); }
     to { opacity: 1; transform: scale(1) translateY(0); }
 }
 
 .modal-header {
-    padding: 26px 32px;
+    padding: 24px 32px;
     border-bottom: 1px solid var(--border);
     display: flex; justify-content: space-between; align-items: flex-start;
     position: sticky; top: 0; background: var(--surface);
-    z-index: 10; backdrop-filter: blur(12px);
+    z-index: 10;
 }
 .modal-title { font-size: 1.35rem; font-weight: 800; margin-bottom: 6px; color: var(--text); letter-spacing: -0.02em; }
 .modal-worker { color: var(--text-3); font-size: 0.9rem; font-weight: 600; display: flex; align-items: center; gap: 8px; }
@@ -893,11 +894,10 @@ select option { background: var(--surface); color: var(--text); }
     border-radius: var(--radius-lg);
     border: 1px solid var(--border);
     box-shadow: var(--shadow-xs);
-    transition: transform var(--t-fast), border-color var(--t-fast);
+    transition: border-color var(--t-fast);
 }
 .step-col:hover {
     border-color: var(--border-focus);
-    transform: translateY(-2px);
 }
 .step-header {
     display: flex; align-items: center; gap: 8px;
@@ -913,10 +913,15 @@ select option { background: var(--surface); color: var(--text); }
     box-shadow: 0 0 8px var(--primary);
 }
 
-.task-row { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 16px; }
+.task-row {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 14px;
+    padding: 6px 8px; border-radius: var(--radius-sm);
+    transition: background var(--t-fast);
+}
+.task-row:hover { background: var(--surface-hover); }
 .platform-badge {
     font-size: 0.62rem; padding: 3px 8px; border-radius: var(--radius-xs);
-    font-weight: 800; color: white; margin-top: 2px;
+    font-weight: 800; color: white; flex-shrink: 0;
     text-transform: uppercase; letter-spacing: 0.05em;
     box-shadow: var(--shadow-xs);
 }
@@ -929,14 +934,21 @@ select option { background: var(--surface); color: var(--text); }
     display: flex; align-items: center; gap: 10px;
     cursor: pointer; font-size: 0.88rem; font-weight: 600;
     color: var(--text-2); transition: color var(--t-fast);
-    line-height: 1.4;
+    line-height: 1.4; user-select: none; -webkit-user-select: none;
+    flex: 1;
 }
 .check-label:hover { color: var(--text); }
 .check-label input {
     width: 18px; height: 18px; accent-color: var(--primary);
     cursor: pointer; border-radius: 5px; flex-shrink: 0;
 }
-.check-label input:checked + .action-text { text-decoration: line-through; color: var(--text-4); }
+.check-label .checkmark { display: none; pointer-events: none; }
+.check-label input:checked ~ .action-text {
+    text-decoration: line-through;
+    color: var(--text-4);
+    opacity: 0.75;
+    transition: all var(--t-fast);
+}
 
 .snippet-box {
     background: var(--surface-hover);
