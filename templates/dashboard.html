@@ -54,8 +54,13 @@
 <div id="drive-modal" class="cp-modal"
     style="max-width: 95vw; height: 95vh; width: 100%; padding: 0; overflow: hidden; flex-direction: column;">
     <div class="modal-header"
-        style="padding: 15px 25px; border-bottom: 1px solid var(--border); background: var(--surface); flex-shrink: 0;">
-        <h3 style="margin: 0;">LSA Drive</h3>
+        style="padding: 16px 24px; border-bottom: 1px solid var(--border); background: var(--surface); flex-shrink: 0; display: flex; align-items: center; justify-content: space-between;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="width: 34px; height: 34px; border-radius: 10px; background: rgba(99, 102, 241, 0.15); color: #818cf8; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 12px rgba(99, 102, 241, 0.2);">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+            </div>
+            <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700;">LSA Drive</h3>
+        </div>
         <button class="modal-close" onclick="closeDriveModal()">✕</button>
     </div>
     <div class="modal-body" style="flex: 1; padding: 0; overflow: hidden;">
@@ -73,8 +78,13 @@
 <div id="calendar-modal" class="cp-modal"
     style="max-width: 95vw; height: 95vh; width: 100%; padding: 0; overflow: hidden; flex-direction: column;">
     <div class="modal-header"
-        style="padding: 15px 25px; border-bottom: 1px solid var(--border); background: var(--surface); flex-shrink: 0;">
-        <h3 style="margin: 0;">Team Calendar</h3>
+        style="padding: 16px 24px; border-bottom: 1px solid var(--border); background: var(--surface); flex-shrink: 0; display: flex; align-items: center; justify-content: space-between;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="width: 34px; height: 34px; border-radius: 10px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 12px rgba(56, 189, 248, 0.2);">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+            </div>
+            <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700;">Team Calendar</h3>
+        </div>
         <button class="modal-close" onclick="closeCalendarModal()">&times;</button>
     </div>
     <div class="modal-body" style="flex: 1; padding: 0; overflow: hidden;">
@@ -222,7 +232,7 @@
             style="border-radius: var(--radius-sm); margin-right: 8px;">
         <div style="display: flex; flex-direction: column; justify-content: center;">
             <span>VN-Tracking</span>
-            <sup style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.3.84</i></sup>
+            <sup class="version-tag" style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.3.85</i></sup>
         </div>
     </div>
 
@@ -661,62 +671,89 @@
                 -webkit-appearance: none;
                 appearance: none;
                 background: transparent;
-                height: 12px;
+                height: 14px;
                 outline: none;
                 margin: 0;
+                cursor: pointer;
             }
 
             #radio-progress::-webkit-slider-runnable-track {
                 width: 100%;
-                height: 4px;
-                background: rgba(255, 255, 255, 0.25);
-                border-radius: 2px;
+                height: 5px;
+                background: rgba(255, 255, 255, 0.2);
+                border-radius: 999px;
+                transition: background 0.2s;
+            }
+
+            #radio-progress:hover::-webkit-slider-runnable-track {
+                background: rgba(255, 255, 255, 0.35);
             }
 
             #radio-progress::-webkit-slider-thumb {
                 -webkit-appearance: none;
                 appearance: none;
-                width: 12px;
-                height: 12px;
-                background: white;
+                width: 13px;
+                height: 13px;
+                background: #ffffff;
                 border-radius: 50%;
                 cursor: pointer;
-                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-                transition: transform 0.1s;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4), 0 0 6px rgba(99, 102, 241, 0.6);
+                transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
                 margin-top: -4px;
             }
 
             #radio-progress:not([disabled])::-webkit-slider-thumb:hover {
-                transform: scale(1.3);
+                transform: scale(1.35);
+                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5), 0 0 10px rgba(99, 102, 241, 0.9);
             }
 
             #radio-progress:not([disabled])::-webkit-slider-thumb:active {
-                transform: scale(1.1);
+                transform: scale(1.15);
             }
 
             #radio-progress[disabled]::-webkit-slider-thumb {
                 cursor: default;
-                background: rgba(255, 255, 255, 0.8);
+                background: rgba(255, 255, 255, 0.7);
+            }
+
+            #radio-play-btn {
+                background: linear-gradient(135deg, #6366f1, #818cf8) !important;
+                box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4) !important;
+                transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease, filter 0.2s ease !important;
             }
 
             #radio-play-btn:hover {
-                background: rgba(255, 255, 255, 0.3) !important;
+                filter: brightness(1.15) !important;
+                transform: scale(1.08) !important;
+                box-shadow: 0 6px 22px rgba(99, 102, 241, 0.6) !important;
             }
 
             #radio-play-btn:active {
-                transform: scale(0.92);
+                transform: scale(0.92) !important;
             }
 
             .apple-cover-paused {
-                transform: scale(0.85);
-                opacity: 0.8;
+                transform: scale(0.88);
+                opacity: 0.75;
                 border-radius: 12px !important;
+                filter: grayscale(15%);
+                transition: all 0.4s ease;
             }
 
             .apple-cover-playing {
-                transform: scale(1);
+                transform: scale(1.04);
                 opacity: 1;
-                border-radius: 8px !important;
+                border-radius: 10px !important;
+                animation: coverBreathe 3s ease-in-out infinite alternate;
+            }
+
+            @keyframes coverBreathe {
+                0% {
+                    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 12px rgba(99, 102, 241, 0.3);
+                }
+                100% {
+                    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.7), 0 0 24px rgba(168, 85, 247, 0.55);
+                }
             }
 
             /* Time Tracker CSS */
@@ -879,16 +916,16 @@
 <!-- ============ MAIN AREA ============ -->
 <main class="main-area">
     <div class="hero-banner" id="main-hero-banner"
-        style="position: relative; overflow: visible; display: flex; flex-direction: column; margin-bottom: 40px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.05); box-shadow: 0 8px 32px rgba(0,0,0,0.3); min-height: 110px;">
+        style="position: relative; overflow: visible; display: flex; flex-direction: column; margin-bottom: 32px; border-radius: 24px; border: 1px solid var(--border); box-shadow: var(--shadow-lg); min-height: 115px;">
 
         <!-- Dynamic Weather Background Wrapper with rounded corners -->
-        <div style="position: absolute; inset: 0; border-radius: 20px; overflow: hidden; pointer-events: none; z-index: 1;">
+        <div style="position: absolute; inset: 0; border-radius: 24px; overflow: hidden; pointer-events: none; z-index: 1;">
             <div id="hero-weather-bg"
                 style="position: absolute; inset: 0; background-size: cover; background-position: center; transition: background-image 1s ease; background-color: #0f172a;">
             </div>
             <!-- Gradient Overlay to ensure readability and match the sleek dark look -->
             <div
-                style="position: absolute; inset: 0; background: linear-gradient(90deg, rgba(15,23,42,0.95) 0%, rgba(15,23,42,0.6) 50%, rgba(15,23,42,0.85) 100%);">
+                style="position: absolute; inset: 0; background: linear-gradient(90deg, rgba(8,12,20,0.94) 0%, rgba(15,23,42,0.65) 50%, rgba(8,12,20,0.88) 100%);">
             </div>
         </div>
 
@@ -897,35 +934,36 @@
             style="position: relative; z-index: 50; display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 24px 32px;">
 
             <!-- Left: Titles -->
-            <div class="header-left" style="flex: 1;">
+            <div class="header-left" style="flex: 1; margin-bottom: 0;">
                 <div class="header-title"
-                    style="font-size: 0.95rem; color: rgba(255,255,255,0.8); font-weight: 500; margin-bottom: 6px;">{{
+                    style="font-size: 0.88rem; color: rgba(255,255,255,0.75); font-weight: 600; margin-bottom: 4px; letter-spacing: 0.02em;">{{
                     t.welcome }}, {{ user }}</div>
                 <h1
-                    style="font-size: 2.2rem; font-weight: 800; background: linear-gradient(90deg, #93c5fd, #bfdbfe); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: -0.02em; margin: 0; display: inline-block; text-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    style="font-size: 2.2rem; font-weight: 800; background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 50%, #93c5fd 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: -0.025em; margin: 0; display: inline-block;">
                     {{ t.title }}</h1>
             </div>
 
             <!-- Center-Right: Weather Inline -->
             <div class="header-center" id="inline-weather-container"
                 style="display: flex; align-items: center; margin-right: 24px; min-width: 250px;">
-                <span style="color: rgba(255,255,255,0.7); font-size: 0.9rem;">{{ 'Đang tải thời tiết...' if lang ==
+                <span style="color: rgba(255,255,255,0.7); font-size: 0.88rem; font-weight: 500;">{{ 'Đang tải thời tiết...' if lang ==
                     'vi' else '天気を読み込み中...' }}</span>
             </div>
 
             <!-- Vertical Divider -->
-            <div style="width: 1px; height: 50px; background: rgba(255,255,255,0.15); margin-right: 24px;"></div>
+            <div style="width: 1px; height: 44px; background: rgba(255,255,255,0.15); margin-right: 24px;"></div>
 
             <!-- Right: Controls -->
-            <div class="header-right" style="display: flex; align-items: center; gap: 16px;">
+            <div class="header-right" style="display: flex; align-items: center; gap: 14px;">
                 <!-- Avatars -->
                 <div id="global-online-users" class="online-users-cluster"
-                    style="background: rgba(255,255,255,0.05); padding: 4px 12px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1);">
+                    style="background: rgba(255,255,255,0.08); padding: 4px 12px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.12); backdrop-filter: blur(12px);">
                 </div>
 
                 <!-- Notification Bell (Alarm) Dropdown -->
                 <div class="notification-center-wrapper" style="position: relative;">
-                    <button class="notification-bell-btn" id="notification-bell-btn" onclick="toggleNotificationPanel(event)" title="{{ 'Thông báo' if lang == 'vi' else '通知' }}">
+                    <button class="notification-bell-btn" id="notification-bell-btn" onclick="toggleNotificationPanel(event)" title="{{ 'Thông báo' if lang == 'vi' else '通知' }}"
+                        style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; color: #fff; cursor: pointer; transition: all 0.2s; backdrop-filter: blur(12px);">
                         <i class="far fa-bell"></i>
                         <span class="notification-unread-badge" id="notification-unread-badge" style="display: none;">0</span>
                     </button>
@@ -961,7 +999,7 @@
 
                 <!-- Theme Toggle -->
                 <button class="theme-toggle" onclick="toggleTheme()" title="Toggle Dark Mode"
-                    style="background: transparent; border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.8); border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;">
+                    style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); color: rgba(255,255,255,0.9); border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; backdrop-filter: blur(12px);">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                         stroke-linecap="round" stroke-linejoin="round">
                         <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
@@ -971,7 +1009,7 @@
                 {% if role in ['admin', 'manager', 'leader'] %}
                 <!-- Filters with glow -->
                 <button class="btn btn-outline" onclick="toggleFilters()"
-                    style="background: rgba(30,58,138,0.3); border: 1px solid rgba(96,165,250,0.4); color: #bfdbfe; border-radius: 20px; padding: 0 16px; height: 40px; font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; gap: 8px; cursor: pointer; transition: all 0.2s; box-shadow: 0 0 12px rgba(59,130,246,0.3);">
+                    style="background: linear-gradient(135deg, rgba(99,102,241,0.25), rgba(79,70,229,0.35)); border: 1px solid rgba(99,102,241,0.5); color: #e0e7ff; border-radius: 999px; padding: 0 18px; height: 40px; font-size: 0.84rem; font-weight: 700; display: flex; align-items: center; gap: 8px; cursor: pointer; transition: all 0.2s; box-shadow: 0 0 16px rgba(99,102,241,0.3);">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                         stroke-linecap="round" stroke-linejoin="round">
                         <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
@@ -997,13 +1035,16 @@
             .ai-insights-bar {
                 position: relative;
                 z-index: 2;
-                background: rgba(0, 0, 0, 0.3);
+                background: rgba(8, 12, 20, 0.7);
                 border-top: 1px solid rgba(255, 255, 255, 0.08);
                 padding: 10px 0;
                 display: flex;
                 align-items: center;
-                backdrop-filter: blur(10px);
+                backdrop-filter: blur(16px);
+                -webkit-backdrop-filter: blur(16px);
                 overflow: hidden;
+                border-bottom-left-radius: 24px;
+                border-bottom-right-radius: 24px;
             }
 
             .ai-insights-label {
@@ -1011,25 +1052,27 @@
                 display: flex;
                 align-items: center;
                 gap: 8px;
-                font-weight: 700;
-                font-size: 0.85rem;
+                font-weight: 800;
+                font-size: 0.78rem;
                 text-transform: uppercase;
-                letter-spacing: 0.05em;
-                text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
-                padding: 0 20px;
+                letter-spacing: 0.08em;
+                padding: 4px 14px;
+                margin-left: 20px;
+                margin-right: 12px;
                 flex-shrink: 0;
                 z-index: 2;
-                background: rgba(0, 0, 0, 0.3);
-                backdrop-filter: blur(4px);
-                padding-right: 24px;
+                background: linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(245, 158, 11, 0.1));
+                border: 1px solid rgba(251, 191, 36, 0.35);
+                border-radius: 999px;
+                box-shadow: 0 0 14px rgba(251, 191, 36, 0.25);
             }
 
             .ai-insights-track {
                 flex: 1;
                 overflow: hidden;
                 position: relative;
-                mask-image: linear-gradient(to right, transparent 0%, black 3%, black 97%, transparent 100%);
-                -webkit-mask-image: linear-gradient(to right, transparent 0%, black 3%, black 97%, transparent 100%);
+                mask-image: linear-gradient(to right, transparent 0%, black 4%, black 96%, transparent 100%);
+                -webkit-mask-image: linear-gradient(to right, transparent 0%, black 4%, black 96%, transparent 100%);
             }
 
             .ai-insights-scroll {
@@ -1046,9 +1089,9 @@
             }
 
             .ai-insight-item {
-                color: rgba(255, 255, 255, 0.9);
-                font-size: 0.9rem;
-                font-weight: 500;
+                color: rgba(255, 255, 255, 0.92);
+                font-size: 0.86rem;
+                font-weight: 600;
                 display: flex;
                 align-items: center;
                 gap: 8px;
@@ -1057,17 +1100,17 @@
             }
 
             .ai-insight-dot {
-                width: 4px;
-                height: 4px;
+                width: 5px;
+                height: 5px;
                 border-radius: 50%;
-                background: #60a5fa;
-                box-shadow: 0 0 8px #60a5fa;
+                background: #38bdf8;
+                box-shadow: 0 0 10px #38bdf8;
                 flex-shrink: 0;
             }
         </style>
         <div class="ai-insights-bar">
             <div class="ai-insights-label">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
                     stroke-linecap="round" stroke-linejoin="round">
                     <path d="M12 2v4"></path>
                     <path d="M12 18v4"></path>
@@ -1104,10 +1147,9 @@
     </div>
 
 
-    <div class="chart-section"
-        style="background: var(--bg-card); border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: 1px solid var(--border); width: 100%;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-            <h3 style="color: var(--text); display: flex; align-items: center; gap: 8px; margin: 0;">
+    <div class="chart-section">
+        <div class="chart-header">
+            <h3 class="chart-title">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                     stroke-linecap="round" stroke-linejoin="round">
                     <path d="M3 3v18h18"></path>
@@ -1115,30 +1157,29 @@
                     <path d="M13 17V5"></path>
                     <path d="M8 17v-3"></path>
                 </svg>
-                {{ 'Tiến độ theo thời gian' if lang == 'vi' else '期間別タスク進捗' }}
+                <span>{{ 'Tiến độ theo thời gian' if lang == 'vi' else '期間別タスク進捗' }}</span>
             </h3>
 
-            <div id="custom-chart-legend"
-                style="display: none; align-items: center; gap: 16px; font-size: 0.9rem; color: var(--text-2); margin-left: auto; margin-right: 20px;">
+            <div id="custom-chart-legend" class="custom-chart-legend">
                 <span style="display: flex; align-items: center; gap: 6px;">
                     <span
-                        style="width: 12px; height: 12px; border-radius: 50%; background: rgba(96, 165, 250, 0.85);"></span>
+                        style="width: 10px; height: 10px; border-radius: 50%; background: #60a5fa; box-shadow: 0 0 6px rgba(96,165,250,0.6);"></span>
                     Retouch
                 </span>
                 <span style="display: flex; align-items: center; gap: 6px;">
                     <span
-                        style="width: 12px; height: 12px; border-radius: 50%; background: rgba(167, 243, 208, 0.85);"></span>
+                        style="width: 10px; height: 10px; border-radius: 50%; background: #34d399; box-shadow: 0 0 6px rgba(52,211,153,0.6);"></span>
                     Lettering
                 </span>
             </div>
 
-            <div class="chart-time-controls" style="display: flex; gap: 5px;">
+            <div class="chart-time-controls">
                 <button class="btn btn-sm btn-primary active" data-period="week" onclick="setChartPeriod('week')">{{
                     'Tuần' if lang == 'vi' else '週' }}</button>
                 <div class="custom-lang-select" id="custom-week-select" style="display: none;"
                     onclick="toggleWeekSelect(event)">
                     <div class="lang-trigger" style="padding: 4px 12px; height: 100%;">
-                        <span id="week-text" style="font-size: 0.8rem; font-weight: 500;">{{ 'Tuần này' if lang ==
+                        <span id="week-text" style="font-size: 0.8rem; font-weight: 600;">{{ 'Tuần này' if lang ==
                             'vi' else '今週' }}</span>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lang-arrow">
@@ -1155,7 +1196,7 @@
                 <div class="custom-lang-select" id="custom-month-select" style="display: none;"
                     onclick="toggleMonthSelect(event)">
                     <div class="lang-trigger" style="padding: 4px 12px; height: 100%;">
-                        <span id="month-text" style="font-size: 0.8rem; font-weight: 500;">{{ 'Tháng' if lang ==
+                        <span id="month-text" style="font-size: 0.8rem; font-weight: 600;">{{ 'Tháng' if lang ==
                             'vi' else '月' }}</span>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lang-arrow">
@@ -1171,9 +1212,8 @@
                     if lang == 'vi' else '年' }}</button>
             </div>
         </div>
-        <div style="position: relative; height: 450px; width: 100%;">
-            <div id="chart-loader"
-                style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(15, 23, 42, 0.5); z-index: 10; border-radius: 12px; backdrop-filter: blur(4px);">
+        <div class="chart-canvas-wrapper">
+            <div id="chart-loader" class="chart-loader">
                 <div class="spinner"></div>
             </div>
             <canvas id="monthlyTaskChart"></canvas>
