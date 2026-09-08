@@ -1313,6 +1313,46 @@ function updateTaskProgressLocally(tpKey, modalBody) {
     const checkedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
     const progress = Math.round((checkedCount / total) * 100);
 
+    // Update step phase counters & progress fills
+    if (modalBody) {
+        const s1Cbs = modalBody.querySelectorAll('input[data-check-id="t1"], input[data-check-id="t2"]');
+        const s2Cbs = modalBody.querySelectorAll('input[data-check-id="t3"], input[data-check-id="t4"], input[data-check-id="t5"]');
+        const s3Cbs = modalBody.querySelectorAll('input[data-check-id="t6"], input[data-check-id="t7"], input[data-check-id="t8"], input[data-check-id="t9"]');
+
+        if (s1Cbs.length > 0) {
+            const s1Done = Array.from(s1Cbs).filter(c => c.checked).length;
+            const count1 = modalBody.querySelector('.step-col[data-step="1"] .step-count');
+            if (count1) {
+                count1.textContent = `${s1Done}/${s1Cbs.length}${s1Done === s1Cbs.length ? ' ✓' : ''}`;
+                count1.classList.toggle('complete', s1Done === s1Cbs.length);
+            }
+            const fill1 = modalBody.querySelector('.step-col[data-step="1"] .step-progress-fill');
+            if (fill1) fill1.style.width = `${(s1Done / s1Cbs.length) * 100}%`;
+        }
+
+        if (s2Cbs.length > 0) {
+            const s2Done = Array.from(s2Cbs).filter(c => c.checked).length;
+            const count2 = modalBody.querySelector('.step-col[data-step="2"] .step-count');
+            if (count2) {
+                count2.textContent = `${s2Done}/${s2Cbs.length}${s2Done === s2Cbs.length ? ' ✓' : ''}`;
+                count2.classList.toggle('complete', s2Done === s2Cbs.length);
+            }
+            const fill2 = modalBody.querySelector('.step-col[data-step="2"] .step-progress-fill');
+            if (fill2) fill2.style.width = `${(s2Done / s2Cbs.length) * 100}%`;
+        }
+
+        if (s3Cbs.length > 0) {
+            const s3Done = Array.from(s3Cbs).filter(c => c.checked).length;
+            const count3 = modalBody.querySelector('.step-col[data-step="3"] .step-count');
+            if (count3) {
+                count3.textContent = `${s3Done}/${s3Cbs.length}${s3Done === s3Cbs.length ? ' ✓' : ''}`;
+                count3.classList.toggle('complete', s3Done === s3Cbs.length);
+            }
+            const fill3 = modalBody.querySelector('.step-col[data-step="3"] .step-progress-fill');
+            if (fill3) fill3.style.width = `${(s3Done / s3Cbs.length) * 100}%`;
+        }
+    }
+
     // Find the card for this task across all tabs
     document.querySelectorAll('.progress-card').forEach(card => {
         if (card.dataset.tpKey === tpKey) {
@@ -1688,15 +1728,26 @@ function copyText(btn, elementId) {
     const el = document.getElementById(elementId);
     if (!el) return;
     navigator.clipboard.writeText(el.textContent).then(() => {
-        const old = btn.innerHTML;
-        btn.innerHTML = '✅ Đã Copy';
-        setTimeout(() => { btn.innerHTML = old; }, 2000);
-    }).catch(() => showToast('Copy thất bại!', 'error'));
+        const oldHtml = btn.innerHTML;
+        btn.classList.add('copied');
+        btn.innerHTML = '<i class="fas fa-check" style="color: #10b981;"></i> <span>' + ((typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'ja') ? 'コピー完了' : 'Đã chép') + '</span>';
+        setTimeout(() => {
+            btn.innerHTML = oldHtml;
+            btn.classList.remove('copied');
+        }, 1800);
+    }).catch(() => {
+        if (window.showToast) showToast('Copy thất bại!', 'error');
+    });
 }
 
 function toggleAskTask(el) {
-    const content = el.nextElementSibling;
-    if (content) content.classList.toggle('open');
+    const accordion = el.closest('.ask-task-accordion');
+    if (accordion) {
+        accordion.classList.toggle('open');
+    } else {
+        const content = el.nextElementSibling;
+        if (content) content.classList.toggle('open');
+    }
 }
 
 // ===================== THEME TOGGLE =====================
