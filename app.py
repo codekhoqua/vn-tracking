@@ -2409,12 +2409,12 @@ def _get_random_accessory(pet):
     return random.choice(available)['id']
 
 PET_TYPES = {
-    'neko':    {'name_vi': 'Mèo Neko',   'name_ja': 'ネコ',      'emoji': '🐈'},
-    'shiba':   {'name_vi': 'Chó Shiba',  'name_ja': '柴犬',     'emoji': '🐕'},
-    'bunny':   {'name_vi': 'Thỏ',        'name_ja': 'うさぎ',   'emoji': '🐰'},
-    'dragon':  {'name_vi': 'Rồng',       'name_ja': 'ドラゴン', 'emoji': '🐲'},
-    'fox':     {'name_vi': 'Cáo',        'name_ja': 'キツネ',   'emoji': '🦊'},
-    'hamster': {'name_vi': 'Hamster',    'name_ja': 'ハムスター','emoji': '🐹'},
+    'shiba':   {'name_vi': 'Chó Shiba',   'name_ja': '柴犬',      'emoji': '🐕', 'sound': 'Gâu gâu! Woof! 🐾', 'food_name': 'Xương thịt 🍖', 'desc': 'Trung thành, hoạt bát, luôn hăng hái nhắc bạn nộp task'},
+    'neko':    {'name_vi': 'Mèo Neko',    'name_ja': 'ネコ',      'emoji': '🐈', 'sound': 'Nya~ Meow! 🐾',     'food_name': 'Cá hồi 🐟',   'desc': 'Dễ thương, hơi chảnh nhưng mê được xoa đầu'},
+    'bunny':   {'name_vi': 'Thỏ Bunny',   'name_ja': 'うさぎ',    'emoji': '🐰', 'sound': 'Pyon pyon~ 🥕',     'food_name': 'Cà rốt 🥕',   'desc': 'Nhẹ nhàng, tai dài nhạy bén, thích gặm cà rốt giòn tan'},
+    'fox':     {'name_vi': 'Cáo Kitsune', 'name_ja': 'キツネ',    'emoji': '🦊', 'sound': 'Kon kon~ 🍂',       'food_name': 'Bánh đậu 🥮', 'desc': 'Thông minh, tinh nghịch, chiếc đuôi cam xù bồng bềnh'},
+    'panda':   {'name_vi': 'Gấu Trúc',    'name_ja': 'パンダ',    'emoji': '🐼', 'sound': 'Panda roll~ 🎋',    'food_name': 'Cành trúc 🎋', 'desc': 'Tròn trĩnh, đáng yêu, bậc thầy thư giãn giảm stress'},
+    'dragon':  {'name_vi': 'Rồng Con',    'name_ja': 'ドラゴン',  'emoji': '🐲', 'sound': 'Grrr~ Phì phì! 💫', 'food_name': 'Ngọc lửa 💎', 'desc': 'Huyền thoại dũng mãnh nhưng biểu cảm lại cực kỳ cute'},
 }
 
 # XP thresholds per level range
@@ -2709,7 +2709,7 @@ def api_pet_get():
     if needs_write:
         _pet_write(username, pet)
 
-    return jsonify({'has_pet': True, **pet})
+    return jsonify({'has_pet': True, 'pet_types': PET_TYPES, **pet})
 
 
 @app.route('/api/pet/adopt', methods=['POST'])
@@ -2751,53 +2751,106 @@ def api_pet_adopt():
     return jsonify({'error': 'Failed to save'}), 500
 
 
+@app.route('/api/pet/switch', methods=['POST'])
+def api_pet_switch():
+    """Chuyển đổi loài thú cưng (giữ nguyên level, xp, food, streak)."""
+    if not session.get('logged_in'):
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    username = session.get('user', '')
+    pet = _pet_read(username)
+    if not pet:
+        return jsonify({'error': 'No pet'}), 404
+
+    data = request.get_json(silent=True) or {}
+    new_type = data.get('type', '').strip()
+    if new_type not in PET_TYPES:
+        return jsonify({'error': 'Invalid pet type'}), 400
+
+    pet['type'] = new_type
+    new_name = data.get('name', '').strip()
+    if new_name and len(new_name) <= 20:
+        pet['name'] = new_name
+    pet['last_activity'] = datetime.now().isoformat()
+
+    if _pet_write(username, pet):
+        return jsonify({'success': True, 'pet': pet})
+    return jsonify({'error': 'Failed to save'}), 500
+
+
 @app.route('/api/pet/brief', methods=['GET'])
 def api_pet_brief():
-    """Lấy thông báo Now Brief từ Groq AI cho Pet."""
+    """Lấy thông báo Now Brief từ Groq AI cho Pet theo đúng loài thú cưng."""
     GROQ_API_KEY = os.environ.get('GROQ_API_KEY', '')
-    if not GROQ_API_KEY:
-        # Fallback dummy logic
-        return jsonify({
-            "message": "Trời hôm nay đẹp quá! Bạn có muốn nghe nhạc cùng mình không? 🎵",
-            "action": {
-                "type": "play_music",
-                "payload": "KxGrk4n9Duo", # Son Tung MTP - Hay trao cho anh
-                "title": "Hãy trao cho anh"
-            }
-        })
-    
-    username = session.get('user', 'Guest')
-    context_str = f"User: {username}\n"
-    
+    username = session.get('user', 'Bạn')
+    pet = _pet_read(username) or {}
+    pet_type = pet.get('type', 'shiba')
+    pet_name = pet.get('name', 'Bé cưng')
+    pet_info = PET_TYPES.get(pet_type, PET_TYPES.get('shiba', {}))
+    species_sound = pet_info.get('sound', 'Woof!')
+    species_name = pet_info.get('name_vi', 'Thú cưng')
+
+    # Fallback message chuẩn loài
+    fallback_msg = f"{species_sound} Xin chào {username}! Chúc bạn một ngày làm việc tràn đầy năng lượng và thật nhiều may mắn nha! ✨"
+
     global radio_state
-    if radio_state.get('is_playing') and radio_state.get('dj_username'):
-        context_str += f"Music room: {radio_state['dj_username']} is DJing.\n"
+    radio_playing = radio_state.get('is_playing') and radio_state.get('dj_username')
+    radio_dj = radio_state.get('dj_username', '')
+
+    context_str = f"User: {username}\nPet Name: {pet_name}\nPet Species: {species_name} ({pet_type})\nSignature Sound: {species_sound}\n"
+    if radio_playing:
+        context_str += f"Music room: {radio_dj} is DJing right now.\n"
     else:
         context_str += "Music room: silent.\n"
-        
+
     loc = 'Ho+Chi+Minh'
     w_data = "Unknown"
     if loc in weather_cache:
         w_data = f"Temp: {weather_cache[loc]['data'].get('temp', '?')}C, Code: {weather_cache[loc]['data'].get('wmo', '?')}"
     context_str += f"Weather: {w_data}\n"
-    
+
+    if not GROQ_API_KEY:
+        action_data = None
+        if not radio_playing:
+            action_data = {
+                "type": "play_music",
+                "payload": "KxGrk4n9Duo",
+                "title": "Hãy trao cho anh"
+            }
+        return jsonify({
+            "message": fallback_msg,
+            "action": action_data
+        })
+
     prompt = f"""
-You are a cute virtual pet assistant. The user {username} just clicked on you.
+You are {pet_name}, a cute virtual {species_name} ({pet_type}).
+Your signature sound/catchphrase is: "{species_sound}".
+The user {username} just clicked or interacted with you.
+
 Context:
 {context_str}
 
-Task: Generate a short, friendly, and cute greeting/notification (in Vietnamese).
-Mention the weather or music room if relevant. 
-Recommend a YouTube song (provide a valid 11-char YouTube video ID) if the music room is silent, e.g., "Hãy trao cho anh" (KxGrk4n9Duo).
-Return ONLY valid JSON format:
+Task: Generate a short (1-2 sentences), friendly, heartwarming, and super cute message in Vietnamese.
+CRITICAL RULE: YOU MUST MATCH THE ANIMAL SPECIES!
+- If Shiba/Dog: Energetic, loyal, eager ("Gâu gâu! Woof!"). NEVER say meow/nya!
+- If Neko/Cat: Sweet, playful, slightly regal ("Nya~ Meow meow!").
+- If Bunny/Rabbit: Gentle, cute ("Pyon pyon~").
+- If Fox/Kitsune: Clever, mischievous ("Kon kon~").
+- If Panda: Chill, relaxed, calm, cute ("Panda roll~").
+- If Dragon: Enthusiastic, fiery yet adorable ("Grrr~ Phì phì!").
+
+Mention hydration (uống nước), taking breaks, deadline cheer, or music if appropriate.
+If music room is silent, you may recommend a fun song with a valid 11-char YouTube ID (e.g. "KxGrk4n9Duo").
+Return ONLY valid JSON:
 {{
-    "message": "your cute message here",
+    "message": "câu thoại siêu cute ở đây",
     "action": {{
         "type": "play_music",
         "payload": "YOUTUBE_ID",
         "title": "Song Title"
     }}
 }}
+If no music recommendation is needed or music room is already active, set "action": null.
 """
     try:
         r = requests.post(
@@ -2816,9 +2869,9 @@ Return ONLY valid JSON format:
             return jsonify(json.loads(content))
     except Exception as e:
         print("Groq API error:", e)
-        
+
     return jsonify({
-        "message": "Xin chào! Chúc bạn một ngày tốt lành nha! meow meow",
+        "message": fallback_msg
     })
 
 

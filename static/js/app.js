@@ -4129,14 +4129,24 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // Hàm chuyên biệt để join radio từ Pet - không bị chặn bởi ytPlayer check
-    window.joinRadioFromPet = function () {
-        if (isRadioDJ || isListening) return; // Đã là DJ hoặc đang nghe rồi thì bỏ qua
+    // Hàm chuyên biệt để join radio từ Pet - sửa triệt để các trường hợp bị chặn/lag
+    window.joinRadioFromPet = function (targetYoutubeId) {
+        if (isRadioDJ) {
+            if (typeof showToast === 'function') {
+                showToast('Bạn đang là DJ phát nhạc!', 'info');
+            }
+            return;
+        }
 
-        // 1. Đánh dấu đang nghe
+        // 1. Nếu có targetYoutubeId truyền vào, cập nhật trực tiếp cho radioState
+        if (targetYoutubeId && typeof targetYoutubeId === 'string' && targetYoutubeId.trim().length > 0) {
+            radioState.youtube_id = targetYoutubeId.trim();
+        }
+
+        // 2. Đánh dấu đang nghe
         isListening = true;
 
-        // 2. Thông báo server
+        // 3. Thông báo server tham gia phòng nghe
         if (useRadioPolling) {
             radioApiPost('/api/radio/join');
             startListenerHeartbeat();
@@ -4145,27 +4155,65 @@ document.addEventListener('DOMContentLoaded', () => {
             window.socket.emit('join_radio');
         }
 
-        // 3. Load & play video nếu YT Player sẵn sàng
-        if (ytPlayer && ytPlayer.getPlayerState) {
-            const currentVideo = ytPlayer.getVideoData?.()?.video_id;
-            if (currentVideo !== radioState.youtube_id) {
-                ytPlayer.loadVideoById(radioState.youtube_id, radioState.current_time);
-            } else {
-                ytPlayer.seekTo(radioState.current_time, true);
-            }
-            if (radioState.is_playing) ytPlayer.playVideo();
-        } else {
-            // YT Player chưa sẵn sàng → retry sau 1 giây
-            setTimeout(() => {
-                if (ytPlayer && ytPlayer.loadVideoById) {
-                    ytPlayer.loadVideoById(radioState.youtube_id, radioState.current_time);
-                    if (radioState.is_playing) ytPlayer.playVideo();
+        // 4. Kích hoạt phát video & xử lý browser autoplay restrictions
+        const playTarget = function () {
+            if (!ytPlayer) return;
+            const currentVideoId = radioState.youtube_id || targetYoutubeId;
+            if (!currentVideoId) return;
+
+            try {
+                if (ytPlayer.unMute) ytPlayer.unMute();
+                if (ytPlayer.setVolume) ytPlayer.setVolume(100);
+
+                const currentLoaded = ytPlayer.getVideoData?.()?.video_id;
+                const startTime = radioState.current_time || 0;
+
+                if (currentLoaded !== currentVideoId) {
+                    if (ytPlayer.loadVideoById) {
+                        ytPlayer.loadVideoById(currentVideoId, startTime);
+                    }
+                } else {
+                    if (ytPlayer.seekTo) ytPlayer.seekTo(startTime, true);
                 }
-            }, 1000);
+
+                if (ytPlayer.playVideo) ytPlayer.playVideo();
+            } catch (err) {
+                console.warn('[joinRadioFromPet] Play error:', err);
+            }
+        };
+
+        if (ytPlayer && (ytPlayer.getPlayerState || ytPlayer.loadVideoById)) {
+            playTarget();
+        } else {
+            // Retry linh hoạt trong 2 giây nếu YouTube Iframe đang load
+            let retries = 0;
+            const retryInterval = setInterval(() => {
+                retries++;
+                if (ytPlayer && (ytPlayer.getPlayerState || ytPlayer.loadVideoById)) {
+                    clearInterval(retryInterval);
+                    playTarget();
+                } else if (retries >= 5) {
+                    clearInterval(retryInterval);
+                }
+            }, 400);
         }
 
-        // 4. Cập nhật UI
+        // 5. Cập nhật UI Radio
         updateRadioUI();
+
+        // 6. Kích hoạt hiệu ứng Pet Dancing nếu Pet Engine đang chạy
+        if (window.PetRoamEngine && window.PetRoamEngine.setDancing) {
+            window.PetRoamEngine.setDancing(true);
+        }
+        if (window.Pet3DEngine && window.Pet3DEngine.setDancing) {
+            window.Pet3DEngine.setDancing(true);
+        }
+
+        // 7. Hiển thị Toast thông báo thành công cho người dùng
+        if (typeof showToast === 'function') {
+            const djText = radioState.dj_username ? `cùng DJ ${radioState.dj_username}` : '';
+            showToast(`🎵 Đã kết nối tham gia nghe nhạc ${djText}!`, 'success');
+        }
     };
 
     window.toggleDJMode = function () {
