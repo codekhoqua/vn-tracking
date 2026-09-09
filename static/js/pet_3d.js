@@ -137,6 +137,11 @@ window.Pet3DEngine = (function () {
     }
 
     function createDOM() {
+        // Clean up any legacy 2D pet elements from cache or previous scripts
+        document.querySelectorAll('img[src*="/static/img/pet/"], img[src*="2.gif"], img[src*="1.gif"]').forEach(img => {
+            img.remove();
+        });
+
         let el = document.getElementById('roaming-pet-container');
         if (!el) {
             el = document.createElement('div');
@@ -148,7 +153,6 @@ window.Pet3DEngine = (function () {
         el.innerHTML = `
             <div id="pet-3d-canvas-box" class="pet-3d-canvas-box">
                 <canvas id="pet-3d-canvas" width="160" height="170"></canvas>
-                <img id="pet-2d-sprite" src="/static/img/pet/2.gif" class="pet-2d-sprite" style="display:none;" />
             </div>
             <div id="pet-speech-bubble" class="pet-speech-bubble">
                 <div id="pet-speech-tag" class="pet-speech-tag"></div>
@@ -709,8 +713,11 @@ window.Pet3DEngine = (function () {
     function fallbackTo2D() {
         is3DActive = false;
         if (canvas) canvas.style.display = 'none';
-        const img = document.getElementById('pet-2d-sprite');
-        if (img) img.style.display = 'block';
+        const box = document.getElementById('pet-3d-canvas-box');
+        if (box) {
+            const emoji = SPECIES_CONFIG[currentSpecies] ? SPECIES_CONFIG[currentSpecies].emoji : '🐾';
+            box.innerHTML = `<div style="font-size: 76px; display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; filter: drop-shadow(0 8px 16px rgba(0,0,0,0.4));">${emoji}</div>`;
+        }
     }
 
     function disposeHierarchy(obj) {
@@ -726,7 +733,7 @@ window.Pet3DEngine = (function () {
         });
     }
 
-    return {
+    const api = {
         init: init,
         syncPet: function (data) {
             petData = data || {};
@@ -745,4 +752,12 @@ window.Pet3DEngine = (function () {
             if (renderer) renderer.dispose();
         }
     };
+
+    // Legacy compatibility aliases
+    window.PetRoamEngine = api;
+    window.triggerPetFeedAnimation = function() {
+        api.feed();
+    };
+
+    return api;
 })();
