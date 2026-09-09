@@ -232,7 +232,7 @@
             style="border-radius: var(--radius-sm); margin-right: 8px;">
         <div style="display: flex; flex-direction: column; justify-content: center;">
             <span>VN-Tracking</span>
-            <sup class="version-tag" style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.3.89</i></sup>
+            <sup class="version-tag" style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.3.90</i></sup>
         </div>
     </div>
 
@@ -2598,6 +2598,11 @@
             <div class="pet-stage-badge" id="pet-stage-badge">BABY</div>
         </div>
         <div class="pet-name-row" style="justify-content: center; position: relative; width: fit-content; margin: 0 auto;">
+            <button class="pet-switch-species-btn" onclick="openPetSwitchModal()" title="{{ 'Đổi loài thú cưng' if lang == 'vi' else 'ペットの種類変更' }}" style="position: absolute; left: -36px; background:none; border:none; color: var(--text-3); cursor:pointer; padding: 4px; display: flex; align-items: center; justify-content: center; opacity: 0.8; transition: all 0.2s;" onmouseover="this.style.color='#06b6d4'; this.style.opacity='1'" onmouseout="this.style.color='var(--text-3)'; this.style.opacity='0.8'">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+                </svg>
+            </button>
             <span class="pet-name" id="pet-name">???</span>
             <button class="pet-rename-btn" onclick="renamePet()" title="Rename" style="position: absolute; right: -32px; background:none; border:none; color: var(--text-3); cursor:pointer; padding: 4px; display: flex; align-items: center; justify-content: center; opacity: 0.8; transition: all 0.2s;" onmouseover="this.style.color='#8b5cf6'; this.style.opacity='1'" onmouseout="this.style.color='var(--text-3)'; this.style.opacity='0.8'">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -2627,7 +2632,7 @@
 
         <div style="display: flex; gap: 12px; margin-top: 16px; width: 100%;">
             <button class="pet-action-btn pet-btn-feed" id="pet-feed-btn" onclick="feedPet()" style="flex:1;">
-                <span style="font-size: 20px;">🍖</span>
+                <span style="font-size: 20px;">🍖 Cho Ăn</span>
             </button>
         </div>
         
@@ -2640,26 +2645,111 @@
 
 <!-- Pet Adopt Modal -->
 <div id="pet-adopt-overlay" class="cp-overlay" style="z-index: 10001;" onclick="closePetAdoptModal()"></div>
-<div id="pet-adopt-modal" class="cp-modal" style="max-width: 520px; width: 90%; z-index: 10002;">
+<div id="pet-adopt-modal" class="cp-modal" style="max-width: 540px; width: 92%; z-index: 10002;">
     <div class="modal-header">
-        <h3>🐾 {{ 'Chọn thú cưng của bạn!' if lang == 'vi' else 'ペットを選んでください！' }}</h3>
+        <h3>🐾 {{ 'Chọn người bạn thú cưng của bạn!' if lang == 'vi' else '相棒のペットを選んでください！' }}</h3>
         <button class="modal-close" onclick="closePetAdoptModal()">✕</button>
     </div>
     <div class="modal-body" style="padding: 20px;">
-        <p style="color: var(--text-2); margin-bottom: 16px; font-size: 0.9rem;">
-            {{ 'Hoàn thành task để nuôi thú cưng lên level! Pet sẽ buồn nếu bạn bỏ bê nó đấy~' if lang == 'vi' else 'タスクを完了してペットを育てましょう！放置するとペットが悲しくなります〜' }}
+        <p style="color: var(--text-2); margin-bottom: 14px; font-size: 0.88rem; text-align: center;">
+            {{ 'Nuôi thú cưng đồng hành 3D để nhắc nhở deadline, nghe nhạc chung và cổ vũ bạn mỗi ngày!' if lang == 'vi' else '3Dペットと一緒に作業しましょう！タスクのリマインドや音楽の共有ができます〜' }}
         </p>
-        <div style="display: flex; flex-direction: column; align-items: center; margin-bottom: 20px;">
-            <img src="/static/img/pet/2.gif" style="width: 120px; height: 120px; object-fit: contain; filter: drop-shadow(0 4px 12px rgba(0,0,0,0.5));">
+        
+        <!-- Species Selector Grid -->
+        <div class="pet-species-grid" id="adopt-species-grid">
+            <div class="pet-species-card selected" onclick="selectAdoptSpecies('shiba')" data-type="shiba">
+                <div class="pet-species-emoji">🐕</div>
+                <div class="pet-species-name">Chó Shiba</div>
+                <div class="pet-species-sound">Gâu gâu! 🐾</div>
+            </div>
+            <div class="pet-species-card" onclick="selectAdoptSpecies('neko')" data-type="neko">
+                <div class="pet-species-emoji">🐈</div>
+                <div class="pet-species-name">Mèo Neko</div>
+                <div class="pet-species-sound">Nya~ Meow! 🐾</div>
+            </div>
+            <div class="pet-species-card" onclick="selectAdoptSpecies('bunny')" data-type="bunny">
+                <div class="pet-species-emoji">🐰</div>
+                <div class="pet-species-name">Thỏ Bunny</div>
+                <div class="pet-species-sound">Pyon pyon~ 🥕</div>
+            </div>
+            <div class="pet-species-card" onclick="selectAdoptSpecies('fox')" data-type="fox">
+                <div class="pet-species-emoji">🦊</div>
+                <div class="pet-species-name">Cáo Kitsune</div>
+                <div class="pet-species-sound">Kon kon~ 🍂</div>
+            </div>
+            <div class="pet-species-card" onclick="selectAdoptSpecies('panda')" data-type="panda">
+                <div class="pet-species-emoji">🐼</div>
+                <div class="pet-species-name">Gấu Trúc</div>
+                <div class="pet-species-sound">Panda roll~ 🎋</div>
+            </div>
+            <div class="pet-species-card" onclick="selectAdoptSpecies('dragon')" data-type="dragon">
+                <div class="pet-species-emoji">🐲</div>
+                <div class="pet-species-name">Rồng Con</div>
+                <div class="pet-species-sound">Grrr~ Phì phì! 💫</div>
+            </div>
         </div>
-        <div style="margin-top: 16px;">
-            <label style="display:block; margin-bottom:10px; color:var(--text-2); font-size:0.95rem; text-align: center;">{{ 'Đặt tên cho thú cưng của bạn' if lang == 'vi' else 'ペットの名前' }}</label>
-            <input type="text" id="pet-name-input" style="width: 100%; text-align: center; font-weight: bold; font-size: 1.1rem; padding: 14px 20px; border-radius: 14px; background: rgba(0,0,0,0.2); border: 2px solid rgba(139,92,246,0.3); color: #f1f5f9; outline: none; transition: all 0.3s; box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);" onfocus="this.style.border='2px solid #8b5cf6'; this.style.background='rgba(0,0,0,0.3)'; this.style.boxShadow='0 0 15px rgba(139,92,246,0.3), inset 0 2px 4px rgba(0,0,0,0.2)';" onblur="this.style.border='2px solid rgba(139,92,246,0.3)'; this.style.background='rgba(0,0,0,0.2)'; this.style.boxShadow='inset 0 2px 4px rgba(0,0,0,0.2)';" placeholder="{{ 'Nhập tên ngộ nghĩnh...' if lang == 'vi' else '名前を入力...' }}" maxlength="20">
+
+        <div style="margin-top: 14px;">
+            <label style="display:block; margin-bottom:8px; color:var(--text-2); font-size:0.9rem; text-align: center; font-weight:600;">
+                {{ 'Đặt tên ngộ nghĩnh cho bé:' if lang == 'vi' else 'ペットの名前:' }}
+            </label>
+            <input type="text" id="pet-name-input" style="width: 100%; text-align: center; font-weight: bold; font-size: 1.05rem; padding: 12px 18px; border-radius: 12px; background: rgba(0,0,0,0.25); border: 2px solid rgba(139,92,246,0.3); color: #f1f5f9; outline: none; transition: all 0.3s;" onfocus="this.style.borderColor='#8b5cf6'; this.style.boxShadow='0 0 15px rgba(139,92,246,0.3)';" onblur="this.style.borderColor='rgba(139,92,246,0.3)'; this.style.boxShadow='none';" placeholder="{{ 'Ví dụ: Cún Con, Bánh Bao, Mochi...' if lang == 'vi' else '名前を入力...' }}" maxlength="20">
         </div>
     </div>
-    <div class="modal-footer" style="padding: 15px; border-top: 1px solid rgba(255,255,255,0.1); display:flex; justify-content:flex-end; gap:10px;">
-        <button class="pet-action-btn pet-btn-feed" id="pet-adopt-btn" onclick="adoptPet()" disabled style="flex:1;">
-            <span style="font-size: 20px;">🐾</span>
+    <div class="modal-footer" style="padding: 15px; border-top: 1px solid rgba(255,255,255,0.1); display:flex; justify-content:center;">
+        <button class="pet-action-btn pet-btn-feed" id="pet-adopt-btn" onclick="adoptPet()" disabled style="flex:1; max-width: 240px;">
+            <span style="font-size: 15px; font-weight: bold;">{{ '🎉 Nhận Nuôi Ngay' if lang == 'vi' else '🎉 ペットを迎える' }}</span>
+        </button>
+    </div>
+</div>
+
+<!-- Pet Switch Species Modal -->
+<div id="pet-switch-overlay" class="cp-overlay" style="z-index: 10001;" onclick="closePetSwitchModal()"></div>
+<div id="pet-switch-modal" class="cp-modal" style="max-width: 540px; width: 92%; z-index: 10002;">
+    <div class="modal-header">
+        <h3>🔄 {{ 'Đổi loài thú cưng' if lang == 'vi' else 'ペットの種類変更' }}</h3>
+        <button class="modal-close" onclick="closePetSwitchModal()">✕</button>
+    </div>
+    <div class="modal-body" style="padding: 20px;">
+        <p style="color: var(--text-2); margin-bottom: 14px; font-size: 0.88rem; text-align: center;">
+            {{ 'Chọn loài mới (Level, Thức ăn và Chuỗi ngày đăng nhập vẫn sẽ được giữ nguyên 100%!)' if lang == 'vi' else '新しいペットの種類を選んでください（レベルや進行状況は保持されます）' }}
+        </p>
+        <div class="pet-species-grid" id="switch-species-grid">
+            <div class="pet-species-card" onclick="pickSwitchSpecies('shiba')" data-type="shiba">
+                <div class="pet-species-emoji">🐕</div>
+                <div class="pet-species-name">Chó Shiba</div>
+                <div class="pet-species-sound">Gâu gâu! 🐾</div>
+            </div>
+            <div class="pet-species-card" onclick="pickSwitchSpecies('neko')" data-type="neko">
+                <div class="pet-species-emoji">🐈</div>
+                <div class="pet-species-name">Mèo Neko</div>
+                <div class="pet-species-sound">Nya~ Meow! 🐾</div>
+            </div>
+            <div class="pet-species-card" onclick="pickSwitchSpecies('bunny')" data-type="bunny">
+                <div class="pet-species-emoji">🐰</div>
+                <div class="pet-species-name">Thỏ Bunny</div>
+                <div class="pet-species-sound">Pyon pyon~ 🥕</div>
+            </div>
+            <div class="pet-species-card" onclick="pickSwitchSpecies('fox')" data-type="fox">
+                <div class="pet-species-emoji">🦊</div>
+                <div class="pet-species-name">Cáo Kitsune</div>
+                <div class="pet-species-sound">Kon kon~ 🍂</div>
+            </div>
+            <div class="pet-species-card" onclick="pickSwitchSpecies('panda')" data-type="panda">
+                <div class="pet-species-emoji">🐼</div>
+                <div class="pet-species-name">Gấu Trúc</div>
+                <div class="pet-species-sound">Panda roll~ 🎋</div>
+            </div>
+            <div class="pet-species-card" onclick="pickSwitchSpecies('dragon')" data-type="dragon">
+                <div class="pet-species-emoji">🐲</div>
+                <div class="pet-species-name">Rồng Con</div>
+                <div class="pet-species-sound">Grrr~ Phì phì! 💫</div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-footer" style="padding: 15px; border-top: 1px solid rgba(255,255,255,0.1); display:flex; justify-content:center;">
+        <button class="pet-action-btn pet-btn-feed" onclick="submitPetSwitch()" style="flex:1; max-width: 220px;">
+            <span style="font-size: 15px; font-weight: bold;">{{ 'Xác nhận Đổi' if lang == 'vi' else '変更を確定' }}</span>
         </button>
     </div>
 </div>
@@ -3111,6 +3201,98 @@
     transform: scale(1.05);
     box-shadow: 0 4px 12px rgba(124, 58, 237, 0.5);
 }
+
+/* ===== 🐾 3D VIRTUAL PET WRAPPER & CANVAS ===== */
+.roaming-pet-3d-wrapper {
+    position: fixed;
+    bottom: -15px;
+    right: 120px;
+    z-index: 9998;
+    pointer-events: auto;
+    cursor: pointer;
+    user-select: none;
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.roaming-pet-3d-wrapper:hover {
+    transform: scale(1.06);
+}
+.pet-3d-canvas-box {
+    position: relative;
+    width: 160px;
+    height: 170px;
+    filter: drop-shadow(0 10px 24px rgba(0,0,0,0.5));
+}
+#pet-3d-canvas {
+    width: 160px;
+    height: 170px;
+    outline: none;
+    display: block;
+}
+.pet-2d-sprite {
+    width: 90px;
+    height: 90px;
+    object-fit: contain;
+    position: absolute;
+    bottom: 10px;
+    left: 35px;
+    filter: drop-shadow(0 4px 10px rgba(0,0,0,0.4));
+}
+.pet-speech-tag {
+    display: inline-block;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 2px 6px;
+    border-radius: 6px;
+    background: rgba(99, 102, 241, 0.25);
+    color: #a5b4fc;
+    border: 1px solid rgba(99, 102, 241, 0.4);
+    margin-bottom: 4px;
+}
+
+/* SPECIES SELECTOR GRID */
+.pet-species-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 16px;
+}
+.pet-species-card {
+    background: rgba(255, 255, 255, 0.04);
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 12px 8px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+    user-select: none;
+}
+.pet-species-card:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(99, 102, 241, 0.5);
+    transform: translateY(-2px);
+}
+.pet-species-card.selected {
+    background: rgba(99, 102, 241, 0.2);
+    border-color: #6366f1;
+    box-shadow: 0 0 16px rgba(99, 102, 241, 0.4);
+    transform: translateY(-2px);
+}
+.pet-species-emoji {
+    font-size: 32px;
+    margin-bottom: 4px;
+}
+.pet-species-name {
+    font-size: 12px;
+    font-weight: 700;
+    color: #f1f5f9;
+}
+.pet-species-sound {
+    font-size: 10px;
+    color: var(--text-3);
+    margin-top: 2px;
+}
 </style>
 
 <script>
@@ -3153,6 +3335,10 @@ async function initPet() {
             document.getElementById('pet-bubble-level').textContent = '?';
             document.getElementById('pet-bubble-mood').style.background = '#94a3b8'; // gray
             
+            if (window.Pet3DEngine) {
+                const petEl = document.getElementById('roaming-pet-container');
+                if (petEl) petEl.style.display = 'none';
+            }
             if (window.PetRoamEngine) {
                 const petEl = document.getElementById('roaming-pet-container');
                 if (petEl) petEl.style.display = 'none';
@@ -3162,6 +3348,11 @@ async function initPet() {
         if (data.has_pet) {
             petData = data;
             
+            if (window.Pet3DEngine) {
+                const petEl = document.getElementById('roaming-pet-container');
+                if (petEl) petEl.style.display = 'block';
+                window.Pet3DEngine.init(petData);
+            }
             if(window.PetRoamEngine) {
                 window.PetRoamEngine.syncPet(petData);
             }
@@ -3213,7 +3404,7 @@ async function triggerPetBrief() {
             bubble.classList.remove('active');
         }, 12000);
     } catch (e) {
-        textEl.innerHTML = 'Hệ thống AI đang bảo trì, meow meow... 😿';
+        textEl.innerHTML = 'Hệ thống AI đang bảo trì, gâu gâu meow meow... 🐾';
         petBriefTimeout = setTimeout(() => {
             bubble.classList.remove('active');
         }, 5000);
@@ -3242,7 +3433,7 @@ window.triggerPetMusicInvite = function(djName, youtubeId) {
     
     textEl.innerHTML = msg;
     
-    actionsEl.innerHTML = `<button class="pet-speech-btn" onclick="if(window.joinRadioFromPet)window.joinRadioFromPet(); event.stopPropagation();">
+    actionsEl.innerHTML = `<button class="pet-speech-btn" onclick="if(window.joinRadioFromPet)window.joinRadioFromPet('${youtubeId || ''}'); event.stopPropagation();">
         <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg> Tham gia
     </button>`;
     
@@ -3276,7 +3467,7 @@ function addGroqMusic(youtubeId, title) {
         window.socket.emit('queue_add', { youtube_id: youtubeId, title: title });
         
         // Join radio trực tiếp (hàm chuyên biệt, không bị chặn bởi ytPlayer check)
-        if (window.joinRadioFromPet) window.joinRadioFromPet();
+        if (window.joinRadioFromPet) window.joinRadioFromPet(youtubeId);
     }
     
     // Show a fun toast
@@ -3304,28 +3495,29 @@ function addGroqMusic(youtubeId, title) {
 function renderPet() {
     if (!petData) return;
     const bubble = document.getElementById('pet-widget-bubble');
-    const type = petData.type || 'neko';
+    const type = petData.type || 'shiba';
     const stage = petData.stage || 'baby';
     const mood = petData.mood || 'normal';
     const level = petData.level || 1;
-    const emoji = (PET_STAGE_EMOJIS[stage] || PET_STAGE_EMOJIS.baby)[type] || PET_EMOJIS[type];
+    const petEmojis = { shiba: '🐕', neko: '🐈', bunny: '🐰', fox: '🦊', panda: '🐼', dragon: '🐲' };
+    const emoji = petEmojis[type] || '🐾';
 
     // Bubble
     bubble.style.display = 'flex';
-    document.getElementById('pet-bubble-sprite').innerHTML = `<img src="/static/img/pet/2.gif" style="width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));">`;
+    document.getElementById('pet-bubble-sprite').innerHTML = `<span style="font-size: 26px;">${emoji}</span>`;
     document.getElementById('pet-bubble-level').textContent = level;
     const moodDot = document.getElementById('pet-bubble-mood');
     moodDot.style.background = MOOD_COLORS[mood] || MOOD_COLORS.normal;
 
     // Panel
     const lg = document.getElementById('pet-sprite-large');
-    lg.innerHTML = `<img src="/static/img/pet/2.gif" style="width: 120px; height: 120px; object-fit: contain; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.4));">`;
+    lg.innerHTML = `<div style="font-size: 70px; filter: drop-shadow(0 8px 16px rgba(0,0,0,0.4));">${emoji}</div>`;
     lg.style.display = 'flex';
     lg.style.alignItems = 'center';
     lg.style.justifyContent = 'center';
 
     document.getElementById('pet-name').textContent = petData.name || '???';
-    document.getElementById('pet-stage-badge').textContent = stage.toUpperCase();
+    document.getElementById('pet-stage-badge').textContent = (type.toUpperCase() + ' • ' + stage.toUpperCase());
 
     const lang = typeof CURRENT_LANG !== 'undefined' ? CURRENT_LANG : 'vi';
     const moodTexts = MOOD_TEXT[lang] || MOOD_TEXT.vi;
@@ -3341,8 +3533,6 @@ function renderPet() {
 
     document.getElementById('pet-food-count').textContent = petData.food || 0;
     document.getElementById('pet-streak-count').textContent = (petData.login_streak || 0) + (lang === 'ja' ? '日' : ' ngày');
-
-
 
     document.getElementById('pet-feed-btn').disabled = (petData.food || 0) <= 0;
 
@@ -3368,8 +3558,6 @@ function togglePetPanel() {
         panel.classList.remove('active');
     }
 }
-
-
 
 async function loadInlineLeaderboard() {
     const content = document.getElementById('inline-leaderboard-container');
@@ -3449,7 +3637,12 @@ async function feedPet() {
         const res = await fetch('/api/pet/feed', { method: 'POST', headers: {'Content-Type': 'application/json'} });
         const data = await res.json();
         if (data.success) {
-            await fetchPetData(); // Đợi load xong state mới (tránh gọi renderPet() giữa chừng)
+            await fetchPetData();
+
+            // Kích hoạt 3D feed animation
+            if (window.Pet3DEngine) {
+                window.Pet3DEngine.feed();
+            }
 
             // Kích hoạt animation ăn của roaming pet
             if (window.triggerPetFeedAnimation) {
@@ -3475,7 +3668,7 @@ async function feedPet() {
     }
 
     setTimeout(() => {
-        btn.innerHTML = '<span style="font-size: 20px;">🍖</span>';
+        btn.innerHTML = '<span style="font-size: 20px;">🍖 Cho Ăn</span>';
         btn.disabled = (petData?.food || 0) <= 0;
     }, 800);
 }
@@ -3510,7 +3703,6 @@ function handlePetXPResponse(responseData) {
     const pr = responseData.pet;
     if (pr.pet_data) {
         petData = { has_pet: true, ...pr.pet_data, xp_needed: pr.pet_data.xp_needed || 30 };
-        // Remove animation to avoid confusion with auto-feeding
         renderPet();
 
         if (pr.leveled_up) {
@@ -3519,7 +3711,15 @@ function handlePetXPResponse(responseData) {
     }
 }
 
-// ===== ADOPT MODAL =====
+// ===== ADOPT MODAL & SPECIES SELECTION =====
+let selectedAdoptSpeciesType = 'shiba';
+function selectAdoptSpecies(type) {
+    selectedAdoptSpeciesType = type;
+    document.querySelectorAll('#adopt-species-grid .pet-species-card').forEach(el => {
+        el.classList.toggle('selected', el.dataset.type === type);
+    });
+}
+
 function openPetAdoptModal() {
     document.getElementById('pet-adopt-overlay').classList.add('active');
     document.getElementById('pet-adopt-modal').classList.add('active');
@@ -3528,7 +3728,54 @@ function closePetAdoptModal() {
     document.getElementById('pet-adopt-overlay').classList.remove('active');
     document.getElementById('pet-adopt-modal').classList.remove('active');
 }
-function selectPetType(card, type) {}
+
+// ===== SWITCH SPECIES MODAL =====
+let selectedSwitchSpeciesType = 'shiba';
+function openPetSwitchModal() {
+    if (!petData) return;
+    selectedSwitchSpeciesType = petData.type || 'shiba';
+    document.querySelectorAll('#switch-species-grid .pet-species-card').forEach(el => {
+        el.classList.toggle('selected', el.dataset.type === selectedSwitchSpeciesType);
+    });
+    document.getElementById('pet-switch-overlay').classList.add('active');
+    document.getElementById('pet-switch-modal').classList.add('active');
+}
+function closePetSwitchModal() {
+    document.getElementById('pet-switch-overlay').classList.remove('active');
+    document.getElementById('pet-switch-modal').classList.remove('active');
+}
+function pickSwitchSpecies(type) {
+    selectedSwitchSpeciesType = type;
+    document.querySelectorAll('#switch-species-grid .pet-species-card').forEach(el => {
+        el.classList.toggle('selected', el.dataset.type === type);
+    });
+}
+async function submitPetSwitch() {
+    try {
+        const res = await fetch('/api/pet/switch', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ type: selectedSwitchSpeciesType })
+        });
+        const data = await res.json();
+        if (data.success) {
+            petData = { ...petData, ...data.pet };
+            renderPet();
+            if (window.Pet3DEngine) {
+                window.Pet3DEngine.switchSpecies(selectedSwitchSpeciesType);
+            }
+            closePetSwitchModal();
+            if (typeof showToast === 'function') {
+                showToast('Đã đổi loài thú cưng thành công! ✨', 'success');
+            }
+        } else {
+            if (typeof showToast === 'function') showToast(data.error || 'Error', 'error');
+        }
+    } catch(e) {
+        console.error('Switch pet error:', e);
+    }
+}
+
 document.getElementById('pet-name-input')?.addEventListener('input', function() {
     document.getElementById('pet-adopt-btn').disabled = !this.value.trim();
 });
@@ -3545,7 +3792,7 @@ async function adoptPet() {
         const res = await fetch('/api/pet/adopt', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ type: 'neko', name: name })
+            body: JSON.stringify({ type: selectedAdoptSpeciesType, name: name })
         });
         const data = await res.json();
         if (data.success) {
@@ -3556,6 +3803,13 @@ async function adoptPet() {
             // Welcome confetti
             if (typeof confetti === 'function') {
                 confetti({ particleCount: 100, spread: 90, origin: { y: 0.6 }, colors: ['#8b5cf6', '#a78bfa', '#f59e0b', '#22c55e', '#ec4899'] });
+            }
+            if (window.Pet3DEngine) {
+                const petEl = document.getElementById('roaming-pet-container');
+                if (petEl) {
+                    petEl.style.display = 'block';
+                }
+                window.Pet3DEngine.init(petData);
             }
             if (window.PetRoamEngine) {
                 const petEl = document.getElementById('roaming-pet-container');
@@ -3909,6 +4163,8 @@ document.addEventListener('DOMContentLoaded', () => setTimeout(initPet, 1500));
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="{{ url_for('static', filename='js/pet_3d.js') }}?v={{ range(1, 1000000) | random }}"></script>
 <script src="{{ url_for('static', filename='js/pet_roam.js') }}?v=3.3"></script>
 <script>
     const CHECKLIST_API = "{{ checklist_api }}";
