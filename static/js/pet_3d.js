@@ -33,9 +33,10 @@ window.Pet3DEngine = (function () {
     let currentPose = 'idle'; // 'idle' | 'walk' | 'run' | 'eat' | 'trick'
     let mousePos = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
 
-    // Viewports: 1. Roaming (Outside bottom-right) & 2. Panel (Inside My Pet menu)
+    // Viewports: 1. Roaming (Outside bottom-right) & 2. Panel (Inside My Pet menu) & 3. Switch Preview
     let roaming = null;
     let panel = null;
+    let switchPreview = null;
 
     // Loaders
     let fbxLoader = null;
@@ -950,35 +951,47 @@ window.Pet3DEngine = (function () {
             if (rEl && rEl.style.display === 'none') return;
         }
 
+        // Skip rendering switchPreview if switch modal is closed (save GPU)
+        if (vp === switchPreview) {
+            const sModal = document.getElementById('pet-switch-modal');
+            if (!sModal || !sModal.classList.contains('active')) return;
+        }
+
         // Update skeletal animations with accurate delta
         if (vp.mixer) {
             vp.mixer.update(delta);
         }
 
-        // Smooth LookAt Cursor
-        const cfg = SPECIES_CONFIG[currentSpecies] || SPECIES_CONFIG['shiba'];
-        const baseRotY = cfg.rotOffsetY || -0.35;
-        const targetRotY = baseRotY + (mousePos.x / window.innerWidth - 0.5) * 0.65;
-        const targetRotX = (mousePos.y / window.innerHeight - 0.5) * 0.22;
+        // Turntable rotation for preview stage OR smooth LookAt Cursor for roaming & panel
+        if (vp === switchPreview) {
+            if (vp.modelGroup) {
+                vp.modelGroup.rotation.y += delta * 0.75;
+            }
+        } else {
+            const cfg = SPECIES_CONFIG[currentSpecies] || SPECIES_CONFIG['shiba'];
+            const baseRotY = cfg.rotOffsetY || -0.35;
+            const targetRotY = baseRotY + (mousePos.x / window.innerWidth - 0.5) * 0.65;
+            const targetRotX = (mousePos.y / window.innerHeight - 0.5) * 0.22;
 
-        if (vp.modelGroup) {
-            vp.modelGroup.rotation.y += (targetRotY - vp.modelGroup.rotation.y) * 0.08;
-            vp.modelGroup.rotation.x += (targetRotX - vp.modelGroup.rotation.x) * 0.08;
+            if (vp.modelGroup) {
+                vp.modelGroup.rotation.y += (targetRotY - vp.modelGroup.rotation.y) * 0.08;
+                vp.modelGroup.rotation.x += (targetRotX - vp.modelGroup.rotation.x) * 0.08;
+            }
         }
 
         // Dynamic pose bounce & physics
         if (vp.modelGroup && !isCelebrating) {
-            if (isDancing) {
+            if (vp !== switchPreview && isDancing) {
                 const beat = time * 7.5;
                 vp.modelGroup.position.y = Math.abs(Math.sin(beat)) * 0.06;
                 if (Math.random() < 0.02) {
                     spawnParticles('note', 1);
                 }
-            } else if (currentPose === 'run') {
+            } else if (vp !== switchPreview && currentPose === 'run') {
                 vp.modelGroup.position.y = Math.abs(Math.sin(time * 9.0)) * 0.045;
-            } else if (currentPose === 'walk') {
+            } else if (vp !== switchPreview && currentPose === 'walk') {
                 vp.modelGroup.position.y = Math.sin(time * 5.0) * 0.025;
-            } else if (currentPose === 'idle') {
+            } else if (currentPose === 'idle' || vp === switchPreview) {
                 vp.modelGroup.position.y = 0;
             }
         }
@@ -996,6 +1009,9 @@ window.Pet3DEngine = (function () {
 
         updateViewportAnimation(roaming, time, delta);
         updateViewportAnimation(panel, time, delta);
+        if (switchPreview) {
+            updateViewportAnimation(switchPreview, time, delta);
+        }
     }
 
     function onPanelShow() {
@@ -1258,6 +1274,22 @@ window.Pet3DEngine = (function () {
         }
     }
 
+    function getOrCreateSwitchPreview() {
+        const canvas = document.getElementById('switch-pet-preview-canvas');
+        if (!canvas) return null;
+        if (!switchPreview) {
+            switchPreview = createViewport('switch-pet-preview-canvas', 210, 190, { x: 1.15, y: 1.05, z: 2.45 }, { x: 0, y: 0.46, z: 0 });
+        }
+        return switchPreview;
+    }
+
+    function previewSpecies(species) {
+        if (!species || !SPECIES_CONFIG[species]) return;
+        const vp = getOrCreateSwitchPreview();
+        if (!vp) return;
+        loadModelForViewport(vp, species);
+    }
+
     return {
         init,
         poke: triggerClickRun,
@@ -1270,6 +1302,8 @@ window.Pet3DEngine = (function () {
         showBubble,
         hideBubble,
         switchSpecies,
+        previewSpecies,
+        getOrCreateSwitchPreview,
         syncPet,
         resetPosition,
         onPanelShow,
