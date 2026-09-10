@@ -741,7 +741,19 @@ window.Pet3DEngine = (function () {
     }
 
     function updateViewportAnimation(vp, time, delta) {
-        if (!vp || !vp.canvas || vp.canvas.offsetParent === null) return;
+        if (!vp || !vp.canvas || !vp.renderer || !vp.scene || !vp.camera) return;
+
+        // Skip rendering panel if pet-panel is closed (save GPU)
+        if (vp === panel) {
+            const pEl = document.getElementById('pet-panel');
+            if (pEl && !pEl.classList.contains('active')) return;
+        }
+
+        // Skip rendering roaming if roaming container is hidden
+        if (vp === roaming) {
+            const rEl = document.getElementById('roaming-pet-container');
+            if (rEl && rEl.style.display === 'none') return;
+        }
 
         // Update skeletal animations
         if (vp.mixer) {
