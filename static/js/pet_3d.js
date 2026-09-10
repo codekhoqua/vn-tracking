@@ -815,7 +815,7 @@ window.Pet3DEngine = (function () {
 
         [roaming, panel].forEach(vp => {
             if (!vp || !vp.scene) return;
-            const foodMat = createVinylMaterial(cfg.foodColor, 0.15, 0.9);
+            const foodMat = createClayMaterial(cfg.foodColor, 0.25, 0.1);
             const foodGeo = new THREE.DodecahedronGeometry(0.18);
             vp.foodMesh = new THREE.Mesh(foodGeo, foodMat);
             vp.foodMesh.position.set(0, 1.85, 0.4);
