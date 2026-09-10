@@ -4511,7 +4511,16 @@ document.addEventListener('DOMContentLoaded', () => {
     window.updateRadioUI = function () {
         if (!playIcon || !pauseIcon || !trackName) return;
 
-        const displayPlaying = isRadioDJ ? radioState.is_playing : isListening;
+        const displayPlaying = isRadioDJ ? radioState.is_playing : (isListening && radioState.is_playing);
+
+        // Sync 3D Pet Dancing mode with active music participation
+        const shouldPetDance = Boolean(displayPlaying);
+        if (window.Pet3DEngine && window.Pet3DEngine.setDancing) {
+            window.Pet3DEngine.setDancing(shouldPetDance);
+        }
+        if (window.PetRoamEngine && window.PetRoamEngine.setDancing) {
+            window.PetRoamEngine.setDancing(shouldPetDance);
+        }
 
         if (displayPlaying) {
             playIcon.style.display = 'none';
