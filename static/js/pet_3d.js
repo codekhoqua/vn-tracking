@@ -1,16 +1,15 @@
 /**
- * 🐾 VN-Tracking 3D Virtual Pet Engine - Real 3D Animated Pets Edition
+ * 🐾 VN-Tracking 3D Virtual Pet Engine - Animal Pack (FBX & GLTF Rigged Models)
  * Dual Viewport: Outside Roaming Pet & Inside My Pet Menu
  * 
- * Features:
- * - Real Skeletal Rigged 3D Models (GLTF / GLB)
- * - True Skeletal Animations: Idle, Walk/Run, Eating, Jumping, Cheerful Dances
- * - Auto-Fit Bounding Box Normalization (Perfect Framing on all screen sizes)
- * - Dual Viewports: Roaming (#roaming-pet-canvas) & Panel (#panel-pet-canvas)
- * - LookAt Cursor tracking: Smooth realistic head/body tilt towards cursor
- * - 3D Neon DJ Headphones with audio sync
- * - Interactive Treat Feeding & Heart/Star particle effects
- * - Ergonomics Water Reminder & AI Brief integration
+ * Powered by:
+ * - Direct FBXLoader & GLTFLoader support for 3D animated animal models
+ * - Built-in Skeletal Animations: Idle, Walk, Run, Jump, Eat
+ * - Shared High-Definition Color Texture Atlas (/static/models/ithappy/Texture.png)
+ * - Auto-Fit Bounding Box Normalization (Perfect center and height in all viewports)
+ * - Interactive Treat Feeding & Particles (❤️ / ⭐ / 🎵)
+ * - Neon DJ Headphones with music sync
+ * - Natural LookAt Cursor physics
  */
 
 window.Pet3DEngine = (function () {
@@ -30,81 +29,90 @@ window.Pet3DEngine = (function () {
     let roaming = null;
     let panel = null;
 
-    // Model loader instance
+    // Loaders
+    let fbxLoader = null;
     let gltfLoader = null;
-    const modelCache = {};
+    let textureLoader = null;
+    let sharedTexture = null;
 
-    // Real 3D Animated Pet Configurations
+    // Animal Pack Models & Configurations (Matching User's ANIMAL folder)
     const SPECIES_CONFIG = {
         shiba: {
-            modelUrl: '/static/models/shiba.gltf',
-            name_vi: 'Chó Shiba',
+            modelUrl: '/static/models/ithappy/Dog_001.fbx',
+            textureUrl: '/static/models/ithappy/Texture.png',
+            name_vi: 'Chó Cưng (Dog)',
             emoji: '🐕',
             sound: 'Gâu gâu! Woof! 🐾',
             food_name: 'Xương thịt 🍖',
-            targetHeight: 1.32,
+            targetHeight: 1.35,
             rotOffsetY: -0.35,
-            camY: 0.48
+            camY: 0.45
         },
         neko: {
-            modelUrl: '/static/models/cat.glb',
-            name_vi: 'Mèo Neko',
-            emoji: '🐈',
+            modelUrl: '/static/models/ithappy/Kitty_001.fbx',
+            textureUrl: '/static/models/ithappy/Texture.png',
+            name_vi: 'Mèo Kitty',
+            emoji: '🐱',
             sound: 'Nya~ Meow! 🐾',
-            food_name: 'Cá hồi 🐟',
+            food_name: 'Cá tươi 🐟',
             targetHeight: 1.25,
             rotOffsetY: -0.32,
             camY: 0.42
         },
         fox: {
-            modelUrl: '/static/models/fox.glb',
-            name_vi: 'Cáo Kitsune',
-            emoji: '🦊',
-            sound: 'Kon kon~ 🍂',
-            food_name: 'Bánh đậu 🥮',
-            targetHeight: 1.28,
+            modelUrl: '/static/models/ithappy/Tiger_001.fbx',
+            textureUrl: '/static/models/ithappy/Texture.png',
+            name_vi: 'Hổ Vằn (Tiger)',
+            emoji: '🐯',
+            sound: 'Grrr~ Gầm! 🐾',
+            food_name: 'Thịt bò 🥩',
+            targetHeight: 1.35,
+            rotOffsetY: -0.35,
+            camY: 0.46
+        },
+        bunny: {
+            modelUrl: '/static/models/ithappy/Pinguin_001.fbx',
+            textureUrl: '/static/models/ithappy/Texture.png',
+            name_vi: 'Cánh Cụt (Penguin)',
+            emoji: '🐧',
+            sound: 'Pingu pingu~ ❄️',
+            food_name: 'Cá nhỏ 🐟',
+            targetHeight: 1.25,
             rotOffsetY: -0.35,
             camY: 0.45
         },
-        husky: {
-            modelUrl: '/static/models/husky.gltf',
-            name_vi: 'Chó Husky',
-            emoji: '🐺',
-            sound: 'Awoo~ Gâu gâu! 🐾',
-            food_name: 'Thịt bò 🥩',
-            targetHeight: 1.34,
-            rotOffsetY: -0.35,
-            camY: 0.50
-        },
-        bunny: {
-            modelUrl: '/static/models/alpaca.gltf',
-            name_vi: 'Lạc đà Alpaca',
-            emoji: '🦙',
-            sound: 'Pyon pyon~ 🥕',
-            food_name: 'Cỏ tươi 🌿',
-            targetHeight: 1.30,
-            rotOffsetY: -0.35,
-            camY: 0.52
-        },
         panda: {
-            modelUrl: '/static/models/husky.gltf',
-            name_vi: 'Gấu Trúc / Husky',
-            emoji: '🐼',
-            sound: 'Panda roll~ 🎋',
-            food_name: 'Cành trúc 🎋',
-            targetHeight: 1.34,
+            modelUrl: '/static/models/ithappy/Horse_001.fbx',
+            textureUrl: '/static/models/ithappy/Texture.png',
+            name_vi: 'Ngựa Con (Pony)',
+            emoji: '🐴',
+            sound: 'Hí hí~ Nhong! 🌾',
+            food_name: 'Cà rốt 🥕',
+            targetHeight: 1.35,
             rotOffsetY: -0.35,
             camY: 0.50
         },
         dragon: {
-            modelUrl: '/static/models/deer.gltf',
-            name_vi: 'Hươu Sao / Thần Thú',
+            modelUrl: '/static/models/ithappy/Deer_001.fbx',
+            textureUrl: '/static/models/ithappy/Texture.png',
+            name_vi: 'Hươu Sao (Deer)',
             emoji: '🦌',
-            sound: 'Grrr~ Phì phì! 💫',
-            food_name: 'Lộc biếc 🌿',
-            targetHeight: 1.32,
+            sound: 'Ngơ ngác ngác~ 🌿',
+            food_name: 'Lộc non 🍀',
+            targetHeight: 1.35,
             rotOffsetY: -0.35,
-            camY: 0.52
+            camY: 0.50
+        },
+        chicken: {
+            modelUrl: '/static/models/ithappy/Chicken_001.fbx',
+            textureUrl: '/static/models/ithappy/Texture.png',
+            name_vi: 'Gà Con (Chick)',
+            emoji: '🐥',
+            sound: 'Chíp chíp! 🌾',
+            food_name: 'Thóc vàng 🌾',
+            targetHeight: 1.15,
+            rotOffsetY: -0.35,
+            camY: 0.40
         }
     };
 
@@ -124,7 +132,7 @@ window.Pet3DEngine = (function () {
     }
 
     function createDOM() {
-        // Remove legacy 2D img elements
+        // Clean legacy 2D img elements
         document.querySelectorAll('img[src*="/static/img/pet/"], img[src*="2.gif"], img[src*="1.gif"]').forEach(img => img.remove());
 
         // 1. OUTSIDE ROAMING CONTAINER
@@ -190,8 +198,8 @@ window.Pet3DEngine = (function () {
             renderer.outputEncoding = THREE.sRGBEncoding;
         }
 
-        // Professional Studio Lighting for 3D Character Rendering
-        const hemiLight = new THREE.HemisphereLight(0xffffff, 0x334155, 1.15);
+        // Professional Character Lighting
+        const hemiLight = new THREE.HemisphereLight(0xffffff, 0x334155, 1.2);
         scene.add(hemiLight);
 
         const keyLight = new THREE.DirectionalLight(0xfffaed, 1.35);
@@ -202,11 +210,11 @@ window.Pet3DEngine = (function () {
         keyLight.shadow.bias = -0.001;
         scene.add(keyLight);
 
-        const fillLight = new THREE.DirectionalLight(0xbfdbfe, 0.65);
+        const fillLight = new THREE.DirectionalLight(0xbfdbfe, 0.7);
         fillLight.position.set(-3, 2, 2);
         scene.add(fillLight);
 
-        const rimLight = new THREE.DirectionalLight(0xfef08a, 0.6);
+        const rimLight = new THREE.DirectionalLight(0xfef08a, 0.65);
         rimLight.position.set(0, 3, -3);
         scene.add(rimLight);
 
@@ -250,10 +258,15 @@ window.Pet3DEngine = (function () {
 
         try {
             clock = new THREE.Clock();
+            if (typeof THREE.FBXLoader !== 'undefined') {
+                fbxLoader = new THREE.FBXLoader();
+            }
             if (typeof THREE.GLTFLoader !== 'undefined') {
                 gltfLoader = new THREE.GLTFLoader();
-            } else {
-                console.warn('[Pet3D] GLTFLoader not loaded, will attempt dynamic load.');
+            }
+            if (typeof THREE.TextureLoader !== 'undefined') {
+                textureLoader = new THREE.TextureLoader();
+                sharedTexture = textureLoader.load('/static/models/ithappy/Texture.png');
             }
 
             roaming = createViewport('roaming-pet-canvas', 160, 170, { x: 1.1, y: 1.05, z: 2.5 }, { x: 0, y: 0.46, z: 0 });
@@ -269,13 +282,13 @@ window.Pet3DEngine = (function () {
     }
 
     // ==========================================
-    // 🐾 REAL 3D ANIMATED MODEL LOADER
+    // 🐾 MODEL LOADER (FBX & GLTF SUPPORT)
     // ==========================================
     function loadModelForViewport(vp, species) {
         if (!vp || !vp.scene) return;
         const cfg = SPECIES_CONFIG[species] || SPECIES_CONFIG['shiba'];
 
-        // Clean up previous model in this viewport
+        // Cleanup previous model
         if (vp.modelGroup) {
             vp.scene.remove(vp.modelGroup);
             disposeHierarchy(vp.modelGroup);
@@ -289,17 +302,58 @@ window.Pet3DEngine = (function () {
         vp.currentAction = null;
         vp.headphonesMesh = null;
 
-        const loader = gltfLoader || (typeof THREE.GLTFLoader !== 'undefined' ? new THREE.GLTFLoader() : null);
-        if (!loader) {
-            console.warn('[Pet3D] GLTFLoader unavailable, using procedural fallback.');
-            buildProceduralFallback(vp, cfg);
-            return;
+        const isFbx = cfg.modelUrl.endsWith('.fbx');
+
+        if (isFbx) {
+            const loader = fbxLoader || (typeof THREE.FBXLoader !== 'undefined' ? new THREE.FBXLoader() : null);
+            if (!loader) {
+                console.warn('[Pet3D] FBXLoader not ready, using fallback.');
+                buildProceduralFallback(vp, cfg);
+                return;
+            }
+
+            loader.load(cfg.modelUrl, (object) => {
+                setupLoadedModel(vp, object, object.animations, cfg, true);
+            }, undefined, (err) => {
+                console.error('[Pet3D] FBX load error:', cfg.modelUrl, err);
+                buildProceduralFallback(vp, cfg);
+            });
+        } else {
+            const loader = gltfLoader || (typeof THREE.GLTFLoader !== 'undefined' ? new THREE.GLTFLoader() : null);
+            if (!loader) {
+                buildProceduralFallback(vp, cfg);
+                return;
+            }
+
+            loader.load(cfg.modelUrl, (gltf) => {
+                setupLoadedModel(vp, gltf.scene, gltf.animations, cfg, false);
+            }, undefined, (err) => {
+                console.error('[Pet3D] GLTF load error:', cfg.modelUrl, err);
+                buildProceduralFallback(vp, cfg);
+            });
         }
+    }
 
-        loader.load(cfg.modelUrl, (gltf) => {
-            const root = gltf.scene;
+    function setupLoadedModel(vp, root, animations, cfg, isFbx) {
+        if (!vp || !vp.scene) return;
 
-            // Enable shadows & smooth materials
+        // Apply shared palette texture for FBX or optimize GLTF materials
+        if (isFbx) {
+            const tex = sharedTexture || (textureLoader ? textureLoader.load(cfg.textureUrl) : null);
+            root.traverse(child => {
+                if (child.isMesh) {
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                    if (tex) {
+                        child.material = new THREE.MeshStandardMaterial({
+                            map: tex,
+                            roughness: 0.42,
+                            metalness: 0.05
+                        });
+                    }
+                }
+            });
+        } else {
             root.traverse(child => {
                 if (child.isMesh) {
                     child.castShadow = true;
@@ -309,60 +363,52 @@ window.Pet3DEngine = (function () {
                     }
                 }
             });
+        }
 
-            // Automatic bounding box normalization & centering
-            const box = new THREE.Box3().setFromObject(root);
-            const size = box.getSize(new THREE.Vector3());
-            const center = box.getCenter(new THREE.Vector3());
-            const maxDim = Math.max(size.x, size.y, size.z) || 1;
+        // Auto-Fit Bounding Box Normalization
+        const box = new THREE.Box3().setFromObject(root);
+        const size = box.getSize(new THREE.Vector3());
+        const center = box.getCenter(new THREE.Vector3());
+        const maxDim = Math.max(size.x, size.y, size.z) || 1;
 
-            const targetHeight = cfg.targetHeight || 1.3;
-            const scale = targetHeight / maxDim;
+        const targetHeight = cfg.targetHeight || 1.35;
+        const scale = targetHeight / maxDim;
 
-            const modelWrapper = new THREE.Group();
-            modelWrapper.position.set(0, 0, 0);
-            modelWrapper.rotation.y = cfg.rotOffsetY || -0.35;
+        const modelWrapper = new THREE.Group();
+        modelWrapper.position.set(0, 0, 0);
+        modelWrapper.rotation.y = cfg.rotOffsetY || -0.35;
 
-            root.scale.setScalar(scale);
-            root.position.x = -center.x * scale;
-            root.position.y = -box.min.y * scale; // paw base at ground y = 0
-            root.position.z = -center.z * scale;
+        root.scale.setScalar(scale);
+        root.position.x = -center.x * scale;
+        root.position.y = -box.min.y * scale; // Feet on ground at y = 0
+        root.position.z = -center.z * scale;
 
-            modelWrapper.add(root);
+        modelWrapper.add(root);
 
-            // 3D Neon DJ Headphones attached to pet
-            const headY = (box.max.y - box.min.y) * scale * 0.95;
-            const hpGroup = createHeadphonesMesh();
-            hpGroup.position.set(0, headY, 0);
-            hpGroup.visible = isDancing;
-            modelWrapper.add(hpGroup);
-            vp.headphonesMesh = hpGroup;
+        // Neon DJ Headphones
+        const headY = (box.max.y - box.min.y) * scale * 0.95;
+        const hpGroup = createHeadphonesMesh();
+        hpGroup.position.set(0, headY, 0);
+        hpGroup.visible = isDancing;
+        modelWrapper.add(hpGroup);
+        vp.headphonesMesh = hpGroup;
 
-            // Setup Skeletal Animation Mixer
-            if (gltf.animations && gltf.animations.length > 0) {
-                vp.animations = gltf.animations;
-                vp.mixer = new THREE.AnimationMixer(root);
+        // Animation Mixer setup
+        if (animations && animations.length > 0) {
+            vp.animations = animations;
+            vp.mixer = new THREE.AnimationMixer(root);
+            animations.forEach(clip => {
+                vp.actions[clip.name] = vp.mixer.clipAction(clip);
+            });
+            playAnimation(vp, isDancing ? 'dance' : 'idle');
+        }
 
-                gltf.animations.forEach(clip => {
-                    const action = vp.mixer.clipAction(clip);
-                    vp.actions[clip.name] = action;
-                });
+        vp.modelGroup = modelWrapper;
+        vp.scene.add(modelWrapper);
 
-                // Play default idle animation
-                playAnimation(vp, isDancing ? 'dance' : 'idle');
-            }
-
-            vp.modelGroup = modelWrapper;
-            vp.scene.add(modelWrapper);
-
-            // Adjust camera lookAt
-            if (cfg.camY) {
-                vp.camera.lookAt(0, cfg.camY, 0);
-            }
-        }, undefined, (err) => {
-            console.error('[Pet3D] Error loading 3D model:', cfg.modelUrl, err);
-            buildProceduralFallback(vp, cfg);
-        });
+        if (cfg.camY) {
+            vp.camera.lookAt(0, cfg.camY, 0);
+        }
     }
 
     function playAnimation(vp, animType) {
@@ -371,12 +417,12 @@ window.Pet3DEngine = (function () {
         const anims = vp.animations;
         let targetClip = null;
 
-        if (animType === 'eat') {
-            targetClip = anims.find(a => a.name.toLowerCase().includes('eat')) || anims[0];
+        if (animType === 'dance') {
+            targetClip = anims.find(a => a.name.toLowerCase().includes('walk') || a.name.toLowerCase().includes('run') || a.name.toLowerCase().includes('gallop')) || anims[0];
         } else if (animType === 'jump') {
-            targetClip = anims.find(a => a.name.toLowerCase().includes('jump') || a.name.toLowerCase().includes('headbutt') || a.name.toLowerCase().includes('attack')) || anims[0];
-        } else if (animType === 'dance') {
-            targetClip = anims.find(a => a.name.toLowerCase().includes('gallop') || a.name.toLowerCase().includes('run') || a.name.toLowerCase().includes('walk')) || anims[0];
+            targetClip = anims.find(a => a.name.toLowerCase().includes('run') || a.name.toLowerCase().includes('jump') || a.name.toLowerCase().includes('attack')) || anims[0];
+        } else if (animType === 'eat') {
+            targetClip = anims.find(a => a.name.toLowerCase().includes('walk') || a.name.toLowerCase().includes('eat')) || anims[0];
         } else {
             // Idle
             targetClip = anims.find(a => a.name.toLowerCase().includes('idle') || a.name.toLowerCase().includes('survey')) || anims[0];
