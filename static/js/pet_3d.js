@@ -43,10 +43,10 @@ window.Pet3DEngine = (function () {
     let textureLoader = null;
     let sharedTexture = null;
 
-    // Animal Pack Models & Configurations (Matching User's ANIMAL folder)
+    // Animal Pack Models & Configurations (Matching User's ANIMAL folder & GLTF assets)
     const SPECIES_CONFIG = {
         shiba: {
-            modelUrl: '/static/models/ithappy/Dog_001.fbx',
+            modelUrl: '/static/models/ithappy/Dog_001.glb',
             textureUrl: '/static/models/ithappy/Texture_1.png',
             name_vi: 'Chó Cưng (Dog)',
             emoji: '🐕',
@@ -58,7 +58,7 @@ window.Pet3DEngine = (function () {
             camPosY: 1.15
         },
         neko: {
-            modelUrl: '/static/models/ithappy/Kitty_001.fbx',
+            modelUrl: '/static/models/ithappy/Kitty_001.glb',
             textureUrl: '/static/models/ithappy/Texture_1.png',
             name_vi: 'Mèo Kitty',
             emoji: '🐱',
@@ -70,7 +70,7 @@ window.Pet3DEngine = (function () {
             camPosY: 1.12
         },
         fox: {
-            modelUrl: '/static/models/ithappy/Tiger_001.fbx',
+            modelUrl: '/static/models/ithappy/Tiger_001.glb',
             textureUrl: '/static/models/ithappy/Texture_1.png',
             name_vi: 'Hổ Vằn (Tiger)',
             emoji: '🐯',
@@ -82,20 +82,20 @@ window.Pet3DEngine = (function () {
             camPosY: 1.15
         },
         bunny: {
-            modelUrl: '/static/models/ithappy/Pinguin_001.fbx',
+            modelUrl: '/static/models/ithappy/Pinguin_001.glb',
             textureUrl: '/static/models/ithappy/Texture_1.png',
             name_vi: 'Cánh Cụt (Penguin)',
             emoji: '🐧',
             sound: 'Pingu pingu~ ❄️',
             food_name: 'Cá nhỏ 🐟',
-            targetHeight: 1.25,
+            targetHeight: 1.20,
             rotOffsetY: -0.35,
-            camY: 0.68,
+            camY: 0.66,
             camPosY: 1.18,
             haloExtraY: 0.08
         },
         panda: {
-            modelUrl: '/static/models/ithappy/Horse_001.fbx',
+            modelUrl: '/static/models/ithappy/Horse_001.glb',
             textureUrl: '/static/models/ithappy/Texture_1.png',
             name_vi: 'Ngựa Con (Pony)',
             emoji: '🐴',
@@ -107,7 +107,7 @@ window.Pet3DEngine = (function () {
             camPosY: 1.15
         },
         dragon: {
-            modelUrl: '/static/models/ithappy/Deer_001.fbx',
+            modelUrl: '/static/models/ithappy/Deer_001.glb',
             textureUrl: '/static/models/ithappy/Texture_1.png',
             name_vi: 'Hươu Sao (Deer)',
             emoji: '🦌',
@@ -119,7 +119,7 @@ window.Pet3DEngine = (function () {
             camPosY: 1.15
         },
         chicken: {
-            modelUrl: '/static/models/ithappy/Chicken_001.fbx',
+            modelUrl: '/static/models/ithappy/Chicken_001.glb',
             textureUrl: '/static/models/ithappy/Texture_1.png',
             name_vi: 'Gà Con (Chick)',
             emoji: '🐥',
@@ -129,8 +129,40 @@ window.Pet3DEngine = (function () {
             rotOffsetY: -0.35,
             camY: 0.52,
             camPosY: 1.10
+        },
+        husky: {
+            modelUrl: '/static/models/husky.gltf',
+            name_vi: 'Chó Husky',
+            emoji: '🐺',
+            sound: 'Húuu~ Woof! ❄️',
+            food_name: 'Thịt nướng 🍖',
+            targetHeight: 1.30,
+            rotOffsetY: -0.35,
+            camY: 0.58,
+            camPosY: 1.15
+        },
+        alpaca: {
+            modelUrl: '/static/models/alpaca.gltf',
+            name_vi: 'Lạc Đà Alpaca',
+            emoji: '🦙',
+            sound: 'Hummm~ 🌸',
+            food_name: 'Cỏ non 🌿',
+            targetHeight: 1.35,
+            rotOffsetY: -0.35,
+            camY: 0.58,
+            camPosY: 1.15
         }
     };
+
+    // Aliases for developer convenience & multi-key compatibility
+    SPECIES_CONFIG.dog = SPECIES_CONFIG.shiba;
+    SPECIES_CONFIG.kitty = SPECIES_CONFIG.neko;
+    SPECIES_CONFIG.cat = SPECIES_CONFIG.neko;
+    SPECIES_CONFIG.tiger = SPECIES_CONFIG.fox;
+    SPECIES_CONFIG.penguin = SPECIES_CONFIG.bunny;
+    SPECIES_CONFIG.pinguin = SPECIES_CONFIG.bunny;
+    SPECIES_CONFIG.horse = SPECIES_CONFIG.panda;
+    SPECIES_CONFIG.deer = SPECIES_CONFIG.dragon;
 
     function init(data) {
         petData = data || {};
@@ -455,10 +487,16 @@ window.Pet3DEngine = (function () {
                     child.castShadow = true;
                     child.receiveShadow = true;
                     if (child.material) {
-                        child.material.roughness = Math.min(child.material.roughness || 0.45, 0.65);
+                        child.material.roughness = Math.min(child.material.roughness !== undefined ? child.material.roughness : 0.5, 0.65);
+                        child.material.metalness = Math.min(child.material.metalness !== undefined ? child.material.metalness : 0.05, 0.15);
                         if (child.material.map) {
                             child.material.map.encoding = THREE.sRGBEncoding;
+                            child.material.map.needsUpdate = true;
                         }
+                        if (child.isSkinnedMesh) {
+                            child.material.skinning = true;
+                        }
+                        child.material.needsUpdate = true;
                     }
                 }
             });

@@ -2416,7 +2416,19 @@ PET_TYPES = {
     'panda':   {'name_vi': 'Ngựa Con (Pony)',   'name_ja': '子馬',        'emoji': '🐴', 'sound': 'Hí hí~ Nhong! 🌾',  'food_name': 'Cà rốt 🥕',   'desc': 'Năng động, chạy nhảy siêu nhanh giúp tiến độ luôn thần tốc'},
     'dragon':  {'name_vi': 'Hươu Sao (Deer)',   'name_ja': 'シカ',        'emoji': '🦌', 'sound': 'Ngơ ngác ngác~ 🌿', 'food_name': 'Lộc non 🍀',   'desc': 'Thanh thoát, hiền lành, mang lại may mắn và bình an'},
     'chicken': {'name_vi': 'Gà Con (Chick)',    'name_ja': 'ヒヨコ',      'emoji': '🐥', 'sound': 'Chíp chíp! 🌾',     'food_name': 'Thóc vàng 🌾', 'desc': 'Nhí nhảnh, siêng năng dậy sớm gáy nhắc việc'},
+    'husky':   {'name_vi': 'Chó Husky',         'name_ja': 'ハスキー',    'emoji': '🐺', 'sound': 'Húuu~ Woof! ❄️',   'food_name': 'Thịt nướng 🍖', 'desc': 'Ngáo ngơ, hài hước, năng lượng tràn trề tiếp thêm động lực'},
+    'alpaca':  {'name_vi': 'Lạc Đà Alpaca',     'name_ja': 'アルパカ',    'emoji': '🦙', 'sound': 'Hummm~ 🌸',         'food_name': 'Cỏ non 🌿',    'desc': 'Bông xù đáng yêu, điềm tĩnh xả stress cực tốt'},
 }
+
+# Aliases for multi-key compatibility
+PET_TYPES['dog'] = PET_TYPES['shiba']
+PET_TYPES['cat'] = PET_TYPES['neko']
+PET_TYPES['kitty'] = PET_TYPES['neko']
+PET_TYPES['tiger'] = PET_TYPES['fox']
+PET_TYPES['penguin'] = PET_TYPES['bunny']
+PET_TYPES['pinguin'] = PET_TYPES['bunny']
+PET_TYPES['horse'] = PET_TYPES['panda']
+PET_TYPES['deer'] = PET_TYPES['dragon']
 
 # XP thresholds per level range
 def _pet_xp_for_level(level):
