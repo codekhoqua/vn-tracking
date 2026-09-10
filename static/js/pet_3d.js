@@ -17,8 +17,10 @@ window.Pet3DEngine = (function () {
     let petData = null;
     let currentSpecies = 'shiba';
     let is3DActive = true;
+    let isInitialized = false;
     let animationFrameId = null;
     let clock = null;
+    let lastAnimTimestamp = performance.now();
 
     // Animation states
     let isDancing = false;
@@ -120,14 +122,23 @@ window.Pet3DEngine = (function () {
 
     function init(data) {
         petData = data || {};
-        currentSpecies = petData.type && SPECIES_CONFIG[petData.type] ? petData.type : 'shiba';
+        const newSpecies = petData.type && SPECIES_CONFIG[petData.type] ? petData.type : 'shiba';
 
+        if (isInitialized) {
+            if (newSpecies !== currentSpecies) {
+                switchSpecies(newSpecies);
+            }
+            return;
+        }
+
+        currentSpecies = newSpecies;
         createDOM();
         initThree();
         setupListeners();
         buildPets(currentSpecies);
         checkErgonomicsTimer();
         startLivelyBehaviors();
+        isInitialized = true;
 
         if (window.radioState && window.radioState.is_playing && window.isListening) {
             setDancing(true);
@@ -144,19 +155,31 @@ window.Pet3DEngine = (function () {
             roamingEl = document.createElement('div');
             roamingEl.id = 'roaming-pet-container';
             roamingEl.className = 'roaming-pet-3d-wrapper';
+            roamingEl.innerHTML = `
+                <div class="pet-3d-canvas-box">
+                    <canvas id="roaming-pet-canvas" width="160" height="170"></canvas>
+                </div>
+                <div id="pet-speech-bubble" class="pet-speech-bubble">
+                    <div id="pet-speech-tag" class="pet-speech-tag"></div>
+                    <div id="pet-speech-text" class="pet-speech-text"></div>
+                    <div id="pet-speech-actions" class="pet-speech-actions"></div>
+                </div>
+                <div class="pet-interaction-ring" title="Xoa đầu / Trò chuyện"></div>
+            `;
             document.body.appendChild(roamingEl);
+        } else if (!document.getElementById('roaming-pet-canvas')) {
+            roamingEl.innerHTML = `
+                <div class="pet-3d-canvas-box">
+                    <canvas id="roaming-pet-canvas" width="160" height="170"></canvas>
+                </div>
+                <div id="pet-speech-bubble" class="pet-speech-bubble">
+                    <div id="pet-speech-tag" class="pet-speech-tag"></div>
+                    <div id="pet-speech-text" class="pet-speech-text"></div>
+                    <div id="pet-speech-actions" class="pet-speech-actions"></div>
+                </div>
+                <div class="pet-interaction-ring" title="Xoa đầu / Trò chuyện"></div>
+            `;
         }
-        roamingEl.innerHTML = `
-            <div class="pet-3d-canvas-box">
-                <canvas id="roaming-pet-canvas" width="160" height="170"></canvas>
-            </div>
-            <div id="pet-speech-bubble" class="pet-speech-bubble">
-                <div id="pet-speech-tag" class="pet-speech-tag"></div>
-                <div id="pet-speech-text" class="pet-speech-text"></div>
-                <div id="pet-speech-actions" class="pet-speech-actions"></div>
-            </div>
-            <div class="pet-interaction-ring" title="Xoa đầu / Trò chuyện"></div>
-        `;
         roamingEl.style.display = 'block';
 
         // 2. INSIDE PANEL CONTAINER
@@ -507,13 +530,75 @@ window.Pet3DEngine = (function () {
         }
         if (pose === 'eat') {
             return anims.find(a => norm(a.name).includes('eat') || norm(a.name).includes('eating')) ||
-                   anims.find(a => norm(a.name).includes('walk')) || anims[0];
+                   anims.find(a => norm(a.name).includes('idle')) || anims[0];
         }
         if (pose === 'trick' || pose === 'jump') {
             return anims.find(a => norm(a.name).includes('rare') || norm(a.name).includes('jump') || norm(a.name).includes('attack') || norm(a.name).includes('bark') || norm(a.name).includes('headbutt')) ||
                    anims.find(a => norm(a.name).includes('run')) || anims[0];
         }
         return anims[0];
+    }
+
+    function doTrickEffect(vp) {
+        if (!vp || !vp.modelGroup) return;
+        spawnParticles('star', 7);
+        const startY = 0;
+        const startTime = performance.now();
+        const duration = 1100;
+        const cfg = SPECIES_CONFIG[currentSpecies] || SPECIES_CONFIG['shiba'];
+        const baseRotY = cfg.rotOffsetY || -0.35;
+
+        const spinAnim = () => {
+            const elapsed = performance.now() - startTime;
+            const progress = Math.min(elapsed / duration, 1.0);
+            
+            // Leaping parabolic arc: 4 * h * p * (1 - p)
+            const jumpHeight = 0.35;
+            vp.modelGroup.position.y = startY + 4 * jumpHeight * progress * (1 - progress);
+            // Joyful 360-degree spin
+            vp.modelGroup.rotation.y = baseRotY + progress * Math.PI * 2;
+
+            if (progress < 1.0) {
+                requestAnimationFrame(spinAnim);
+            } else {
+                vp.modelGroup.position.y = startY;
+                vp.modelGroup.rotation.y = baseRotY;
+                spawnParticles('star', 4);
+            }
+        };
+        requestAnimationFrame(spinAnim);
+    }
+
+    function doEatEffect(vp) {
+        if (!vp || !vp.scene) return;
+        spawnParticles('heart', 4);
+
+        // Drop 3D treat
+        if (vp.foodMesh) {
+            vp.scene.remove(vp.foodMesh);
+            if (vp.foodMesh.geometry) vp.foodMesh.geometry.dispose();
+            if (vp.foodMesh.material) vp.foodMesh.material.dispose();
+        }
+        const foodMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.25 });
+        const foodGeo = new THREE.DodecahedronGeometry(0.12);
+        vp.foodMesh = new THREE.Mesh(foodGeo, foodMat);
+        vp.foodMesh.position.set(0, 1.4, 0.28);
+        vp.scene.add(vp.foodMesh);
+
+        // Head chewing bobbing
+        const startRotX = vp.modelGroup ? vp.modelGroup.rotation.x : 0;
+        const startTime = performance.now();
+        const chewDuration = 2200;
+        const chewAnim = () => {
+            const elapsed = performance.now() - startTime;
+            if (elapsed < chewDuration && vp.modelGroup) {
+                vp.modelGroup.rotation.x = startRotX + Math.sin(elapsed * 0.015) * 0.12 + 0.08;
+                requestAnimationFrame(chewAnim);
+            } else if (vp.modelGroup) {
+                vp.modelGroup.rotation.x = startRotX;
+            }
+        };
+        requestAnimationFrame(chewAnim);
     }
 
     function playAnimation(vp, animType) {
@@ -523,22 +608,26 @@ window.Pet3DEngine = (function () {
         if (!targetClip) return;
 
         const newAction = vp.actions[targetClip.name] || vp.mixer.clipAction(targetClip);
-        if (vp.currentAction === newAction && newAction.isRunning()) return;
 
-        if (vp.currentAction) {
-            vp.currentAction.fadeOut(0.25);
+        if (vp.currentAction && vp.currentAction !== newAction) {
+            vp.currentAction.fadeOut(0.2);
         }
 
-        newAction.reset().fadeIn(0.25).play();
-
-        if (animType === 'jump') {
-            newAction.setLoop(THREE.LoopOnce);
-            newAction.clampWhenFinished = false;
-        } else {
-            newAction.setLoop(THREE.LoopRepeat);
-        }
+        newAction.reset();
+        newAction.fadeIn(0.2);
+        const speed = animType === 'eat' ? 0.75 : (animType === 'run' ? 1.35 : 1.0);
+        newAction.setEffectiveTimeScale(speed);
+        newAction.setEffectiveWeight(1.0);
+        newAction.setLoop(THREE.LoopRepeat);
+        newAction.play();
 
         vp.currentAction = newAction;
+
+        if (animType === 'trick') {
+            doTrickEffect(vp);
+        } else if (animType === 'eat') {
+            doEatEffect(vp);
+        }
     }
 
     function setPose(poseName) {
@@ -756,7 +845,7 @@ window.Pet3DEngine = (function () {
             if (rEl && rEl.style.display === 'none') return;
         }
 
-        // Update skeletal animations
+        // Update skeletal animations with accurate delta
         if (vp.mixer) {
             vp.mixer.update(delta);
         }
@@ -772,8 +861,25 @@ window.Pet3DEngine = (function () {
             vp.modelGroup.rotation.x += (targetRotX - vp.modelGroup.rotation.x) * 0.08;
         }
 
+        // Dynamic pose bounce & physics
+        if (vp.modelGroup && !isJumping) {
+            if (isDancing) {
+                const beat = time * 7.5;
+                vp.modelGroup.position.y = Math.abs(Math.sin(beat)) * 0.06;
+                if (Math.random() < 0.02) {
+                    spawnParticles('note', 1);
+                }
+            } else if (currentPose === 'run') {
+                vp.modelGroup.position.y = Math.abs(Math.sin(time * 9.0)) * 0.045;
+            } else if (currentPose === 'walk') {
+                vp.modelGroup.position.y = Math.sin(time * 5.0) * 0.025;
+            } else if (currentPose === 'idle') {
+                vp.modelGroup.position.y = 0;
+            }
+        }
+
         // Food falling physics
-        if (isEating && vp.foodMesh) {
+        if ((isEating || currentPose === 'eat') && vp.foodMesh) {
             vp.foodMesh.position.y -= 0.032;
             vp.foodMesh.rotation.x += 0.08;
             vp.foodMesh.rotation.y += 0.08;
@@ -786,28 +892,42 @@ window.Pet3DEngine = (function () {
             }
         }
 
-        // DJ beat dancing bounce
-        if (isDancing && vp.modelGroup) {
-            const beat = time * 7.5;
-            vp.modelGroup.position.y = Math.abs(Math.sin(beat)) * 0.06;
-            if (Math.random() < 0.02) {
-                spawnParticles('note', 1);
-            }
-        } else if (vp.modelGroup) {
-            vp.modelGroup.position.y = 0;
-        }
-
         updateParticlesFor(vp);
         vp.renderer.render(vp.scene, vp.camera);
     }
 
     function animate() {
         animationFrameId = requestAnimationFrame(animate);
-        const time = clock ? clock.getElapsedTime() : 0;
-        const delta = clock ? clock.getDelta() : 0.016;
+        const now = performance.now();
+        const delta = Math.min((now - lastAnimTimestamp) / 1000, 0.1);
+        lastAnimTimestamp = now;
+        const time = clock ? clock.getElapsedTime() : (now / 1000);
 
         updateViewportAnimation(roaming, time, delta);
         updateViewportAnimation(panel, time, delta);
+    }
+
+    function onPanelShow() {
+        if (panel && panel.renderer && panel.camera) {
+            panel.renderer.setSize(panel.width, panel.height);
+            panel.camera.aspect = panel.width / panel.height;
+            panel.camera.updateProjectionMatrix();
+        }
+    }
+
+    function resetPosition() {
+        try {
+            localStorage.removeItem('roaming_pet_pos');
+        } catch(e) {}
+        const roamingContainer = document.getElementById('roaming-pet-container');
+        if (roamingContainer) {
+            roamingContainer.style.left = '';
+            roamingContainer.style.top = '';
+            roamingContainer.style.bottom = '20px';
+            roamingContainer.style.right = '90px';
+            roamingContainer.classList.remove('shifted-for-panel');
+        }
+        showBubble('Đã đưa thú cưng về góc phải màn hình! 📍', 'Vị trí mặc định', 2500);
     }
 
     let livelyTimer = null;
@@ -843,26 +963,46 @@ window.Pet3DEngine = (function () {
             let petStartPos = { left: 0, top: 0 };
             let hasMoved = false;
 
-            // Restore saved position if available
+            // Restore saved position if available, or reset if stuck on left due to previous bug
             try {
                 const savedPos = JSON.parse(localStorage.getItem('roaming_pet_pos') || 'null');
                 if (savedPos && typeof savedPos.left === 'number' && typeof savedPos.top === 'number') {
-                    const maxLeft = Math.max(10, window.innerWidth - 180);
-                    const maxTop = Math.max(10, window.innerHeight - 190);
-                    const clampedLeft = Math.max(10, Math.min(maxLeft, savedPos.left));
-                    const clampedTop = Math.max(10, Math.min(maxTop, savedPos.top));
-                    roamingContainer.style.left = clampedLeft + 'px';
-                    roamingContainer.style.top = clampedTop + 'px';
-                    roamingContainer.style.bottom = 'auto';
-                    roamingContainer.style.right = 'auto';
+                    if (savedPos.left < window.innerWidth * 0.65) {
+                        localStorage.removeItem('roaming_pet_pos');
+                        roamingContainer.style.left = '';
+                        roamingContainer.style.top = '';
+                        roamingContainer.style.bottom = '20px';
+                        roamingContainer.style.right = '90px';
+                    } else {
+                        const maxLeft = Math.max(10, window.innerWidth - 180);
+                        const maxTop = Math.max(10, window.innerHeight - 190);
+                        const clampedLeft = Math.max(10, Math.min(maxLeft, savedPos.left));
+                        const clampedTop = Math.max(10, Math.min(maxTop, savedPos.top));
+                        roamingContainer.style.left = clampedLeft + 'px';
+                        roamingContainer.style.top = clampedTop + 'px';
+                        roamingContainer.style.bottom = 'auto';
+                        roamingContainer.style.right = 'auto';
+                    }
+                } else {
+                    roamingContainer.style.left = '';
+                    roamingContainer.style.top = '';
+                    roamingContainer.style.bottom = '20px';
+                    roamingContainer.style.right = '90px';
                 }
             } catch(e) {}
+
+            // Double click on pet resets position to default bottom-right
+            roamingContainer.addEventListener('dblclick', (e) => {
+                e.preventDefault();
+                resetPosition();
+            });
 
             roamingContainer.addEventListener('mousedown', (e) => {
                 if (e.target.closest('#pet-speech-actions') || e.target.closest('button')) return;
                 isDraggingPet = true;
                 hasMoved = false;
                 dragPetStart = { x: e.clientX, y: e.clientY };
+                roamingContainer.classList.remove('shifted-for-panel');
                 const rect = roamingContainer.getBoundingClientRect();
                 petStartPos = { left: rect.left, top: rect.top };
                 roamingContainer.style.transition = 'none';
@@ -873,7 +1013,7 @@ window.Pet3DEngine = (function () {
                 if (!isDraggingPet) return;
                 const dx = e.clientX - dragPetStart.x;
                 const dy = e.clientY - dragPetStart.y;
-                if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
+                if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
                     hasMoved = true;
                 }
                 if (hasMoved) {
@@ -1009,6 +1149,8 @@ window.Pet3DEngine = (function () {
         hideBubble,
         switchSpecies,
         syncPet,
+        resetPosition,
+        onPanelShow,
         SPECIES_CONFIG
     };
 })();
