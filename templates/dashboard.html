@@ -232,7 +232,7 @@
             style="border-radius: var(--radius-sm); margin-right: 8px;">
         <div style="display: flex; flex-direction: column; justify-content: center;">
             <span>VN-Tracking</span>
-            <sup class="version-tag" style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.3.92</i></sup>
+            <sup class="version-tag" style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.3.93</i></sup>
         </div>
     </div>
 
@@ -2579,6 +2579,18 @@
     <div class="pet-bubble-mood" id="pet-bubble-mood"></div>
 </div>
 
+<div id="roaming-pet-container" class="roaming-pet-3d-wrapper" style="display:none;">
+    <div class="pet-3d-canvas-box">
+        <canvas id="roaming-pet-canvas" width="160" height="170"></canvas>
+    </div>
+    <div id="pet-speech-bubble" class="pet-speech-bubble">
+        <div id="pet-speech-tag" class="pet-speech-tag"></div>
+        <div id="pet-speech-text" class="pet-speech-text"></div>
+        <div id="pet-speech-actions" class="pet-speech-actions"></div>
+    </div>
+    <div class="pet-interaction-ring" title="Xoa đầu / Trò chuyện"></div>
+</div>
+
 <div id="pet-panel" class="pet-panel">
     <div class="pet-panel-header">
         <span>🐾 {{ 'My Pet' if lang == 'vi' else 'マイペット' }}</span>
@@ -2594,13 +2606,8 @@
     </div>
     <div class="pet-panel-body">
         <div class="pet-display" id="pet-display">
-            <div id="pet-3d-canvas-box" class="pet-3d-canvas-box">
-                <canvas id="pet-3d-canvas" width="160" height="160"></canvas>
-            </div>
-            <div id="pet-speech-bubble" class="pet-speech-bubble">
-                <div id="pet-speech-tag" class="pet-speech-tag"></div>
-                <div id="pet-speech-text" class="pet-speech-text"></div>
-                <div id="pet-speech-actions" class="pet-speech-actions"></div>
+            <div id="panel-pet-canvas-box" class="panel-pet-canvas-box">
+                <canvas id="panel-pet-canvas" width="150" height="150"></canvas>
             </div>
             <div class="pet-stage-badge" id="pet-stage-badge">BABY</div>
         </div>
@@ -2879,9 +2886,53 @@
     overflow-y: auto;
     overflow-x: visible;
 }
+/* ===== 🐾 3D VIRTUAL PET WRAPPERS ===== */
+.roaming-pet-3d-wrapper {
+    position: fixed;
+    bottom: -15px;
+    right: 120px;
+    z-index: 9998;
+    pointer-events: auto;
+    cursor: pointer;
+    user-select: none;
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.roaming-pet-3d-wrapper:hover {
+    transform: scale(1.06);
+}
+.pet-3d-canvas-box {
+    position: relative;
+    width: 160px;
+    height: 170px;
+    filter: drop-shadow(0 10px 24px rgba(0,0,0,0.5));
+}
+#roaming-pet-canvas {
+    width: 160px;
+    height: 170px;
+    outline: none;
+    display: block;
+    cursor: pointer;
+}
+.panel-pet-canvas-box {
+    position: relative;
+    width: 150px;
+    height: 150px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    filter: drop-shadow(0 8px 20px rgba(0,0,0,0.45));
+}
+#panel-pet-canvas {
+    width: 150px;
+    height: 150px;
+    outline: none;
+    display: block;
+    cursor: pointer;
+    border-radius: 50%;
+}
 .pet-display {
     position: relative;
-    width: 160px; height: 160px;
+    width: 150px; height: 150px;
     display: flex; align-items: center; justify-content: center;
     border-radius: 50%;
     background: radial-gradient(circle, rgba(139,92,246,0.25) 0%, rgba(99,102,241,0.08) 55%, transparent 72%);
@@ -2893,23 +2944,6 @@
 }
 .pet-display:hover {
     transform: scale(1.04);
-}
-.pet-3d-canvas-box {
-    position: relative;
-    width: 160px;
-    height: 160px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    filter: drop-shadow(0 10px 24px rgba(0,0,0,0.5));
-}
-#pet-3d-canvas {
-    width: 160px;
-    height: 160px;
-    outline: none;
-    display: block;
-    cursor: pointer;
-    border-radius: 50%;
 }
 .pet-stage-badge {
     position: absolute;
@@ -3151,13 +3185,13 @@
 }
 
 /* ===== PET SPEECH BUBBLE ===== */
-.pet-speech-bubble {
+.roaming-pet-3d-wrapper .pet-speech-bubble {
     position: absolute;
-    top: 10px;
+    bottom: 25px;
     right: 100%;
-    margin-right: 14px;
-    transform: translateX(0) translateY(0) scale(0.95);
-    transform-origin: top right;
+    margin-right: 12px;
+    transform: translateX(0) translateY(8px) scale(0.9);
+    transform-origin: bottom right;
     background: rgba(15, 23, 42, 0.94);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
@@ -3175,33 +3209,36 @@
     text-align: left;
     line-height: 1.4;
 }
-.pet-speech-text {
+.roaming-pet-3d-wrapper .pet-speech-text {
     font-size: 11px !important;
     color: #cbd5e1;
     word-break: break-word;
 }
-.pet-speech-bubble.active {
+.roaming-pet-3d-wrapper .pet-speech-bubble.active {
     opacity: 1;
     pointer-events: auto;
     transform: translateX(0) translateY(0) scale(1);
 }
-.pet-speech-bubble::after {
+.roaming-pet-3d-wrapper .pet-speech-bubble::after {
     content: '';
     position: absolute;
-    top: 24px;
+    top: 50%;
     left: 100%;
-    border-width: 7px;
+    margin-top: -6px;
+    border-width: 6px;
     border-style: solid;
-    border-color: transparent transparent transparent rgba(139, 92, 246, 0.4);
+    border-color: transparent transparent transparent rgba(139, 92, 246, 0.35);
     width: 0;
     height: 0;
 }
-.pet-speech-bubble::before {
+.roaming-pet-3d-wrapper .pet-speech-bubble::before {
     content: '';
     position: absolute;
-    top: 25px;
+    top: 50%;
     left: 100%;
-    border-width: 6px;
+    margin-top: -5px;
+    margin-left: -1px;
+    border-width: 5px;
     border-style: solid;
     border-color: transparent transparent transparent rgba(15, 23, 42, 0.94);
     z-index: 1;
@@ -3331,6 +3368,8 @@ async function initPet() {
             document.getElementById('pet-bubble-level').textContent = '?';
             document.getElementById('pet-bubble-mood').style.background = '#94a3b8'; // gray
             
+            const roamingEl = document.getElementById('roaming-pet-container');
+            if (roamingEl) roamingEl.style.display = 'none';
             if (window.Pet3DEngine) {
                 const panel = document.getElementById('pet-panel');
                 if (panel) panel.classList.remove('active');
@@ -3340,18 +3379,12 @@ async function initPet() {
         if (data.has_pet) {
             petData = data;
             
+            const roamingEl = document.getElementById('roaming-pet-container');
+            if (roamingEl) roamingEl.style.display = 'block';
             if (window.Pet3DEngine) {
                 window.Pet3DEngine.init(petData);
             }
             renderPet();
-            
-            // Restore saved panel state (default open)
-            const savedOpen = localStorage.getItem('pet_panel_open');
-            if (savedOpen !== 'false') {
-                petPanelOpen = true;
-                const panel = document.getElementById('pet-panel');
-                if (panel) panel.classList.add('active');
-            }
         }
     } catch(e) {
         console.log('Pet init error:', e);
@@ -3810,6 +3843,8 @@ async function adoptPet() {
             if (typeof confetti === 'function') {
                 confetti({ particleCount: 100, spread: 90, origin: { y: 0.6 }, colors: ['#8b5cf6', '#a78bfa', '#f59e0b', '#22c55e', '#ec4899'] });
             }
+            const roamingEl = document.getElementById('roaming-pet-container');
+            if (roamingEl) roamingEl.style.display = 'block';
             if (window.Pet3DEngine) {
                 window.Pet3DEngine.init(petData);
             }
