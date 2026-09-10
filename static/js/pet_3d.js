@@ -152,18 +152,90 @@ window.Pet3DEngine = (function () {
             rotOffsetY: 0.45,
             camY: 0.58,
             camPosY: 1.15
+        },
+        duck: {
+            modelUrl: '/static/models/duck.glb',
+            name_vi: 'Vịt Vàng (Duck)',
+            name_ja: 'アヒル',
+            emoji: '🦆',
+            sound: 'Cạp cạp! Quack! 🌊',
+            food_name: 'Bánh mì 🍞',
+            targetHeight: 1.15,
+            rotOffsetY: 0.45,
+            camY: 0.50,
+            camPosY: 1.05
+        },
+        redfox: {
+            modelUrl: '/static/models/fox.glb',
+            name_vi: 'Cáo Đỏ (Fox)',
+            name_ja: 'キツネ',
+            emoji: '🦊',
+            sound: 'Yip yip! 🍁',
+            food_name: 'Quả mọng 🫐',
+            targetHeight: 1.25,
+            rotOffsetY: 0.45,
+            camY: 0.52,
+            camPosY: 1.10
+        },
+        cat: {
+            modelUrl: '/static/models/cat.glb',
+            name_vi: 'Mèo Mun (Cat)',
+            name_ja: '黒猫',
+            emoji: '🐈',
+            sound: 'Meo meo~ Nya! 🐾',
+            food_name: 'Cá nướng 🐟',
+            targetHeight: 1.25,
+            rotOffsetY: 0.42,
+            camY: 0.54,
+            camPosY: 1.12
+        },
+        deer_forest: {
+            modelUrl: '/static/models/deer.gltf',
+            name_vi: 'Hươu Rừng (Forest Deer)',
+            name_ja: '森のシカ',
+            emoji: '🦌',
+            sound: 'Ngơ ngác~ 🌲',
+            food_name: 'Cỏ tươi 🌿',
+            targetHeight: 1.35,
+            rotOffsetY: 0.45,
+            camY: 0.58,
+            camPosY: 1.15
+        },
+        horse_stallion: {
+            modelUrl: '/static/models/horse.gltf',
+            name_vi: 'Chiến Mã (Stallion)',
+            name_ja: '駿馬',
+            emoji: '🐎',
+            sound: 'Hí hí~ Phi nhanh! ⚔️',
+            food_name: 'Táo đỏ 🍎',
+            targetHeight: 1.35,
+            rotOffsetY: 0.45,
+            camY: 0.58,
+            camPosY: 1.15
+        },
+        shiba_inu: {
+            modelUrl: '/static/models/shiba.gltf',
+            name_vi: 'Shiba Inu (Classic)',
+            name_ja: '柴犬',
+            emoji: '🐕',
+            sound: 'Gâu gâu! Wan! 🐾',
+            food_name: 'Thịt nướng 🍖',
+            targetHeight: 1.30,
+            rotOffsetY: 0.45,
+            camY: 0.58,
+            camPosY: 1.15
         }
     };
 
     // Aliases for developer convenience & multi-key compatibility
     SPECIES_CONFIG.dog = SPECIES_CONFIG.shiba;
     SPECIES_CONFIG.kitty = SPECIES_CONFIG.neko;
-    SPECIES_CONFIG.cat = SPECIES_CONFIG.neko;
     SPECIES_CONFIG.tiger = SPECIES_CONFIG.fox;
     SPECIES_CONFIG.penguin = SPECIES_CONFIG.bunny;
     SPECIES_CONFIG.pinguin = SPECIES_CONFIG.bunny;
     SPECIES_CONFIG.horse = SPECIES_CONFIG.panda;
     SPECIES_CONFIG.deer = SPECIES_CONFIG.dragon;
+    SPECIES_CONFIG.duckling = SPECIES_CONFIG.duck;
 
     function init(data) {
         petData = data || {};
