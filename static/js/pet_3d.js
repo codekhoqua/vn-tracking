@@ -2,11 +2,12 @@
  * 🐾 VN-Tracking 3D Virtual Pet Engine - Animal Pack (FBX & GLTF Rigged Models)
  * Dual Viewport: Outside Roaming Pet & Inside My Pet Menu
  * 
- * Powered by:
- * - Direct FBXLoader & GLTFLoader support for 3D animated animal models
- * - Built-in Skeletal Animations: Idle, Walk, Run, Jump, Eat
- * - Shared High-Definition Color Texture Atlas (/static/models/ithappy/Texture.png)
- * - Auto-Fit Bounding Box Normalization (Perfect center and height in all viewports)
+ * Features & Fixes:
+ * - Single-Instance Guarantee: Guaranteed 0 duplicate models on pet switch (petContainer.clear() + loadId generation guard)
+ * - True Skeletal Animations (FBX AnimStacks: _idle, _walk, _run)
+ * - Color Palette Texture Mapping with sRGB encoding & proper skinning
+ * - Balanced Studio Lighting (no blowout/washout)
+ * - Auto-Fit Bounding Box Normalization (paws grounded at y=0)
  * - Interactive Treat Feeding & Particles (❤️ / ⭐ / 🎵)
  * - Neon DJ Headphones with music sync
  * - Natural LookAt Cursor physics
@@ -39,18 +40,18 @@ window.Pet3DEngine = (function () {
     const SPECIES_CONFIG = {
         shiba: {
             modelUrl: '/static/models/ithappy/Dog_001.fbx',
-            textureUrl: '/static/models/ithappy/Texture.png',
+            textureUrl: '/static/models/ithappy/Texture_1.png',
             name_vi: 'Chó Cưng (Dog)',
             emoji: '🐕',
             sound: 'Gâu gâu! Woof! 🐾',
             food_name: 'Xương thịt 🍖',
-            targetHeight: 1.35,
+            targetHeight: 1.32,
             rotOffsetY: -0.35,
             camY: 0.45
         },
         neko: {
             modelUrl: '/static/models/ithappy/Kitty_001.fbx',
-            textureUrl: '/static/models/ithappy/Texture.png',
+            textureUrl: '/static/models/ithappy/Texture_1.png',
             name_vi: 'Mèo Kitty',
             emoji: '🐱',
             sound: 'Nya~ Meow! 🐾',
@@ -61,7 +62,7 @@ window.Pet3DEngine = (function () {
         },
         fox: {
             modelUrl: '/static/models/ithappy/Tiger_001.fbx',
-            textureUrl: '/static/models/ithappy/Texture.png',
+            textureUrl: '/static/models/ithappy/Texture_1.png',
             name_vi: 'Hổ Vằn (Tiger)',
             emoji: '🐯',
             sound: 'Grrr~ Gầm! 🐾',
@@ -72,7 +73,7 @@ window.Pet3DEngine = (function () {
         },
         bunny: {
             modelUrl: '/static/models/ithappy/Pinguin_001.fbx',
-            textureUrl: '/static/models/ithappy/Texture.png',
+            textureUrl: '/static/models/ithappy/Texture_1.png',
             name_vi: 'Cánh Cụt (Penguin)',
             emoji: '🐧',
             sound: 'Pingu pingu~ ❄️',
@@ -83,7 +84,7 @@ window.Pet3DEngine = (function () {
         },
         panda: {
             modelUrl: '/static/models/ithappy/Horse_001.fbx',
-            textureUrl: '/static/models/ithappy/Texture.png',
+            textureUrl: '/static/models/ithappy/Texture_1.png',
             name_vi: 'Ngựa Con (Pony)',
             emoji: '🐴',
             sound: 'Hí hí~ Nhong! 🌾',
@@ -94,7 +95,7 @@ window.Pet3DEngine = (function () {
         },
         dragon: {
             modelUrl: '/static/models/ithappy/Deer_001.fbx',
-            textureUrl: '/static/models/ithappy/Texture.png',
+            textureUrl: '/static/models/ithappy/Texture_1.png',
             name_vi: 'Hươu Sao (Deer)',
             emoji: '🦌',
             sound: 'Ngơ ngác ngác~ 🌿',
@@ -105,7 +106,7 @@ window.Pet3DEngine = (function () {
         },
         chicken: {
             modelUrl: '/static/models/ithappy/Chicken_001.fbx',
-            textureUrl: '/static/models/ithappy/Texture.png',
+            textureUrl: '/static/models/ithappy/Texture_1.png',
             name_vi: 'Gà Con (Chick)',
             emoji: '🐥',
             sound: 'Chíp chíp! 🌾',
@@ -193,39 +194,44 @@ window.Pet3DEngine = (function () {
         renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        renderer.toneMappingExposure = 1.15;
+        renderer.toneMappingExposure = 1.0;
         if (THREE.sRGBEncoding) {
             renderer.outputEncoding = THREE.sRGBEncoding;
         }
 
-        // Professional Character Lighting
-        const hemiLight = new THREE.HemisphereLight(0xffffff, 0x334155, 1.2);
+        // Balanced Studio Lighting
+        const hemiLight = new THREE.HemisphereLight(0xfff7ed, 0x1e293b, 0.95);
         scene.add(hemiLight);
 
-        const keyLight = new THREE.DirectionalLight(0xfffaed, 1.35);
-        keyLight.position.set(2.5, 4.5, 3.5);
+        const keyLight = new THREE.DirectionalLight(0xfffaed, 1.1);
+        keyLight.position.set(2.5, 4.0, 3.2);
         keyLight.castShadow = true;
         keyLight.shadow.mapSize.width = 1024;
         keyLight.shadow.mapSize.height = 1024;
         keyLight.shadow.bias = -0.001;
         scene.add(keyLight);
 
-        const fillLight = new THREE.DirectionalLight(0xbfdbfe, 0.7);
-        fillLight.position.set(-3, 2, 2);
+        const fillLight = new THREE.DirectionalLight(0xbfdbfe, 0.5);
+        fillLight.position.set(-2.8, 1.8, 2);
         scene.add(fillLight);
 
-        const rimLight = new THREE.DirectionalLight(0xfef08a, 0.65);
-        rimLight.position.set(0, 3, -3);
+        const rimLight = new THREE.DirectionalLight(0xfef08a, 0.4);
+        rimLight.position.set(0, 2.5, -2.8);
         scene.add(rimLight);
 
         // Ground Contact Shadow Disk
         const shadowGeo = new THREE.CircleGeometry(0.55, 24);
         shadowGeo.scale(1.0, 1.4, 1.0);
-        const shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.22 });
+        const shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.24 });
         const shadowMesh = new THREE.Mesh(shadowGeo, shadowMat);
         shadowMesh.rotation.x = -Math.PI / 2;
         shadowMesh.position.set(0, 0.015, 0);
         scene.add(shadowMesh);
+
+        // Dedicated Pet Container (Single Source of Truth for models)
+        const petContainer = new THREE.Group();
+        petContainer.name = 'petContainer';
+        scene.add(petContainer);
 
         const particleGroup = new THREE.Group();
         scene.add(particleGroup);
@@ -235,6 +241,7 @@ window.Pet3DEngine = (function () {
             scene,
             camera,
             renderer,
+            petContainer,
             particleGroup,
             particles: [],
             modelGroup: null,
@@ -244,6 +251,7 @@ window.Pet3DEngine = (function () {
             currentAction: null,
             headphonesMesh: null,
             foodMesh: null,
+            loadGen: 0,
             width,
             height
         };
@@ -266,7 +274,11 @@ window.Pet3DEngine = (function () {
             }
             if (typeof THREE.TextureLoader !== 'undefined') {
                 textureLoader = new THREE.TextureLoader();
-                sharedTexture = textureLoader.load('/static/models/ithappy/Texture.png');
+                sharedTexture = textureLoader.load('/static/models/ithappy/Texture_1.png');
+                if (sharedTexture) {
+                    sharedTexture.encoding = THREE.sRGBEncoding;
+                    sharedTexture.flipY = true;
+                }
             }
 
             roaming = createViewport('roaming-pet-canvas', 160, 170, { x: 1.1, y: 1.05, z: 2.5 }, { x: 0, y: 0.46, z: 0 });
@@ -282,18 +294,30 @@ window.Pet3DEngine = (function () {
     }
 
     // ==========================================
-    // 🐾 MODEL LOADER (FBX & GLTF SUPPORT)
+    // 🐾 BULLETPROOF MODEL LOADER (NO DUPLICATES)
     // ==========================================
     function loadModelForViewport(vp, species) {
         if (!vp || !vp.scene) return;
         const cfg = SPECIES_CONFIG[species] || SPECIES_CONFIG['shiba'];
 
-        // Cleanup previous model
-        if (vp.modelGroup) {
-            vp.scene.remove(vp.modelGroup);
-            disposeHierarchy(vp.modelGroup);
-            vp.modelGroup = null;
+        // Increment load generation to invalidate any in-flight requests
+        vp.loadGen = (vp.loadGen || 0) + 1;
+        const thisGen = vp.loadGen;
+
+        // Clear existing model immediately
+        if (vp.petContainer) {
+            while (vp.petContainer.children.length > 0) {
+                const old = vp.petContainer.children[0];
+                vp.petContainer.remove(old);
+                disposeHierarchy(old);
+            }
         }
+        if (vp.modelGroup && vp.modelGroup.parent) {
+            vp.modelGroup.parent.remove(vp.modelGroup);
+            disposeHierarchy(vp.modelGroup);
+        }
+        vp.modelGroup = null;
+
         if (vp.mixer) {
             vp.mixer.stopAllAction();
             vp.mixer = null;
@@ -308,49 +332,85 @@ window.Pet3DEngine = (function () {
             const loader = fbxLoader || (typeof THREE.FBXLoader !== 'undefined' ? new THREE.FBXLoader() : null);
             if (!loader) {
                 console.warn('[Pet3D] FBXLoader not ready, using fallback.');
-                buildProceduralFallback(vp, cfg);
+                buildProceduralFallback(vp, cfg, thisGen);
                 return;
             }
 
             loader.load(cfg.modelUrl, (object) => {
-                setupLoadedModel(vp, object, object.animations, cfg, true);
+                setupLoadedModel(vp, object, object.animations, cfg, true, thisGen);
             }, undefined, (err) => {
                 console.error('[Pet3D] FBX load error:', cfg.modelUrl, err);
-                buildProceduralFallback(vp, cfg);
+                buildProceduralFallback(vp, cfg, thisGen);
             });
         } else {
             const loader = gltfLoader || (typeof THREE.GLTFLoader !== 'undefined' ? new THREE.GLTFLoader() : null);
             if (!loader) {
-                buildProceduralFallback(vp, cfg);
+                buildProceduralFallback(vp, cfg, thisGen);
                 return;
             }
 
             loader.load(cfg.modelUrl, (gltf) => {
-                setupLoadedModel(vp, gltf.scene, gltf.animations, cfg, false);
+                setupLoadedModel(vp, gltf.scene, gltf.animations, cfg, false, thisGen);
             }, undefined, (err) => {
                 console.error('[Pet3D] GLTF load error:', cfg.modelUrl, err);
-                buildProceduralFallback(vp, cfg);
+                buildProceduralFallback(vp, cfg, thisGen);
             });
         }
     }
 
-    function setupLoadedModel(vp, root, animations, cfg, isFbx) {
+    function setupLoadedModel(vp, root, animations, cfg, isFbx, genId) {
         if (!vp || !vp.scene) return;
 
-        // Apply shared palette texture for FBX or optimize GLTF materials
+        // Invalidate stale in-flight loads
+        if (genId !== undefined && vp.loadGen !== genId) {
+            disposeHierarchy(root);
+            return;
+        }
+
+        // 1. GUARANTEED PURGE: Empty petContainer completely
+        if (vp.petContainer) {
+            while (vp.petContainer.children.length > 0) {
+                const c = vp.petContainer.children[0];
+                vp.petContainer.remove(c);
+                disposeHierarchy(c);
+            }
+        }
+
+        // 2. Scan scene for any orphan petModelWrapper objects
+        for (let i = vp.scene.children.length - 1; i >= 0; i--) {
+            const c = vp.scene.children[i];
+            if (c.name === 'petModelWrapper' || c === vp.modelGroup) {
+                vp.scene.remove(c);
+                disposeHierarchy(c);
+            }
+        }
+
+        // 3. Texture and Material Setup
         if (isFbx) {
             const tex = sharedTexture || (textureLoader ? textureLoader.load(cfg.textureUrl) : null);
+            if (tex) {
+                tex.encoding = THREE.sRGBEncoding;
+                tex.flipY = true;
+                tex.needsUpdate = true;
+            }
+
             root.traverse(child => {
                 if (child.isMesh) {
                     child.castShadow = true;
                     child.receiveShadow = true;
-                    if (tex) {
-                        child.material = new THREE.MeshStandardMaterial({
-                            map: tex,
-                            roughness: 0.42,
-                            metalness: 0.05
-                        });
+
+                    // Always ensure proper map and skinning parameters
+                    const mat = new THREE.MeshStandardMaterial({
+                        map: tex || (child.material && child.material.map ? child.material.map : null),
+                        roughness: 0.5,
+                        metalness: 0.02,
+                        skinning: (child.isSkinnedMesh === true)
+                    });
+                    if (mat.map) {
+                        mat.map.encoding = THREE.sRGBEncoding;
                     }
+                    child.material = mat;
+                    child.material.needsUpdate = true;
                 }
             });
         } else {
@@ -360,12 +420,15 @@ window.Pet3DEngine = (function () {
                     child.receiveShadow = true;
                     if (child.material) {
                         child.material.roughness = Math.min(child.material.roughness || 0.45, 0.65);
+                        if (child.material.map) {
+                            child.material.map.encoding = THREE.sRGBEncoding;
+                        }
                     }
                 }
             });
         }
 
-        // Auto-Fit Bounding Box Normalization
+        // 4. Auto-Fit Bounding Box Normalization
         const box = new THREE.Box3().setFromObject(root);
         const size = box.getSize(new THREE.Vector3());
         const center = box.getCenter(new THREE.Vector3());
@@ -375,6 +438,7 @@ window.Pet3DEngine = (function () {
         const scale = targetHeight / maxDim;
 
         const modelWrapper = new THREE.Group();
+        modelWrapper.name = 'petModelWrapper';
         modelWrapper.position.set(0, 0, 0);
         modelWrapper.rotation.y = cfg.rotOffsetY || -0.35;
 
@@ -385,7 +449,7 @@ window.Pet3DEngine = (function () {
 
         modelWrapper.add(root);
 
-        // Neon DJ Headphones
+        // 5. Neon DJ Headphones
         const headY = (box.max.y - box.min.y) * scale * 0.95;
         const hpGroup = createHeadphonesMesh();
         hpGroup.position.set(0, headY, 0);
@@ -393,7 +457,14 @@ window.Pet3DEngine = (function () {
         modelWrapper.add(hpGroup);
         vp.headphonesMesh = hpGroup;
 
-        // Animation Mixer setup
+        // 6. Animation Mixer setup
+        if (vp.mixer) {
+            vp.mixer.stopAllAction();
+            vp.mixer = null;
+        }
+        vp.actions = {};
+        vp.currentAction = null;
+
         if (animations && animations.length > 0) {
             vp.animations = animations;
             vp.mixer = new THREE.AnimationMixer(root);
@@ -404,7 +475,11 @@ window.Pet3DEngine = (function () {
         }
 
         vp.modelGroup = modelWrapper;
-        vp.scene.add(modelWrapper);
+        if (vp.petContainer) {
+            vp.petContainer.add(modelWrapper);
+        } else {
+            vp.scene.add(modelWrapper);
+        }
 
         if (cfg.camY) {
             vp.camera.lookAt(0, cfg.camY, 0);
@@ -469,14 +544,24 @@ window.Pet3DEngine = (function () {
         return hpGroup;
     }
 
-    function buildProceduralFallback(vp, cfg) {
+    function buildProceduralFallback(vp, cfg, genId) {
+        if (genId !== undefined && vp.loadGen !== genId) return;
+        if (vp.petContainer) {
+            while (vp.petContainer.children.length > 0) {
+                const c = vp.petContainer.children[0];
+                vp.petContainer.remove(c);
+                disposeHierarchy(c);
+            }
+        }
         const group = new THREE.Group();
+        group.name = 'petModelWrapper';
         const mat = new THREE.MeshStandardMaterial({ color: 0xdf8435, roughness: 0.4 });
         const body = new THREE.Mesh(new THREE.SphereGeometry(0.4, 20, 20), mat);
         body.position.y = 0.45;
         group.add(body);
         vp.modelGroup = group;
-        vp.scene.add(group);
+        if (vp.petContainer) vp.petContainer.add(group);
+        else vp.scene.add(group);
     }
 
     function buildPets(species) {
