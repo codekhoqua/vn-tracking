@@ -52,9 +52,10 @@ window.Pet3DEngine = (function () {
             emoji: '🐕',
             sound: 'Gâu gâu! Woof! 🐾',
             food_name: 'Xương thịt 🍖',
-            targetHeight: 1.32,
+            targetHeight: 1.30,
             rotOffsetY: -0.35,
-            camY: 0.45
+            camY: 0.58,
+            camPosY: 1.15
         },
         neko: {
             modelUrl: '/static/models/ithappy/Kitty_001.fbx',
@@ -65,7 +66,8 @@ window.Pet3DEngine = (function () {
             food_name: 'Cá tươi 🐟',
             targetHeight: 1.25,
             rotOffsetY: -0.32,
-            camY: 0.42
+            camY: 0.55,
+            camPosY: 1.12
         },
         fox: {
             modelUrl: '/static/models/ithappy/Tiger_001.fbx',
@@ -76,7 +78,8 @@ window.Pet3DEngine = (function () {
             food_name: 'Thịt bò 🥩',
             targetHeight: 1.35,
             rotOffsetY: -0.35,
-            camY: 0.46
+            camY: 0.58,
+            camPosY: 1.15
         },
         bunny: {
             modelUrl: '/static/models/ithappy/Pinguin_001.fbx',
@@ -87,7 +90,7 @@ window.Pet3DEngine = (function () {
             food_name: 'Cá nhỏ 🐟',
             targetHeight: 1.25,
             rotOffsetY: -0.35,
-            camY: 0.66,
+            camY: 0.68,
             camPosY: 1.18,
             haloExtraY: 0.08
         },
@@ -100,7 +103,8 @@ window.Pet3DEngine = (function () {
             food_name: 'Cà rốt 🥕',
             targetHeight: 1.35,
             rotOffsetY: -0.35,
-            camY: 0.50
+            camY: 0.58,
+            camPosY: 1.15
         },
         dragon: {
             modelUrl: '/static/models/ithappy/Deer_001.fbx',
@@ -111,7 +115,8 @@ window.Pet3DEngine = (function () {
             food_name: 'Lộc non 🍀',
             targetHeight: 1.35,
             rotOffsetY: -0.35,
-            camY: 0.50
+            camY: 0.58,
+            camPosY: 1.15
         },
         chicken: {
             modelUrl: '/static/models/ithappy/Chicken_001.fbx',
@@ -122,7 +127,8 @@ window.Pet3DEngine = (function () {
             food_name: 'Thóc vàng 🌾',
             targetHeight: 1.15,
             rotOffsetY: -0.35,
-            camY: 0.40
+            camY: 0.52,
+            camPosY: 1.10
         }
     };
 
@@ -405,14 +411,15 @@ window.Pet3DEngine = (function () {
             }
         }
 
-        // 2. Scan scene for any orphan petModelWrapper objects
+        // 2. Scan scene for any orphan petModelWrapper objects or food treats
         for (let i = vp.scene.children.length - 1; i >= 0; i--) {
             const c = vp.scene.children[i];
-            if (c.name === 'petModelWrapper' || c === vp.modelGroup) {
+            if (c.name === 'petModelWrapper' || c.name === 'petFoodTreat' || c === vp.modelGroup || c === vp.foodMesh) {
                 vp.scene.remove(c);
                 disposeHierarchy(c);
             }
         }
+        vp.foodMesh = null;
 
         // 3. Texture and Material Setup
         if (isFbx) {
@@ -580,21 +587,58 @@ window.Pet3DEngine = (function () {
         requestAnimationFrame(spinAnim);
     }
 
+    function dropFoodTreat(vp) {
+        if (!vp || !vp.scene) return;
+        // Clean any existing food treat in scene
+        for (let i = vp.scene.children.length - 1; i >= 0; i--) {
+            const child = vp.scene.children[i];
+            if (child.name === 'petFoodTreat' || child === vp.foodMesh) {
+                vp.scene.remove(child);
+                if (child.geometry) child.geometry.dispose();
+                if (child.material) child.material.dispose();
+            }
+        }
+        vp.foodMesh = null;
+
+        const foodMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.25 });
+        const foodGeo = new THREE.DodecahedronGeometry(0.10);
+        const food = new THREE.Mesh(foodGeo, foodMat);
+        food.name = 'petFoodTreat';
+        food.position.set(0, 0.95, 0.22); // Start nicely above head, well within 185px canvas
+        vp.scene.add(food);
+        vp.foodMesh = food;
+
+        const startY = 0.95;
+        const targetY = 0.32;
+        const startTime = performance.now();
+        const dropDuration = 950;
+
+        const anim = () => {
+            const elapsed = performance.now() - startTime;
+            const progress = Math.min(elapsed / dropDuration, 1.0);
+            if (food && food.parent) {
+                food.position.y = startY + (targetY - startY) * progress;
+                food.rotation.x += 0.09;
+                food.rotation.y += 0.09;
+
+                if (progress < 1.0) {
+                    requestAnimationFrame(anim);
+                } else {
+                    spawnParticles('heart', 3);
+                    vp.scene.remove(food);
+                    food.geometry.dispose();
+                    food.material.dispose();
+                    if (vp.foodMesh === food) vp.foodMesh = null;
+                }
+            }
+        };
+        requestAnimationFrame(anim);
+    }
+
     function doEatEffect(vp) {
         if (!vp || !vp.scene) return;
         spawnParticles('heart', 4);
-
-        // Drop 3D treat
-        if (vp.foodMesh) {
-            vp.scene.remove(vp.foodMesh);
-            if (vp.foodMesh.geometry) vp.foodMesh.geometry.dispose();
-            if (vp.foodMesh.material) vp.foodMesh.material.dispose();
-        }
-        const foodMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.25 });
-        const foodGeo = new THREE.DodecahedronGeometry(0.12);
-        vp.foodMesh = new THREE.Mesh(foodGeo, foodMat);
-        vp.foodMesh.position.set(0, 1.4, 0.28);
-        vp.scene.add(vp.foodMesh);
+        dropFoodTreat(vp);
 
         // Head chewing bobbing
         const startRotX = vp.modelGroup ? vp.modelGroup.rotation.x : 0;
@@ -782,13 +826,6 @@ window.Pet3DEngine = (function () {
         [roaming, panel].forEach(vp => {
             if (!vp || !vp.scene) return;
             playAnimation(vp, 'eat');
-
-            // Drop 3D treat
-            const foodMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.25 });
-            const foodGeo = new THREE.DodecahedronGeometry(0.12);
-            vp.foodMesh = new THREE.Mesh(foodGeo, foodMat);
-            vp.foodMesh.position.set(0, 1.45, 0.25);
-            vp.scene.add(vp.foodMesh);
         });
 
         applyPose('eat');
@@ -908,20 +945,6 @@ window.Pet3DEngine = (function () {
             }
         }
 
-        // Food falling physics
-        if ((isEating || currentPose === 'eat') && vp.foodMesh) {
-            vp.foodMesh.position.y -= 0.032;
-            vp.foodMesh.rotation.x += 0.08;
-            vp.foodMesh.rotation.y += 0.08;
-
-            if (vp.foodMesh.position.y <= 0.35) {
-                vp.scene.remove(vp.foodMesh);
-                vp.foodMesh.geometry.dispose();
-                vp.foodMesh.material.dispose();
-                vp.foodMesh = null;
-            }
-        }
-
         updateParticlesFor(vp);
         vp.renderer.render(vp.scene, vp.camera);
     }
@@ -953,7 +976,7 @@ window.Pet3DEngine = (function () {
         if (roamingContainer) {
             roamingContainer.style.left = '';
             roamingContainer.style.top = '';
-            roamingContainer.style.bottom = '20px';
+            roamingContainer.style.bottom = '6px';
             roamingContainer.style.right = '90px';
             roamingContainer.classList.remove('shifted-for-panel');
         }
@@ -1021,15 +1044,15 @@ window.Pet3DEngine = (function () {
             try {
                 const savedPos = JSON.parse(localStorage.getItem('roaming_pet_pos') || 'null');
                 if (savedPos && typeof savedPos.left === 'number' && typeof savedPos.top === 'number') {
-                    if (savedPos.left < window.innerWidth * 0.65) {
+                    if (savedPos.left < window.innerWidth * 0.65 || (savedPos.left > window.innerWidth * 0.7 && savedPos.top > window.innerHeight - 240)) {
                         localStorage.removeItem('roaming_pet_pos');
                         roamingContainer.style.left = '';
                         roamingContainer.style.top = '';
-                        roamingContainer.style.bottom = '20px';
+                        roamingContainer.style.bottom = '6px';
                         roamingContainer.style.right = '90px';
                     } else {
                         const maxLeft = Math.max(10, window.innerWidth - 180);
-                        const maxTop = Math.max(10, window.innerHeight - 205);
+                        const maxTop = Math.max(10, window.innerHeight - 200);
                         const clampedLeft = Math.max(10, Math.min(maxLeft, savedPos.left));
                         const clampedTop = Math.max(10, Math.min(maxTop, savedPos.top));
                         roamingContainer.style.left = clampedLeft + 'px';
@@ -1040,7 +1063,7 @@ window.Pet3DEngine = (function () {
                 } else {
                     roamingContainer.style.left = '';
                     roamingContainer.style.top = '';
-                    roamingContainer.style.bottom = '20px';
+                    roamingContainer.style.bottom = '6px';
                     roamingContainer.style.right = '90px';
                 }
             } catch(e) {}
