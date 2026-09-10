@@ -104,20 +104,48 @@ def is_japanese(text):
     return bool(re.search(r'[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]', text))
 
 def translate_text(text, target_lang):
+    if not text or not text.strip():
+        return ""
+    # 1. Thử qua Google Translate client dict-chrome-ex (nhanh, chuẩn xác, không bị lỗi 429)
     url = "https://translate.googleapis.com/translate_a/single"
-    params = {
-        "client": "gtx",
-        "sl": "auto",
-        "tl": target_lang,
-        "dt": "t",
-        "q": text
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
     }
+    for client in ['dict-chrome-ex', 'gtx']:
+        params = {
+            "client": client,
+            "sl": "auto",
+            "tl": target_lang,
+            "dt": "t",
+            "q": text
+        }
+        try:
+            res = requests.get(url, params=params, headers=headers, timeout=5)
+            if res.status_code == 200:
+                data = res.json()
+                if data and len(data) > 0 and data[0]:
+                    translated = "".join([x[0] for x in data[0] if x and len(x) > 0 and x[0]])
+                    if translated.strip():
+                        return translated.strip()
+        except Exception:
+            continue
+
+    # 2. Fallback qua MyMemory Translation API nếu Google trục trặc
     try:
-        res = requests.get(url, params=params, timeout=5)
-        data = res.json()
-        return "".join([x[0] for x in data[0]])
-    except Exception as e:
-        return f"[Lỗi hệ thống dịch thuật: {str(e)}]"
+        source_lang = 'ja' if target_lang == 'vi' else 'vi'
+        url_mm = "https://api.mymemory.translated.net/get"
+        params_mm = {"q": text, "langpair": f"{source_lang}|{target_lang}"}
+        res_mm = requests.get(url_mm, params=params_mm, headers=headers, timeout=5)
+        if res_mm.status_code == 200:
+            data_mm = res_mm.json()
+            if 'responseData' in data_mm and 'translatedText' in data_mm['responseData']:
+                trans = data_mm['responseData']['translatedText']
+                if trans and not str(trans).startswith("MYMEMORY WARNING"):
+                    return str(trans).strip()
+    except Exception:
+        pass
+
+    return "Không thể kết nối dịch vụ dịch thuật lúc này. Vui lòng thử lại sau."
 
 def clear_cache(func_name=None):
     global _cache
@@ -2229,13 +2257,24 @@ def dashboard():
 
     return render_template('dashboard.html', **data)
 
-@app.route('/set-lang')
-def set_lang():
-    lang = request.args.get('lang', 'vi')
-    if lang in ('vi', 'ja'):
-        session['lang'] = lang
-    next_url = request.args.get('next', '/dashboard')
-    return redirect(next_url)
+@app.route('/debug-who-am-i')
+def debug_who_am_i():
+    import os, re
+    t_path = os.path.abspath(os.path.join(app.template_folder, 'dashboard.html'))
+    try:
+        with open(t_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        ver_match = re.findall(r'v1\.\d+\.\d+', content)
+    except Exception as e:
+        ver_match = [str(e)]
+    return jsonify({
+        'pid': os.getpid(),
+        'cwd': os.getcwd(),
+        'file': os.path.abspath(__file__),
+        'template_path': t_path,
+        'versions_in_file': ver_match[:5]
+    })
+
 
 # =====================================================================
 # 10. API ENDPOINTS
@@ -2409,21 +2448,21 @@ def _get_random_accessory(pet):
     return random.choice(available)['id']
 
 PET_TYPES = {
-    'shiba':          {'name_vi': 'Chó Cưng (Dog)',         'name_ja': '子犬',        'emoji': '🐕', 'sound': 'Gâu gâu! Woof! 🐾',   'food_name': 'Xương thịt 🍖', 'desc': 'Trung thành, hoạt bát, luôn hăng hái nhắc bạn nộp task'},
+    'shiba':          {'name_vi': 'Chó Cưng',               'name_ja': '子犬',        'emoji': '🐕', 'sound': 'Gâu gâu! Woof! 🐾',   'food_name': 'Xương thịt 🍖', 'desc': 'Trung thành, hoạt bát, luôn hăng hái nhắc bạn nộp task'},
     'neko':           {'name_vi': 'Mèo Kitty',              'name_ja': '子猫',        'emoji': '🐱', 'sound': 'Nya~ Meow! 🐾',       'food_name': 'Cá tươi 🐟',   'desc': 'Dễ thương, quấn quýt, thích được xoa đầu và cưng nựng'},
-    'fox':            {'name_vi': 'Hổ Vằn (Tiger)',         'name_ja': 'トラ',        'emoji': '🐯', 'sound': 'Grrr~ Gầm! 🐾',       'food_name': 'Thịt bò 🥩',   'desc': 'Dũng mãnh, bảo vệ bạn hoàn thành mọi deadline'},
-    'bunny':          {'name_vi': 'Cánh Cụt (Penguin)',     'name_ja': 'ペンギン',    'emoji': '🐧', 'sound': 'Pingu pingu~ ❄️',     'food_name': 'Cá nhỏ 🐟',   'desc': 'Lon ton, ngộ nghĩnh, dáng đi lắc lư cực kỳ giải trí'},
-    'panda':          {'name_vi': 'Ngựa Con (Pony)',        'name_ja': '子馬',        'emoji': '🐴', 'sound': 'Hí hí~ Nhong! 🌾',    'food_name': 'Cà rốt 🥕',   'desc': 'Năng động, chạy nhảy siêu nhanh giúp tiến độ luôn thần tốc'},
-    'dragon':         {'name_vi': 'Hươu Sao (Deer)',        'name_ja': 'シカ',        'emoji': '🦌', 'sound': 'Ngơ ngác ngác~ 🌿',   'food_name': 'Lộc non 🍀',   'desc': 'Thanh thoát, hiền lành, mang lại may mắn và bình an'},
-    'chicken':        {'name_vi': 'Gà Con (Chick)',         'name_ja': 'ヒヨコ',      'emoji': '🐥', 'sound': 'Chíp chíp! 🌾',       'food_name': 'Thóc vàng 🌾', 'desc': 'Nhí nhảnh, siêng năng dậy sớm gáy nhắc việc'},
+    'fox':            {'name_vi': 'Hổ Vằn',                 'name_ja': 'トラ',        'emoji': '🐯', 'sound': 'Grrr~ Gầm! 🐾',       'food_name': 'Thịt bò 🥩',   'desc': 'Dũng mãnh, bảo vệ bạn hoàn thành mọi deadline'},
+    'bunny':          {'name_vi': 'Cánh Cụt',               'name_ja': 'ペンギン',    'emoji': '🐧', 'sound': 'Pingu pingu~ ❄️',     'food_name': 'Cá nhỏ 🐟',   'desc': 'Lon ton, ngộ nghĩnh, dáng đi lắc lư cực kỳ giải trí'},
+    'panda':          {'name_vi': 'Ngựa Con',               'name_ja': '子馬',        'emoji': '🐴', 'sound': 'Hí hí~ Nhong! 🌾',    'food_name': 'Cà rốt 🥕',   'desc': 'Năng động, chạy nhảy siêu nhanh giúp tiến độ luôn thần tốc'},
+    'dragon':         {'name_vi': 'Hươu Sao',               'name_ja': 'シカ',        'emoji': '🦌', 'sound': 'Ngơ ngác ngác~ 🌿',   'food_name': 'Lộc non 🍀',   'desc': 'Thanh thoát, hiền lành, mang lại may mắn và bình an'},
+    'chicken':        {'name_vi': 'Gà Con',                 'name_ja': 'ヒヨコ',      'emoji': '🐥', 'sound': 'Chíp chíp! 🌾',       'food_name': 'Thóc vàng 🌾', 'desc': 'Nhí nhảnh, siêng năng dậy sớm gáy nhắc việc'},
     'husky':          {'name_vi': 'Chó Husky',              'name_ja': 'ハスキー',    'emoji': '🐺', 'sound': 'Húuu~ Woof! ❄️',     'food_name': 'Thịt nướng 🍖', 'desc': 'Ngáo ngơ, hài hước, năng lượng tràn trề tiếp thêm động lực'},
     'alpaca':         {'name_vi': 'Lạc Đà Alpaca',          'name_ja': 'アルパカ',    'emoji': '🦙', 'sound': 'Hummm~ 🌸',           'food_name': 'Cỏ non 🌿',    'desc': 'Bông xù đáng yêu, điềm tĩnh xả stress cực tốt'},
-    'duck':           {'name_vi': 'Vịt Vàng (Duck)',        'name_ja': 'アヒル',      'emoji': '🦆', 'sound': 'Cạp cạp! Quack! 🌊',   'food_name': 'Bánh mì 🍞',   'desc': 'Vui tươi, dáng đi lạch bạch ngộ nghĩnh xua tan mệt mỏi'},
-    'redfox':         {'name_vi': 'Cáo Đỏ (Fox)',           'name_ja': 'キツネ',      'emoji': '🦊', 'sound': 'Yip yip! 🍁',          'food_name': 'Quả mọng 🫐',  'desc': 'Nhanh nhẹn, thông minh, tinh ranh giúp bạn xử lý task thần tốc'},
-    'cat':            {'name_vi': 'Mèo Mun (Cat)',          'name_ja': '黒猫',        'emoji': '🐈', 'sound': 'Meo meo~ Nya! 🐾',      'food_name': 'Cá nướng 🐟',  'desc': 'Linh hoạt, uyển chuyển, thích nhảy nhót và xoa đầu'},
-    'deer_forest':    {'name_vi': 'Hươu Rừng (Forest Deer)','name_ja': '森のシカ',    'emoji': '🦌', 'sound': 'Ngơ ngác~ 🌲',         'food_name': 'Cỏ tươi 🌿',   'desc': 'Dáng vẻ oai phong, bước đi uyển chuyển giữa rừng xanh'},
-    'horse_stallion': {'name_vi': 'Chiến Mã (Stallion)',    'name_ja': '駿馬',        'emoji': '🐎', 'sound': 'Hí hí~ Phi nhanh! ⚔️', 'food_name': 'Táo đỏ 🍎',   'desc': 'Dũng mãnh, phi nước đại bứt phá mọi chỉ tiêu công việc'},
-    'shiba_inu':      {'name_vi': 'Shiba Inu (Classic)',    'name_ja': '柴犬',        'emoji': '🐕', 'sound': 'Gâu gâu! Wan! 🐾',     'food_name': 'Thịt nướng 🍖', 'desc': 'Chó Shiba chuẩn Nhật Bản, thông minh và trung thành'},
+    'duck':           {'name_vi': 'Vịt Vàng',               'name_ja': 'アヒル',      'emoji': '🦆', 'sound': 'Cạp cạp! Quack! 🌊',   'food_name': 'Bánh mì 🍞',   'desc': 'Vui tươi, dáng đi lạch bạch ngộ nghĩnh xua tan mệt mỏi'},
+    'redfox':         {'name_vi': 'Cáo Đỏ',                 'name_ja': 'キツネ',      'emoji': '🦊', 'sound': 'Yip yip! 🍁',          'food_name': 'Quả mọng 🫐',  'desc': 'Nhanh nhẹn, thông minh, tinh ranh giúp bạn xử lý task thần tốc'},
+    'cat':            {'name_vi': 'Mèo Mun',                'name_ja': '黒猫',        'emoji': '🐈', 'sound': 'Meo meo~ Nya! 🐾',      'food_name': 'Cá nướng 🐟',  'desc': 'Linh hoạt, uyển chuyển, thích nhảy nhót và xoa đầu'},
+    'deer_forest':    {'name_vi': 'Hươu Rừng',              'name_ja': '森のシカ',    'emoji': '🦌', 'sound': 'Ngơ ngác~ 🌲',         'food_name': 'Cỏ tươi 🌿',   'desc': 'Dáng vẻ oai phong, bước đi uyển chuyển giữa rừng xanh'},
+    'horse_stallion': {'name_vi': 'Chiến Mã',               'name_ja': '駿馬',        'emoji': '🐎', 'sound': 'Hí hí~ Phi nhanh! ⚔️', 'food_name': 'Táo đỏ 🍎',   'desc': 'Dũng mãnh, phi nước đại bứt phá mọi chỉ tiêu công việc'},
+    'shiba_inu':      {'name_vi': 'Shiba Inu',              'name_ja': '柴犬',        'emoji': '🐕', 'sound': 'Gâu gâu! Wan! 🐾',     'food_name': 'Thịt nướng 🍖', 'desc': 'Chó Shiba chuẩn Nhật Bản, thông minh và trung thành'},
 }
 
 # Aliases for multi-key compatibility
@@ -2550,7 +2589,22 @@ def _pet_write(username, pet_data):
             return True
         except Exception as e:
             print(f"Local pet write error for {username}: {e}")
-            return False
+def _pet_delete(username):
+    """Xóa hoàn toàn pet data của user khỏi Supabase và Local."""
+    if not username:
+        return
+    if USE_SUPABASE:
+        try:
+            sb_user = safe_sb_filename(username)
+            sb_delete([f'_system/pets/{sb_user}.json', f'_system/pets/{username}.json'])
+        except Exception as e:
+            print(f"Pet delete error on Supabase for {username}: {e}")
+    try:
+        path = os.path.join(DRIVE_ROOT, '_system', 'pets', f'{username}.json')
+        if os.path.exists(path):
+            os.remove(path)
+    except Exception as e:
+        print(f"Local pet delete error for {username}: {e}")
 
 
 def pet_add_xp(username, amount, reason=''):
@@ -2636,8 +2690,7 @@ def api_pet_reset():
     if not session.get('logged_in'):
         return jsonify({'error': 'Unauthorized'}), 401
     username = session.get('user', '')
-    # Ghi đè bằng dict rỗng để xóa hoàn toàn pet
-    _pet_write(username, {})
+    _pet_delete(username)
     return jsonify({'success': True})
 
 @app.route('/api/pet', methods=['GET'])
@@ -3726,14 +3779,16 @@ def handle_chat_message(data):
         emit('chat_message', message_obj, broadcast=True)
         
         # --- Xử lý Bot Dịch Thuật ---
-        if msg.lower().startswith('@bot '):
-            text_to_translate = msg[5:].strip()
+        bot_match = re.match(r'^@bot\b[:\s\-\–]*(.*)', msg.strip(), re.IGNORECASE)
+        if bot_match:
+            text_to_translate = bot_match.group(1).strip()
             if text_to_translate:
                 # Tự động nhận diện nếu có tiếng Nhật -> Dịch sang Tiếng Việt. Nếu không -> Dịch sang Tiếng Nhật
                 target_lang = 'vi' if is_japanese(text_to_translate) else 'ja'
                 translated_text = translate_text(text_to_translate, target_lang)
                 
                 lang_name = "Tiếng Việt" if target_lang == 'vi' else "Tiếng Nhật"
+                lang_flag = "🇻🇳" if target_lang == 'vi' else "🇯🇵"
                 
                 # Bot trả lời vào chat
                 bot_msg = {
@@ -3741,7 +3796,7 @@ def handle_chat_message(data):
                     'username': 'bot',
                     'fullname': '🤖 Bot Dịch Thuật',
                     'avatar': 'https://api.dicebear.com/7.x/bottts/svg?seed=TranslateBot',
-                    'msg': f"**[Dịch sang {lang_name}]:**\n{translated_text}",
+                    'msg': f"**{lang_flag} [Dịch sang {lang_name}]:**\n{translated_text}",
                     'time': datetime.now(timezone(timedelta(hours=7))).strftime("%H:%M"),
                     'read_by': []
                 }
@@ -3916,4 +3971,4 @@ def compare_psd():
 
 if __name__ == '__main__':
     threading.Thread(target=preload_data, daemon=True).start()
-    socketio.run(app, debug=True, host='0.0.0.0', port=5000, allow_unsafe_werkzeug=True)
+    socketio.run(app, debug=True, use_reloader=False, host='0.0.0.0', port=5000, allow_unsafe_werkzeug=True)

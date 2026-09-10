@@ -1280,6 +1280,24 @@ select option { background: var(--surface); color: var(--text); }
     border-color: var(--border-hover);
     box-shadow: var(--shadow-lg);
 }
+.chart-section.rain-wet-rim::before {
+    content: '';
+    position: absolute;
+    top: -1px;
+    left: 20px;
+    right: 20px;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(147, 197, 253, 0.45) 20%, rgba(224, 242, 254, 0.8) 50%, rgba(147, 197, 253, 0.45) 80%, transparent);
+    border-radius: 999px;
+    pointer-events: none;
+    box-shadow: 0 0 12px rgba(147, 197, 253, 0.5);
+    z-index: 2;
+    animation: wetRimPulse 3s ease-in-out infinite alternate;
+}
+@keyframes wetRimPulse {
+    0% { opacity: 0.6; }
+    100% { opacity: 1; }
+}
 
 .chart-header {
     display: flex;
@@ -1982,9 +2000,9 @@ body:has(.login-page) {
 
 /* Chat Panel */
 .chat-panel {
-    position: fixed; bottom: 176px; right: 24px;
+    position: fixed; bottom: 76px; right: 20px;
     width: min(370px, calc(100vw - 48px));
-    height: min(520px, calc(100vh - 140px));
+    height: min(540px, calc(100vh - 100px));
     background: var(--surface, #1e293b);
     backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
     box-shadow: 0 12px 48px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.06);

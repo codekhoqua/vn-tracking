@@ -33,10 +33,11 @@ window.Pet3DEngine = (function () {
     let currentPose = 'idle'; // 'idle' | 'walk' | 'run' | 'eat' | 'trick'
     let mousePos = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
 
-    // Viewports: 1. Roaming (Outside bottom-right) & 2. Panel (Inside My Pet menu) & 3. Switch Preview
+    // Viewports: 1. Roaming (Outside bottom-right) & 2. Panel (Inside My Pet menu) & 3. Switch Preview & 4. Adopt Preview
     let roaming = null;
     let panel = null;
     let switchPreview = null;
+    let adoptPreview = null;
 
     // Loaders
     let fbxLoader = null;
@@ -49,7 +50,7 @@ window.Pet3DEngine = (function () {
         shiba: {
             modelUrl: '/static/models/ithappy/Dog_001.glb',
             textureUrl: '/static/models/ithappy/Texture_1.png',
-            name_vi: 'Chó Cưng (Dog)',
+            name_vi: 'Chó Cưng',
             emoji: '🐕',
             sound: 'Gâu gâu! Woof! 🐾',
             food_name: 'Xương thịt 🍖',
@@ -73,7 +74,7 @@ window.Pet3DEngine = (function () {
         fox: {
             modelUrl: '/static/models/ithappy/Tiger_001.glb',
             textureUrl: '/static/models/ithappy/Texture_1.png',
-            name_vi: 'Hổ Vằn (Tiger)',
+            name_vi: 'Hổ Vằn',
             emoji: '🐯',
             sound: 'Grrr~ Gầm! 🐾',
             food_name: 'Thịt bò 🥩',
@@ -85,7 +86,7 @@ window.Pet3DEngine = (function () {
         bunny: {
             modelUrl: '/static/models/ithappy/Pinguin_001.glb',
             textureUrl: '/static/models/ithappy/Texture_1.png',
-            name_vi: 'Cánh Cụt (Penguin)',
+            name_vi: 'Cánh Cụt',
             emoji: '🐧',
             sound: 'Pingu pingu~ ❄️',
             food_name: 'Cá nhỏ 🐟',
@@ -98,7 +99,7 @@ window.Pet3DEngine = (function () {
         panda: {
             modelUrl: '/static/models/ithappy/Horse_001.glb',
             textureUrl: '/static/models/ithappy/Texture_1.png',
-            name_vi: 'Ngựa Con (Pony)',
+            name_vi: 'Ngựa Con',
             emoji: '🐴',
             sound: 'Hí hí~ Nhong! 🌾',
             food_name: 'Cà rốt 🥕',
@@ -110,7 +111,7 @@ window.Pet3DEngine = (function () {
         dragon: {
             modelUrl: '/static/models/ithappy/Deer_001.glb',
             textureUrl: '/static/models/ithappy/Texture_1.png',
-            name_vi: 'Hươu Sao (Deer)',
+            name_vi: 'Hươu Sao',
             emoji: '🦌',
             sound: 'Ngơ ngác ngác~ 🌿',
             food_name: 'Lộc non 🍀',
@@ -122,7 +123,7 @@ window.Pet3DEngine = (function () {
         chicken: {
             modelUrl: '/static/models/ithappy/Chicken_001.glb',
             textureUrl: '/static/models/ithappy/Texture_1.png',
-            name_vi: 'Gà Con (Chick)',
+            name_vi: 'Gà Con',
             emoji: '🐥',
             sound: 'Chíp chíp! 🌾',
             food_name: 'Thóc vàng 🌾',
@@ -155,7 +156,7 @@ window.Pet3DEngine = (function () {
         },
         duck: {
             modelUrl: '/static/models/duck.glb',
-            name_vi: 'Vịt Vàng (Duck)',
+            name_vi: 'Vịt Vàng',
             name_ja: 'アヒル',
             emoji: '🦆',
             sound: 'Cạp cạp! Quack! 🌊',
@@ -167,7 +168,7 @@ window.Pet3DEngine = (function () {
         },
         redfox: {
             modelUrl: '/static/models/fox.glb',
-            name_vi: 'Cáo Đỏ (Fox)',
+            name_vi: 'Cáo Đỏ',
             name_ja: 'キツネ',
             emoji: '🦊',
             sound: 'Yip yip! 🍁',
@@ -179,7 +180,7 @@ window.Pet3DEngine = (function () {
         },
         cat: {
             modelUrl: '/static/models/cat.glb',
-            name_vi: 'Mèo Mun (Cat)',
+            name_vi: 'Mèo Mun',
             name_ja: '黒猫',
             emoji: '🐈',
             sound: 'Meo meo~ Nya! 🐾',
@@ -191,7 +192,7 @@ window.Pet3DEngine = (function () {
         },
         deer_forest: {
             modelUrl: '/static/models/deer.gltf',
-            name_vi: 'Hươu Rừng (Forest Deer)',
+            name_vi: 'Hươu Rừng',
             name_ja: '森のシカ',
             emoji: '🦌',
             sound: 'Ngơ ngác~ 🌲',
@@ -203,7 +204,7 @@ window.Pet3DEngine = (function () {
         },
         horse_stallion: {
             modelUrl: '/static/models/horse.gltf',
-            name_vi: 'Chiến Mã (Stallion)',
+            name_vi: 'Chiến Mã',
             name_ja: '駿馬',
             emoji: '🐎',
             sound: 'Hí hí~ Phi nhanh! ⚔️',
@@ -215,7 +216,7 @@ window.Pet3DEngine = (function () {
         },
         shiba_inu: {
             modelUrl: '/static/models/shiba.gltf',
-            name_vi: 'Shiba Inu (Classic)',
+            name_vi: 'Shiba Inu',
             name_ja: '柴犬',
             emoji: '🐕',
             sound: 'Gâu gâu! Wan! 🐾',
@@ -631,7 +632,7 @@ window.Pet3DEngine = (function () {
             vp.camera.position.z = 2.65;
             vp.camera.position.y = (cfg.camPosY ? cfg.camPosY + 0.05 : 1.14);
             vp.camera.lookAt(0, (cfg.camY ? cfg.camY + 0.02 : 0.50), 0);
-        } else if (vp === switchPreview) {
+        } else if (vp === switchPreview || vp === adoptPreview) {
             vp.camera.position.z = 2.45;
             vp.camera.position.y = (cfg.camPosY || 1.05);
             vp.camera.lookAt(0, (cfg.camY || 0.46), 0);
@@ -817,7 +818,7 @@ window.Pet3DEngine = (function () {
             idle: 'Nghỉ ngơi 🧘',
             walk: 'Đi dạo thong thả 🚶',
             run: 'Chạy tung tăng 🏃',
-            eat: `Nhai ${cfg.food_name || 'thức ăn'} 🍖`,
+            eat: `Nhai ${cfg.food_name || 'thức ăn 🍖'}`,
             trick: 'Vui mừng thăng hạng ✨'
         };
         showBubble(poseLabels[poseName] || 'Tư thế mới!', 3000);
@@ -1035,6 +1036,10 @@ window.Pet3DEngine = (function () {
             const sModal = document.getElementById('pet-switch-modal');
             if (!sModal || !sModal.classList.contains('active')) return;
         }
+        if (vp === adoptPreview) {
+            const aModal = document.getElementById('pet-adopt-modal');
+            if (!aModal || !aModal.classList.contains('active')) return;
+        }
 
         // Update skeletal animations with accurate delta
         if (vp.mixer) {
@@ -1042,7 +1047,7 @@ window.Pet3DEngine = (function () {
         }
 
         // Turntable rotation for preview stage OR smooth LookAt Cursor for roaming & panel
-        if (vp === switchPreview) {
+        if (vp === switchPreview || vp === adoptPreview) {
             if (vp.modelGroup) {
                 vp.modelGroup.rotation.y += delta * 0.75;
             }
@@ -1060,17 +1065,17 @@ window.Pet3DEngine = (function () {
 
         // Dynamic pose bounce & physics
         if (vp.modelGroup && !isCelebrating) {
-            if (vp !== switchPreview && isDancing) {
+            if (vp !== switchPreview && vp !== adoptPreview && isDancing) {
                 const beat = time * 7.5;
                 vp.modelGroup.position.y = Math.abs(Math.sin(beat)) * 0.06;
                 if (Math.random() < 0.02) {
                     spawnParticles('note', 1);
                 }
-            } else if (vp !== switchPreview && currentPose === 'run') {
+            } else if (vp !== switchPreview && vp !== adoptPreview && currentPose === 'run') {
                 vp.modelGroup.position.y = Math.abs(Math.sin(time * 9.0)) * 0.045;
-            } else if (vp !== switchPreview && currentPose === 'walk') {
+            } else if (vp !== switchPreview && vp !== adoptPreview && currentPose === 'walk') {
                 vp.modelGroup.position.y = Math.sin(time * 5.0) * 0.025;
-            } else if (currentPose === 'idle' || vp === switchPreview) {
+            } else if (currentPose === 'idle' || vp === switchPreview || vp === adoptPreview) {
                 vp.modelGroup.position.y = 0;
             }
         }
@@ -1090,6 +1095,9 @@ window.Pet3DEngine = (function () {
         updateViewportAnimation(panel, time, delta);
         if (switchPreview) {
             updateViewportAnimation(switchPreview, time, delta);
+        }
+        if (adoptPreview) {
+            updateViewportAnimation(adoptPreview, time, delta);
         }
     }
 
@@ -1221,18 +1229,8 @@ window.Pet3DEngine = (function () {
         if (textEl) textEl.innerHTML = text;
         if (actEl) actEl.innerHTML = actionsHtml;
 
-        const roamingContainer = document.getElementById('roaming-pet-container');
-        if (roamingContainer) {
-            if (roamingContainer.closest('.sidebar-pet-panel')) {
-                bubble.classList.remove('flip-right');
-            } else {
-                const rect = roamingContainer.getBoundingClientRect();
-                if (rect.left < 250) {
-                    bubble.classList.add('flip-right');
-                } else {
-                    bubble.classList.remove('flip-right');
-                }
-            }
+        if (typeof window.positionPetSpeechBubble === 'function') {
+            window.positionPetSpeechBubble();
         }
 
         bubble.classList.add('active');
@@ -1308,15 +1306,27 @@ window.Pet3DEngine = (function () {
         return switchPreview;
     }
 
-    function previewSpecies(species) {
+    function getOrCreateAdoptPreview() {
+        const canvas = document.getElementById('adopt-pet-preview-canvas');
+        if (!canvas) return null;
+        if (!adoptPreview) {
+            adoptPreview = createViewport('adopt-pet-preview-canvas', 210, 190, { x: 1.15, y: 1.05, z: 2.45 }, { x: 0, y: 0.46, z: 0 });
+        }
+        return adoptPreview;
+    }
+
+    function previewSpecies(species, target = 'switch') {
         if (!species || !SPECIES_CONFIG[species]) return;
-        const vp = getOrCreateSwitchPreview();
+        const vp = (target === 'adopt' || target === 'adopt-pet-preview-canvas')
+            ? getOrCreateAdoptPreview()
+            : getOrCreateSwitchPreview();
         if (!vp) return;
         loadModelForViewport(vp, species);
     }
 
     return {
         init,
+        isInitialized: () => isInitialized,
         poke: triggerClickRun,
         run: triggerClickRun,
         feed,
@@ -1329,6 +1339,7 @@ window.Pet3DEngine = (function () {
         switchSpecies,
         previewSpecies,
         getOrCreateSwitchPreview,
+        getOrCreateAdoptPreview,
         syncPet,
         resetPosition,
         onPanelShow,

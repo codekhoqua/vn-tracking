@@ -4,3 +4,6 @@
 - Tuyệt đối KHÔNG ĐƯỢC tự ý dùng lệnh git push để đẩy code lên GitHub nếu người dùng chưa có yêu cầu cụ thể (như 'push code'). Chỉ commit code ở local.
 
 - Trước khi deploy/build lên môi trường real/production, BẮT BUỘC phải push code lên GitHub trước, sau đó mới thực hiện build/deploy.
+- Không tự ý thêm tính năng khác ngoài yêu cầu từ user
+- Trả kết quả thì ngắn gọn xúc tích không giải thích dài dòng tốn quota
+- Không cần AI Agent test, user tự test
