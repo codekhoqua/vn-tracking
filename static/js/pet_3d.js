@@ -54,7 +54,7 @@ window.Pet3DEngine = (function () {
             sound: 'Gâu gâu! Woof! 🐾',
             food_name: 'Xương thịt 🍖',
             targetHeight: 1.30,
-            rotOffsetY: -0.35,
+            rotOffsetY: 0.45,
             camY: 0.58,
             camPosY: 1.15
         },
@@ -66,7 +66,7 @@ window.Pet3DEngine = (function () {
             sound: 'Nya~ Meow! 🐾',
             food_name: 'Cá tươi 🐟',
             targetHeight: 1.25,
-            rotOffsetY: -0.32,
+            rotOffsetY: 0.42,
             camY: 0.55,
             camPosY: 1.12
         },
@@ -78,7 +78,7 @@ window.Pet3DEngine = (function () {
             sound: 'Grrr~ Gầm! 🐾',
             food_name: 'Thịt bò 🥩',
             targetHeight: 1.35,
-            rotOffsetY: -0.35,
+            rotOffsetY: 0.45,
             camY: 0.58,
             camPosY: 1.15
         },
@@ -90,7 +90,7 @@ window.Pet3DEngine = (function () {
             sound: 'Pingu pingu~ ❄️',
             food_name: 'Cá nhỏ 🐟',
             targetHeight: 1.20,
-            rotOffsetY: -0.35,
+            rotOffsetY: 0.45,
             camY: 0.66,
             camPosY: 1.18,
             haloExtraY: 0.08
@@ -103,7 +103,7 @@ window.Pet3DEngine = (function () {
             sound: 'Hí hí~ Nhong! 🌾',
             food_name: 'Cà rốt 🥕',
             targetHeight: 1.35,
-            rotOffsetY: -0.35,
+            rotOffsetY: 0.45,
             camY: 0.58,
             camPosY: 1.15
         },
@@ -115,7 +115,7 @@ window.Pet3DEngine = (function () {
             sound: 'Ngơ ngác ngác~ 🌿',
             food_name: 'Lộc non 🍀',
             targetHeight: 1.35,
-            rotOffsetY: -0.35,
+            rotOffsetY: 0.45,
             camY: 0.58,
             camPosY: 1.15
         },
@@ -127,7 +127,7 @@ window.Pet3DEngine = (function () {
             sound: 'Chíp chíp! 🌾',
             food_name: 'Thóc vàng 🌾',
             targetHeight: 1.15,
-            rotOffsetY: -0.35,
+            rotOffsetY: 0.45,
             camY: 0.52,
             camPosY: 1.10
         },
@@ -138,7 +138,7 @@ window.Pet3DEngine = (function () {
             sound: 'Húuu~ Woof! ❄️',
             food_name: 'Thịt nướng 🍖',
             targetHeight: 1.30,
-            rotOffsetY: -0.35,
+            rotOffsetY: 0.45,
             camY: 0.58,
             camPosY: 1.15
         },
@@ -149,7 +149,7 @@ window.Pet3DEngine = (function () {
             sound: 'Hummm~ 🌸',
             food_name: 'Cỏ non 🌿',
             targetHeight: 1.35,
-            rotOffsetY: -0.35,
+            rotOffsetY: 0.45,
             camY: 0.58,
             camPosY: 1.15
         }
@@ -513,7 +513,7 @@ window.Pet3DEngine = (function () {
         const modelWrapper = new THREE.Group();
         modelWrapper.name = 'petModelWrapper';
         modelWrapper.position.set(0, 0, 0);
-        modelWrapper.rotation.y = cfg.rotOffsetY || -0.35;
+        modelWrapper.rotation.y = cfg.rotOffsetY || 0.45;
 
         root.scale.setScalar(scale);
         root.position.x = -center.x * scale;
@@ -604,7 +604,7 @@ window.Pet3DEngine = (function () {
         const startTime = performance.now();
         const duration = 1100;
         const cfg = SPECIES_CONFIG[currentSpecies] || SPECIES_CONFIG['shiba'];
-        const baseRotY = cfg.rotOffsetY || -0.35;
+        const baseRotY = cfg.rotOffsetY || 0.45;
 
         const spinAnim = () => {
             const elapsed = performance.now() - startTime;
@@ -976,7 +976,7 @@ window.Pet3DEngine = (function () {
             }
         } else {
             const cfg = SPECIES_CONFIG[currentSpecies] || SPECIES_CONFIG['shiba'];
-            const baseRotY = cfg.rotOffsetY || -0.35;
+            const baseRotY = cfg.rotOffsetY || 0.45;
             const targetRotY = baseRotY + (mousePos.x / window.innerWidth - 0.5) * 0.65;
             const targetRotX = (mousePos.y / window.innerHeight - 0.5) * 0.22;
 
@@ -1151,11 +1151,15 @@ window.Pet3DEngine = (function () {
 
         const roamingContainer = document.getElementById('roaming-pet-container');
         if (roamingContainer) {
-            const rect = roamingContainer.getBoundingClientRect();
-            if (rect.left < 250) {
-                bubble.classList.add('flip-right');
-            } else {
+            if (roamingContainer.closest('.sidebar-pet-panel')) {
                 bubble.classList.remove('flip-right');
+            } else {
+                const rect = roamingContainer.getBoundingClientRect();
+                if (rect.left < 250) {
+                    bubble.classList.add('flip-right');
+                } else {
+                    bubble.classList.remove('flip-right');
+                }
             }
         }
 
