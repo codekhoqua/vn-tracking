@@ -24,6 +24,7 @@ window.Pet3DEngine = (function () {
     let isDancing = false;
     let isEating = false;
     let isJumping = false;
+    let currentPose = 'idle'; // 'idle' | 'walk' | 'run' | 'eat' | 'trick'
     let mousePos = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
 
     // Viewports: 1. Roaming (Outside bottom-right) & 2. Panel (Inside My Pet menu)
@@ -487,8 +488,6 @@ window.Pet3DEngine = (function () {
             vp.camera.lookAt(0, cfg.camY, 0);
         }
     }
-
-    let currentPose = 'idle'; // 'idle' | 'walk' | 'run' | 'eat' | 'trick'
 
     function findClipForPose(anims, pose) {
         if (!anims || anims.length === 0) return null;
