@@ -347,7 +347,7 @@ window.Pet3DEngine = (function () {
                 }
             }
 
-            roaming = createViewport('roaming-pet-canvas', 220, 260, { x: 1.15, y: 1.22, z: 2.85 }, { x: 0, y: 0.54, z: 0 });
+            roaming = createViewport('roaming-pet-canvas', 228, 165, { x: 1.15, y: 1.12, z: 2.65 }, { x: 0, y: 0.50, z: 0 });
             panel = createViewport('panel-pet-canvas', 150, 150, { x: 1.0, y: 0.98, z: 2.35 }, { x: 0, y: 0.44, z: 0 });
 
             if (!animationFrameId) {
@@ -556,9 +556,9 @@ window.Pet3DEngine = (function () {
         }
 
         if (vp === roaming) {
-            vp.camera.position.z = 2.85;
-            vp.camera.position.y = (cfg.camPosY ? cfg.camPosY + 0.08 : 1.18);
-            vp.camera.lookAt(0, (cfg.camY ? cfg.camY + 0.04 : 0.54), 0);
+            vp.camera.position.z = 2.65;
+            vp.camera.position.y = (cfg.camPosY ? cfg.camPosY + 0.05 : 1.14);
+            vp.camera.lookAt(0, (cfg.camY ? cfg.camY + 0.02 : 0.50), 0);
         } else if (vp === switchPreview) {
             vp.camera.position.z = 2.45;
             vp.camera.position.y = (cfg.camPosY || 1.05);
@@ -1101,86 +1101,20 @@ window.Pet3DEngine = (function () {
             let petStartPos = { left: 0, top: 0 };
             let hasMoved = false;
 
-            // Restore saved position if available, or reset if stuck on left due to previous bug
-            try {
-                const savedPos = JSON.parse(localStorage.getItem('roaming_pet_pos') || 'null');
-                if (savedPos && typeof savedPos.left === 'number' && typeof savedPos.top === 'number') {
-                    if (savedPos.left < window.innerWidth * 0.65 || (savedPos.left > window.innerWidth * 0.7 && savedPos.top > window.innerHeight - 240)) {
-                        localStorage.removeItem('roaming_pet_pos');
-                        roamingContainer.style.left = '';
-                        roamingContainer.style.top = '';
-                        roamingContainer.style.bottom = '6px';
-                        roamingContainer.style.right = '90px';
-                    } else {
-                        const maxLeft = Math.max(10, window.innerWidth - 180);
-                        const maxTop = Math.max(10, window.innerHeight - 200);
-                        const clampedLeft = Math.max(10, Math.min(maxLeft, savedPos.left));
-                        const clampedTop = Math.max(10, Math.min(maxTop, savedPos.top));
-                        roamingContainer.style.left = clampedLeft + 'px';
-                        roamingContainer.style.top = clampedTop + 'px';
-                        roamingContainer.style.bottom = 'auto';
-                        roamingContainer.style.right = 'auto';
-                    }
-                } else {
-                    roamingContainer.style.left = '';
-                    roamingContainer.style.top = '';
-                    roamingContainer.style.bottom = '6px';
-                    roamingContainer.style.right = '90px';
-                }
-            } catch(e) {}
+            // Clear legacy position from localStorage so pet remains docked in sidebar panel
+            localStorage.removeItem('roaming_pet_pos');
+            roamingContainer.style.left = '';
+            roamingContainer.style.top = '';
+            roamingContainer.style.bottom = '';
+            roamingContainer.style.right = '';
 
             roamingContainer.addEventListener('mouseenter', handleHoverEnter);
             roamingContainer.addEventListener('mouseleave', handleHoverLeave);
 
-            // Double click on pet resets position to default bottom-right
-            roamingContainer.addEventListener('dblclick', (e) => {
-                e.preventDefault();
-                resetPosition();
-            });
-
-            roamingContainer.addEventListener('mousedown', (e) => {
+            // Clicking on pet in sidebar triggers energetic run
+            roamingContainer.addEventListener('click', (e) => {
                 if (e.target.closest('#pet-speech-actions') || e.target.closest('button')) return;
-                isDraggingPet = true;
-                hasMoved = false;
-                dragPetStart = { x: e.clientX, y: e.clientY };
-                roamingContainer.classList.remove('shifted-for-panel');
-                const rect = roamingContainer.getBoundingClientRect();
-                petStartPos = { left: rect.left, top: rect.top };
-                roamingContainer.style.transition = 'none';
-                roamingContainer.style.cursor = 'grabbing';
-            });
-
-            window.addEventListener('mousemove', (e) => {
-                if (!isDraggingPet) return;
-                const dx = e.clientX - dragPetStart.x;
-                const dy = e.clientY - dragPetStart.y;
-                if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
-                    hasMoved = true;
-                }
-                if (hasMoved) {
-                    const newLeft = Math.max(10, Math.min(window.innerWidth - 175, petStartPos.left + dx));
-                    const newTop = Math.max(10, Math.min(window.innerHeight - 200, petStartPos.top + dy));
-                    roamingContainer.style.left = newLeft + 'px';
-                    roamingContainer.style.top = newTop + 'px';
-                    roamingContainer.style.bottom = 'auto';
-                    roamingContainer.style.right = 'auto';
-                }
-            });
-
-            window.addEventListener('mouseup', (e) => {
-                if (!isDraggingPet) return;
-                isDraggingPet = false;
-                roamingContainer.style.cursor = 'grab';
-                roamingContainer.style.transition = 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)';
-
-                if (hasMoved) {
-                    const rect = roamingContainer.getBoundingClientRect();
-                    localStorage.setItem('roaming_pet_pos', JSON.stringify({ left: rect.left, top: rect.top }));
-                } else {
-                    if (!e.target.closest('#pet-speech-actions')) {
-                        triggerClickRun();
-                    }
-                }
+                triggerClickRun();
             });
         }
 
