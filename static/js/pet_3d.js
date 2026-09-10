@@ -126,6 +126,7 @@ window.Pet3DEngine = (function () {
         setupListeners();
         buildPets(currentSpecies);
         checkErgonomicsTimer();
+        startLivelyBehaviors();
 
         if (window.radioState && window.radioState.is_playing && window.isListening) {
             setDancing(true);
@@ -449,13 +450,14 @@ window.Pet3DEngine = (function () {
 
         modelWrapper.add(root);
 
-        // 5. Neon DJ Headphones
-        const headY = (box.max.y - box.min.y) * scale * 0.95;
-        const hpGroup = createHeadphonesMesh();
-        hpGroup.position.set(0, headY, 0);
-        hpGroup.visible = isDancing;
-        modelWrapper.add(hpGroup);
-        vp.headphonesMesh = hpGroup;
+        // 5. Floating Music DJ Halo (Safely floating above head, NO clipping or covering pet)
+        const headY = (box.max.y - box.min.y) * scale * 1.08;
+        const musicAura = createMusicAuraMesh();
+        musicAura.position.set(0, headY, 0);
+        musicAura.visible = isDancing;
+        modelWrapper.add(musicAura);
+        vp.musicAura = musicAura;
+        vp.headphonesMesh = musicAura; // For backwards compatibility
 
         // 6. Animation Mixer setup
         if (vp.mixer) {
@@ -471,7 +473,7 @@ window.Pet3DEngine = (function () {
             animations.forEach(clip => {
                 vp.actions[clip.name] = vp.mixer.clipAction(clip);
             });
-            playAnimation(vp, isDancing ? 'dance' : 'idle');
+            playAnimation(vp, isDancing ? 'dance' : currentPose);
         }
 
         vp.modelGroup = modelWrapper;
@@ -486,24 +488,41 @@ window.Pet3DEngine = (function () {
         }
     }
 
+    let currentPose = 'idle'; // 'idle' | 'walk' | 'run' | 'eat' | 'trick'
+
+    function findClipForPose(anims, pose) {
+        if (!anims || anims.length === 0) return null;
+        const norm = (str) => (str || '').toLowerCase();
+
+        if (pose === 'idle') {
+            return anims.find(a => norm(a.name).includes('idle') && !norm(a.name).includes('rare')) ||
+                   anims.find(a => norm(a.name).includes('survey')) || anims[0];
+        }
+        if (pose === 'walk') {
+            return anims.find(a => norm(a.name).includes('walk')) ||
+                   anims.find(a => norm(a.name).includes('run')) || anims[0];
+        }
+        if (pose === 'run' || pose === 'dance') {
+            return anims.find(a => norm(a.name).includes('run') || norm(a.name).includes('gallop')) ||
+                   anims.find(a => norm(a.name).includes('walk')) || anims[0];
+        }
+        if (pose === 'eat') {
+            return anims.find(a => norm(a.name).includes('eat') || norm(a.name).includes('eating')) ||
+                   anims.find(a => norm(a.name).includes('walk')) || anims[0];
+        }
+        if (pose === 'trick' || pose === 'jump') {
+            return anims.find(a => norm(a.name).includes('rare') || norm(a.name).includes('jump') || norm(a.name).includes('attack') || norm(a.name).includes('bark') || norm(a.name).includes('headbutt')) ||
+                   anims.find(a => norm(a.name).includes('run')) || anims[0];
+        }
+        return anims[0];
+    }
+
     function playAnimation(vp, animType) {
         if (!vp || !vp.mixer || !vp.animations || vp.animations.length === 0) return;
 
-        const anims = vp.animations;
-        let targetClip = null;
-
-        if (animType === 'dance') {
-            targetClip = anims.find(a => a.name.toLowerCase().includes('walk') || a.name.toLowerCase().includes('run') || a.name.toLowerCase().includes('gallop')) || anims[0];
-        } else if (animType === 'jump') {
-            targetClip = anims.find(a => a.name.toLowerCase().includes('run') || a.name.toLowerCase().includes('jump') || a.name.toLowerCase().includes('attack')) || anims[0];
-        } else if (animType === 'eat') {
-            targetClip = anims.find(a => a.name.toLowerCase().includes('walk') || a.name.toLowerCase().includes('eat')) || anims[0];
-        } else {
-            // Idle
-            targetClip = anims.find(a => a.name.toLowerCase().includes('idle') || a.name.toLowerCase().includes('survey')) || anims[0];
-        }
-
+        const targetClip = findClipForPose(vp.animations, animType);
         if (!targetClip) return;
+
         const newAction = vp.actions[targetClip.name] || vp.mixer.clipAction(targetClip);
         if (vp.currentAction === newAction && newAction.isRunning()) return;
 
@@ -513,7 +532,7 @@ window.Pet3DEngine = (function () {
 
         newAction.reset().fadeIn(0.25).play();
 
-        if (animType === 'eat' || animType === 'jump') {
+        if (animType === 'jump') {
             newAction.setLoop(THREE.LoopOnce);
             newAction.clampWhenFinished = false;
         } else {
@@ -523,25 +542,49 @@ window.Pet3DEngine = (function () {
         vp.currentAction = newAction;
     }
 
-    function createHeadphonesMesh() {
-        const hpGroup = new THREE.Group();
-        const bandMat = new THREE.MeshStandardMaterial({ color: 0x6366f1, roughness: 0.2, metalness: 0.3 });
-        const band = new THREE.Mesh(new THREE.TorusGeometry(0.38, 0.04, 8, 24, Math.PI), bandMat);
-        band.rotation.x = -Math.PI / 2;
-        band.rotation.z = Math.PI / 2;
-        hpGroup.add(band);
-
-        [-0.38, 0.38].forEach((x) => {
-            const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.08, 16), bandMat);
-            cup.rotateZ(Math.PI / 2);
-            cup.position.set(x, 0, 0);
-            const ring = new THREE.Mesh(new THREE.RingGeometry(0.05, 0.10, 16), new THREE.MeshBasicMaterial({ color: 0x38bdf8, side: THREE.DoubleSide }));
-            ring.rotateY(x > 0 ? Math.PI / 2 : -Math.PI / 2);
-            ring.position.set(x + (x > 0 ? 0.045 : -0.045), 0, 0);
-            hpGroup.add(cup);
-            hpGroup.add(ring);
+    function setPose(poseName) {
+        currentPose = poseName;
+        [roaming, panel].forEach(vp => {
+            if (!vp) return;
+            playAnimation(vp, poseName);
         });
-        return hpGroup;
+        const cfg = SPECIES_CONFIG[currentSpecies] || SPECIES_CONFIG['shiba'];
+        const poseLabels = {
+            idle: 'Nghỉ ngơi 🧘',
+            walk: 'Đi dạo thong thả 🚶',
+            run: 'Chạy tung tăng 🏃',
+            eat: `Nhai ${cfg.food_name || 'thức ăn'} 🍖`,
+            trick: 'Biểu diễn ngộ nghĩnh ✨'
+        };
+        showBubble(poseLabels[poseName] || 'Tư thế mới!', '🎭 Hoạt ảnh', 2500);
+    }
+
+    function createMusicAuraMesh() {
+        const auraGroup = new THREE.Group();
+        auraGroup.name = 'petMusicAura';
+
+        // Floating glowing neon ring high above head (never touches head or face)
+        const ringGeo = new THREE.TorusGeometry(0.24, 0.022, 8, 32);
+        const ringMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.85 });
+        const ring = new THREE.Mesh(ringGeo, ringMat);
+        ring.rotation.x = Math.PI / 2;
+        auraGroup.add(ring);
+
+        // Glowing music note floating cleanly above halo
+        const noteCanvas = document.createElement('canvas');
+        noteCanvas.width = 64; noteCanvas.height = 64;
+        const ctx = noteCanvas.getContext('2d');
+        ctx.font = '36px sans-serif';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('🎵', 32, 32);
+        const noteTex = new THREE.CanvasTexture(noteCanvas);
+        const noteMat = new THREE.SpriteMaterial({ map: noteTex, transparent: true, opacity: 0.95 });
+        const noteSprite = new THREE.Sprite(noteMat);
+        noteSprite.scale.set(0.3, 0.3, 1);
+        noteSprite.position.set(0, 0.18, 0);
+        auraGroup.add(noteSprite);
+
+        return auraGroup;
     }
 
     function buildProceduralFallback(vp, cfg, genId) {
@@ -574,10 +617,10 @@ window.Pet3DEngine = (function () {
         isDancing = active;
         [roaming, panel].forEach(vp => {
             if (!vp) return;
-            if (vp.headphonesMesh) {
-                vp.headphonesMesh.visible = active;
+            if (vp.musicAura) {
+                vp.musicAura.visible = active;
             }
-            playAnimation(vp, active ? 'dance' : 'idle');
+            playAnimation(vp, active ? 'dance' : currentPose);
         });
         if (active) {
             spawnParticles('note', 4);
@@ -594,7 +637,7 @@ window.Pet3DEngine = (function () {
 
         [roaming, panel].forEach(vp => {
             if (!vp) return;
-            playAnimation(vp, 'jump');
+            playAnimation(vp, 'trick');
         });
 
         if (window.triggerPetBrief) {
@@ -605,9 +648,9 @@ window.Pet3DEngine = (function () {
             isJumping = false;
             [roaming, panel].forEach(vp => {
                 if (!vp) return;
-                playAnimation(vp, isDancing ? 'dance' : 'idle');
+                playAnimation(vp, isDancing ? 'dance' : currentPose);
             });
-        }, 1600);
+        }, 1800);
     }
 
     function feed() {
@@ -635,9 +678,8 @@ window.Pet3DEngine = (function () {
             isEating = false;
             [roaming, panel].forEach(vp => {
                 if (!vp) return;
-                playAnimation(vp, isDancing ? 'dance' : 'idle');
+                playAnimation(vp, isDancing ? 'dance' : currentPose);
             });
-        }, 2200);
     }
 
     function spawnParticles(type, count) {
@@ -756,6 +798,26 @@ window.Pet3DEngine = (function () {
         updateViewportAnimation(panel, time, delta);
     }
 
+    let livelyTimer = null;
+    function startLivelyBehaviors() {
+        if (livelyTimer) clearInterval(livelyTimer);
+        livelyTimer = setInterval(() => {
+            if (currentPose !== 'idle' || isDancing || isEating || isJumping) return;
+            const randPoses = ['walk', 'trick', 'run'];
+            const randPose = randPoses[Math.floor(Math.random() * randPoses.length)];
+            [roaming, panel].forEach(vp => {
+                if (vp) playAnimation(vp, randPose);
+            });
+            setTimeout(() => {
+                if (currentPose === 'idle' && !isDancing && !isEating && !isJumping) {
+                    [roaming, panel].forEach(vp => {
+                        if (vp) playAnimation(vp, 'idle');
+                    });
+                }
+            }, 3400);
+        }, 22000);
+    }
+
     function setupListeners() {
         window.addEventListener('mousemove', (e) => {
             mousePos.x = e.clientX;
@@ -764,9 +826,68 @@ window.Pet3DEngine = (function () {
 
         const roamingContainer = document.getElementById('roaming-pet-container');
         if (roamingContainer) {
-            roamingContainer.addEventListener('click', (e) => {
-                if (e.target.closest('#pet-speech-actions')) return;
-                poke();
+            let isDraggingPet = false;
+            let dragPetStart = { x: 0, y: 0 };
+            let petStartPos = { left: 0, top: 0 };
+            let hasMoved = false;
+
+            // Restore saved position if available
+            try {
+                const savedPos = JSON.parse(localStorage.getItem('roaming_pet_pos') || 'null');
+                if (savedPos && typeof savedPos.left === 'number' && typeof savedPos.top === 'number') {
+                    const maxLeft = Math.max(10, window.innerWidth - 180);
+                    const maxTop = Math.max(10, window.innerHeight - 190);
+                    const clampedLeft = Math.max(10, Math.min(maxLeft, savedPos.left));
+                    const clampedTop = Math.max(10, Math.min(maxTop, savedPos.top));
+                    roamingContainer.style.left = clampedLeft + 'px';
+                    roamingContainer.style.top = clampedTop + 'px';
+                    roamingContainer.style.bottom = 'auto';
+                    roamingContainer.style.right = 'auto';
+                }
+            } catch(e) {}
+
+            roamingContainer.addEventListener('mousedown', (e) => {
+                if (e.target.closest('#pet-speech-actions') || e.target.closest('button')) return;
+                isDraggingPet = true;
+                hasMoved = false;
+                dragPetStart = { x: e.clientX, y: e.clientY };
+                const rect = roamingContainer.getBoundingClientRect();
+                petStartPos = { left: rect.left, top: rect.top };
+                roamingContainer.style.transition = 'none';
+                roamingContainer.style.cursor = 'grabbing';
+            });
+
+            window.addEventListener('mousemove', (e) => {
+                if (!isDraggingPet) return;
+                const dx = e.clientX - dragPetStart.x;
+                const dy = e.clientY - dragPetStart.y;
+                if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
+                    hasMoved = true;
+                }
+                if (hasMoved) {
+                    const newLeft = Math.max(10, Math.min(window.innerWidth - 175, petStartPos.left + dx));
+                    const newTop = Math.max(10, Math.min(window.innerHeight - 185, petStartPos.top + dy));
+                    roamingContainer.style.left = newLeft + 'px';
+                    roamingContainer.style.top = newTop + 'px';
+                    roamingContainer.style.bottom = 'auto';
+                    roamingContainer.style.right = 'auto';
+                }
+            });
+
+            window.addEventListener('mouseup', (e) => {
+                if (!isDraggingPet) return;
+                isDraggingPet = false;
+                roamingContainer.style.cursor = 'grab';
+                roamingContainer.style.transition = 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)';
+
+                if (hasMoved) {
+                    const rect = roamingContainer.getBoundingClientRect();
+                    localStorage.setItem('roaming_pet_pos', JSON.stringify({ left: rect.left, top: rect.top }));
+                } else {
+                    if (!e.target.closest('#pet-speech-actions')) {
+                        poke();
+                    }
+                }
             });
         }
 
@@ -870,6 +991,8 @@ window.Pet3DEngine = (function () {
         poke,
         feed,
         setDancing,
+        setPose,
+        getCurrentPose: () => currentPose,
         showBubble,
         hideBubble,
         switchSpecies,
