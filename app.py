@@ -2409,12 +2409,13 @@ def _get_random_accessory(pet):
     return random.choice(available)['id']
 
 PET_TYPES = {
-    'shiba':   {'name_vi': 'Chó Shiba',   'name_ja': '柴犬',      'emoji': '🐕', 'sound': 'Gâu gâu! Woof! 🐾', 'food_name': 'Xương thịt 🍖', 'desc': 'Trung thành, hoạt bát, luôn hăng hái nhắc bạn nộp task'},
-    'neko':    {'name_vi': 'Mèo Neko',    'name_ja': 'ネコ',      'emoji': '🐈', 'sound': 'Nya~ Meow! 🐾',     'food_name': 'Cá hồi 🐟',   'desc': 'Dễ thương, hơi chảnh nhưng mê được xoa đầu'},
-    'bunny':   {'name_vi': 'Thỏ Bunny',   'name_ja': 'うさぎ',    'emoji': '🐰', 'sound': 'Pyon pyon~ 🥕',     'food_name': 'Cà rốt 🥕',   'desc': 'Nhẹ nhàng, tai dài nhạy bén, thích gặm cà rốt giòn tan'},
-    'fox':     {'name_vi': 'Cáo Kitsune', 'name_ja': 'キツネ',    'emoji': '🦊', 'sound': 'Kon kon~ 🍂',       'food_name': 'Bánh đậu 🥮', 'desc': 'Thông minh, tinh nghịch, chiếc đuôi cam xù bồng bềnh'},
-    'panda':   {'name_vi': 'Gấu Trúc',    'name_ja': 'パンダ',    'emoji': '🐼', 'sound': 'Panda roll~ 🎋',    'food_name': 'Cành trúc 🎋', 'desc': 'Tròn trĩnh, đáng yêu, bậc thầy thư giãn giảm stress'},
-    'dragon':  {'name_vi': 'Rồng Con',    'name_ja': 'ドラゴン',  'emoji': '🐲', 'sound': 'Grrr~ Phì phì! 💫', 'food_name': 'Ngọc lửa 💎', 'desc': 'Huyền thoại dũng mãnh nhưng biểu cảm lại cực kỳ cute'},
+    'shiba':   {'name_vi': 'Chó Cưng (Dog)',    'name_ja': '子犬',        'emoji': '🐕', 'sound': 'Gâu gâu! Woof! 🐾', 'food_name': 'Xương thịt 🍖', 'desc': 'Trung thành, hoạt bát, luôn hăng hái nhắc bạn nộp task'},
+    'neko':    {'name_vi': 'Mèo Kitty',         'name_ja': '子猫',        'emoji': '🐱', 'sound': 'Nya~ Meow! 🐾',     'food_name': 'Cá tươi 🐟',   'desc': 'Dễ thương, quấn quýt, thích được xoa đầu và cưng nựng'},
+    'fox':     {'name_vi': 'Hổ Vằn (Tiger)',    'name_ja': 'トラ',        'emoji': '🐯', 'sound': 'Grrr~ Gầm! 🐾',     'food_name': 'Thịt bò 🥩',   'desc': 'Dũng mãnh, bảo vệ bạn hoàn thành mọi deadline'},
+    'bunny':   {'name_vi': 'Cánh Cụt (Penguin)','name_ja': 'ペンギン',    'emoji': '🐧', 'sound': 'Pingu pingu~ ❄️',   'food_name': 'Cá nhỏ 🐟',   'desc': 'Lon ton, ngộ nghĩnh, dáng đi lắc lư cực kỳ giải trí'},
+    'panda':   {'name_vi': 'Ngựa Con (Pony)',   'name_ja': '子馬',        'emoji': '🐴', 'sound': 'Hí hí~ Nhong! 🌾',  'food_name': 'Cà rốt 🥕',   'desc': 'Năng động, chạy nhảy siêu nhanh giúp tiến độ luôn thần tốc'},
+    'dragon':  {'name_vi': 'Hươu Sao (Deer)',   'name_ja': 'シカ',        'emoji': '🦌', 'sound': 'Ngơ ngác ngác~ 🌿', 'food_name': 'Lộc non 🍀',   'desc': 'Thanh thoát, hiền lành, mang lại may mắn và bình an'},
+    'chicken': {'name_vi': 'Gà Con (Chick)',    'name_ja': 'ヒヨコ',      'emoji': '🐥', 'sound': 'Chíp chíp! 🌾',     'food_name': 'Thóc vàng 🌾', 'desc': 'Nhí nhảnh, siêng năng dậy sớm gáy nhắc việc'},
 }
 
 # XP thresholds per level range
