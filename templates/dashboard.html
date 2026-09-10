@@ -232,7 +232,7 @@
             style="border-radius: var(--radius-sm); margin-right: 8px;">
         <div style="display: flex; flex-direction: column; justify-content: center;">
             <span>VN-Tracking</span>
-            <sup class="version-tag" style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.4.14</i></sup>
+            <sup class="version-tag" style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.4.15</i></sup>
         </div>
     </div>
 
@@ -2584,7 +2584,6 @@
         <canvas id="roaming-pet-canvas" width="220" height="260"></canvas>
     </div>
     <div id="pet-speech-bubble" class="pet-speech-bubble">
-        <div id="pet-speech-tag" class="pet-speech-tag"></div>
         <div id="pet-speech-text" class="pet-speech-text"></div>
         <div id="pet-speech-actions" class="pet-speech-actions"></div>
     </div>
@@ -3525,41 +3524,43 @@
 }
 
 /* ===== PET SPEECH BUBBLE ===== */
-.roaming-pet-3d-wrapper .pet-speech-bubble {
+.pet-speech-bubble {
     position: absolute;
-    bottom: 25px;
+    bottom: 35px;
     right: 100%;
-    margin-right: 12px;
-    transform: translateX(0) translateY(8px) scale(0.9);
+    margin-right: 14px;
+    transform: translateX(0) translateY(8px) scale(0.92);
     transform-origin: bottom right;
     background: rgba(15, 23, 42, 0.94);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     border: 1px solid rgba(139, 92, 246, 0.35);
-    border-radius: 14px;
-    padding: 10px 12px;
-    font-size: 11px;
-    color: #e2e8f0;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 20px rgba(139, 92, 246, 0.15);
+    border-radius: 16px;
+    padding: 12px 15px;
+    font-size: 12px;
+    color: #f1f5f9;
+    box-shadow: 0 12px 35px -4px rgba(0, 0, 0, 0.6), 0 0 25px rgba(139, 92, 246, 0.2);
     opacity: 0;
     pointer-events: none;
-    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-    z-index: 9999;
-    width: 200px;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    z-index: 10000;
+    width: 220px;
     text-align: left;
-    line-height: 1.4;
+    line-height: 1.45;
 }
-.roaming-pet-3d-wrapper .pet-speech-text {
-    font-size: 11px !important;
-    color: #cbd5e1;
+.pet-speech-text {
+    font-size: 12px !important;
+    color: #e2e8f0;
     word-break: break-word;
+    line-height: 1.45;
 }
-.roaming-pet-3d-wrapper .pet-speech-bubble.active {
+.pet-speech-bubble.active,
+.pet-speech-bubble.visible {
     opacity: 1;
     pointer-events: auto;
     transform: translateX(0) translateY(0) scale(1);
 }
-.roaming-pet-3d-wrapper .pet-speech-bubble::after {
+.pet-speech-bubble::after {
     content: '';
     position: absolute;
     top: 50%;
@@ -3571,7 +3572,7 @@
     width: 0;
     height: 0;
 }
-.roaming-pet-3d-wrapper .pet-speech-bubble::before {
+.pet-speech-bubble::before {
     content: '';
     position: absolute;
     top: 50%;
@@ -3584,6 +3585,25 @@
     z-index: 1;
     width: 0;
     height: 0;
+}
+.pet-speech-bubble.flip-right {
+    right: auto;
+    left: 100%;
+    margin-left: 14px;
+    margin-right: 0;
+    transform-origin: bottom left;
+}
+.pet-speech-bubble.flip-right::after {
+    left: auto;
+    right: 100%;
+    border-color: transparent rgba(139, 92, 246, 0.35) transparent transparent;
+}
+.pet-speech-bubble.flip-right::before {
+    left: auto;
+    right: 100%;
+    margin-left: 0;
+    margin-right: -1px;
+    border-color: transparent rgba(15, 23, 42, 0.94) transparent transparent;
 }
 .pet-speech-actions {
     margin-top: 6px;
@@ -3996,11 +4016,24 @@ async function triggerPetBrief() {
     const actionsEl = document.getElementById('pet-speech-actions');
     
     if (!bubble) return;
+
+    const tagEl = document.getElementById('pet-speech-tag');
+    if (tagEl) tagEl.remove();
+
+    const roamingContainer = document.getElementById('roaming-pet-container');
+    if (roamingContainer) {
+        const rect = roamingContainer.getBoundingClientRect();
+        if (rect.left < 250) {
+            bubble.classList.add('flip-right');
+        } else {
+            bubble.classList.remove('flip-right');
+        }
+    }
     
     clearTimeout(petBriefTimeout);
     bubble.classList.add('active');
     textEl.innerHTML = '<span style="font-size: 20px; animation: petHappy 0.8s infinite;">...</span>';
-    actionsEl.innerHTML = '';
+    if (actionsEl) actionsEl.innerHTML = '';
     
     try {
         const res = await fetch('/api/pet/brief');
