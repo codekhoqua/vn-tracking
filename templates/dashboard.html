@@ -232,7 +232,7 @@
             style="border-radius: var(--radius-sm); margin-right: 8px;">
         <div style="display: flex; flex-direction: column; justify-content: center;">
             <span>VN-Tracking</span>
-            <sup class="version-tag" style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.4.04</i></sup>
+            <sup class="version-tag" style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.4.05</i></sup>
         </div>
     </div>
 
@@ -2595,6 +2595,12 @@
     <div class="pet-panel-header">
         <span>🐾 {{ 'My Pet' if lang == 'vi' else 'マイペット' }}</span>
         <div style="display: flex; gap: 10px; align-items: center;">
+            <button onclick="if(window.Pet3DEngine) window.Pet3DEngine.resetPosition()" style="background:none; border:none; color: var(--text-3); cursor:pointer; padding: 4px; display: flex; align-items: center; justify-content: center; opacity: 0.8; transition: all 0.2s; margin-right: 4px;" onmouseover="this.style.color='#38bdf8'; this.style.opacity='1'" onmouseout="this.style.color='var(--text-3)'; this.style.opacity='0.8'" title="{{ 'Đưa pet về góc phải màn hình' if lang == 'vi' else 'ペットを右下に戻す' }}">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                    <circle cx="12" cy="10" r="3"></circle>
+                </svg>
+            </button>
             <button onclick="resetPet()" style="background:none; border:none; color: var(--text-3); cursor:pointer; padding: 4px; display: flex; align-items: center; justify-content: center; opacity: 0.8; transition: all 0.2s; margin-right: 4px;" onmouseover="this.style.color='#ef4444'; this.style.opacity='1'" onmouseout="this.style.color='var(--text-3)'; this.style.opacity='0.8'">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
