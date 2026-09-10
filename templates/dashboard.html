@@ -232,7 +232,7 @@
             style="border-radius: var(--radius-sm); margin-right: 8px;">
         <div style="display: flex; flex-direction: column; justify-content: center;">
             <span>VN-Tracking</span>
-            <sup class="version-tag" style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.4.17</i></sup>
+            <sup class="version-tag" style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.4.18</i></sup>
         </div>
     </div>
 
@@ -373,7 +373,7 @@
                         <span>{{ 'Đổi loài' if lang == 'vi' else '変更' }}</span>
                     </button>
                     <button id="sidebar-pet-expand-btn" onclick="toggleSidebarPetDetails()" class="sidebar-pet-icon-btn" title="{{ 'Chi tiết / Bảng xếp hạng' if lang == 'vi' else '詳細' }}">
-                        <svg id="sidebar-pet-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                        <svg id="sidebar-pet-chevron" style="transform: rotate(180deg); transition: transform 0.25s ease;" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
                     </button>
                 </div>
             </div>
@@ -418,7 +418,7 @@
             </div>
 
             <!-- Expandable Drawer: Stage badge, Inline Leaderboard, Reset -->
-            <div id="pet-panel" class="sidebar-pet-details" style="display: none;">
+            <div id="pet-panel" class="sidebar-pet-details" style="display: block;">
                 <div class="sidebar-pet-details-top">
                     <span id="pet-stage-badge" class="pet-stage-badge">BABY</span>
                     <button onclick="resetPet()" class="sidebar-pet-reset-btn" title="{{ 'Cài lại pet' if lang == 'vi' else 'リセット' }}">
@@ -3466,39 +3466,121 @@
     display: block;
     cursor: pointer;
 }
-.sidebar-pet-panel .pet-speech-bubble {
-    position: absolute;
-    top: 14px;
-    left: 8px;
-    right: 8px;
-    width: auto;
-    background: rgba(15, 23, 42, 0.96);
-    border: 1.5px solid rgba(139, 92, 246, 0.45);
-    border-radius: 12px;
-    padding: 8px 10px;
-    font-size: 11px;
-    line-height: 1.4;
-    color: #f1f5f9;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.7), 0 0 15px rgba(139,92,246,0.25);
-    z-index: 20;
+.sidebar-pet-panel .pet-speech-bubble,
+.sidebar-pet-panel .pet-speech-bubble.flip-right,
+#roaming-pet-container .pet-speech-bubble,
+#roaming-pet-container .pet-speech-bubble.flip-right {
+    position: absolute !important;
+    top: 6px !important;
+    bottom: auto !important;
+    left: 8px !important;
+    right: 8px !important;
+    width: auto !important;
+    max-width: calc(100% - 16px) !important;
+    margin: 0 !important;
+    background: rgba(15, 23, 42, 0.96) !important;
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    border: 1.5px solid rgba(139, 92, 246, 0.65) !important;
+    border-radius: 12px !important;
+    padding: 7px 10px !important;
+    font-size: 11px !important;
+    line-height: 1.4 !important;
+    color: #f1f5f9 !important;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.8), 0 0 18px rgba(139,92,246,0.35) !important;
+    z-index: 9999 !important;
     opacity: 0;
     pointer-events: none;
-    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    transform: translateY(-4px) scale(0.96) !important;
+    transform-origin: top center !important;
+    transition: opacity 0.2s ease, transform 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
-.sidebar-pet-panel .pet-speech-bubble.active {
-    opacity: 1;
-    pointer-events: auto;
-    transform: translateY(0);
+.sidebar-pet-panel .pet-speech-bubble.active,
+.sidebar-pet-panel .pet-speech-bubble.visible,
+.sidebar-pet-panel .pet-speech-bubble.flip-right.active,
+#roaming-pet-container .pet-speech-bubble.active,
+#roaming-pet-container .pet-speech-bubble.visible,
+#roaming-pet-container .pet-speech-bubble.flip-right.active {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    transform: translateY(0) scale(1) !important;
 }
-.sidebar-pet-panel .pet-speech-bubble::after {
-    content: '';
-    position: absolute;
-    bottom: -6px;
-    left: 50%;
-    margin-left: -6px;
-    border-width: 6px 6px 0 6px;
-    border-style: solid;
-    border-color: rgba(15, 23, 42, 0.96) transparent transparent transparent;
+.sidebar-pet-panel .pet-speech-bubble::after,
+.sidebar-pet-panel .pet-speech-bubble.flip-right::after,
+#roaming-pet-container .pet-speech-bubble::after,
+#roaming-pet-container .pet-speech-bubble.flip-right::after {
+    content: '' !important;
+    position: absolute !important;
+    bottom: -7px !important;
+    top: auto !important;
+    left: 50% !important;
+    right: auto !important;
+    margin-left: -7px !important;
+    margin-top: 0 !important;
+    border-width: 7px 7px 0 7px !important;
+    border-style: solid !important;
+    border-color: rgba(139, 92, 246, 0.65) transparent transparent transparent !important;
+    width: 0 !important;
+    height: 0 !important;
+    z-index: 9998 !important;
+}
+.sidebar-pet-panel .pet-speech-bubble::before,
+.sidebar-pet-panel .pet-speech-bubble.flip-right::before,
+#roaming-pet-container .pet-speech-bubble::before,
+#roaming-pet-container .pet-speech-bubble.flip-right::before {
+    content: '' !important;
+    position: absolute !important;
+    bottom: -5px !important;
+    top: auto !important;
+    left: 50% !important;
+    right: auto !important;
+    margin-left: -6px !important;
+    margin-top: 0 !important;
+    border-width: 6px 6px 0 6px !important;
+    border-style: solid !important;
+    border-color: rgba(15, 23, 42, 0.96) transparent transparent transparent !important;
+    width: 0 !important;
+    height: 0 !important;
+    z-index: 9999 !important;
+}
+.sidebar-pet-panel .pet-speech-text,
+#roaming-pet-container .pet-speech-text {
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    color: #f1f5f9 !important;
+    text-align: center !important;
+    line-height: 1.35 !important;
+    word-break: break-word !important;
+}
+.sidebar-pet-panel .pet-speech-actions,
+#roaming-pet-container .pet-speech-actions {
+    margin-top: 5px !important;
+    display: flex !important;
+    justify-content: center !important;
+    gap: 6px !important;
+}
+.sidebar-pet-panel .pet-speech-btn,
+#roaming-pet-container .pet-speech-btn {
+    background: linear-gradient(135deg, #8b5cf6, #ec4899) !important;
+    color: #fff !important;
+    border: none !important;
+    border-radius: 8px !important;
+    padding: 3px 10px !important;
+    font-size: 10px !important;
+    font-weight: 700 !important;
+    cursor: pointer !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    box-shadow: 0 2px 8px rgba(139, 92, 246, 0.4) !important;
+}
+.roaming-pet-3d-wrapper #pet-display {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    pointer-events: none !important;
+    z-index: 10 !important;
 }
 .sidebar-pet-progress {
     padding: 2px 12px 6px;
@@ -4224,11 +4306,15 @@ async function triggerPetBrief() {
 
     const roamingContainer = document.getElementById('roaming-pet-container');
     if (roamingContainer) {
-        const rect = roamingContainer.getBoundingClientRect();
-        if (rect.left < 250) {
-            bubble.classList.add('flip-right');
-        } else {
+        if (roamingContainer.closest('.sidebar-pet-panel')) {
             bubble.classList.remove('flip-right');
+        } else {
+            const rect = roamingContainer.getBoundingClientRect();
+            if (rect.left < 250) {
+                bubble.classList.add('flip-right');
+            } else {
+                bubble.classList.remove('flip-right');
+            }
         }
     }
     
@@ -4406,7 +4492,7 @@ function toggleSidebarPetDetails() {
     const details = document.getElementById('pet-panel');
     const chevron = document.getElementById('sidebar-pet-chevron');
     if (!details) return;
-    const isHidden = details.style.display === 'none';
+    const isHidden = (details.style.display === 'none' || window.getComputedStyle(details).display === 'none');
     if (isHidden) {
         details.style.display = 'block';
         if (chevron) chevron.style.transform = 'rotate(180deg)';
