@@ -2409,26 +2409,32 @@ def _get_random_accessory(pet):
     return random.choice(available)['id']
 
 PET_TYPES = {
-    'shiba':   {'name_vi': 'Chó Cưng (Dog)',    'name_ja': '子犬',        'emoji': '🐕', 'sound': 'Gâu gâu! Woof! 🐾', 'food_name': 'Xương thịt 🍖', 'desc': 'Trung thành, hoạt bát, luôn hăng hái nhắc bạn nộp task'},
-    'neko':    {'name_vi': 'Mèo Kitty',         'name_ja': '子猫',        'emoji': '🐱', 'sound': 'Nya~ Meow! 🐾',     'food_name': 'Cá tươi 🐟',   'desc': 'Dễ thương, quấn quýt, thích được xoa đầu và cưng nựng'},
-    'fox':     {'name_vi': 'Hổ Vằn (Tiger)',    'name_ja': 'トラ',        'emoji': '🐯', 'sound': 'Grrr~ Gầm! 🐾',     'food_name': 'Thịt bò 🥩',   'desc': 'Dũng mãnh, bảo vệ bạn hoàn thành mọi deadline'},
-    'bunny':   {'name_vi': 'Cánh Cụt (Penguin)','name_ja': 'ペンギン',    'emoji': '🐧', 'sound': 'Pingu pingu~ ❄️',   'food_name': 'Cá nhỏ 🐟',   'desc': 'Lon ton, ngộ nghĩnh, dáng đi lắc lư cực kỳ giải trí'},
-    'panda':   {'name_vi': 'Ngựa Con (Pony)',   'name_ja': '子馬',        'emoji': '🐴', 'sound': 'Hí hí~ Nhong! 🌾',  'food_name': 'Cà rốt 🥕',   'desc': 'Năng động, chạy nhảy siêu nhanh giúp tiến độ luôn thần tốc'},
-    'dragon':  {'name_vi': 'Hươu Sao (Deer)',   'name_ja': 'シカ',        'emoji': '🦌', 'sound': 'Ngơ ngác ngác~ 🌿', 'food_name': 'Lộc non 🍀',   'desc': 'Thanh thoát, hiền lành, mang lại may mắn và bình an'},
-    'chicken': {'name_vi': 'Gà Con (Chick)',    'name_ja': 'ヒヨコ',      'emoji': '🐥', 'sound': 'Chíp chíp! 🌾',     'food_name': 'Thóc vàng 🌾', 'desc': 'Nhí nhảnh, siêng năng dậy sớm gáy nhắc việc'},
-    'husky':   {'name_vi': 'Chó Husky',         'name_ja': 'ハスキー',    'emoji': '🐺', 'sound': 'Húuu~ Woof! ❄️',   'food_name': 'Thịt nướng 🍖', 'desc': 'Ngáo ngơ, hài hước, năng lượng tràn trề tiếp thêm động lực'},
-    'alpaca':  {'name_vi': 'Lạc Đà Alpaca',     'name_ja': 'アルパカ',    'emoji': '🦙', 'sound': 'Hummm~ 🌸',         'food_name': 'Cỏ non 🌿',    'desc': 'Bông xù đáng yêu, điềm tĩnh xả stress cực tốt'},
+    'shiba':          {'name_vi': 'Chó Cưng (Dog)',         'name_ja': '子犬',        'emoji': '🐕', 'sound': 'Gâu gâu! Woof! 🐾',   'food_name': 'Xương thịt 🍖', 'desc': 'Trung thành, hoạt bát, luôn hăng hái nhắc bạn nộp task'},
+    'neko':           {'name_vi': 'Mèo Kitty',              'name_ja': '子猫',        'emoji': '🐱', 'sound': 'Nya~ Meow! 🐾',       'food_name': 'Cá tươi 🐟',   'desc': 'Dễ thương, quấn quýt, thích được xoa đầu và cưng nựng'},
+    'fox':            {'name_vi': 'Hổ Vằn (Tiger)',         'name_ja': 'トラ',        'emoji': '🐯', 'sound': 'Grrr~ Gầm! 🐾',       'food_name': 'Thịt bò 🥩',   'desc': 'Dũng mãnh, bảo vệ bạn hoàn thành mọi deadline'},
+    'bunny':          {'name_vi': 'Cánh Cụt (Penguin)',     'name_ja': 'ペンギン',    'emoji': '🐧', 'sound': 'Pingu pingu~ ❄️',     'food_name': 'Cá nhỏ 🐟',   'desc': 'Lon ton, ngộ nghĩnh, dáng đi lắc lư cực kỳ giải trí'},
+    'panda':          {'name_vi': 'Ngựa Con (Pony)',        'name_ja': '子馬',        'emoji': '🐴', 'sound': 'Hí hí~ Nhong! 🌾',    'food_name': 'Cà rốt 🥕',   'desc': 'Năng động, chạy nhảy siêu nhanh giúp tiến độ luôn thần tốc'},
+    'dragon':         {'name_vi': 'Hươu Sao (Deer)',        'name_ja': 'シカ',        'emoji': '🦌', 'sound': 'Ngơ ngác ngác~ 🌿',   'food_name': 'Lộc non 🍀',   'desc': 'Thanh thoát, hiền lành, mang lại may mắn và bình an'},
+    'chicken':        {'name_vi': 'Gà Con (Chick)',         'name_ja': 'ヒヨコ',      'emoji': '🐥', 'sound': 'Chíp chíp! 🌾',       'food_name': 'Thóc vàng 🌾', 'desc': 'Nhí nhảnh, siêng năng dậy sớm gáy nhắc việc'},
+    'husky':          {'name_vi': 'Chó Husky',              'name_ja': 'ハスキー',    'emoji': '🐺', 'sound': 'Húuu~ Woof! ❄️',     'food_name': 'Thịt nướng 🍖', 'desc': 'Ngáo ngơ, hài hước, năng lượng tràn trề tiếp thêm động lực'},
+    'alpaca':         {'name_vi': 'Lạc Đà Alpaca',          'name_ja': 'アルパカ',    'emoji': '🦙', 'sound': 'Hummm~ 🌸',           'food_name': 'Cỏ non 🌿',    'desc': 'Bông xù đáng yêu, điềm tĩnh xả stress cực tốt'},
+    'duck':           {'name_vi': 'Vịt Vàng (Duck)',        'name_ja': 'アヒル',      'emoji': '🦆', 'sound': 'Cạp cạp! Quack! 🌊',   'food_name': 'Bánh mì 🍞',   'desc': 'Vui tươi, dáng đi lạch bạch ngộ nghĩnh xua tan mệt mỏi'},
+    'redfox':         {'name_vi': 'Cáo Đỏ (Fox)',           'name_ja': 'キツネ',      'emoji': '🦊', 'sound': 'Yip yip! 🍁',          'food_name': 'Quả mọng 🫐',  'desc': 'Nhanh nhẹn, thông minh, tinh ranh giúp bạn xử lý task thần tốc'},
+    'cat':            {'name_vi': 'Mèo Mun (Cat)',          'name_ja': '黒猫',        'emoji': '🐈', 'sound': 'Meo meo~ Nya! 🐾',      'food_name': 'Cá nướng 🐟',  'desc': 'Linh hoạt, uyển chuyển, thích nhảy nhót và xoa đầu'},
+    'deer_forest':    {'name_vi': 'Hươu Rừng (Forest Deer)','name_ja': '森のシカ',    'emoji': '🦌', 'sound': 'Ngơ ngác~ 🌲',         'food_name': 'Cỏ tươi 🌿',   'desc': 'Dáng vẻ oai phong, bước đi uyển chuyển giữa rừng xanh'},
+    'horse_stallion': {'name_vi': 'Chiến Mã (Stallion)',    'name_ja': '駿馬',        'emoji': '🐎', 'sound': 'Hí hí~ Phi nhanh! ⚔️', 'food_name': 'Táo đỏ 🍎',   'desc': 'Dũng mãnh, phi nước đại bứt phá mọi chỉ tiêu công việc'},
+    'shiba_inu':      {'name_vi': 'Shiba Inu (Classic)',    'name_ja': '柴犬',        'emoji': '🐕', 'sound': 'Gâu gâu! Wan! 🐾',     'food_name': 'Thịt nướng 🍖', 'desc': 'Chó Shiba chuẩn Nhật Bản, thông minh và trung thành'},
 }
 
 # Aliases for multi-key compatibility
 PET_TYPES['dog'] = PET_TYPES['shiba']
-PET_TYPES['cat'] = PET_TYPES['neko']
 PET_TYPES['kitty'] = PET_TYPES['neko']
 PET_TYPES['tiger'] = PET_TYPES['fox']
 PET_TYPES['penguin'] = PET_TYPES['bunny']
 PET_TYPES['pinguin'] = PET_TYPES['bunny']
 PET_TYPES['horse'] = PET_TYPES['panda']
 PET_TYPES['deer'] = PET_TYPES['dragon']
+PET_TYPES['duckling'] = PET_TYPES['duck']
 
 # XP thresholds per level range
 def _pet_xp_for_level(level):
