@@ -203,7 +203,6 @@ window.Pet3DEngine = (function () {
                     <canvas id="roaming-pet-canvas" width="220" height="260"></canvas>
                 </div>
                 <div id="pet-speech-bubble" class="pet-speech-bubble">
-                    <div id="pet-speech-tag" class="pet-speech-tag"></div>
                     <div id="pet-speech-text" class="pet-speech-text"></div>
                     <div id="pet-speech-actions" class="pet-speech-actions"></div>
                 </div>
@@ -216,7 +215,6 @@ window.Pet3DEngine = (function () {
                     <canvas id="roaming-pet-canvas" width="220" height="260"></canvas>
                 </div>
                 <div id="pet-speech-bubble" class="pet-speech-bubble">
-                    <div id="pet-speech-tag" class="pet-speech-tag"></div>
                     <div id="pet-speech-text" class="pet-speech-text"></div>
                     <div id="pet-speech-actions" class="pet-speech-actions"></div>
                 </div>
@@ -850,9 +848,6 @@ window.Pet3DEngine = (function () {
         if (runTimer) clearTimeout(runTimer);
 
         spawnParticles('dash', 6);
-        const cfg = SPECIES_CONFIG[currentSpecies] || SPECIES_CONFIG['shiba'];
-        showBubble(cfg.sound || 'Gâu gâu! 🐾', '🏃 Chạy tung tăng', 3000);
-
         applyPose('run');
 
         if (window.triggerPetBrief) {
@@ -880,7 +875,7 @@ window.Pet3DEngine = (function () {
         });
 
         applyPose('eat');
-        showBubble(`Ngon quá! +15 XP ❤️`, '🍖 Đang ăn...', 2800);
+        showBubble(`Ngon quá! +15 XP ❤️`, 2800);
 
         setTimeout(() => {
             isEating = false;
@@ -1073,7 +1068,7 @@ window.Pet3DEngine = (function () {
 
         applyPose('trick');
         const msg = newLevel ? `🎉 Tuyệt vời! Thăng hạng Lv.${newLevel} rồi! ✨` : '🎉 Yay! Thăng hạng thành công! ✨';
-        showBubble(msg, '🌟 Vui mừng thăng hạng', 4000);
+        showBubble(msg, 4000);
 
         if (celebrateTimer) clearTimeout(celebrateTimer);
         celebrateTimer = setTimeout(() => {
@@ -1210,31 +1205,39 @@ window.Pet3DEngine = (function () {
         });
     }
 
-    function showBubble(text, tag = '', duration = 4000, actionsHtml = '') {
+    function showBubble(text, duration = 4000, actionsHtml = '') {
         const bubble = document.getElementById('pet-speech-bubble');
         if (!bubble) return;
 
-        const tagEl = document.getElementById('pet-speech-tag');
         const textEl = document.getElementById('pet-speech-text');
         const actEl = document.getElementById('pet-speech-actions');
 
-        if (tagEl) tagEl.textContent = tag;
         if (textEl) textEl.innerHTML = text;
         if (actEl) actEl.innerHTML = actionsHtml;
 
-        bubble.classList.add('visible');
+        const roamingContainer = document.getElementById('roaming-pet-container');
+        if (roamingContainer) {
+            const rect = roamingContainer.getBoundingClientRect();
+            if (rect.left < 250) {
+                bubble.classList.add('flip-right');
+            } else {
+                bubble.classList.remove('flip-right');
+            }
+        }
+
+        bubble.classList.add('active');
 
         if (window._petBubbleTimeout) clearTimeout(window._petBubbleTimeout);
         if (duration > 0) {
             window._petBubbleTimeout = setTimeout(() => {
-                bubble.classList.remove('visible');
+                bubble.classList.remove('active');
             }, duration);
         }
     }
 
     function hideBubble() {
         const bubble = document.getElementById('pet-speech-bubble');
-        if (bubble) bubble.classList.remove('visible');
+        if (bubble) bubble.classList.remove('active');
     }
 
     function checkErgonomicsTimer() {
@@ -1246,7 +1249,7 @@ window.Pet3DEngine = (function () {
                 'Vươn vai một cái thật sảng khoái nào! 🧘'
             ];
             const tip = tips[Math.floor(Math.random() * tips.length)];
-            showBubble(tip, '⏰ Nhắc nhở sức khỏe', 6000);
+            showBubble(tip, 6000);
         }, 45 * 60 * 1000);
     }
 
