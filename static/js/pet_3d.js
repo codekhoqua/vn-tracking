@@ -140,9 +140,8 @@ window.Pet3DEngine = (function () {
         startLivelyBehaviors();
         isInitialized = true;
 
-        if (window.radioState && window.radioState.is_playing && window.isListening) {
-            setDancing(true);
-        }
+        const isMusicActive = Boolean(window.radioState && window.radioState.is_playing && (window.isRadioDJ || window.isListening));
+        setDancing(isMusicActive);
     }
 
     function createDOM() {
@@ -632,6 +631,13 @@ window.Pet3DEngine = (function () {
 
     function setPose(poseName) {
         currentPose = poseName;
+        if (isDancing) {
+            isDancing = false;
+            [roaming, panel].forEach(vp => {
+                if (vp && vp.musicAura) vp.musicAura.visible = false;
+                if (vp && vp.modelGroup) vp.modelGroup.position.y = 0;
+            });
+        }
         [roaming, panel].forEach(vp => {
             if (!vp) return;
             playAnimation(vp, poseName);
@@ -702,15 +708,18 @@ window.Pet3DEngine = (function () {
     }
 
     function setDancing(active) {
-        isDancing = active;
+        isDancing = Boolean(active);
         [roaming, panel].forEach(vp => {
             if (!vp) return;
             if (vp.musicAura) {
-                vp.musicAura.visible = active;
+                vp.musicAura.visible = isDancing;
             }
-            playAnimation(vp, active ? 'dance' : currentPose);
+            if (vp.modelGroup && !isDancing) {
+                vp.modelGroup.position.y = 0;
+            }
+            playAnimation(vp, isDancing ? 'dance' : currentPose);
         });
-        if (active) {
+        if (isDancing) {
             spawnParticles('note', 4);
         }
     }
