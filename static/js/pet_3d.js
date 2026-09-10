@@ -32,55 +32,58 @@ window.Pet3DEngine = (function () {
     let roaming = null;
     let panel = null;
 
-    // Pop Mart Style Species Palette
+    // Pop Mart Style Species Palette (Soft Pastel Velvet Tones - Zero Blown-Out Whites)
     const SPECIES_CONFIG = {
         shiba: {
-            bodyColor: 0xe0872c,      // Honey amber caramel
-            bellyColor: 0xfff8ee,     // Soft cream milk
-            noseColor: 0x271e1b,      // Shiny button nose
+            bodyColor: 0xdf8435,      // Warm toasted honey amber
+            bellyColor: 0xfff8ee,     // Soft ivory milk
+            noseColor: 0x1e293b,      // Shiny black button
             earInner: 0xfcb7af,       // Pastel blush pink
             tailCurled: true,
             hasWings: false,
             hasHorns: false,
-            collarColor: 0xef4444,    // Ruby red bandana
+            collarColor: 0xef4444,    // Ruby red ribbon
             foodColor: 0xffedd5,
+            heldItem: 'bone',
             sound: 'Gâu gâu! 🐾',
             name_vi: 'Chó Shiba',
             emoji: '🐕'
         },
         neko: {
-            bodyColor: 0xffffff,      // Pearl white mochi
-            bellyColor: 0xfff5f7,     // Sakura milk
+            bodyColor: 0xfff1f3,      // Soft sakura pearl white
+            bellyColor: 0xffffff,     // Pure milk
             earInner: 0xf472b6,       // Bubblegum pink
             noseColor: 0xf43f5e,      // Rose pink
             tailCurled: false,
             hasWings: false,
             hasHorns: false,
-            collarColor: 0x8b5cf6,    // Lavender ribbon
+            collarColor: 0x8b5cf6,    // Lavender silk
             foodColor: 0x38bdf8,
+            heldItem: 'fish',
             sound: 'Nya~ Meow! 🐾',
             name_vi: 'Mèo Neko',
             emoji: '🐈'
         },
         bunny: {
-            bodyColor: 0xffffff,      // Snow marshmallow
-            bellyColor: 0xfff1f2,
-            earInner: 0xfb7185,       // Strawberry milk
-            noseColor: 0xf43f5e,
+            bodyColor: 0xfdf2f4,      // Soft marshmallow cream milk (not blinding flat white)
+            bellyColor: 0xffffff,
+            earInner: 0xfb7185,       // Strawberry pastel pink
+            noseColor: 0xf43f5e,      // Sweet berry button
             tailCurled: false,
             longEars: true,
             hasWings: false,
             hasHorns: false,
-            collarColor: 0x10b981,    // Mint green ribbon
+            collarColor: 0x10b981,    // Emerald mint choker
             foodColor: 0xf97316,
+            heldItem: 'carrot',       // Holds a cute 3D carrot!
             sound: 'Pyon pyon~ 🥕',
             name_vi: 'Thỏ Bunny',
             emoji: '🐰'
         },
         fox: {
             bodyColor: 0xf97316,      // Vivid autumn orange
-            bellyColor: 0xffffff,
-            earInner: 0x334155,       // Charcoal tip
+            bellyColor: 0xfff7ed,     // Warm cream
+            earInner: 0x1e293b,       // Charcoal tip
             noseColor: 0x0f172a,
             tailCurled: false,
             bushyTail: true,
@@ -88,35 +91,38 @@ window.Pet3DEngine = (function () {
             hasHorns: false,
             collarColor: 0xec4899,
             foodColor: 0xa855f7,
+            heldItem: 'leaf',
             sound: 'Kon kon~ 🍂',
             name_vi: 'Cáo Kitsune',
             emoji: '🦊'
         },
         panda: {
-            bodyColor: 0xffffff,      // Pure rice mochi
-            bellyColor: 0xffffff,
-            earInner: 0x18181b,       // Soft charcoal velvet
+            bodyColor: 0xf8fafc,      // Rice mochi white
+            bellyColor: 0x18181b,     // Charcoal velvet
+            earInner: 0x18181b,
             noseColor: 0x18181b,
             eyePatch: true,
             tailCurled: false,
             hasWings: false,
             hasHorns: false,
-            collarColor: 0x22c55e,    // Bamboo green ribbon
+            collarColor: 0x22c55e,    // Bamboo green
             foodColor: 0x22c55e,
+            heldItem: 'bamboo',
             sound: 'Panda roll~ 🎋',
             name_vi: 'Gấu Trúc',
             emoji: '🐼'
         },
         dragon: {
-            bodyColor: 0x38bdf8,      // Pastel sky cyan
+            bodyColor: 0x06b6d4,      // Electric pastel cyan
             bellyColor: 0xfef08a,     // Warm custard yellow
-            earInner: 0x7dd3fc,
+            earInner: 0x38bdf8,
             noseColor: 0x0284c7,
             tailCurled: false,
             hasWings: true,
             hasHorns: true,
-            collarColor: 0x6366f1,    // Royal indigo ribbon
+            collarColor: 0x6366f1,    // Royal indigo
             foodColor: 0xf43f5e,
+            heldItem: 'crystal',
             sound: 'Grrr~ Phì phì! 💫',
             name_vi: 'Rồng Con',
             emoji: '🐲'
@@ -180,14 +186,14 @@ window.Pet3DEngine = (function () {
     }
 
     // High-End Pop Mart Vinyl / Figurine Material
-    function createVinylMaterial(colorHex, roughness = 0.22, clearcoat = 0.85) {
+    function createVinylMaterial(colorHex, roughness = 0.28, clearcoat = 0.7) {
         return new THREE.MeshPhysicalMaterial({
             color: colorHex,
             roughness: roughness,
             metalness: 0.04,
             clearcoat: clearcoat,
-            clearcoatRoughness: 0.1,
-            reflectivity: 0.8
+            clearcoatRoughness: 0.15,
+            reflectivity: 0.5
         });
     }
 
@@ -210,30 +216,40 @@ window.Pet3DEngine = (function () {
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.0;
+        if (THREE.sRGBEncoding) {
+            renderer.outputEncoding = THREE.sRGBEncoding;
+        }
 
-        // POP MART STUDIO LIGHTING SETUP (Soft Pastel Glow, Zero Harsh Shadows)
-        // 1. Soft Hemisphere Ambient: Sky pastel peach + Ground twilight indigo
-        const hemiLight = new THREE.HemisphereLight(0xfff5ea, 0x312e81, 1.35);
+        // BALANCED STUDIO LIGHTING (Soft, Warm, Zero Blown-Out Whites)
+        // 1. Soft Warm Ambient & Ground Fill
+        const hemiLight = new THREE.HemisphereLight(0xffedd5, 0x1e1b4b, 0.85);
         scene.add(hemiLight);
 
-        // 2. Key Light (Crisp Warm Studio Light for vinyl glints)
-        const keyLight = new THREE.DirectionalLight(0xffffff, 1.45);
-        keyLight.position.set(3, 4, 3.5);
+        // 2. Key Light (Soft Warm Directional from Top-Front-Right)
+        const keyLight = new THREE.DirectionalLight(0xfff7ed, 0.9);
+        keyLight.position.set(2.5, 4, 3);
         keyLight.castShadow = true;
         keyLight.shadow.mapSize.width = 1024;
         keyLight.shadow.mapSize.height = 1024;
         keyLight.shadow.bias = -0.001;
         scene.add(keyLight);
 
-        // 3. Fill Light (Soft lavender-cyan fill for friendly shadows)
-        const fillLight = new THREE.DirectionalLight(0xe0e7ff, 0.7);
-        fillLight.position.set(-3, 1, 2);
+        // 3. Fill Light (Soft Cool Lilac from Left)
+        const fillLight = new THREE.DirectionalLight(0xc7d2fe, 0.45);
+        fillLight.position.set(-3, 1.5, 2);
         scene.add(fillLight);
 
-        // 4. Rim Backlight (Ethereal studio edge glow like Pop Mart official 3D showcases)
-        const rimLight = new THREE.DirectionalLight(0xc084fc, 1.25);
-        rimLight.position.set(-2, 3, -3);
+        // 4. Subtle Rim Backlight (Outlines character silhouette against dark UI)
+        const rimLight = new THREE.DirectionalLight(0xfbcfe8, 0.65);
+        rimLight.position.set(0, 3, -3);
         scene.add(rimLight);
+
+        // 5. Warm Underglow (Soft warm bounce from bottom)
+        const pointLight = new THREE.PointLight(0xf472b6, 0.35, 4);
+        pointLight.position.set(0, -0.2, 1.8);
+        scene.add(pointLight);
 
         const particleGroup = new THREE.Group();
         scene.add(particleGroup);
@@ -272,8 +288,8 @@ window.Pet3DEngine = (function () {
 
         try {
             clock = new THREE.Clock();
-            roaming = createViewport('roaming-pet-canvas', 160, 170, { x: 0, y: 0.95, z: 3.9 }, { x: 0, y: 0.52, z: 0 });
-            panel = createViewport('panel-pet-canvas', 150, 150, { x: 0, y: 0.9, z: 3.85 }, { x: 0, y: 0.55, z: 0 });
+            roaming = createViewport('roaming-pet-canvas', 160, 170, { x: 0, y: 0.92, z: 3.4 }, { x: 0, y: 0.58, z: 0 });
+            panel = createViewport('panel-pet-canvas', 150, 150, { x: 0, y: 0.88, z: 3.2 }, { x: 0, y: 0.56, z: 0 });
 
             if (!animationFrameId) {
                 animate();
@@ -292,78 +308,97 @@ window.Pet3DEngine = (function () {
         const petGroup = new THREE.Group();
         petGroup.position.set(0, -0.05, 0);
 
-        const bodyMat = createVinylMaterial(cfg.bodyColor, 0.2, 0.85);
-        const bellyMat = createVinylMaterial(cfg.bellyColor, 0.18, 0.9);
-        const noseMat = createVinylMaterial(cfg.noseColor, 0.08, 1.0); // Shiny button nose
-        const earInnerMat = createVinylMaterial(cfg.earInner, 0.3, 0.5);
-        const collarMat = createVinylMaterial(cfg.collarColor, 0.25, 0.8);
-        const goldMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, metalness: 0.85, roughness: 0.15 });
+        const bodyMat = createVinylMaterial(cfg.bodyColor, 0.28, 0.7);
+        const bellyMat = createVinylMaterial(cfg.bellyColor, 0.25, 0.75);
+        const noseMat = createVinylMaterial(cfg.noseColor, 0.05, 1.0); // Shiny button nose
+        const earInnerMat = createVinylMaterial(cfg.earInner, 0.32, 0.45);
+        const collarMat = createVinylMaterial(cfg.collarColor, 0.22, 0.85);
+        const goldMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, metalness: 0.92, roughness: 0.12 });
 
-        // 1. CHIBI BODY (Pear shape, squishy and chubby)
-        const bodyGeo = new THREE.SphereGeometry(0.5, 32, 32);
-        bodyGeo.scale(1.0, 0.92, 1.08);
+        // 1. CHIBI SQUISHY BODY (Chubby rounded pear shape)
+        const bodyGeo = new THREE.SphereGeometry(0.48, 32, 32);
+        bodyGeo.scale(1.05, 0.94, 1.05);
         const bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
-        bodyMesh.position.set(0, 0.42, 0);
+        bodyMesh.position.set(0, 0.40, 0);
         bodyMesh.castShadow = true;
         bodyMesh.receiveShadow = true;
         petGroup.add(bodyMesh);
 
-        // Chubby Belly Patch
-        const bellyGeo = new THREE.SphereGeometry(0.44, 24, 24);
-        bellyGeo.scale(0.88, 0.84, 0.72);
+        // Chubby Belly Cream Patch
+        const bellyGeo = new THREE.SphereGeometry(0.42, 24, 24);
+        bellyGeo.scale(0.85, 0.82, 0.65);
         const belly = new THREE.Mesh(bellyGeo, bellyMat);
-        belly.position.set(0, 0.38, 0.26);
+        belly.position.set(0, 0.36, 0.28);
         petGroup.add(belly);
 
-        // Cute Collar Choker with Golden Bell
-        const collarGeo = new THREE.TorusGeometry(0.38, 0.045, 12, 28);
+        // Cute Ribbon Choker with Golden Bell
+        const collarGeo = new THREE.TorusGeometry(0.36, 0.042, 12, 32);
         const collar = new THREE.Mesh(collarGeo, collarMat);
         collar.rotation.x = Math.PI / 2;
-        collar.position.set(0, 0.72, 0.06);
+        collar.position.set(0, 0.70, 0.04);
         petGroup.add(collar);
 
-        const bellGeo = new THREE.SphereGeometry(0.075, 16, 16);
+        const bellGeo = new THREE.SphereGeometry(0.08, 18, 18);
         const bellMesh = new THREE.Mesh(bellGeo, goldMat);
-        bellMesh.position.set(0, 0.68, 0.44);
+        bellMesh.position.set(0, 0.66, 0.40);
         bellMesh.castShadow = true;
         petGroup.add(bellMesh);
 
-        // 2. CHIBI HEAD (Big, round, with squishy baby cheeks)
+        // 2. CHIBI CUTE HEAD (Slightly squashed baby head)
         const headMesh = new THREE.Group();
-        headMesh.position.set(0, 0.96, 0.12);
+        headMesh.position.set(0, 0.94, 0.05);
 
-        // Head Base (slightly wider than tall for maximum cuteness)
-        const headGeo = new THREE.SphereGeometry(0.56, 32, 32);
-        headGeo.scale(1.12, 0.96, 1.05);
+        const headGeo = new THREE.SphereGeometry(0.52, 32, 32);
+        headGeo.scale(1.16, 0.96, 1.0);
         const headMain = new THREE.Mesh(headGeo, bodyMat);
         headMain.castShadow = true;
         headMesh.add(headMain);
 
-        // Squishy Chubby Cheeks (Mochi effect)
-        [-0.28, 0.28].forEach((x) => {
-            const cheekGeo = new THREE.SphereGeometry(0.26, 20, 20);
-            cheekGeo.scale(1.05, 0.85, 0.85);
+        // Chubby Mochi Cheeks (Baby puff on both sides)
+        [-0.29, 0.29].forEach((x) => {
+            const cheekGeo = new THREE.SphereGeometry(0.24, 20, 20);
+            cheekGeo.scale(1.1, 0.9, 0.85);
             const cheek = new THREE.Mesh(cheekGeo, bellyMat);
-            cheek.position.set(x, -0.09, 0.24);
+            cheek.position.set(x, -0.10, 0.32);
             headMesh.add(cheek);
         });
 
-        // Cute Snout ':3' muzzle
+        // Soft Pastel Peach Blush (Clearly visible on cheeks)
+        [-0.35, 0.35].forEach((x) => {
+            const blushGeo = new THREE.CircleGeometry(0.085, 20);
+            const blushMat = new THREE.MeshBasicMaterial({ color: 0xf43f5e, transparent: true, opacity: 0.65 });
+            const blush = new THREE.Mesh(blushGeo, blushMat);
+            blush.position.set(x, -0.08, 0.44);
+            blush.rotation.y = x > 0 ? 0.38 : -0.38;
+            headMesh.add(blush);
+        });
+
+        // Cute Snout ':3' Muzzle Puff
         const snoutGeo = new THREE.SphereGeometry(0.19, 20, 20);
-        snoutGeo.scale(1.0, 0.72, 0.8);
+        snoutGeo.scale(1.2, 0.78, 0.72);
         const snout = new THREE.Mesh(snoutGeo, bellyMat);
-        snout.position.set(0, -0.06, 0.42);
+        snout.position.set(0, -0.07, 0.44);
         headMesh.add(snout);
 
-        // Tiny Shiny Button Nose
-        const noseGeo = new THREE.SphereGeometry(0.052, 14, 14);
+        // Shiny Button Nose
+        const noseGeo = new THREE.SphereGeometry(0.048, 16, 16);
+        noseGeo.scale(1.15, 0.82, 0.9);
         const nose = new THREE.Mesh(noseGeo, noseMat);
-        nose.position.set(0, 0.01, 0.54);
+        nose.position.set(0, -0.01, 0.56);
         headMesh.add(nose);
 
-        // 3. GLOSSY ANIME EYES (Expressive, dark obsidian with dual starlight reflections)
+        // Cute ':3' Smile Under Nose
+        [-0.036, 0.036].forEach((mx) => {
+            const lipGeo = new THREE.TorusGeometry(0.03, 0.007, 8, 16, Math.PI);
+            const lip = new THREE.Mesh(lipGeo, noseMat);
+            lip.position.set(mx, -0.10, 0.54);
+            lip.rotation.z = Math.PI;
+            headMesh.add(lip);
+        });
+
+        // 3. GLOSSY ANIME EYES (Expressive, Sparkly, Truly on the Front Surface)
         const eyeMat = new THREE.MeshPhysicalMaterial({
-            color: 0x111827,
+            color: 0x0f172a,
             roughness: 0.02,
             clearcoat: 1.0,
             clearcoatRoughness: 0.02
@@ -373,93 +408,113 @@ window.Pet3DEngine = (function () {
         let leftEye = null;
         let rightEye = null;
 
-        [-0.22, 0.22].forEach((x, idx) => {
+        [-0.24, 0.24].forEach((x, idx) => {
             const eyeGroup = new THREE.Group();
-            eyeGroup.position.set(x, 0.06, 0.45);
+            eyeGroup.position.set(x, 0.07, 0.48);
+            eyeGroup.rotation.y = x > 0 ? 0.22 : -0.22;
 
-            // Panda eye patch
+            // Panda Eye Patch
             if (cfg.eyePatch) {
-                const patchGeo = new THREE.SphereGeometry(0.15, 16, 16);
-                patchGeo.scale(1.0, 1.25, 0.35);
+                const patchGeo = new THREE.SphereGeometry(0.16, 16, 16);
+                patchGeo.scale(1.0, 1.25, 0.32);
                 const patch = new THREE.Mesh(patchGeo, noseMat);
-                patch.position.set(0, 0, -0.04);
+                patch.position.set(0, 0, -0.03);
                 patch.rotation.z = x > 0 ? -0.25 : 0.25;
                 eyeGroup.add(patch);
             }
 
             // Big expressive eyeball
-            const eyeGeo = new THREE.SphereGeometry(0.095, 20, 20);
-            eyeGeo.scale(1.0, 1.18, 0.4);
+            const eyeGeo = new THREE.SphereGeometry(0.115, 24, 24);
+            eyeGeo.scale(1.0, 1.25, 0.36);
             const eyeBall = new THREE.Mesh(eyeGeo, eyeMat);
             eyeGroup.add(eyeBall);
 
-            // Major Sparkle Highlight (Top Right)
-            const star1Geo = new THREE.SphereGeometry(0.032, 12, 12);
+            // Iris Radiant Underglow (Dreamy reflection)
+            const irisGeo = new THREE.CircleGeometry(0.07, 16);
+            const irisMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.42 });
+            const iris = new THREE.Mesh(irisGeo, irisMat);
+            iris.position.set(0, -0.032, 0.042);
+            eyeGroup.add(iris);
+
+            // Major Star Sparkle Glint (Top-Outer)
+            const star1Geo = new THREE.SphereGeometry(0.040, 16, 16);
             const star1 = new THREE.Mesh(star1Geo, starMat);
-            star1.position.set(x > 0 ? 0.025 : -0.01, 0.04, 0.04);
+            star1.position.set(x > 0 ? 0.038 : -0.015, 0.048, 0.045);
             eyeGroup.add(star1);
 
-            // Minor Secondary Reflection (Bottom Left)
-            const star2Geo = new THREE.SphereGeometry(0.016, 10, 10);
+            // Minor Star Sparkle Glint (Bottom-Inner)
+            const star2Geo = new THREE.SphereGeometry(0.020, 12, 12);
             const star2 = new THREE.Mesh(star2Geo, starMat);
-            star2.position.set(x > 0 ? -0.03 : 0.02, -0.035, 0.04);
+            star2.position.set(x > 0 ? -0.035 : 0.020, -0.042, 0.045);
             eyeGroup.add(star2);
+
+            // Cute Eyelash Curve / Brow above eye
+            const lashGeo = new THREE.TorusGeometry(0.09, 0.014, 8, 16, Math.PI * 0.55);
+            const lash = new THREE.Mesh(lashGeo, noseMat);
+            lash.position.set(0, 0.12, 0.03);
+            lash.rotation.z = x > 0 ? -0.22 : 0.22;
+            eyeGroup.add(lash);
 
             headMesh.add(eyeGroup);
             if (idx === 0) leftEye = eyeGroup;
             else rightEye = eyeGroup;
         });
 
-        // Radiant Pastel Peach Blush
-        [-0.34, 0.34].forEach((x) => {
-            const blushGeo = new THREE.CircleGeometry(0.08, 16);
-            const blushMat = new THREE.MeshBasicMaterial({ color: 0xf43f5e, transparent: true, opacity: 0.55 });
-            const blush = new THREE.Mesh(blushGeo, blushMat);
-            blush.position.set(x, -0.06, 0.42);
-            blush.rotation.y = x > 0 ? 0.45 : -0.45;
-            headMesh.add(blush);
-        });
-
-        // 4. CUTE ANIME EARS
+        // 4. CUTE ANIME EARS (Specially Crafted for Every Species)
         let leftEar = null;
         let rightEar = null;
 
         if (cfg.longEars) {
-            // Bunny floppy kawaii ears
-            [-0.18, 0.18].forEach((x, idx) => {
-                const earGeo = new THREE.CylinderGeometry(0.09, 0.05, 0.68, 16);
-                earGeo.scale(0.85, 1.0, 0.4);
-                const ear = new THREE.Mesh(earGeo, bodyMat);
-                ear.position.set(x, 0.68, -0.05);
-                ear.rotation.z = x > 0 ? -0.18 : 0.18;
-                headMesh.add(ear);
+            // Bunny Floppy Kawaii Ears (Soft, Rounded, Playfully Asymmetric)
+            // Left Ear
+            const leftEarGroup = new THREE.Group();
+            leftEarGroup.position.set(-0.20, 0.50, -0.06);
+            leftEarGroup.rotation.set(-0.16, -0.12, 0.20);
 
-                const innerEarGeo = new THREE.CylinderGeometry(0.06, 0.03, 0.56, 12);
-                innerEarGeo.scale(0.75, 1.0, 0.2);
-                const inner = new THREE.Mesh(innerEarGeo, earInnerMat);
-                inner.position.set(x, 0.68, -0.02);
-                inner.rotation.z = x > 0 ? -0.18 : 0.18;
-                headMesh.add(inner);
+            const earGeo = new THREE.SphereGeometry(0.13, 24, 24);
+            earGeo.scale(0.85, 2.7, 0.32);
+            const earMesh = new THREE.Mesh(earGeo, bodyMat);
+            leftEarGroup.add(earMesh);
 
-                if (idx === 0) leftEar = ear;
-                else rightEar = ear;
-            });
+            const innerEarGeo = new THREE.SphereGeometry(0.09, 20, 20);
+            innerEarGeo.scale(0.72, 2.2, 0.22);
+            const innerMesh = new THREE.Mesh(innerEarGeo, earInnerMat);
+            innerMesh.position.set(0, 0, 0.03);
+            leftEarGroup.add(innerMesh);
+            headMesh.add(leftEarGroup);
+            leftEar = leftEarGroup;
+
+            // Right Ear (Cute Floppy Droop)
+            const rightEarGroup = new THREE.Group();
+            rightEarGroup.position.set(0.20, 0.50, -0.06);
+            rightEarGroup.rotation.set(-0.08, 0.15, -0.28);
+
+            const rightEarMesh = new THREE.Mesh(earGeo.clone(), bodyMat);
+            rightEarGroup.add(rightEarMesh);
+
+            const rightInnerMesh = new THREE.Mesh(innerEarGeo.clone(), earInnerMat);
+            rightInnerMesh.position.set(0, 0, 0.03);
+            rightEarGroup.add(rightInnerMesh);
+            headMesh.add(rightEarGroup);
+            rightEar = rightEarGroup;
         } else {
-            [-0.3, 0.3].forEach((x, idx) => {
+            [-0.30, 0.30].forEach((x, idx) => {
                 const isPanda = species === 'panda';
-                const earGeo = isPanda ? new THREE.SphereGeometry(0.15, 16, 16) : new THREE.ConeGeometry(0.19, 0.32, 14);
+                const earGeo = isPanda ? new THREE.SphereGeometry(0.15, 18, 18) : new THREE.ConeGeometry(0.19, 0.34, 16);
+                if (!isPanda) earGeo.scale(1.0, 1.0, 0.65);
                 const ear = new THREE.Mesh(earGeo, isPanda ? noseMat : bodyMat);
-                ear.position.set(x, 0.45, 0.05);
-                ear.rotation.z = isPanda ? 0 : (x > 0 ? -0.42 : 0.42);
-                ear.rotation.x = -0.12;
+                ear.position.set(x, isPanda ? 0.44 : 0.46, isPanda ? -0.02 : 0.04);
+                ear.rotation.z = isPanda ? (x > 0 ? -0.35 : 0.35) : (x > 0 ? -0.40 : 0.40);
+                ear.rotation.x = isPanda ? 0 : -0.15;
                 headMesh.add(ear);
 
                 if (!isPanda) {
-                    const innerGeo = new THREE.ConeGeometry(0.12, 0.24, 10);
+                    const innerGeo = new THREE.ConeGeometry(0.13, 0.26, 12);
+                    innerGeo.scale(1.0, 1.0, 0.5);
                     const inner = new THREE.Mesh(innerGeo, earInnerMat);
-                    inner.position.set(x, 0.45, 0.09);
-                    inner.rotation.z = x > 0 ? -0.42 : 0.42;
-                    inner.rotation.x = -0.09;
+                    inner.position.set(x, 0.46, 0.08);
+                    inner.rotation.z = x > 0 ? -0.40 : 0.40;
+                    inner.rotation.x = -0.12;
                     headMesh.add(inner);
                 }
 
@@ -471,7 +526,7 @@ window.Pet3DEngine = (function () {
         // Dragon Horns
         if (cfg.hasHorns) {
             [-0.22, 0.22].forEach((x) => {
-                const hornGeo = new THREE.ConeGeometry(0.08, 0.38, 12);
+                const hornGeo = new THREE.ConeGeometry(0.08, 0.38, 14);
                 const horn = new THREE.Mesh(hornGeo, goldMat);
                 horn.position.set(x, 0.48, -0.05);
                 horn.rotation.z = x > 0 ? -0.32 : 0.32;
@@ -509,50 +564,93 @@ window.Pet3DEngine = (function () {
         headMesh.add(headphonesMesh);
         petGroup.add(headMesh);
 
-        // 6. CHIBI PAWS WITH PINK TOE PADS
+        // 6. CHIBI PAWS WITH PINK TOE PADS (Back feet sitting & Front arms)
         const pawMat = species === 'panda' ? noseMat : bellyMat;
-        const padMat = createVinylMaterial(0xf472b6, 0.3, 0.5);
+        const padMat = createVinylMaterial(0xf472b6, 0.25, 0.6);
 
-        [
-            [-0.26, 0.12, 0.36],
-            [0.26, 0.12, 0.36],
-            [-0.32, 0.09, -0.2],
-            [0.32, 0.09, -0.2]
-        ].forEach((pos, idx) => {
-            const pawGroup = new THREE.Group();
-            pawGroup.position.set(...pos);
+        // Back feet sitting on ground
+        [-0.26, 0.26].forEach((x) => {
+            const footGroup = new THREE.Group();
+            footGroup.position.set(x, 0.09, 0.32);
 
-            const pawGeo = new THREE.SphereGeometry(0.14, 16, 16);
-            pawGeo.scale(1.0, 0.72, 1.25);
-            const paw = new THREE.Mesh(pawGeo, pawMat);
-            paw.castShadow = true;
-            pawGroup.add(paw);
+            const footGeo = new THREE.SphereGeometry(0.14, 16, 16);
+            footGeo.scale(1.0, 0.68, 1.25);
+            const foot = new THREE.Mesh(footGeo, pawMat);
+            foot.castShadow = true;
+            footGroup.add(foot);
 
-            // Cute Paw Pad on front feet
-            if (idx < 2) {
-                const padGeo = new THREE.SphereGeometry(0.05, 10, 10);
-                padGeo.scale(1.0, 0.5, 1.2);
-                const pad = new THREE.Mesh(padGeo, padMat);
-                pad.position.set(0, 0.08, 0.06);
-                pawGroup.add(pad);
-            }
+            // Cute Paw Pad on back feet
+            const padGeo = new THREE.SphereGeometry(0.055, 10, 10);
+            padGeo.scale(1.0, 0.5, 1.2);
+            const pad = new THREE.Mesh(padGeo, padMat);
+            pad.position.set(0, 0.08, 0.06);
+            footGroup.add(pad);
 
-            petGroup.add(pawGroup);
+            petGroup.add(footGroup);
         });
 
-        // 7. CUTE ANIMATED TAIL
+        // Front Little Hands Resting on Tummy
+        [-0.18, 0.18].forEach((x) => {
+            const handGeo = new THREE.SphereGeometry(0.10, 16, 16);
+            handGeo.scale(1.0, 0.8, 1.2);
+            const hand = new THREE.Mesh(handGeo, pawMat);
+            hand.position.set(x, 0.42, 0.33);
+            hand.rotation.x = 0.25;
+            hand.rotation.y = x > 0 ? -0.2 : 0.2;
+            petGroup.add(hand);
+        });
+
+        // 7. CUTE 3D HELD ACCESSORY (Bunny holds Carrot 🥕, Shiba holds Bone 🦴, etc.)
+        if (cfg.heldItem === 'carrot') {
+            const carrotGroup = new THREE.Group();
+            carrotGroup.position.set(0.02, 0.38, 0.39);
+            carrotGroup.rotation.set(0.3, 0.1, -0.35);
+
+            const carrotGeo = new THREE.ConeGeometry(0.075, 0.26, 14);
+            const carrotMat = createVinylMaterial(0xf97316, 0.2, 0.8);
+            const carrot = new THREE.Mesh(carrotGeo, carrotMat);
+            carrot.rotation.x = Math.PI;
+            carrotGroup.add(carrot);
+
+            // Leafy Green Tops
+            [-0.02, 0.02].forEach((lx, li) => {
+                const leafGeo = new THREE.ConeGeometry(0.03, 0.10, 8);
+                const leafMat = createVinylMaterial(0x22c55e, 0.2, 0.8);
+                const leaf = new THREE.Mesh(leafGeo, leafMat);
+                leaf.position.set(lx, 0.14, 0);
+                leaf.rotation.z = li === 0 ? 0.3 : -0.3;
+                carrotGroup.add(leaf);
+            });
+            petGroup.add(carrotGroup);
+        } else if (cfg.heldItem === 'bone') {
+            const boneGeo = new THREE.CylinderGeometry(0.035, 0.035, 0.22, 12);
+            boneGeo.rotateZ(Math.PI / 3);
+            const boneMat = createVinylMaterial(0xfef3c7, 0.2, 0.8);
+            const bone = new THREE.Mesh(boneGeo, boneMat);
+            bone.position.set(0, 0.38, 0.39);
+            petGroup.add(bone);
+        } else if (cfg.heldItem === 'bamboo') {
+            const stalkGeo = new THREE.CylinderGeometry(0.03, 0.03, 0.32, 10);
+            stalkGeo.rotateZ(0.3);
+            const stalkMat = createVinylMaterial(0x16a34a, 0.15, 0.9);
+            const stalk = new THREE.Mesh(stalkGeo, stalkMat);
+            stalk.position.set(0, 0.38, 0.39);
+            petGroup.add(stalk);
+        }
+
+        // 8. CUTE ANIMATED TAIL
         let tailMesh = null;
         if (cfg.tailCurled) {
             // Shiba Curled Donut Tail
             const tailGeo = new THREE.TorusGeometry(0.16, 0.085, 12, 20, Math.PI * 1.45);
             tailMesh = new THREE.Mesh(tailGeo, bodyMat);
-            tailMesh.position.set(0, 0.52, -0.48);
+            tailMesh.position.set(0, 0.50, -0.46);
             tailMesh.rotation.x = Math.PI / 2.2;
             petGroup.add(tailMesh);
         } else if (cfg.bushyTail) {
             // Fox Fluffy Dual-Tone Tail
             const tailGroup = new THREE.Group();
-            tailGroup.position.set(0, 0.48, -0.6);
+            tailGroup.position.set(0, 0.46, -0.56);
             tailGroup.rotation.x = -Math.PI / 3;
 
             const tailGeo = new THREE.ConeGeometry(0.25, 0.68, 16);
@@ -567,23 +665,23 @@ window.Pet3DEngine = (function () {
             tailMesh = tailGroup;
             petGroup.add(tailGroup);
         } else {
-            // Cat / Bunny / Dragon Tail
+            // Bunny Cotton Ball Tail / Cat Tail
             const isBunny = species === 'bunny';
-            const tailGeo = isBunny ? new THREE.SphereGeometry(0.12, 16, 16) : new THREE.CylinderGeometry(0.05, 0.09, 0.48, 12);
-            tailMesh = new THREE.Mesh(tailGeo, bodyMat);
-            tailMesh.position.set(0, isBunny ? 0.38 : 0.36, -0.48);
+            const tailGeo = isBunny ? new THREE.SphereGeometry(0.13, 18, 18) : new THREE.CylinderGeometry(0.045, 0.08, 0.48, 12);
+            tailMesh = new THREE.Mesh(tailGeo, isBunny ? bellyMat : bodyMat);
+            tailMesh.position.set(0, isBunny ? 0.36 : 0.34, -0.46);
             if (!isBunny) tailMesh.rotation.x = -Math.PI / 3.8;
             petGroup.add(tailMesh);
         }
 
-        // 8. DRAGON WINGS
+        // 9. DRAGON WINGS
         let leftWing = null;
         let rightWing = null;
         if (cfg.hasWings) {
             leftWing = createWingMesh(true, bodyMat);
             rightWing = createWingMesh(false, bodyMat);
-            leftWing.position.set(-0.35, 0.62, -0.15);
-            rightWing.position.set(0.35, 0.62, -0.15);
+            leftWing.position.set(-0.35, 0.60, -0.15);
+            rightWing.position.set(0.35, 0.60, -0.15);
             petGroup.add(leftWing);
             petGroup.add(rightWing);
         }
