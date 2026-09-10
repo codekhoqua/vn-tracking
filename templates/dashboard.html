@@ -232,7 +232,7 @@
             style="border-radius: var(--radius-sm); margin-right: 8px;">
         <div style="display: flex; flex-direction: column; justify-content: center;">
             <span>VN-Tracking</span>
-            <sup class="version-tag" style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.4.07</i></sup>
+            <sup class="version-tag" style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.4.08</i></sup>
         </div>
     </div>
 
@@ -2653,25 +2653,28 @@
         <!-- 🎭 3D Pet Pose Selector -->
         <div class="pet-pose-selector" style="width: 100%; margin-top: 10px; background: rgba(0,0,0,0.3); border: 1px solid rgba(139,92,246,0.25); border-radius: 14px; padding: 10px;">
             <div style="font-size: 11px; font-weight: 700; color: #a78bfa; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
-                <span>🎭 {{ 'Tư thế hoạt ảnh 3D' if lang == 'vi' else '3Dポーズ / アニメーション' }}</span>
+                <span>🎭 {{ 'Tương tác & Tư thế 3D' if lang == 'vi' else '3Dポーズ / アニメーション' }}</span>
                 <span id="current-pose-badge" style="font-size: 10px; padding: 2px 8px; border-radius: 8px; background: rgba(56,189,248,0.2); color: #38bdf8; font-weight: 600;">Đang nghỉ 🧘</span>
             </div>
             <div class="pet-pose-btn-group" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px;">
-                <button type="button" class="pet-pose-btn active" onclick="switchPetPose('idle')" data-pose="idle" title="Nghỉ ngơi" style="padding: 6px 2px; border-radius: 8px; border: 1px solid rgba(139,92,246,0.6); background: rgba(139,92,246,0.35); color: #fff; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s; text-align: center;">
+                <button type="button" class="pet-pose-btn active" onclick="switchPetPose('idle')" data-pose="idle" title="Nghỉ ngơi khi không rê chuột" style="padding: 6px 2px; border-radius: 8px; border: 1px solid rgba(139,92,246,0.6); background: rgba(139,92,246,0.35); color: #fff; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s; text-align: center;">
                     🧘 Nghỉ
                 </button>
-                <button type="button" class="pet-pose-btn" onclick="switchPetPose('walk')" data-pose="walk" title="Đi dạo" style="padding: 6px 2px; border-radius: 8px; border: 1px solid transparent; background: rgba(255,255,255,0.04); color: #94a3b8; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s; text-align: center;">
+                <button type="button" class="pet-pose-btn" onclick="switchPetPose('walk')" data-pose="walk" title="Đi bộ khi rê chuột" style="padding: 6px 2px; border-radius: 8px; border: 1px solid transparent; background: rgba(255,255,255,0.04); color: #94a3b8; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s; text-align: center;">
                     🚶 Đi bộ
                 </button>
-                <button type="button" class="pet-pose-btn" onclick="switchPetPose('run')" data-pose="run" title="Chạy tung tăng" style="padding: 6px 2px; border-radius: 8px; border: 1px solid transparent; background: rgba(255,255,255,0.04); color: #94a3b8; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s; text-align: center;">
+                <button type="button" class="pet-pose-btn" onclick="switchPetPose('run')" data-pose="run" title="Chạy khi click vào pet" style="padding: 6px 2px; border-radius: 8px; border: 1px solid transparent; background: rgba(255,255,255,0.04); color: #94a3b8; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s; text-align: center;">
                     🏃 Chạy
                 </button>
-                <button type="button" class="pet-pose-btn" onclick="switchPetPose('eat')" data-pose="eat" title="Ăn mồi" style="padding: 6px 2px; border-radius: 8px; border: 1px solid transparent; background: rgba(255,255,255,0.04); color: #94a3b8; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s; text-align: center;">
+                <button type="button" class="pet-pose-btn" onclick="switchPetPose('eat')" data-pose="eat" title="Ăn mồi khi bấm Cho Ăn" style="padding: 6px 2px; border-radius: 8px; border: 1px solid transparent; background: rgba(255,255,255,0.04); color: #94a3b8; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s; text-align: center;">
                     🍖 Ăn
                 </button>
-                <button type="button" class="pet-pose-btn" onclick="switchPetPose('trick')" data-pose="trick" title="Làm trò vui" style="padding: 6px 2px; border-radius: 8px; border: 1px solid transparent; background: rgba(255,255,255,0.04); color: #94a3b8; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s; text-align: center;">
+                <button type="button" class="pet-pose-btn" onclick="switchPetPose('trick')" data-pose="trick" title="Vui mừng khi thăng hạng" style="padding: 6px 2px; border-radius: 8px; border: 1px solid transparent; background: rgba(255,255,255,0.04); color: #94a3b8; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s; text-align: center;">
                     ✨ Vui
                 </button>
+            </div>
+            <div style="font-size: 10px; color: #94a3b8; margin-top: 6px; text-align: center; opacity: 0.85;">
+                💡 Rê chuột: Đi bộ • Click: Chạy • Cho ăn: Ăn • Thăng hạng: Vui
             </div>
         </div>
 
@@ -3717,6 +3720,10 @@ function switchPetPose(pose) {
     if (window.Pet3DEngine && window.Pet3DEngine.setPose) {
         window.Pet3DEngine.setPose(pose);
     }
+    updatePoseUI(pose);
+}
+
+function updatePoseUI(pose) {
     document.querySelectorAll('.pet-pose-btn').forEach(btn => {
         const isMatch = btn.dataset.pose === pose;
         btn.classList.toggle('active', isMatch);
@@ -3737,11 +3744,13 @@ function switchPetPose(pose) {
             walk: 'Đang đi bộ 🚶',
             run: 'Đang chạy nhảy 🏃',
             eat: 'Đang ăn mồi 🍖',
-            trick: 'Đang làm trò ✨'
+            trick: 'Vui mừng ✨',
+            dance: 'Nhảy DJ 🎵'
         };
         badge.textContent = labels[pose] || pose;
     }
 }
+window.onPetPoseChanged = updatePoseUI;
 
 async function loadInlineLeaderboard() {
     const content = document.getElementById('inline-leaderboard-container');
@@ -3858,6 +3867,11 @@ async function feedPet() {
 }
 
 function showLevelUpCelebration(newLevel) {
+    // 3D Pet celebration / trick state!
+    if (window.Pet3DEngine && window.Pet3DEngine.celebrate) {
+        window.Pet3DEngine.celebrate(newLevel);
+    }
+
     // Confetti
     if (typeof confetti === 'function') {
         confetti({ particleCount: 80, spread: 70, origin: { x: 0.85, y: 0.85 }, colors: ['#8b5cf6', '#a78bfa', '#c4b5fd', '#f59e0b', '#22c55e'] });
