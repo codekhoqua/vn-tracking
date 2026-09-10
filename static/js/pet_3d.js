@@ -679,6 +679,7 @@ window.Pet3DEngine = (function () {
                 if (!vp) return;
                 playAnimation(vp, isDancing ? 'dance' : currentPose);
             });
+        }, 3000);
     }
 
     function spawnParticles(type, count) {
