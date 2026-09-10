@@ -651,7 +651,7 @@ window.Pet3DEngine = (function () {
         const startY = 0.95;
         const targetY = 0.32;
         const startTime = performance.now();
-        const dropDuration = 950;
+        const dropDuration = 450;
 
         const anim = () => {
             const elapsed = performance.now() - startTime;
@@ -683,11 +683,11 @@ window.Pet3DEngine = (function () {
         // Head chewing bobbing
         const startRotX = vp.modelGroup ? vp.modelGroup.rotation.x : 0;
         const startTime = performance.now();
-        const chewDuration = 2200;
+        const chewDuration = 1000;
         const chewAnim = () => {
             const elapsed = performance.now() - startTime;
             if (elapsed < chewDuration && vp.modelGroup) {
-                vp.modelGroup.rotation.x = startRotX + Math.sin(elapsed * 0.015) * 0.12 + 0.08;
+                vp.modelGroup.rotation.x = startRotX + Math.sin(elapsed * 0.02) * 0.12 + 0.08;
                 requestAnimationFrame(chewAnim);
             } else if (vp.modelGroup) {
                 vp.modelGroup.rotation.x = startRotX;
@@ -710,7 +710,7 @@ window.Pet3DEngine = (function () {
 
         newAction.reset();
         newAction.fadeIn(0.2);
-        const speed = animType === 'eat' ? 0.75 : (animType === 'run' ? 1.35 : 1.0);
+        const speed = animType === 'eat' ? 1.25 : (animType === 'run' ? 1.35 : 1.0);
         newAction.setEffectiveTimeScale(speed);
         newAction.setEffectiveWeight(1.0);
         newAction.setLoop(THREE.LoopRepeat);
@@ -748,10 +748,10 @@ window.Pet3DEngine = (function () {
             eat: `Nhai ${cfg.food_name || 'thức ăn'} 🍖`,
             trick: 'Vui mừng thăng hạng ✨'
         };
-        showBubble(poseLabels[poseName] || 'Tư thế mới!', '🎭 Hoạt ảnh', 2500);
+        showBubble(poseLabels[poseName] || 'Tư thế mới!', 3000);
 
         if (poseName === 'run' || poseName === 'trick' || poseName === 'eat') {
-            const timeoutDuration = (poseName === 'eat' ? 3000 : 3500);
+            const timeoutDuration = (poseName === 'eat' ? 1300 : 3500);
             setTimeout(() => {
                 if (currentPose === poseName) {
                     if (poseName === 'run') isRunning = false;
@@ -875,12 +875,12 @@ window.Pet3DEngine = (function () {
         });
 
         applyPose('eat');
-        showBubble(`Ngon quá! +15 XP ❤️`, 2800);
+        showBubble(`Ngon quá! +15 XP ❤️`, 3000);
 
         setTimeout(() => {
             isEating = false;
             applyPose(checkIsHovered() ? 'walk' : 'idle');
-        }, 2800);
+        }, 1300);
     }
 
     function spawnParticles(type, count) {
@@ -1041,7 +1041,7 @@ window.Pet3DEngine = (function () {
             roamingContainer.style.right = '90px';
             roamingContainer.classList.remove('shifted-for-panel');
         }
-        showBubble('Đã đưa thú cưng về góc phải màn hình! 📍', 'Vị trí mặc định', 2500);
+        showBubble('Đã đưa thú cưng về góc phải màn hình! 📍', 3000);
     }
 
     function handleHoverEnter() {
@@ -1068,7 +1068,7 @@ window.Pet3DEngine = (function () {
 
         applyPose('trick');
         const msg = newLevel ? `🎉 Tuyệt vời! Thăng hạng Lv.${newLevel} rồi! ✨` : '🎉 Yay! Thăng hạng thành công! ✨';
-        showBubble(msg, 4000);
+        showBubble(msg, 3000);
 
         if (celebrateTimer) clearTimeout(celebrateTimer);
         celebrateTimer = setTimeout(() => {
@@ -1139,7 +1139,7 @@ window.Pet3DEngine = (function () {
         });
     }
 
-    function showBubble(text, duration = 4000, actionsHtml = '') {
+    function showBubble(text, duration = 3000, actionsHtml = '') {
         const bubble = document.getElementById('pet-speech-bubble');
         if (!bubble) return;
 
@@ -1187,7 +1187,7 @@ window.Pet3DEngine = (function () {
                 'Vươn vai một cái thật sảng khoái nào! 🧘'
             ];
             const tip = tips[Math.floor(Math.random() * tips.length)];
-            showBubble(tip, 6000);
+            showBubble(tip, 3000);
         }, 45 * 60 * 1000);
     }
 

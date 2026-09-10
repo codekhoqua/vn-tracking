@@ -232,7 +232,7 @@
             style="border-radius: var(--radius-sm); margin-right: 8px;">
         <div style="display: flex; flex-direction: column; justify-content: center;">
             <span>VN-Tracking</span>
-            <sup class="version-tag" style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.4.18</i></sup>
+            <sup class="version-tag" style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.4.19</i></sup>
         </div>
     </div>
 
@@ -3620,14 +3620,19 @@
     color: #fff;
     padding: 5px 12px;
     border-radius: 10px;
-    font-size: 11px;
+    font-size: 11px !important;
     font-weight: 800;
     cursor: pointer;
     display: flex;
     align-items: center;
     gap: 4px;
+    white-space: nowrap !important;
     box-shadow: 0 2px 8px rgba(139, 92, 246, 0.4);
     transition: transform 0.2s, box-shadow 0.2s;
+}
+.sidebar-pet-feed-btn span {
+    font-size: 11px !important;
+    white-space: nowrap !important;
 }
 .sidebar-pet-feed-btn:hover:not(:disabled) {
     transform: scale(1.04);
@@ -4344,12 +4349,12 @@ async function triggerPetBrief() {
         
         petBriefTimeout = setTimeout(() => {
             bubble.classList.remove('active');
-        }, 12000);
+        }, 3000);
     } catch (e) {
         textEl.innerHTML = 'Hệ thống AI đang bảo trì, gâu gâu meow meow... 🐾';
         petBriefTimeout = setTimeout(() => {
             bubble.classList.remove('active');
-        }, 5000);
+        }, 3000);
     }
 }
 
@@ -4387,7 +4392,7 @@ window.triggerPetMusicInvite = function(djName, youtubeId) {
     
     petBriefTimeout = setTimeout(() => {
         bubble.classList.remove('active');
-    }, 15000);
+    }, 3000);
 };
 
 
@@ -4613,8 +4618,11 @@ async function submitPetReset() {
 
 async function feedPet() {
     const btn = document.getElementById('pet-feed-btn');
-    btn.disabled = true;
-    btn.textContent = '🍖 ...';
+    const isJa = typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'ja';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<span>🍖 ${isJa ? '...' : 'Đang ăn...'}</span>`;
+    }
 
     try {
         const res = await fetch('/api/pet/feed', { method: 'POST', headers: {'Content-Type': 'application/json'} });
@@ -4642,7 +4650,7 @@ async function feedPet() {
                 if (data.leveled_up) {
                     showLevelUpCelebration(petData.level);
                 }
-            }, 700);
+            }, 600);
         } else {
             if (typeof showToast === 'function') showToast(data.error || 'Error', 'error');
         }
@@ -4651,9 +4659,12 @@ async function feedPet() {
     }
 
     setTimeout(() => {
-        btn.innerHTML = '<span style="font-size: 20px;">🍖 Cho Ăn</span>';
-        btn.disabled = (petData?.food || 0) <= 0;
-    }, 800);
+        if (btn) {
+            const feedText = (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'ja') ? 'ごはん' : 'Cho Ăn';
+            btn.innerHTML = `<span>🍖 ${feedText}</span>`;
+            btn.disabled = (petData?.food || 0) <= 0;
+        }
+    }, 1300);
 }
 
 function showLevelUpCelebration(newLevel) {
