@@ -3234,7 +3234,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (isEmojiOnly) {
                     contentHtml += `<div class="msg-only-emoji">${escapedMsg}</div>`;
                 } else {
-                    contentHtml += `<div>${escapedMsg}</div>`;
+                    let formattedMsg = escapedMsg.replace(/\n/g, '<br>');
+                    formattedMsg = formattedMsg.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                    contentHtml += `<div>${formattedMsg}</div>`;
                 }
             }
             
@@ -4777,71 +4779,325 @@ function setInputStatus(id, state) {
         return `${yyyy}年${mm}月${dd}日 (${dayName})`;
     }
     
-    // Realtime Rain Effect Global Functions
-    let rainInterval = null;
+    // =========================================================================
+    // Realtime Cinematic Rain Effect with Chart Collision & Splash (Tách Nước)
+    // =========================================================================
+    let rainCanvas = null;
+    let rainCtx = null;
+    let rainAnimId = null;
+    let rainDrops = [];
+    let rainSplashes = [];
+    let rainActive = false;
+    let cachedChartRect = null;
+    let lastRectUpdate = 0;
 
-    window.startRainEffect = function() {
-        let overlay = document.getElementById('rain-overlay');
-        if (!overlay) {
-            overlay = document.createElement('div');
-            overlay.id = 'rain-overlay';
-            overlay.style.position = 'fixed';
-            overlay.style.top = '0';
-            overlay.style.left = '0';
-            overlay.style.width = '100vw';
-            overlay.style.height = '100vh';
-            overlay.style.pointerEvents = 'none';
-            overlay.style.zIndex = '9999';
-            overlay.style.overflow = 'hidden';
-            document.body.appendChild(overlay);
-            
-            if (!document.getElementById('rain-css')) {
-                const style = document.createElement('style');
-                style.id = 'rain-css';
-                style.innerHTML = `
-                    .raindrop {
-                        position: absolute;
-                        background: linear-gradient(transparent, rgba(255, 255, 255, 0.4));
-                        width: 1px;
-                        height: 50px;
-                        bottom: 100%;
-                        animation: fall linear infinite;
-                    }
-                    @keyframes fall {
-                        to { transform: translateY(100vh); }
-                    }
-                `;
-                document.head.appendChild(style);
+    function getChartCollisionRect() {
+        const now = performance.now();
+        if (!cachedChartRect || now - lastRectUpdate > 250) {
+            const chartEl = document.getElementById('main-chart-section') || document.querySelector('.chart-section');
+            if (chartEl) {
+                const r = chartEl.getBoundingClientRect();
+                if (r.width > 0 && r.height > 0) {
+                    cachedChartRect = {
+                        left: r.left,
+                        right: r.right,
+                        top: r.top,
+                        bottom: r.bottom,
+                        width: r.width,
+                        height: r.height
+                    };
+                } else {
+                    cachedChartRect = null;
+                }
+            } else {
+                cachedChartRect = null;
+            }
+            lastRectUpdate = now;
+        }
+        return cachedChartRect;
+    }
+
+    // Tính tọa độ Y của mép viền trên ôm sát từng pixel kể cả góc cong bo tròn (border-radius: 24px)
+    function getChartRimSurfaceY(x, rect) {
+        if (!rect) return 0;
+        const radius = 24;
+        if (x < rect.left + radius) {
+            const dx = (rect.left + radius) - x;
+            return rect.top + (radius - Math.sqrt(Math.max(0, radius * radius - dx * dx)));
+        } else if (x > rect.right - radius) {
+            const dx = x - (rect.right - radius);
+            return rect.top + (radius - Math.sqrt(Math.max(0, radius * radius - dx * dx)));
+        }
+        return rect.top;
+    }
+
+    function initRainCanvas() {
+        if (!rainCanvas) {
+            rainCanvas = document.getElementById('rain-canvas');
+            if (!rainCanvas) {
+                rainCanvas = document.createElement('canvas');
+                rainCanvas.id = 'rain-canvas';
+            }
+            // Gắn trực tiếp vào documentElement để không bị ảnh hưởng bởi CSS zoom: 0.92 trên body
+            if (rainCanvas.parentElement !== document.documentElement) {
+                document.documentElement.appendChild(rainCanvas);
+            }
+            rainCanvas.style.position = 'fixed';
+            rainCanvas.style.top = '0';
+            rainCanvas.style.left = '0';
+            rainCanvas.style.width = '100vw';
+            rainCanvas.style.height = '100vh';
+            rainCanvas.style.pointerEvents = 'none';
+            rainCanvas.style.zIndex = '9999';
+
+            rainCtx = rainCanvas.getContext('2d');
+            window.addEventListener('resize', handleRainResize);
+            window.addEventListener('scroll', () => { lastRectUpdate = 0; }, { passive: true });
+            document.addEventListener('scroll', () => { lastRectUpdate = 0; }, { passive: true });
+        } else if (rainCanvas.parentElement !== document.documentElement) {
+            document.documentElement.appendChild(rainCanvas);
+        }
+        handleRainResize();
+    }
+
+    function handleRainResize() {
+        if (!rainCanvas) return;
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        rainCanvas.width = window.innerWidth * dpr;
+        rainCanvas.height = window.innerHeight * dpr;
+        if (rainCtx) {
+            rainCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        }
+        lastRectUpdate = 0;
+    }
+
+    function createRainDrop(isInitial = false) {
+        const rect = getChartCollisionRect();
+        let x;
+        // 70% số giọt mưa tập trung rơi ngay phía trên khung biểu đồ để tạo hiệu ứng tách nước liên tục
+        if (rect && rect.width > 0 && Math.random() < 0.70) {
+            x = rect.left + Math.random() * rect.width;
+        } else {
+            x = Math.random() * window.innerWidth;
+        }
+
+        // Tốc độ mưa rơi chậm lại, êm dịu và thanh thoát theo yêu cầu
+        const speed = 5.5 + Math.random() * 3.5;
+        return {
+            x: x,
+            y: isInitial ? (Math.random() * (window.innerHeight * 0.8)) : (-15 - Math.random() * 60),
+            speed: speed,
+            length: 12 + Math.random() * 10,
+            wind: 0.35 + Math.random() * 0.45,
+            alpha: 0.25 + Math.random() * 0.42
+        };
+    }
+
+    function triggerSplash(x, y, speed) {
+        // 1. Giọt nước văng tóe tách ra 2 bên ("Tách nước / hạt nước nảy lên nhẹ nhàng")
+        const count = 3 + Math.floor(Math.random() * 3);
+        for (let i = 0; i < count; i++) {
+            const spread = (Math.random() - 0.5) * 3.4;
+            const upVelocity = -(Math.random() * 2.0 + 0.8);
+            rainSplashes.push({
+                type: 'bead',
+                x: x + (Math.random() - 0.5) * 3,
+                y: y,
+                vx: spread,
+                vy: upVelocity,
+                gravity: 0.13,
+                radius: 0.7 + Math.random() * 1.1,
+                alpha: 0.85,
+                decay: 0.038 + Math.random() * 0.02
+            });
+        }
+
+        // 2. Vòng sóng / gợn nước loang sát mép thành khung biểu đồ
+        rainSplashes.push({
+            type: 'ripple',
+            x: x,
+            y: y,
+            rx: 2,
+            ry: 0.6,
+            maxRx: 6 + Math.random() * 6,
+            alpha: 0.8,
+            decay: 0.04
+        });
+
+        // 3. Giọt nước đọng trượt nhẹ trên thành viền
+        if (Math.random() < 0.18) {
+            rainSplashes.push({
+                type: 'drip',
+                x: x,
+                y: y,
+                speed: 0.3 + Math.random() * 0.4,
+                maxDistance: 6 + Math.random() * 10,
+                distance: 0,
+                radius: 1.0 + Math.random() * 0.5,
+                alpha: 0.75
+            });
+        }
+    }
+
+    function updateRain() {
+        if (!rainActive || !rainCtx) return;
+
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        rainCtx.clearRect(0, 0, w, h);
+
+        const rect = getChartCollisionRect();
+        const hasChart = rect && rect.top > 0 && rect.top < h && rect.width > 0;
+
+        // Thêm class ánh sáng thành viền ướt mưa
+        const chartEl = document.getElementById('main-chart-section') || document.querySelector('.chart-section');
+        if (chartEl && !chartEl.classList.contains('rain-wet-rim')) {
+            chartEl.classList.add('rain-wet-rim');
+        }
+
+        // 1. Vẽ và cập nhật các giọt mưa rơi
+        for (let i = 0; i < rainDrops.length; i++) {
+            const drop = rainDrops[i];
+            const prevY = drop.y;
+
+            drop.x += drop.wind;
+            drop.y += drop.speed;
+
+            // Kiểm tra va chạm SÁT VIỀN THÀNH của khung biểu đồ (đụng cái thành)
+            if (hasChart && drop.x >= rect.left && drop.x <= rect.right) {
+                const surfaceY = getChartRimSurfaceY(drop.x, rect) + 1;
+                if (prevY <= surfaceY && drop.y >= surfaceY) {
+                    // ĐỤNG THÀNH KHUNG BIỂU ĐỒ -> TÁCH NƯỚC / TÓE NƯỚC SÁT VIỀN
+                    triggerSplash(drop.x, surfaceY, drop.speed);
+                    rainDrops[i] = createRainDrop(false);
+                    continue;
+                }
+            }
+
+            // Kiểm tra chạm đáy màn hình
+            if (drop.y > h + 20 || drop.x > w + 40) {
+                if (drop.y > h && Math.random() < 0.10) {
+                    triggerSplash(drop.x, h - 2, drop.speed);
+                }
+                rainDrops[i] = createRainDrop(false);
+                continue;
+            }
+
+            // Vẽ vệt mưa bóng mượt bằng gradient
+            const tailX = drop.x - drop.wind * (drop.length / drop.speed);
+            const tailY = drop.y - drop.length;
+            const grad = rainCtx.createLinearGradient(drop.x, drop.y, tailX, tailY);
+            grad.addColorStop(0, `rgba(186, 230, 253, ${drop.alpha})`);
+            grad.addColorStop(1, `rgba(186, 230, 253, 0)`);
+
+            rainCtx.strokeStyle = grad;
+            rainCtx.lineWidth = 1.15;
+            rainCtx.lineCap = 'round';
+            rainCtx.beginPath();
+            rainCtx.moveTo(drop.x, drop.y);
+            rainCtx.lineTo(tailX, tailY);
+            rainCtx.stroke();
+        }
+
+        // 2. Vẽ và cập nhật các hiệu ứng tách nước / văng tóe
+        for (let i = rainSplashes.length - 1; i >= 0; i--) {
+            const sp = rainSplashes[i];
+
+            if (sp.type === 'bead') {
+                sp.x += sp.vx;
+                sp.vy += sp.gravity;
+                sp.y += sp.vy;
+                sp.alpha -= sp.decay;
+
+                if (sp.alpha <= 0) {
+                    rainSplashes.splice(i, 1);
+                    continue;
+                }
+
+                rainCtx.fillStyle = `rgba(186, 230, 253, ${sp.alpha})`;
+                rainCtx.beginPath();
+                rainCtx.arc(sp.x, sp.y, sp.radius, 0, Math.PI * 2);
+                rainCtx.fill();
+            } else if (sp.type === 'ripple') {
+                sp.rx += 0.38;
+                sp.ry += 0.12;
+                sp.alpha -= sp.decay;
+
+                if (sp.alpha <= 0 || sp.rx >= sp.maxRx) {
+                    rainSplashes.splice(i, 1);
+                    continue;
+                }
+
+                rainCtx.strokeStyle = `rgba(147, 197, 253, ${sp.alpha})`;
+                rainCtx.lineWidth = 1.0;
+                rainCtx.beginPath();
+                rainCtx.ellipse(sp.x, sp.y, sp.rx, sp.ry, 0, 0, Math.PI * 2);
+                rainCtx.stroke();
+            } else if (sp.type === 'drip') {
+                sp.y += sp.speed;
+                sp.distance += sp.speed;
+                if (sp.distance >= sp.maxDistance) {
+                    sp.alpha -= 0.04;
+                }
+                if (sp.alpha <= 0) {
+                    rainSplashes.splice(i, 1);
+                    continue;
+                }
+
+                rainCtx.fillStyle = `rgba(186, 230, 253, ${sp.alpha})`;
+                rainCtx.beginPath();
+                rainCtx.arc(sp.x, sp.y, sp.radius, 0, Math.PI * 2);
+                rainCtx.fill();
             }
         }
-        
-        if (rainInterval) return;
-        overlay.style.display = 'block';
-        
-        rainInterval = setInterval(() => {
-            const drop = document.createElement('div');
-            drop.className = 'raindrop';
-            drop.style.left = Math.random() * 100 + 'vw';
-            drop.style.animationDuration = (Math.random() * 0.5 + 0.5) + 's';
-            drop.style.opacity = Math.random() * 0.5 + 0.2;
-            overlay.appendChild(drop);
-            
-            setTimeout(() => {
-                if (drop.parentNode) drop.parentNode.removeChild(drop);
-            }, 1000);
-        }, 50);
-    };
 
-    window.stopRainEffect = function() {
-        const overlay = document.getElementById('rain-overlay');
-        if (overlay) {
-            overlay.style.display = 'none';
-            overlay.innerHTML = '';
+        rainAnimId = requestAnimationFrame(updateRain);
+    }
+
+    window.startRainEffect = function() {
+        initRainCanvas();
+        if (rainActive) return;
+        rainActive = true;
+
+        if (rainCanvas) {
+            rainCanvas.style.display = 'block';
         }
-        if (rainInterval) {
+
+        // Dọn dẹp overlay cũ nếu có
+        const oldOverlay = document.getElementById('rain-overlay');
+        if (oldOverlay) oldOverlay.remove();
+        if (typeof rainInterval !== 'undefined' && rainInterval) {
             clearInterval(rainInterval);
             rainInterval = null;
         }
+
+        // Khởi tạo các giọt mưa tối ưu (khoảng 70-85 giọt)
+        const totalDrops = Math.min(85, Math.floor(window.innerWidth / 16));
+        rainDrops = [];
+        rainSplashes = [];
+        for (let i = 0; i < totalDrops; i++) {
+            rainDrops.push(createRainDrop(true));
+        }
+
+        lastRectUpdate = 0;
+        if (rainAnimId) cancelAnimationFrame(rainAnimId);
+        rainAnimId = requestAnimationFrame(updateRain);
+    };
+
+    window.stopRainEffect = function() {
+        rainActive = false;
+        if (rainAnimId) {
+            cancelAnimationFrame(rainAnimId);
+            rainAnimId = null;
+        }
+        if (rainCtx && rainCanvas) {
+            rainCtx.clearRect(0, 0, rainCanvas.width, rainCanvas.height);
+            rainCanvas.style.display = 'none';
+        }
+        const chartEl = document.getElementById('main-chart-section') || document.querySelector('.chart-section');
+        if (chartEl) chartEl.classList.remove('rain-wet-rim');
+        rainDrops = [];
+        rainSplashes = [];
     };
 
 async function submitPreparePsd() {
