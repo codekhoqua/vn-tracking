@@ -200,7 +200,7 @@ window.Pet3DEngine = (function () {
             roamingEl.className = 'roaming-pet-3d-wrapper';
             roamingEl.innerHTML = `
                 <div class="pet-3d-canvas-box">
-                    <canvas id="roaming-pet-canvas" width="160" height="185"></canvas>
+                    <canvas id="roaming-pet-canvas" width="220" height="260"></canvas>
                 </div>
                 <div id="pet-speech-bubble" class="pet-speech-bubble">
                     <div id="pet-speech-tag" class="pet-speech-tag"></div>
@@ -213,7 +213,7 @@ window.Pet3DEngine = (function () {
         } else if (!document.getElementById('roaming-pet-canvas')) {
             roamingEl.innerHTML = `
                 <div class="pet-3d-canvas-box">
-                    <canvas id="roaming-pet-canvas" width="160" height="185"></canvas>
+                    <canvas id="roaming-pet-canvas" width="220" height="260"></canvas>
                 </div>
                 <div id="pet-speech-bubble" class="pet-speech-bubble">
                     <div id="pet-speech-tag" class="pet-speech-tag"></div>
@@ -349,7 +349,7 @@ window.Pet3DEngine = (function () {
                 }
             }
 
-            roaming = createViewport('roaming-pet-canvas', 160, 185, { x: 1.1, y: 1.05, z: 2.5 }, { x: 0, y: 0.46, z: 0 });
+            roaming = createViewport('roaming-pet-canvas', 220, 260, { x: 1.15, y: 1.22, z: 2.85 }, { x: 0, y: 0.54, z: 0 });
             panel = createViewport('panel-pet-canvas', 150, 150, { x: 1.0, y: 0.98, z: 2.35 }, { x: 0, y: 0.44, z: 0 });
 
             if (!animationFrameId) {
@@ -557,15 +557,18 @@ window.Pet3DEngine = (function () {
             vp.scene.add(modelWrapper);
         }
 
-        if (cfg.camPosY) {
-            vp.camera.position.y = cfg.camPosY;
+        if (vp === roaming) {
+            vp.camera.position.z = 2.85;
+            vp.camera.position.y = (cfg.camPosY ? cfg.camPosY + 0.08 : 1.18);
+            vp.camera.lookAt(0, (cfg.camY ? cfg.camY + 0.04 : 0.54), 0);
+        } else if (vp === switchPreview) {
+            vp.camera.position.z = 2.45;
+            vp.camera.position.y = (cfg.camPosY || 1.05);
+            vp.camera.lookAt(0, (cfg.camY || 0.46), 0);
         } else {
-            vp.camera.position.y = (vp === roaming ? 1.05 : 0.98);
-        }
-        if (cfg.camY) {
-            vp.camera.lookAt(0, cfg.camY, 0);
-        } else {
-            vp.camera.lookAt(0, vp === roaming ? 0.46 : 0.44, 0);
+            vp.camera.position.z = 2.35;
+            vp.camera.position.y = (cfg.camPosY || 0.98);
+            vp.camera.lookAt(0, (cfg.camY || 0.44), 0);
         }
     }
 
