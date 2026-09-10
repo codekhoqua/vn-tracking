@@ -142,31 +142,58 @@ window.Pet3DEngine = (function () {
             img.remove();
         });
 
-        let el = document.getElementById('roaming-pet-container');
+        // Clean up any old floating roaming pet containers
+        const oldRoaming = document.getElementById('roaming-pet-container');
+        if (oldRoaming) oldRoaming.remove();
+
+        // Target #pet-display inside #pet-panel
+        let el = document.getElementById('pet-display');
         if (!el) {
-            el = document.createElement('div');
-            el.id = 'roaming-pet-container';
-            document.body.appendChild(el);
+            console.warn('[Pet3D] #pet-display element not found in DOM yet.');
+            return;
         }
 
-        el.className = 'roaming-pet-3d-wrapper';
-        el.innerHTML = `
-            <div id="pet-3d-canvas-box" class="pet-3d-canvas-box">
-                <canvas id="pet-3d-canvas" width="160" height="170"></canvas>
-            </div>
-            <div id="pet-speech-bubble" class="pet-speech-bubble">
+        // Clean up legacy #pet-sprite-large
+        const spriteLg = document.getElementById('pet-sprite-large');
+        if (spriteLg) spriteLg.remove();
+
+        // Ensure canvas box exists inside #pet-display
+        let canvasBox = document.getElementById('pet-3d-canvas-box');
+        if (!canvasBox) {
+            canvasBox = document.createElement('div');
+            canvasBox.id = 'pet-3d-canvas-box';
+            canvasBox.className = 'pet-3d-canvas-box';
+            canvasBox.innerHTML = `<canvas id="pet-3d-canvas" width="160" height="160"></canvas>`;
+            el.insertBefore(canvasBox, el.firstChild);
+        }
+
+        // Ensure speech bubble exists inside #pet-display
+        let speechBubble = document.getElementById('pet-speech-bubble');
+        if (!speechBubble) {
+            speechBubble = document.createElement('div');
+            speechBubble.id = 'pet-speech-bubble';
+            speechBubble.className = 'pet-speech-bubble';
+            speechBubble.innerHTML = `
                 <div id="pet-speech-tag" class="pet-speech-tag"></div>
                 <div id="pet-speech-text" class="pet-speech-text"></div>
                 <div id="pet-speech-actions" class="pet-speech-actions"></div>
-            </div>
-            <div class="pet-interaction-ring" title="Xoa đầu / Trò chuyện"></div>
-        `;
+            `;
+            el.appendChild(speechBubble);
+        }
 
         container = el;
         canvas = document.getElementById('pet-3d-canvas');
     }
 
     function initThree() {
+        if (!canvas) {
+            canvas = document.getElementById('pet-3d-canvas');
+        }
+        if (!canvas) {
+            createDOM();
+        }
+        if (!canvas) return;
+
         if (typeof THREE === 'undefined') {
             console.warn('[Pet3D] Three.js not found, fallback to 2D sprite.');
             fallbackTo2D();
@@ -177,9 +204,9 @@ window.Pet3DEngine = (function () {
             clock = new THREE.Clock();
             scene = new THREE.Scene();
 
-            camera = new THREE.PerspectiveCamera(38, 160 / 170, 0.1, 100);
-            camera.position.set(0, 0.9, 3.8);
-            camera.lookAt(0, 0.45, 0);
+            camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
+            camera.position.set(0, 0.85, 3.8);
+            camera.lookAt(0, 0.52, 0);
 
             renderer = new THREE.WebGLRenderer({
                 canvas: canvas,
@@ -187,7 +214,7 @@ window.Pet3DEngine = (function () {
                 antialias: true,
                 powerPreference: 'low-power'
             });
-            renderer.setSize(160, 170);
+            renderer.setSize(160, 160);
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             renderer.shadowMap.enabled = true;
             renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -652,7 +679,11 @@ window.Pet3DEngine = (function () {
         }
 
         updateParticles();
-        renderer.render(scene, camera);
+
+        // Only render when canvas is visible (pet panel is open)
+        if (renderer && scene && camera && canvas && canvas.offsetParent !== null) {
+            renderer.render(scene, camera);
+        }
     }
 
     function setupListeners() {
@@ -669,7 +700,7 @@ window.Pet3DEngine = (function () {
         }
         if (container) {
             container.addEventListener('click', (e) => {
-                if (e.target.closest('.pet-speech-btn') || e.target.closest('.pet-speech-bubble')) return;
+                if (e.target.closest('.pet-speech-btn') || e.target.closest('.pet-speech-bubble') || e.target.closest('.pet-stage-badge')) return;
                 poke();
             });
         }
@@ -685,6 +716,12 @@ window.Pet3DEngine = (function () {
     }
 
     function showBubble(text, tag, duration = 8000) {
+        // Auto-open panel if closed so speech is visible
+        const panel = document.getElementById('pet-panel');
+        if (panel && !panel.classList.contains('active') && typeof togglePetPanel === 'function') {
+            togglePetPanel();
+        }
+
         const bubble = document.getElementById('pet-speech-bubble');
         const textEl = document.getElementById('pet-speech-text');
         const tagEl = document.getElementById('pet-speech-tag');
@@ -733,6 +770,12 @@ window.Pet3DEngine = (function () {
         });
     }
 
+    function onPanelShow() {
+        if (renderer && canvas) {
+            renderer.setSize(160, 160);
+        }
+    }
+
     const api = {
         init: init,
         syncPet: function (data) {
@@ -747,6 +790,7 @@ window.Pet3DEngine = (function () {
         setDancing: setDancing,
         switchSpecies: switchSpecies,
         showBubble: showBubble,
+        onPanelShow: onPanelShow,
         destroy: function () {
             if (animationFrameId) cancelAnimationFrame(animationFrameId);
             if (renderer) renderer.dispose();
