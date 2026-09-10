@@ -83,7 +83,9 @@ window.Pet3DEngine = (function () {
             food_name: 'Cá nhỏ 🐟',
             targetHeight: 1.25,
             rotOffsetY: -0.35,
-            camY: 0.45
+            camY: 0.66,
+            camPosY: 1.18,
+            haloExtraY: 0.08
         },
         panda: {
             modelUrl: '/static/models/ithappy/Horse_001.fbx',
@@ -156,7 +158,7 @@ window.Pet3DEngine = (function () {
             roamingEl.className = 'roaming-pet-3d-wrapper';
             roamingEl.innerHTML = `
                 <div class="pet-3d-canvas-box">
-                    <canvas id="roaming-pet-canvas" width="160" height="170"></canvas>
+                    <canvas id="roaming-pet-canvas" width="160" height="185"></canvas>
                 </div>
                 <div id="pet-speech-bubble" class="pet-speech-bubble">
                     <div id="pet-speech-tag" class="pet-speech-tag"></div>
@@ -169,7 +171,7 @@ window.Pet3DEngine = (function () {
         } else if (!document.getElementById('roaming-pet-canvas')) {
             roamingEl.innerHTML = `
                 <div class="pet-3d-canvas-box">
-                    <canvas id="roaming-pet-canvas" width="160" height="170"></canvas>
+                    <canvas id="roaming-pet-canvas" width="160" height="185"></canvas>
                 </div>
                 <div id="pet-speech-bubble" class="pet-speech-bubble">
                     <div id="pet-speech-tag" class="pet-speech-tag"></div>
@@ -305,7 +307,7 @@ window.Pet3DEngine = (function () {
                 }
             }
 
-            roaming = createViewport('roaming-pet-canvas', 160, 170, { x: 1.1, y: 1.05, z: 2.5 }, { x: 0, y: 0.46, z: 0 });
+            roaming = createViewport('roaming-pet-canvas', 160, 185, { x: 1.1, y: 1.05, z: 2.5 }, { x: 0, y: 0.46, z: 0 });
             panel = createViewport('panel-pet-canvas', 150, 150, { x: 1.0, y: 0.98, z: 2.35 }, { x: 0, y: 0.44, z: 0 });
 
             if (!animationFrameId) {
@@ -474,7 +476,7 @@ window.Pet3DEngine = (function () {
         modelWrapper.add(root);
 
         // 5. Floating Music DJ Halo (Safely floating above head, NO clipping or covering pet)
-        const headY = (box.max.y - box.min.y) * scale * 1.08;
+        const headY = (box.max.y - box.min.y) * scale * 1.08 + (cfg.haloExtraY || 0);
         const musicAura = createMusicAuraMesh();
         musicAura.position.set(0, headY, 0);
         musicAura.visible = isDancing;
@@ -506,8 +508,15 @@ window.Pet3DEngine = (function () {
             vp.scene.add(modelWrapper);
         }
 
+        if (cfg.camPosY) {
+            vp.camera.position.y = cfg.camPosY;
+        } else {
+            vp.camera.position.y = (vp === roaming ? 1.05 : 0.98);
+        }
         if (cfg.camY) {
             vp.camera.lookAt(0, cfg.camY, 0);
+        } else {
+            vp.camera.lookAt(0, vp === roaming ? 0.46 : 0.44, 0);
         }
     }
 
@@ -984,7 +993,7 @@ window.Pet3DEngine = (function () {
                         roamingContainer.style.right = '90px';
                     } else {
                         const maxLeft = Math.max(10, window.innerWidth - 180);
-                        const maxTop = Math.max(10, window.innerHeight - 190);
+                        const maxTop = Math.max(10, window.innerHeight - 205);
                         const clampedLeft = Math.max(10, Math.min(maxLeft, savedPos.left));
                         const clampedTop = Math.max(10, Math.min(maxTop, savedPos.top));
                         roamingContainer.style.left = clampedLeft + 'px';
@@ -1027,7 +1036,7 @@ window.Pet3DEngine = (function () {
                 }
                 if (hasMoved) {
                     const newLeft = Math.max(10, Math.min(window.innerWidth - 175, petStartPos.left + dx));
-                    const newTop = Math.max(10, Math.min(window.innerHeight - 185, petStartPos.top + dy));
+                    const newTop = Math.max(10, Math.min(window.innerHeight - 200, petStartPos.top + dy));
                     roamingContainer.style.left = newLeft + 'px';
                     roamingContainer.style.top = newTop + 'px';
                     roamingContainer.style.bottom = 'auto';
