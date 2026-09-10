@@ -232,7 +232,7 @@
             style="border-radius: var(--radius-sm); margin-right: 8px;">
         <div style="display: flex; flex-direction: column; justify-content: center;">
             <span>VN-Tracking</span>
-            <sup class="version-tag" style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.3.94</i></sup>
+            <sup class="version-tag" style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.3.95</i></sup>
         </div>
     </div>
 
@@ -3284,47 +3284,64 @@
     margin-bottom: 4px;
 }
 
-/* SPECIES SELECTOR GRID */
+/* SPECIES SELECTOR GRID - PREMIUM ART TOY EDITION */
 .pet-species-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
-    margin-bottom: 16px;
+    gap: 12px;
+    margin-bottom: 18px;
 }
 .pet-species-card {
-    background: rgba(255, 255, 255, 0.04);
-    border: 2px solid rgba(255, 255, 255, 0.1);
-    border-radius: 12px;
-    padding: 12px 8px;
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
+    border: 1.5px solid rgba(139, 92, 246, 0.2);
+    border-radius: 16px;
+    padding: 14px 10px;
     text-align: center;
     cursor: pointer;
-    transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+    transition: all 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
     user-select: none;
+    position: relative;
+    overflow: hidden;
+    backdrop-filter: blur(10px);
+}
+.pet-species-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25), transparent);
 }
 .pet-species-card:hover {
-    background: rgba(255, 255, 255, 0.08);
-    border-color: rgba(99, 102, 241, 0.5);
-    transform: translateY(-2px);
+    background: linear-gradient(145deg, rgba(139, 92, 246, 0.18), rgba(99, 102, 241, 0.08));
+    border-color: rgba(139, 92, 246, 0.6);
+    transform: translateY(-4px) scale(1.03);
+    box-shadow: 0 12px 28px -4px rgba(99, 102, 241, 0.35);
+}
+.pet-species-card:hover .pet-species-emoji {
+    transform: scale(1.18) rotate(5deg);
 }
 .pet-species-card.selected {
-    background: rgba(99, 102, 241, 0.2);
-    border-color: #6366f1;
-    box-shadow: 0 0 16px rgba(99, 102, 241, 0.4);
-    transform: translateY(-2px);
+    background: linear-gradient(145deg, rgba(139, 92, 246, 0.32), rgba(99, 102, 241, 0.18));
+    border-color: #8b5cf6;
+    box-shadow: 0 0 25px rgba(139, 92, 246, 0.5), inset 0 0 15px rgba(139, 92, 246, 0.2);
+    transform: translateY(-4px) scale(1.04);
 }
 .pet-species-emoji {
-    font-size: 32px;
-    margin-bottom: 4px;
+    font-size: 34px;
+    margin-bottom: 6px;
+    transition: transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+    filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.35));
 }
 .pet-species-name {
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 700;
-    color: #f1f5f9;
+    color: #f8fafc;
+    letter-spacing: 0.3px;
 }
 .pet-species-sound {
     font-size: 10px;
-    color: var(--text-3);
-    margin-top: 2px;
+    color: #c4b5fd;
+    margin-top: 3px;
+    font-weight: 500;
 }
 </style>
 
