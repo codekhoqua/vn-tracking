@@ -25,7 +25,11 @@ window.Pet3DEngine = (function () {
     // Animation states
     let isDancing = false;
     let isEating = false;
-    let isJumping = false;
+    let isRunning = false;
+    let isCelebrating = false;
+    let isHovered = false;
+    let runTimer = null;
+    let celebrateTimer = null;
     let currentPose = 'idle'; // 'idle' | 'walk' | 'run' | 'eat' | 'trick'
     let mousePos = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
 
@@ -139,7 +143,6 @@ window.Pet3DEngine = (function () {
         setupListeners();
         buildPets(currentSpecies);
         checkErgonomicsTimer();
-        startLivelyBehaviors();
         isInitialized = true;
 
         const isMusicActive = Boolean(window.radioState && window.radioState.is_playing && (window.isRadioDJ || window.isListening));
@@ -639,7 +642,12 @@ window.Pet3DEngine = (function () {
     }
 
     function setPose(poseName) {
-        currentPose = poseName;
+        if (runTimer) { clearTimeout(runTimer); isRunning = false; }
+        if (celebrateTimer) { clearTimeout(celebrateTimer); isCelebrating = false; }
+        isEating = (poseName === 'eat');
+        if (poseName === 'run') isRunning = true;
+        if (poseName === 'trick') isCelebrating = true;
+
         if (isDancing) {
             isDancing = false;
             [roaming, panel].forEach(vp => {
@@ -647,19 +655,28 @@ window.Pet3DEngine = (function () {
                 if (vp && vp.modelGroup) vp.modelGroup.position.y = 0;
             });
         }
-        [roaming, panel].forEach(vp => {
-            if (!vp) return;
-            playAnimation(vp, poseName);
-        });
+        applyPose(poseName);
         const cfg = SPECIES_CONFIG[currentSpecies] || SPECIES_CONFIG['shiba'];
         const poseLabels = {
             idle: 'Nghỉ ngơi 🧘',
             walk: 'Đi dạo thong thả 🚶',
             run: 'Chạy tung tăng 🏃',
             eat: `Nhai ${cfg.food_name || 'thức ăn'} 🍖`,
-            trick: 'Biểu diễn ngộ nghĩnh ✨'
+            trick: 'Vui mừng thăng hạng ✨'
         };
         showBubble(poseLabels[poseName] || 'Tư thế mới!', '🎭 Hoạt ảnh', 2500);
+
+        if (poseName === 'run' || poseName === 'trick' || poseName === 'eat') {
+            const timeoutDuration = (poseName === 'eat' ? 3000 : 3500);
+            setTimeout(() => {
+                if (currentPose === poseName) {
+                    if (poseName === 'run') isRunning = false;
+                    if (poseName === 'trick') isCelebrating = false;
+                    if (poseName === 'eat') isEating = false;
+                    applyPose(isHovered ? 'walk' : 'idle');
+                }
+            }, timeoutDuration);
+        }
     }
 
     function createMusicAuraMesh() {
@@ -733,37 +750,33 @@ window.Pet3DEngine = (function () {
         }
     }
 
-    function poke() {
-        if (isJumping) return;
-        isJumping = true;
-        spawnParticles('heart', 5);
+    function triggerClickRun() {
+        if (isEating || isCelebrating) return;
+        isRunning = true;
+        if (runTimer) clearTimeout(runTimer);
 
+        spawnParticles('dash', 5);
         const cfg = SPECIES_CONFIG[currentSpecies] || SPECIES_CONFIG['shiba'];
-        showBubble(cfg.sound, '🐾 Cưng nựng', 3000);
+        showBubble(cfg.sound || 'Gâu gâu! 🐾', '🏃 Chạy tung tăng', 3000);
 
-        [roaming, panel].forEach(vp => {
-            if (!vp) return;
-            playAnimation(vp, 'trick');
-        });
+        applyPose('run');
 
         if (window.triggerPetBrief) {
             window.triggerPetBrief();
         }
 
-        setTimeout(() => {
-            isJumping = false;
-            [roaming, panel].forEach(vp => {
-                if (!vp) return;
-                playAnimation(vp, isDancing ? 'dance' : currentPose);
-            });
-        }, 1800);
+        runTimer = setTimeout(() => {
+            isRunning = false;
+            applyPose(isHovered ? 'walk' : 'idle');
+        }, 3500);
     }
 
     function feed() {
         if (isEating) return;
         isEating = true;
-        spawnParticles('star', 6);
+        if (runTimer) { clearTimeout(runTimer); isRunning = false; }
 
+        spawnParticles('star', 6);
         const cfg = SPECIES_CONFIG[currentSpecies] || SPECIES_CONFIG['shiba'];
 
         [roaming, panel].forEach(vp => {
@@ -778,14 +791,12 @@ window.Pet3DEngine = (function () {
             vp.scene.add(vp.foodMesh);
         });
 
+        applyPose('eat');
         showBubble(`Ngon quá! +10 XP 🎉`, '🍖 Đang ăn...', 3000);
 
         setTimeout(() => {
             isEating = false;
-            [roaming, panel].forEach(vp => {
-                if (!vp) return;
-                playAnimation(vp, isDancing ? 'dance' : currentPose);
-            });
+            applyPose(isHovered ? 'walk' : 'idle');
         }, 3000);
     }
 
@@ -806,6 +817,7 @@ window.Pet3DEngine = (function () {
                 if (type === 'note') icon = ['🎵', '🎶', '🎧'][Math.floor(Math.random() * 3)];
                 else if (type === 'star') icon = '⭐';
                 else if (type === 'zzz') icon = '💤';
+                else if (type === 'dash') icon = ['💨', '✨', '🐾'][Math.floor(Math.random() * 3)];
 
                 ctx.fillText(icon, 32, 32);
 
@@ -880,7 +892,7 @@ window.Pet3DEngine = (function () {
         }
 
         // Dynamic pose bounce & physics
-        if (vp.modelGroup && !isJumping) {
+        if (vp.modelGroup && !isCelebrating) {
             if (isDancing) {
                 const beat = time * 7.5;
                 vp.modelGroup.position.y = Math.abs(Math.sin(beat)) * 0.06;
@@ -948,24 +960,48 @@ window.Pet3DEngine = (function () {
         showBubble('Đã đưa thú cưng về góc phải màn hình! 📍', 'Vị trí mặc định', 2500);
     }
 
-    let livelyTimer = null;
-    function startLivelyBehaviors() {
-        if (livelyTimer) clearInterval(livelyTimer);
-        livelyTimer = setInterval(() => {
-            if (currentPose !== 'idle' || isDancing || isEating || isJumping) return;
-            const randPoses = ['walk', 'trick', 'run'];
-            const randPose = randPoses[Math.floor(Math.random() * randPoses.length)];
-            [roaming, panel].forEach(vp => {
-                if (vp) playAnimation(vp, randPose);
-            });
-            setTimeout(() => {
-                if (currentPose === 'idle' && !isDancing && !isEating && !isJumping) {
-                    [roaming, panel].forEach(vp => {
-                        if (vp) playAnimation(vp, 'idle');
-                    });
-                }
-            }, 3400);
-        }, 22000);
+    function handleHoverEnter() {
+        isHovered = true;
+        if (!isDancing && !isCelebrating && !isEating && !isRunning) {
+            applyPose('walk');
+        }
+    }
+
+    function handleHoverLeave() {
+        isHovered = false;
+        if (!isDancing && !isCelebrating && !isEating && !isRunning) {
+            applyPose('idle');
+        }
+    }
+
+    function celebrate(newLevel) {
+        isCelebrating = true;
+        if (runTimer) { clearTimeout(runTimer); isRunning = false; }
+        if (isEating) isEating = false;
+
+        spawnParticles('star', 8);
+        spawnParticles('heart', 6);
+
+        applyPose('trick');
+        const msg = newLevel ? `🎉 Tuyệt vời! Thăng hạng Lv.${newLevel} rồi! ✨` : '🎉 Yay! Thăng hạng thành công! ✨';
+        showBubble(msg, '🌟 Vui mừng thăng hạng', 4000);
+
+        if (celebrateTimer) clearTimeout(celebrateTimer);
+        celebrateTimer = setTimeout(() => {
+            isCelebrating = false;
+            applyPose(isHovered ? 'walk' : 'idle');
+        }, 3600);
+    }
+
+    function applyPose(poseName) {
+        currentPose = poseName;
+        [roaming, panel].forEach(vp => {
+            if (!vp) return;
+            playAnimation(vp, isDancing ? 'dance' : poseName);
+        });
+        if (window.onPetPoseChanged) {
+            window.onPetPoseChanged(poseName);
+        }
     }
 
     function setupListeners() {
@@ -1008,6 +1044,9 @@ window.Pet3DEngine = (function () {
                     roamingContainer.style.right = '90px';
                 }
             } catch(e) {}
+
+            roamingContainer.addEventListener('mouseenter', handleHoverEnter);
+            roamingContainer.addEventListener('mouseleave', handleHoverLeave);
 
             // Double click on pet resets position to default bottom-right
             roamingContainer.addEventListener('dblclick', (e) => {
@@ -1055,7 +1094,7 @@ window.Pet3DEngine = (function () {
                     localStorage.setItem('roaming_pet_pos', JSON.stringify({ left: rect.left, top: rect.top }));
                 } else {
                     if (!e.target.closest('#pet-speech-actions')) {
-                        poke();
+                        triggerClickRun();
                     }
                 }
             });
@@ -1063,9 +1102,11 @@ window.Pet3DEngine = (function () {
 
         const panelDisplay = document.getElementById('pet-display');
         if (panelDisplay) {
+            panelDisplay.addEventListener('mouseenter', handleHoverEnter);
+            panelDisplay.addEventListener('mouseleave', handleHoverLeave);
             panelDisplay.addEventListener('click', (e) => {
                 if (e.target.closest('button') || e.target.closest('.pet-stage-badge')) return;
-                poke();
+                triggerClickRun();
             });
         }
 
@@ -1158,8 +1199,10 @@ window.Pet3DEngine = (function () {
 
     return {
         init,
-        poke,
+        poke: triggerClickRun,
+        run: triggerClickRun,
         feed,
+        celebrate,
         setDancing,
         setPose,
         getCurrentPose: () => currentPose,
