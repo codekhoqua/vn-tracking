@@ -836,12 +836,20 @@ window.Pet3DEngine = (function () {
         }
     }
 
+    function checkIsHovered() {
+        const roamingContainer = document.getElementById('roaming-pet-container');
+        const panelDisplay = document.getElementById('pet-display');
+        const rHover = roamingContainer ? roamingContainer.matches(':hover') : false;
+        const pHover = panelDisplay ? panelDisplay.matches(':hover') : false;
+        return Boolean(rHover || pHover);
+    }
+
     function triggerClickRun() {
         if (isEating || isCelebrating) return;
         isRunning = true;
         if (runTimer) clearTimeout(runTimer);
 
-        spawnParticles('dash', 5);
+        spawnParticles('dash', 6);
         const cfg = SPECIES_CONFIG[currentSpecies] || SPECIES_CONFIG['shiba'];
         showBubble(cfg.sound || 'Gâu gâu! 🐾', '🏃 Chạy tung tăng', 3000);
 
@@ -853,7 +861,7 @@ window.Pet3DEngine = (function () {
 
         runTimer = setTimeout(() => {
             isRunning = false;
-            applyPose(isHovered ? 'walk' : 'idle');
+            applyPose(checkIsHovered() ? 'walk' : 'idle');
         }, 3500);
     }
 
@@ -862,7 +870,8 @@ window.Pet3DEngine = (function () {
         isEating = true;
         if (runTimer) { clearTimeout(runTimer); isRunning = false; }
 
-        spawnParticles('star', 6);
+        spawnParticles('heart', 6);
+        spawnParticles('star', 3);
         const cfg = SPECIES_CONFIG[currentSpecies] || SPECIES_CONFIG['shiba'];
 
         [roaming, panel].forEach(vp => {
@@ -871,12 +880,12 @@ window.Pet3DEngine = (function () {
         });
 
         applyPose('eat');
-        showBubble(`Ngon quá! +10 XP 🎉`, '🍖 Đang ăn...', 3000);
+        showBubble(`Ngon quá! +15 XP ❤️`, '🍖 Đang ăn...', 2800);
 
         setTimeout(() => {
             isEating = false;
-            applyPose(isHovered ? 'walk' : 'idle');
-        }, 3000);
+            applyPose(checkIsHovered() ? 'walk' : 'idle');
+        }, 2800);
     }
 
     function spawnParticles(type, count) {
@@ -1069,7 +1078,7 @@ window.Pet3DEngine = (function () {
         if (celebrateTimer) clearTimeout(celebrateTimer);
         celebrateTimer = setTimeout(() => {
             isCelebrating = false;
-            applyPose(isHovered ? 'walk' : 'idle');
+            applyPose(checkIsHovered() ? 'walk' : 'idle');
         }, 3600);
     }
 

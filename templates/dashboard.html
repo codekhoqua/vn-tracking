@@ -232,7 +232,7 @@
             style="border-radius: var(--radius-sm); margin-right: 8px;">
         <div style="display: flex; flex-direction: column; justify-content: center;">
             <span>VN-Tracking</span>
-            <sup class="version-tag" style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.4.12</i></sup>
+            <sup class="version-tag" style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.4.13</i></sup>
         </div>
     </div>
 
@@ -2594,125 +2594,101 @@
 <div id="pet-panel" class="pet-panel">
     <div class="pet-panel-header">
         <div class="pet-panel-title-wrap">
-            <span class="pet-panel-badge">🐾</span>
-            <div class="pet-panel-title">
-                <span>{{ 'My Pet 3D' if lang == 'vi' else 'マイペット 3D' }}</span>
-                <small class="pet-panel-sub">{{ 'Bạn đồng hành ảo' if lang == 'vi' else 'バーチャル相棒' }}</small>
-            </div>
+            <span class="pet-live-dot"></span>
+            <span class="pet-panel-title">{{ 'My Companion' if lang == 'vi' else 'マイペット' }}</span>
         </div>
         <div class="pet-panel-actions">
-            <button onclick="if(window.Pet3DEngine) window.Pet3DEngine.resetPosition()" class="pet-header-icon-btn" title="{{ 'Đưa pet về góc phải' if lang == 'vi' else 'ペットを右下に戻す' }}">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <button onclick="if(window.Pet3DEngine) window.Pet3DEngine.resetPosition()" class="pet-icon-action" title="{{ 'Đưa pet về góc phải' if lang == 'vi' else '位置リセット' }}">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
                     <circle cx="12" cy="10" r="3"></circle>
                 </svg>
             </button>
-            <button onclick="resetPet()" class="pet-header-icon-btn reset-btn" title="{{ 'Cài lại pet' if lang == 'vi' else 'リセット' }}">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <button onclick="resetPet()" class="pet-icon-action danger" title="{{ 'Cài lại pet' if lang == 'vi' else 'リセット' }}">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
                     <path d="M3 3v5h5"></path>
                 </svg>
             </button>
-            <button onclick="togglePetPanel()" class="pet-header-close-btn">✕</button>
+            <button onclick="togglePetPanel()" class="pet-icon-action close">✕</button>
         </div>
     </div>
     
     <div class="pet-panel-body">
-        <!-- 3D Hologram Stage -->
-        <div class="pet-stage-container">
-            <div class="pet-display" id="pet-display">
+        <!-- 3D Hero Stage -->
+        <div class="pet-hero-stage">
+            <div class="pet-display" id="pet-display" title="{{ 'Rê chuột: Đi bộ • Click: Chạy tung tăng' if lang == 'vi' else 'ホバー: 歩く • クリック: 走る' }}">
                 <div id="panel-pet-canvas-box" class="panel-pet-canvas-box">
-                    <canvas id="panel-pet-canvas" width="150" height="150"></canvas>
+                    <canvas id="panel-pet-canvas" width="160" height="160"></canvas>
                 </div>
-                <div class="pet-stage-badge" id="pet-stage-badge">BABY</div>
             </div>
-            <div class="pet-stage-glow"></div>
-        </div>
-
-        <!-- Identity Card -->
-        <div class="pet-identity-card">
-            <div class="pet-name-row">
-                <button class="pet-chip-btn switch-chip" onclick="openPetSwitchModal()" title="{{ 'Đổi loài 3D' if lang == 'vi' else '種類変更' }}">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <div class="pet-stage-meta-row">
+                <span class="pet-stage-badge" id="pet-stage-badge">BABY</span>
+                <button class="pet-switch-chip" onclick="openPetSwitchModal()" title="{{ 'Đổi loài thú cưng' if lang == 'vi' else 'ペットの種類変更' }}">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
                     </svg>
                     <span>{{ 'Đổi loài' if lang == 'vi' else '変更' }}</span>
                 </button>
-                <div class="pet-name-wrap">
-                    <span class="pet-name" id="pet-name">???</span>
-                </div>
-                <button class="pet-chip-btn rename-chip" onclick="renamePet()" title="{{ 'Đổi tên' if lang == 'vi' else '名前変更' }}">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            </div>
+        </div>
+
+        <!-- Name & Status -->
+        <div class="pet-info-row">
+            <div class="pet-name-line">
+                <span class="pet-name-text" id="pet-name">???</span>
+                <button class="pet-rename-mini" onclick="renamePet()" title="{{ 'Đổi tên' if lang == 'vi' else '名前変更' }}">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                         <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                     </svg>
                 </button>
             </div>
-            <div class="pet-mood-pill" id="pet-mood-text">😊 Bình thường</div>
+            <span class="pet-mood-pill" id="pet-mood-text">😊 Bình thường</span>
         </div>
 
-        <!-- Level & XP Card -->
-        <div class="pet-level-card">
-            <div class="pet-level-header">
-                <div class="pet-level-tag">
-                    <span class="level-badge" id="pet-level-text">Lv.1</span>
-                    <span class="level-title">{{ 'Cấp độ phát triển' if lang == 'vi' else '成長レベル' }}</span>
-                </div>
-                <span class="pet-xp-text" id="pet-xp-text">0/30</span>
+        <!-- Level & XP Bar -->
+        <div class="pet-progress-box">
+            <div class="pet-progress-labels">
+                <span class="pet-level-badge" id="pet-level-text">Lv.1</span>
+                <span class="pet-xp-counter" id="pet-xp-text">0 / 30 XP</span>
             </div>
-            <div class="pet-xp-bar-wrap">
-                <div class="pet-xp-bar">
-                    <div class="pet-xp-fill" id="pet-xp-fill" style="width: 0%"></div>
-                </div>
+            <div class="pet-xp-track">
+                <div class="pet-xp-fill" id="pet-xp-fill" style="width: 0%;"></div>
             </div>
         </div>
 
-        <!-- Stats Grid -->
-        <div class="pet-stats-grid">
-            <div class="pet-stat-chip">
-                <div class="stat-chip-icon">🍖</div>
-                <div class="stat-chip-info">
-                    <span class="stat-chip-label">{{ 'Thức ăn' if lang == 'vi' else 'ごはん' }}</span>
-                    <span class="stat-chip-val" id="pet-food-count">0</span>
+        <!-- Stats Chips -->
+        <div class="pet-metrics-row">
+            <div class="pet-metric-card">
+                <span class="metric-icon">🍖</span>
+                <div class="metric-text">
+                    <span class="metric-value" id="pet-food-count">0</span>
+                    <span class="metric-label">{{ 'Thức ăn' if lang == 'vi' else 'ごはん' }}</span>
                 </div>
             </div>
-            <div class="pet-stat-chip">
-                <div class="stat-chip-icon">🔥</div>
-                <div class="stat-chip-info">
-                    <span class="stat-chip-label">{{ 'Chuỗi ngày' if lang == 'vi' else '連続' }}</span>
-                    <span class="stat-chip-val" id="pet-streak-count">0 ngày</span>
+            <div class="pet-metric-card">
+                <span class="metric-icon">🔥</span>
+                <div class="metric-text">
+                    <span class="metric-value" id="pet-streak-count">0 ngày</span>
+                    <span class="metric-label">{{ 'Chuỗi ngày' if lang == 'vi' else '連続' }}</span>
                 </div>
             </div>
         </div>
 
-        <!-- 3D Poses -->
-        <div class="pet-pose-selector">
-            <div class="pet-pose-header">
-                <div class="pose-title-wrap">
-                    <span class="pose-icon">🎭</span>
-                    <span>{{ 'Tư thế 3D' if lang == 'vi' else '3Dポーズ' }}</span>
-                </div>
-                <span id="current-pose-badge" class="current-pose-badge">Nghỉ ngơi 🧘</span>
-            </div>
-            <div class="pet-pose-btn-group">
-                <button type="button" class="pet-pose-btn active" onclick="switchPetPose('idle')" data-pose="idle" title="Nghỉ ngơi">🧘 Nghỉ</button>
-                <button type="button" class="pet-pose-btn" onclick="switchPetPose('walk')" data-pose="walk" title="Đi bộ">🚶 Đi</button>
-                <button type="button" class="pet-pose-btn" onclick="switchPetPose('run')" data-pose="run" title="Chạy">🏃 Chạy</button>
-                <button type="button" class="pet-pose-btn" onclick="switchPetPose('eat')" data-pose="eat" title="Ăn">🍖 Ăn</button>
-                <button type="button" class="pet-pose-btn" onclick="switchPetPose('trick')" data-pose="trick" title="Vui mừng">✨ Vui</button>
-            </div>
-        </div>
-
-        <!-- Actions -->
-        <div class="pet-action-row">
-            <button class="pet-action-btn pet-btn-feed" id="pet-feed-btn" onclick="feedPet()">
-                <span style="font-size: 18px;">🍖</span>
-                <span>{{ 'Cho Ăn (+15 XP)' if lang == 'vi' else 'ごはんをあげる (+15 XP)' }}</span>
-            </button>
-        </div>
+        <!-- Feed Action Button -->
+        <button class="pet-feed-action-btn" id="pet-feed-btn" onclick="feedPet()">
+            <span class="feed-btn-icon">🍖</span>
+            <span class="feed-btn-label">{{ 'Cho Ăn (+15 XP)' if lang == 'vi' else 'ごはんをあげる (+15 XP)' }}</span>
+        </button>
 
         <!-- Inline Leaderboard -->
-        <div id="inline-leaderboard-container" style="width: 100%;"></div>
+        <div class="pet-leaderboard-wrap">
+            <div class="pet-lb-header">
+                <span>🏆 {{ 'Bảng Xếp Hạng' if lang == 'vi' else 'ランキング' }}</span>
+            </div>
+            <div id="inline-leaderboard-container"></div>
+        </div>
     </div>
 </div>
 
@@ -2979,343 +2955,435 @@
     background: #22c55e;
 }
 
-/* ===== 🐾 REMADE PET PANEL (MODERN CYBER-GLASSMORPHISM) ===== */
+/* ===== 🐾 MODERN GLASSMORPHISM PET PANEL ===== */
 .pet-panel {
     position: fixed;
-    bottom: 155px;
-    right: 24px;
-    width: 320px;
-    background: linear-gradient(165deg, rgba(17, 24, 39, 0.94) 0%, rgba(15, 23, 42, 0.98) 100%);
+    bottom: 140px;
+    right: 28px;
+    width: 300px;
+    background: rgba(15, 23, 42, 0.88);
+    backdrop-filter: blur(28px);
+    -webkit-backdrop-filter: blur(28px);
     border-radius: 24px;
-    border: 1px solid rgba(139, 92, 246, 0.35);
-    box-shadow: 0 16px 45px -8px rgba(0, 0, 0, 0.75), 0 0 40px rgba(139, 92, 246, 0.15), inset 0 1px 1px rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 24px 50px -12px rgba(0, 0, 0, 0.75), 
+                0 0 0 1px rgba(255, 255, 255, 0.05),
+                0 0 35px rgba(139, 92, 246, 0.12);
     z-index: 9998;
     display: none;
     flex-direction: column;
-    overflow: visible;
-    animation: petPanelIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
+    overflow: hidden;
+    animation: petPanelPop 0.28s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .pet-panel.active { display: flex; }
-@keyframes petPanelIn {
-    from { opacity: 0; transform: translateY(20px) scale(0.9); }
+
+@keyframes petPanelPop {
+    from { opacity: 0; transform: translateY(16px) scale(0.96); }
     to { opacity: 1; transform: translateY(0) scale(1); }
 }
+
+/* Header */
 .pet-panel-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 14px 18px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    background: linear-gradient(90deg, rgba(139, 92, 246, 0.12), transparent);
-    border-radius: 24px 24px 0 0;
+    padding: 13px 16px;
+    background: rgba(255, 255, 255, 0.02);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 .pet-panel-title-wrap {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
 }
-.pet-panel-badge {
-    font-size: 20px;
-    filter: drop-shadow(0 2px 8px rgba(139, 92, 246, 0.6));
+.pet-live-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #10b981;
+    box-shadow: 0 0 8px #10b981;
+    animation: petPulseDot 2s infinite ease-in-out;
+}
+@keyframes petPulseDot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.85); }
 }
 .pet-panel-title {
-    display: flex;
-    flex-direction: column;
-}
-.pet-panel-title span {
-    font-weight: 800;
-    font-size: 14.5px;
-    letter-spacing: 0.3px;
-    background: linear-gradient(135deg, #f8fafc, #c084fc);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-}
-.pet-panel-sub {
-    font-size: 10px;
-    color: #94a3b8;
-    font-weight: 600;
+    font-size: 13.5px;
+    font-weight: 700;
+    color: #f8fafc;
+    letter-spacing: -0.2px;
 }
 .pet-panel-actions {
     display: flex;
-    gap: 6px;
     align-items: center;
+    gap: 4px;
 }
-.pet-header-icon-btn {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    color: #94a3b8;
-    cursor: pointer;
-    width: 28px;
-    height: 28px;
+.pet-icon-action {
+    width: 26px;
+    height: 26px;
     border-radius: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    color: #94a3b8;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-.pet-header-icon-btn:hover {
-    background: rgba(56, 189, 248, 0.15);
-    border-color: rgba(56, 189, 248, 0.4);
-    color: #38bdf8;
-    transform: translateY(-1px);
-}
-.pet-header-icon-btn.reset-btn:hover {
-    background: rgba(239, 68, 68, 0.15);
-    border-color: rgba(239, 68, 68, 0.4);
-    color: #ef4444;
-}
-.pet-header-close-btn {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    color: #94a3b8;
     cursor: pointer;
-    width: 28px;
-    height: 28px;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 14px;
-    transition: all 0.2s;
+    transition: all 0.15s ease;
 }
-.pet-header-close-btn:hover {
+.pet-icon-action:hover {
     background: rgba(255, 255, 255, 0.12);
     color: #fff;
-    transform: rotate(90deg);
+    transform: translateY(-1px);
+}
+.pet-icon-action.danger:hover {
+    background: rgba(239, 68, 68, 0.15);
+    border-color: rgba(239, 68, 68, 0.3);
+    color: #f87171;
+}
+.pet-icon-action.close {
+    font-size: 12px;
 }
 
+/* Scrollable Body */
 .pet-panel-body {
-    padding: 16px 18px;
+    padding: 14px 16px 16px;
     display: flex;
     flex-direction: column;
-    align-items: center;
     gap: 12px;
-    max-height: 64vh;
+    max-height: 70vh;
     overflow-y: auto;
-    overflow-x: visible;
+    overflow-x: hidden;
 }
 .pet-panel-body::-webkit-scrollbar {
-    width: 5px;
+    width: 4px;
+}
+.pet-panel-body::-webkit-scrollbar-track {
+    background: transparent;
 }
 .pet-panel-body::-webkit-scrollbar-thumb {
-    background: rgba(139, 92, 246, 0.3);
-    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 4px;
+}
+.pet-panel-body::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.22);
 }
 
-/* 3D Hologram Stage */
-.pet-stage-container {
+/* 3D Hero Stage */
+.pet-hero-stage {
     position: relative;
-    width: 100%;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 4px 0;
+    padding: 2px 0;
 }
-.pet-stage-glow {
-    width: 130px;
-    height: 12px;
-    background: radial-gradient(ellipse, rgba(168, 85, 247, 0.55) 0%, transparent 70%);
+.pet-display {
+    position: relative;
+    width: 156px;
+    height: 156px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     border-radius: 50%;
-    margin-top: -6px;
-    filter: blur(4px);
-    pointer-events: none;
+    background: radial-gradient(circle, rgba(139, 92, 246, 0.14) 0%, rgba(99, 102, 241, 0.05) 55%, transparent 72%);
+    box-shadow: 0 0 35px rgba(139, 92, 246, 0.15), inset 0 0 20px rgba(139, 92, 246, 0.08);
+    cursor: pointer;
+    user-select: none;
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease;
+}
+.pet-display:hover {
+    transform: scale(1.03);
+    box-shadow: 0 0 45px rgba(139, 92, 246, 0.25), inset 0 0 25px rgba(139, 92, 246, 0.12);
+}
+.panel-pet-canvas-box {
+    position: relative;
+    width: 156px;
+    height: 156px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+#panel-pet-canvas {
+    width: 156px;
+    height: 156px;
+    outline: none;
+    display: block;
+    cursor: pointer;
+    border-radius: 50%;
+}
+.pet-stage-meta-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 6px;
+}
+.pet-stage-badge {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.35), rgba(99, 102, 241, 0.35));
+    border: 1px solid rgba(168, 85, 247, 0.45);
+    color: #e2e8f0;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.6px;
+    padding: 3px 10px;
+    border-radius: 9999px;
+    text-transform: uppercase;
+}
+.pet-switch-chip {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 9999px;
+    color: #cbd5e1;
+    font-size: 10.5px;
+    font-weight: 600;
+    padding: 3px 9px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+.pet-switch-chip:hover {
+    background: rgba(139, 92, 246, 0.2);
+    border-color: rgba(139, 92, 246, 0.4);
+    color: #fff;
+    transform: translateY(-1px);
 }
 
-/* Identity Card */
-.pet-identity-card {
-    width: 100%;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    border-radius: 16px;
-    padding: 10px 14px;
+/* Name & Status Row */
+.pet-info-row {
     display: flex;
-    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 10px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+}
+.pet-name-line {
+    display: flex;
     align-items: center;
     gap: 6px;
+    max-width: 60%;
 }
-.pet-name-wrap {
-    flex: 1;
-    text-align: center;
+.pet-name-text {
+    font-size: 14.5px;
+    font-weight: 800;
+    color: #f8fafc;
+    letter-spacing: -0.2px;
+    white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    white-space: nowrap;
 }
-.pet-chip-btn {
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 10px;
-    color: #94a3b8;
-    padding: 5px 9px;
-    font-size: 11px;
-    font-weight: 600;
-    cursor: pointer;
+.pet-rename-mini {
+    background: none;
+    border: none;
+    color: #64748b;
+    padding: 2px;
     display: flex;
     align-items: center;
-    gap: 5px;
-    transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.15s ease;
 }
-.pet-chip-btn.switch-chip:hover {
-    background: rgba(6, 182, 212, 0.18);
-    border-color: rgba(6, 182, 212, 0.5);
-    color: #22d3ee;
-    transform: translateY(-1px);
-}
-.pet-chip-btn.rename-chip:hover {
-    background: rgba(168, 85, 247, 0.18);
-    border-color: rgba(168, 85, 247, 0.5);
-    color: #c084fc;
-    transform: translateY(-1px);
+.pet-rename-mini:hover {
+    color: #a78bfa;
+    background: rgba(255, 255, 255, 0.06);
 }
 .pet-mood-pill {
     font-size: 11px;
+    font-weight: 600;
     color: #cbd5e1;
-    background: rgba(255, 255, 255, 0.04);
-    padding: 3px 12px;
-    border-radius: 20px;
-    font-weight: 500;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 2px 9px;
+    border-radius: 9999px;
+    white-space: nowrap;
 }
 
-/* Level & XP Card */
-.pet-level-card {
-    width: 100%;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    border-radius: 16px;
-    padding: 10px 14px;
+/* Level & Progress Box */
+.pet-progress-box {
     display: flex;
     flex-direction: column;
     gap: 6px;
+    padding: 8px 10px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
 }
-.pet-level-header {
+.pet-progress-labels {
     display: flex;
     justify-content: space-between;
     align-items: center;
 }
-.pet-level-tag {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-.level-badge {
-    background: linear-gradient(135deg, #8b5cf6, #6366f1);
+.pet-level-badge {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
     color: #fff;
-    font-size: 11px;
+    font-size: 10.5px;
     font-weight: 800;
     padding: 2px 7px;
     border-radius: 6px;
-    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4);
+    letter-spacing: 0.2px;
 }
-.level-title {
-    font-size: 11px;
-    color: #94a3b8;
+.pet-xp-counter {
+    font-size: 10.5px;
     font-weight: 600;
+    color: #94a3b8;
+    font-variant-numeric: tabular-nums;
 }
-.pet-xp-bar-wrap {
+.pet-xp-track {
     width: 100%;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 9999px;
+    overflow: hidden;
+}
+.pet-xp-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #6366f1, #a855f7, #ec4899);
+    border-radius: 9999px;
+    transition: width 0.4s ease;
+    box-shadow: 0 0 8px rgba(168, 85, 247, 0.6);
 }
 
-/* Stats Chips Grid */
-.pet-stats-grid {
-    width: 100%;
+/* Metrics Row */
+.pet-metrics-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 8px;
 }
-.pet-stat-chip {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    border-radius: 14px;
-    padding: 8px 10px;
+.pet-metric-card {
     display: flex;
     align-items: center;
     gap: 8px;
+    padding: 8px 10px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 12px;
+    transition: all 0.15s ease;
 }
-.stat-chip-icon {
+.pet-metric-card:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+.metric-icon {
     font-size: 18px;
-    filter: drop-shadow(0 2px 6px rgba(0,0,0,0.3));
+    line-height: 1;
 }
-.stat-chip-info {
+.metric-text {
     display: flex;
     flex-direction: column;
 }
-.stat-chip-label {
-    font-size: 9.5px;
-    color: #94a3b8;
-    font-weight: 600;
-    text-transform: uppercase;
-}
-.stat-chip-val {
-    font-size: 13px;
+.metric-value {
+    font-size: 13.5px;
     font-weight: 800;
-    color: #f1f5f9;
+    color: #f8fafc;
+    line-height: 1.2;
+}
+.metric-label {
+    font-size: 9.5px;
+    font-weight: 600;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
 }
 
-/* Pose Selector */
-.pet-pose-selector {
+/* Primary Feed Button */
+.pet-feed-action-btn {
     width: 100%;
-    background: rgba(0, 0, 0, 0.32);
-    border: 1px solid rgba(139, 92, 246, 0.25);
-    border-radius: 16px;
-    padding: 10px 12px;
+    padding: 10px 14px;
+    border: none;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: pointer;
+    box-shadow: 0 4px 16px rgba(139, 92, 246, 0.35);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
-.pet-pose-header {
+.pet-feed-action-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(139, 92, 246, 0.5);
+    filter: brightness(1.08);
+}
+.pet-feed-action-btn:active:not(:disabled) {
+    transform: translateY(1px);
+}
+.pet-feed-action-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    filter: grayscale(0.8);
+    box-shadow: none;
+}
+.feed-btn-icon {
+    font-size: 16px;
+}
+
+/* Leaderboard */
+.pet-leaderboard-wrap {
+    margin-top: 4px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+.pet-lb-header {
     font-size: 11px;
     font-weight: 700;
-    color: #a78bfa;
+    color: #94a3b8;
     margin-bottom: 8px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-.pose-title-wrap {
     display: flex;
     align-items: center;
     gap: 5px;
 }
-.current-pose-badge {
-    font-size: 10px;
-    padding: 2px 8px;
-    border-radius: 8px;
-    background: rgba(56, 189, 248, 0.2);
-    color: #38bdf8;
-    font-weight: 700;
-    border: 1px solid rgba(56, 189, 248, 0.3);
-}
-.pet-pose-btn-group {
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
+.pet-lb-item {
+    display: flex;
+    flex-direction: column;
     gap: 4px;
+    margin-bottom: 8px;
 }
-.pet-pose-btn {
-    padding: 6px 2px;
-    border-radius: 8px;
-    border: 1px solid transparent;
-    background: rgba(255, 255, 255, 0.04);
-    color: #94a3b8;
+.pet-lb-item:last-child {
+    margin-bottom: 0;
+}
+.pet-lb-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     font-size: 11px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-    text-align: center;
 }
-.pet-pose-btn:hover {
-    background: rgba(255, 255, 255, 0.08);
+.pet-lb-user {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
     color: #e2e8f0;
 }
-.pet-pose-btn.active {
-    border-color: rgba(168, 85, 247, 0.7);
-    background: linear-gradient(135deg, rgba(139, 92, 246, 0.45), rgba(99, 102, 241, 0.35));
-    color: #fff;
-    box-shadow: 0 0 12px rgba(168, 85, 247, 0.4);
+.pet-lb-rank {
+    font-weight: 800;
+    font-size: 10px;
+    width: 16px;
 }
-
-/* Action button row */
-.pet-action-row {
+.pet-lb-level {
+    color: #a78bfa;
+    font-weight: 700;
+    font-size: 10.5px;
+}
+.pet-lb-track {
     width: 100%;
-    display: flex;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 9999px;
+    overflow: hidden;
+}
+.pet-lb-fill {
+    height: 100%;
+    border-radius: 9999px;
+    background: linear-gradient(90deg, #6366f1, #a855f7);
 }
 /* ===== 🐾 3D VIRTUAL PET WRAPPERS ===== */
 .roaming-pet-3d-wrapper {
@@ -3349,136 +3417,6 @@
     outline: none;
     display: block;
     cursor: pointer;
-}
-.panel-pet-canvas-box {
-    position: relative;
-    width: 150px;
-    height: 150px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    filter: drop-shadow(0 8px 20px rgba(0,0,0,0.45));
-}
-#panel-pet-canvas {
-    width: 150px;
-    height: 150px;
-    outline: none;
-    display: block;
-    cursor: pointer;
-    border-radius: 50%;
-}
-.pet-display {
-    position: relative;
-    width: 150px; height: 150px;
-    display: flex; align-items: center; justify-content: center;
-    border-radius: 50%;
-    background: radial-gradient(circle, rgba(139,92,246,0.25) 0%, rgba(99,102,241,0.08) 55%, transparent 72%);
-    box-shadow: 0 0 35px rgba(139,92,246,0.25);
-    margin: 4px auto 8px auto;
-    cursor: pointer;
-    user-select: none;
-    transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-.pet-display:hover {
-    transform: scale(1.04);
-}
-.pet-stage-badge {
-    position: absolute;
-    bottom: -6px; left: 50%; transform: translateX(-50%);
-    background: linear-gradient(135deg, rgba(139,92,246,0.9), rgba(99,102,241,0.9));
-    color: #fff;
-    font-size: 9px; font-weight: 800;
-    letter-spacing: 1px;
-    padding: 3px 12px;
-    border-radius: 12px;
-    text-transform: uppercase;
-    box-shadow: 0 3px 10px rgba(0,0,0,0.4);
-    z-index: 10;
-    pointer-events: none;
-}
-.pet-name-row {
-    display: flex; align-items: center; gap: 6px;
-}
-.pet-name {
-    font-size: 16px; font-weight: 700; color: #f1f5f9;
-}
-.pet-rename-btn {
-    background: none; border: none; cursor: pointer; font-size: 14px;
-    opacity: 0.5; transition: opacity 0.2s;
-}
-.pet-rename-btn:hover { opacity: 1; }
-.pet-mood-text {
-    font-size: 12px; color: rgba(226,232,240,0.7);
-}
-.pet-level-row {
-    width: 100%;
-    display: flex; align-items: center; gap: 8px;
-}
-.pet-level-text {
-    font-size: 12px; font-weight: 700; color: #a78bfa;
-    min-width: 32px;
-}
-.pet-xp-bar {
-    flex: 1; height: 8px;
-    background: rgba(255,255,255,0.1);
-    border-radius: 4px; overflow: hidden;
-}
-.pet-xp-fill {
-    height: 100%;
-    background: linear-gradient(90deg, #8b5cf6, #a78bfa, #c4b5fd);
-    border-radius: 4px;
-    transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
-    box-shadow: 0 0 8px rgba(139,92,246,0.5);
-}
-.pet-xp-text {
-    font-size: 10px; color: rgba(226,232,240,0.5);
-    min-width: 40px; text-align: right;
-}
-.pet-stats {
-    display: flex; gap: 16px; width: 100%;
-    justify-content: center;
-    padding: 8px 0;
-    border-top: 1px solid rgba(255,255,255,0.06);
-    border-bottom: 1px solid rgba(255,255,255,0.06);
-}
-.pet-stat {
-    display: flex; align-items: center; gap: 4px;
-    font-size: 13px; color: #e2e8f0;
-}
-.pet-action-btn {
-    padding: 12px 16px;
-    border: none;
-    border-radius: 14px;
-    color: #fff;
-    font-weight: 700;
-    font-size: 14px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-.pet-btn-feed {
-    background: linear-gradient(135deg, #8b5cf6, #6d28d9);
-    box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4);
-}
-.pet-btn-feed:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(139, 92, 246, 0.6); filter: brightness(1.1); }
-.pet-btn-feed:active { transform: scale(0.95); }
-.pet-btn-feed:disabled {
-    opacity: 0.5; cursor: not-allowed; filter: grayscale(1); box-shadow: none; transform: none;
-}
-.pet-btn-bxh {
-    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
-    box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
-}
-.pet-btn-bxh:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(59, 130, 246, 0.6); filter: brightness(1.1); }
-.pet-btn-bxh:active { transform: scale(0.95); }
-.pet-feed-btn:disabled {
-    opacity: 0.5; cursor: not-allowed;
-    background: rgba(255,255,255,0.1);
-    box-shadow: none;
-}
 
 /* ===== PET SELECT MODAL ===== */
 .pet-select-grid {
@@ -4245,8 +4183,7 @@ function renderPet() {
 
     const lang = typeof CURRENT_LANG !== 'undefined' ? CURRENT_LANG : 'vi';
     const moodTexts = MOOD_TEXT[lang] || MOOD_TEXT.vi;
-    let stars = level <= 10 ? '⭐'.repeat(level) : '⭐ x' + level;
-    document.getElementById('pet-mood-text').innerHTML = (moodTexts[mood] || moodTexts.normal) + '<div style="margin-top: 6px; font-size: 11px; letter-spacing: 2px; text-shadow: 0 0 8px #fbbf24, 0 0 15px #fbbf24; filter: brightness(1.2);">' + stars + '</div>';
+    document.getElementById('pet-mood-text').textContent = moodTexts[mood] || moodTexts.normal;
 
     document.getElementById('pet-level-text').textContent = 'Lv.' + level;
     const xp = petData.xp || 0;
@@ -4343,32 +4280,31 @@ async function loadInlineLeaderboard() {
         const data = await res.json();
         if (data.success && data.leaderboard && data.leaderboard.length > 0) {
             const maxLevel = Math.max(10, ...data.leaderboard.map(p => p.level));
-            let html = '<div style="width: 100%; border-top: 1px solid rgba(255,255,255,0.1); margin-top: 16px; padding-top: 16px;"><h4 style="font-size: 13px; color: #e2e8f0; margin-bottom: 12px; text-align: left; display:flex; align-items:center; gap:6px;">🏆 Bảng Xếp Hạng</h4>';
+            let html = '';
             
             // Limit to top 5
             data.leaderboard.slice(0, 5).forEach((p, index) => {
                 let pct = Math.min(100, (p.level / maxLevel) * 100);
-                let rankColor = index === 0 ? '#fbbf24' : index === 1 ? '#94a3b8' : index === 2 ? '#b45309' : '#64748b';
+                let rankColor = index === 0 ? '#fbbf24' : index === 1 ? '#cbd5e1' : index === 2 ? '#d97706' : '#64748b';
                 
                 html += `
-                <div style="margin-bottom: 12px; width: 100%; text-align: left;">
-                    <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 6px; align-items:center;">
-                        <span style="font-weight: 600; color: #e2e8f0; display:flex; align-items:center; gap:6px;">
-                            <span style="color:${rankColor}; font-weight:bold; width:16px;">#${index+1}</span>
+                <div class="pet-lb-item">
+                    <div class="pet-lb-row">
+                        <span class="pet-lb-user">
+                            <span class="pet-lb-rank" style="color:${rankColor};">#${index+1}</span>
                             <span>${p.username} <span style="opacity:0.6; font-size:10px;">(${p.name})</span></span>
                         </span>
-                        <span style="color: #a78bfa; font-weight: bold; font-size: 10px;">Lv.${p.level}</span>
+                        <span class="pet-lb-level">Lv.${p.level}</span>
                     </div>
-                    <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden;">
-                        <div style="width: ${pct}%; height: 100%; background: linear-gradient(90deg, #8b5cf6, #3b82f6); border-radius: 3px;"></div>
+                    <div class="pet-lb-track">
+                        <div class="pet-lb-fill" style="width: ${pct}%;"></div>
                     </div>
                 </div>
                 `;
             });
-            html += '</div>';
             content.innerHTML = html;
         } else {
-            content.innerHTML = '';
+            content.innerHTML = '<div style="font-size:11px; color:#64748b; text-align:center; padding:8px 0;">Chưa có dữ liệu</div>';
         }
     } catch(e) {
         console.error(e);
