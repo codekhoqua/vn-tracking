@@ -832,41 +832,53 @@ def render_logtime_form_html(row, index, t, users, lang):
 
     return f'''
     <div class="logtime-form">
-        <form id="logtime-{index}" onsubmit="return handleLogtime(event, 'logtime-{index}')">
+        <form id="logtime-{index}" onsubmit="return handleLogtime(event, 'logtime-{index}')" novalidate>
             <input type="hidden" name="cong_viec" value="{cong_viec}">
             <input type="hidden" name="tac_pham" value="{tac_pham}">
             <input type="hidden" name="chuong" value="{chuong if pd.notna(chuong) else ''}">
             <input type="hidden" name="tap" value="{tap if pd.notna(tap) else ''}">
             <div class="form-row cols-4">
                 <div class="form-group">
-                    <label>{t['f_cat']}</label>
-                    <select name="category"><option value="単行本">単行本</option><option value="読切">読切</option><option value="連載">連載</option></select>
+                    <label>{t['f_cat']} <span style="color: #f43f5e; font-weight: bold; margin-left: 2px;">*</span></label>
+                    <select name="category" required>
+                        <option value="単行本" selected>単行本</option>
+                        <option value="読切">読切</option>
+                        <option value="連載">連載</option>
+                    </select>
                 </div>
                 <div class="form-group">
-                    <label>{t['f_diff']}</label>
-                    <select name="difficulty"><option value="">--</option><option value="低">低</option><option value="中">中</option><option value="高">高</option></select>
+                    <label>{t['f_diff']} <span style="color: #f43f5e; font-weight: bold; margin-left: 2px;">*</span></label>
+                    <select name="difficulty" required>
+                        <option value="" selected disabled>--</option>
+                        <option value="低">低</option>
+                        <option value="中">中</option>
+                        <option value="高">高</option>
+                    </select>
                 </div>
                 <div class="form-group">
-                    <label>{t['f_worker']}</label>
-                    <select name="nguoi_thuc_hien">{worker_options}</select>
+                    <label>{t['f_worker']} <span style="color: #f43f5e; font-weight: bold; margin-left: 2px;">*</span></label>
+                    <select name="nguoi_thuc_hien" required>
+                        <option value="" disabled {"selected" if not worker else ""}>--</option>
+                        {worker_options}
+                    </select>
                 </div>
                 <div class="form-group">
-                    <label>{t['f_date']}</label>
-                    <input type="date" name="ngay_log" value="{today}">
+                    <label>{t['f_date']} <span style="color: #f43f5e; font-weight: bold; margin-left: 2px;">*</span></label>
+                    <input type="date" name="ngay_log" value="{today}" required>
                 </div>
             </div>
             <div class="form-row cols-4">
                 <div class="form-group">
-                    <label>{t['f_hours']}</label>
-                    <input type="number" name="so_gio" min="0" step="0.5">
+                    <label>{t['f_hours']} <span style="color: #f43f5e; font-weight: bold; margin-left: 2px;">*</span></label>
+                    <input type="number" name="so_gio" min="0.1" step="0.5" required placeholder="0.5, 1, 2...">
                 </div>
                 <div class="form-group">
-                    <label>{t['f_total_pages']}</label>
-                    <input type="number" name="so_trang_tong" value="{so_trang}" min="0" step="1">
+                    <label>{t['f_total_pages']} <span style="color: #f43f5e; font-weight: bold; margin-left: 2px;">*</span></label>
+                    <input type="number" name="so_trang_tong" value="{so_trang if so_trang else ''}" min="0" step="1" required placeholder="Ví dụ: 200">
                 </div>
                 <div class="form-group">
-                    <label>{t['f_pages']}</label>
-                    <input type="number" name="so_page" min="0" step="1">
+                    <label>{t['f_pages']} <span style="color: #f43f5e; font-weight: bold; margin-left: 2px;">*</span></label>
+                    <input type="number" name="so_page" min="0" step="1" required placeholder="Số page hoàn thành...">
                 </div>
                 <div class="form-group">
                     <label>{t['f_note']}</label>
@@ -2285,6 +2297,30 @@ def api_logtime():
         return jsonify({"status": "error", "message": "Unauthorized"}), 401
     
     data = request.get_json()
+    if not data:
+        return jsonify({"status": "error", "message": "Không có dữ liệu gửi lên"}), 400
+
+    # Bắt buộc điền đủ tất cả các trường, ngoại lệ chỉ ghi chú được bỏ trống
+    required_map = {
+        'category': 'Loại truyện',
+        'difficulty': 'Độ khó',
+        'nguoi_thuc_hien': 'Người làm',
+        'ngay_log': 'Ngày làm việc',
+        'so_gio': 'Giờ làm hôm nay',
+        'so_trang_tong': 'Tổng số trang',
+        'so_page': 'Số page hoàn thành'
+    }
+    for field_key, field_name in required_map.items():
+        val = data.get(field_key)
+        if val is None or str(val).strip() == '':
+            return jsonify({"status": "error", "message": f"Vui lòng nhập/chọn {field_name}, không được để trống!"}), 400
+
+    try:
+        if float(data.get('so_gio', 0)) <= 0:
+            return jsonify({"status": "error", "message": "Giờ làm hôm nay phải lớn hơn 0!"}), 400
+    except (ValueError, TypeError):
+        return jsonify({"status": "error", "message": "Giờ làm hôm nay không hợp lệ!"}), 400
+
     if save_logtime(data):
         # Pet XP: +0 khi submit logtime (Pet reward)
         username = session.get('user', '')
@@ -3046,7 +3082,8 @@ _DEFAULT_RADIO_STATE = {
     'current_time': 0,
     'last_update': 0,
     'dj_username': None,
-    'allow_requests': False,
+    'allow_requests': True,
+    'is_automix_enabled': False,
     'queue': []
 }
 
@@ -3210,6 +3247,10 @@ def api_radio_sync():
         state['next_title'] = data['next_title']
     if 'video_active' in data:
         state['video_active'] = data['video_active']
+    if 'is_crossfading' in data:
+        state['is_crossfading'] = data['is_crossfading']
+    if 'is_automix_enabled' in data:
+        state['is_automix_enabled'] = data['is_automix_enabled']
     _radio_write_state(state)
     return jsonify({'success': True})
 
@@ -3253,7 +3294,8 @@ def api_radio_release():
         state['is_playing'] = False
         state['youtube_id'] = '4xDzrIxC4Dk'
         state['current_time'] = 0
-        state['allow_requests'] = False
+        state['allow_requests'] = True
+        state['is_automix_enabled'] = False
         state['queue'] = []
         _radio_write_state(state)
         _radio_write_listeners([])
@@ -3468,9 +3510,9 @@ radio_state = {
     'last_update': time.time(),
     'dj_username': None,
     'dj_sid': None,
-    'allow_requests': False,
+    'allow_requests': True,
     'is_crossfading': False,
-    'is_automix_enabled': True
+    'is_automix_enabled': False
 }
 
 radio_queue = []
@@ -3593,6 +3635,8 @@ def handle_radio_sync(data):
     if 'video_active' in data:
         radio_state['video_active'] = data['video_active']
     radio_state['is_crossfading'] = data.get('is_crossfading', False)
+    if 'is_automix_enabled' in data:
+        radio_state['is_automix_enabled'] = data['is_automix_enabled']
     radio_state['last_update'] = time.time()
     state = radio_state.copy()
     state['queue'] = radio_queue
@@ -3627,7 +3671,9 @@ def handle_release_dj():
         radio_state['is_playing'] = False
         radio_state['youtube_id'] = '4xDzrIxC4Dk'
         radio_state['current_time'] = 0
-        radio_state['allow_requests'] = False
+        radio_state['allow_requests'] = True
+        radio_state['is_automix_enabled'] = False
+        radio_state['is_crossfading'] = False
         radio_queue.clear()
         # Tắt DJ: xóa toàn bộ người nghe, mở lại sẽ không còn ai join
         radio_listeners.clear()
@@ -3652,7 +3698,13 @@ def handle_disconnect():
 @socketio.on('toggle_allow_requests')
 def handle_toggle_allow_requests(data):
     if radio_state.get('dj_sid') == request.sid:
-        radio_state['allow_requests'] = data.get('allow_requests', False)
+        radio_state['allow_requests'] = data.get('allow_requests', True)
+        emit('radio_sync', radio_state, broadcast=True)
+
+@socketio.on('toggle_automix')
+def handle_toggle_automix(data):
+    if radio_state.get('dj_sid') == request.sid:
+        radio_state['is_automix_enabled'] = data.get('is_automix_enabled', False)
         emit('radio_sync', radio_state, broadcast=True)
 
 @socketio.on('queue_add')

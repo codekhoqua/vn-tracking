@@ -244,7 +244,7 @@
         <div style="display: flex; flex-direction: column; justify-content: center;">
             <span>VN-Tracking</span>
             <sup class="version-tag"
-                style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.4.32</i></sup>
+                style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.4.36</i></sup>
         </div>
     </div>
 
@@ -493,7 +493,10 @@
             <div id="lofi-inner-content"
                 style="position: relative; z-index: 1; padding: 12px; display: flex; flex-direction: column; gap: 8px;">
 
-                <!-- Video Player Container (Hidden by default, or floating window when popped out) -->
+                <!-- Inline Anchor point for video player -->
+                <div id="radio-video-anchor" style="display: none;"></div>
+
+                <!-- Video Player Container (Natural inline element in sidebar, can pop out to body) -->
                 <div id="radio-video-wrapper"
                     style="display: none; width: 100%; aspect-ratio: 16/9; border-radius: 8px; overflow: hidden; background: #000; box-shadow: 0 4px 12px rgba(0,0,0,0.4); position: relative;">
                     <!-- POPOUT DRAGGABLE HEADER -->
@@ -506,7 +509,7 @@
                             <span>LSA MUSIC VIDEO</span>
                         </div>
                         <div style="display: flex; align-items: center; gap: 6px;">
-                            <button onclick="toggleRadioPopout(false)"
+                            <button type="button" onclick="toggleRadioPopout(false)"
                                 style="background: rgba(255,255,255,0.15); border: none; color: #fff; cursor: pointer; padding: 4px 8px; border-radius: 6px; font-size: 11px; display: flex; align-items: center; gap: 4px; transition: background 0.2s;"
                                 title="Thu nhỏ về sidebar">
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -518,7 +521,7 @@
                                 </svg>
                                 <span>Thu nhỏ</span>
                             </button>
-                            <button onclick="closeRadioPopout()"
+                            <button type="button" onclick="closeRadioPopout()"
                                 style="background: rgba(239,68,68,0.25); border: none; color: #ef4444; cursor: pointer; padding: 4px 6px; border-radius: 6px; display: flex; align-items: center; justify-content: center; transition: background 0.2s;"
                                 title="Đóng">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -531,7 +534,7 @@
                     </div>
                     <!-- PLAYERS WRAPPER -->
                     <div id="radio-video-players-box"
-                        style="position: relative; width: 100%; height: 100%; flex: 1; overflow: hidden;">
+                        style="position: relative; width: 100%; height: 100%; flex: 1; overflow: hidden; background: #000;">
                         <div id="lofi-youtube-player"></div>
                         <div id="lofi-youtube-player-2"></div>
                     </div>
@@ -579,8 +582,8 @@
                             <div id="radio-track-name"
                                 style="font-weight: 700; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #fff; line-height: 1.2; text-shadow: 0 1px 2px rgba(0,0,0,0.2);">
                                 {{ 'Đang chờ...' if lang == 'vi' else '待機中...' }}</div>
-                            <button id="radio-video-toggle" onclick="toggleRadioVideo()"
-                                style="background: none; border: none; color: rgba(255,255,255,0.4); cursor: pointer; padding: 0; display: flex; align-items: center; justify-content: center; transition: color 0.2s; flex-shrink: 0;"
+                            <button type="button" id="radio-video-toggle" onclick="toggleRadioVideo()"
+                                style="background: none; border: none; color: rgba(255,255,255,0.4); cursor: pointer; padding: 2px 4px; display: flex; align-items: center; justify-content: center; transition: color 0.2s, transform 0.15s; flex-shrink: 0;"
                                 title="Bật/Tắt Video">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -588,8 +591,8 @@
                                     <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
                                 </svg>
                             </button>
-                            <button id="radio-video-popout-icon" onclick="toggleRadioPopout(true)"
-                                style="background: none; border: none; color: rgba(255,255,255,0.45); cursor: pointer; padding: 0; display: flex; align-items: center; justify-content: center; transition: color 0.2s; flex-shrink: 0;"
+                            <button type="button" id="radio-video-popout-icon" onclick="toggleRadioPopout()"
+                                style="background: none; border: none; color: rgba(255,255,255,0.45); cursor: pointer; padding: 2px 4px; display: flex; align-items: center; justify-content: center; transition: color 0.2s, transform 0.15s; flex-shrink: 0;"
                                 title="Phóng to Video (Floating Player)">
                                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -766,7 +769,7 @@
                         <label
                             style="position: relative; display: flex; align-items: center; gap: 6px; cursor: pointer; margin: 0;">
                             <div class="switch" style="position: relative; width: 32px; height: 18px;">
-                                <input type="checkbox" id="radio-allow-requests" onchange="toggleAllowRequests(this)"
+                                <input type="checkbox" id="radio-allow-requests" onchange="toggleAllowRequests(this)" checked
                                     style="opacity: 0; width: 0; height: 0; position: absolute;">
                                 <span class="slider round"
                                     style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(255,255,255,0.2); transition: .4s; border-radius: 34px;">
@@ -782,7 +785,7 @@
                         <label
                             style="position: relative; display: flex; align-items: center; gap: 6px; cursor: pointer; margin: 0;">
                             <div class="switch" style="position: relative; width: 32px; height: 18px;">
-                                <input type="checkbox" id="radio-automix-toggle" onchange="toggleAutoMix(this)" checked
+                                <input type="checkbox" id="radio-automix-toggle" onchange="toggleAutoMix(this)"
                                     style="opacity: 0; width: 0; height: 0; position: absolute;">
                                 <span class="slider round"
                                     style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(255,255,255,0.2); transition: .4s; border-radius: 34px;">
@@ -824,17 +827,21 @@
                 pointer-events: none;
             }
 
+            #radio-video-wrapper.is-hidden {
+                position: fixed !important;
+                left: -9999px !important;
+                top: -9999px !important;
+                width: 200px !important;
+                height: 200px !important;
+                opacity: 0 !important;
+                pointer-events: none !important;
+                visibility: hidden !important;
+                z-index: -999 !important;
+            }
+
             /* FLOATING POP-OUT VIDEO PLAYER FOR LSA MUSIC */
             #radio-video-wrapper.is-popped-out {
                 position: fixed !important;
-                bottom: 90px;
-                right: 320px;
-                width: 480px;
-                height: 310px;
-                min-width: 260px;
-                min-height: 180px;
-                max-width: 92vw;
-                max-height: 82vh;
                 z-index: 100000 !important;
                 border-radius: 16px !important;
                 box-shadow: 0 24px 60px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(99, 102, 241, 0.4) !important;
