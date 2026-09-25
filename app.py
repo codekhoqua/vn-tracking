@@ -4136,4 +4136,4 @@ def compare_psd():
 
 if __name__ == '__main__':
     threading.Thread(target=preload_data, daemon=True).start()
-    socketio.run(app, debug=True, use_reloader=False, host='0.0.0.0', port=5000, allow_unsafe_werkzeug=True)
+    socketio.run(app, debug=True, use_reloader=True, host='0.0.0.0', port=5000, allow_unsafe_werkzeug=True)
