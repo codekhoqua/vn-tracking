@@ -437,6 +437,11 @@ def load_vntask_details():
 
         df_tuan_truoc = df_truoc_raw.iloc[idx_tuan_truoc[0]:].copy() if len(idx_tuan_truoc) > 0 else df_truoc_raw
 
+        if SIMULATED_TODAY and SIMULATED_TODAY >= date(2026, 9, 28):
+            df_tuan_truoc = df_tuan_nay
+            df_tuan_nay = df_tuan_sau
+            df_tuan_sau = pd.DataFrame()
+
         add_tasks(extract_tasks_from_df(df_tuan_nay, 'nay'))
         add_tasks(extract_tasks_from_df(df_tuan_truoc, 'truoc'))
         add_tasks(extract_tasks_from_df(df_tuan_sau, 'sau'))
@@ -1060,6 +1065,15 @@ def process_dashboard_data():
 
     df_tuan_sau = clean_df(df_raw.iloc[idx_tuan[1]:].copy()) if len(idx_tuan) > 1 else pd.DataFrame(columns=df_raw.columns)
     df_tuan_truoc = clean_df(df_truoc_raw.iloc[idx_tuan_truoc[0]:].copy()) if len(idx_tuan_truoc) > 0 else clean_df(df_truoc_raw)
+
+    if SIMULATED_TODAY and SIMULATED_TODAY >= date(2026, 9, 28):
+        df_tuan_truoc = df_tuan_nay
+        df_tuan_nay = df_tuan_sau
+        df_tuan_sau = pd.DataFrame(columns=df_raw.columns)
+
+        info_truoc = info_nay
+        info_nay = info_sau
+        info_sau = {"start": t['not_update'], "end": t['not_update'], "deadline": t['not_update']}
 
     # Pre-calculate global volume partners across all raw data before member filtering
     global_vol_partners = defaultdict(list)
