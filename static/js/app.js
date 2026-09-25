@@ -2,12 +2,6 @@
    VN-TRACKING DASHBOARD — FRONTEND LOGIC v3 (Kanban)
    ================================================================ */
 
-// Giả lập ngày hôm nay (Thứ 2 tuần sau: 2026-09-28)
-const SIMULATED_TODAY = new Date('2026-09-28T09:00:00');
-function getToday() {
-    return (typeof SIMULATED_TODAY !== 'undefined' && SIMULATED_TODAY) ? new Date(SIMULATED_TODAY) : new Date();
-}
-
 // ===================== TOAST =====================
 function showToast(message, type = 'info') {
     let container = document.getElementById('toast-container');
@@ -1679,7 +1673,7 @@ function handleLogtime(event, formId) {
 
     // Check if the log date is today
     if (data.ngay_log) {
-        const today = getToday();
+        const today = new Date();
         const yyyy = today.getFullYear();
         const mm = String(today.getMonth() + 1).padStart(2, '0');
         const dd = String(today.getDate()).padStart(2, '0');
@@ -2218,7 +2212,7 @@ function updateAreaChart(period) {
         }
     }
 
-    const now = getToday();
+    const now = new Date();
     let groupedData = {};
     let labels = [];
     let isBarChart = false;
@@ -2263,7 +2257,7 @@ function updateAreaChart(period) {
         const weekText = document.getElementById('week-text');
         if (weekText && weekText.dataset.weekOffset) {
             const offset = parseInt(weekText.dataset.weekOffset, 10);
-            const targetDate = getToday();
+            const targetDate = new Date();
             targetDate.setDate(targetDate.getDate() + (offset * 7));
             targetWeek = getWeekNumber(targetDate);
             targetYear = targetDate.getFullYear();
@@ -2576,7 +2570,7 @@ function toggleCalendarPopup(deadlineText) {
     }
 
     // Calculate countdown
-    const today = getToday();
+    const today = new Date();
     today.setHours(0, 0, 0, 0);
     const targetDateOnly = new Date(targetDate);
     targetDateOnly.setHours(0, 0, 0, 0);
@@ -2596,7 +2590,7 @@ function toggleCalendarPopup(deadlineText) {
 
     // Show TODAY on the left panel
     document.getElementById('cal-left-dow').textContent = isVi ? "HÔM NAY" : "今日";
-    document.getElementById('cal-left-date').textContent = getToday().getDate();
+    document.getElementById('cal-left-date').textContent = new Date().getDate();
     document.getElementById('cal-left-text').textContent = countdownText;
 
     if (typeof flatpickr !== 'undefined' && flatpickr.l10ns && flatpickr.l10ns.vn) {

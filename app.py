@@ -57,12 +57,6 @@ app.secret_key = os.environ.get('SECRET_KEY', 'vn-tracking-secret-' + hashlib.md
 # đặt SOCKETIO_ASYNC_MODE=eventlet để WebSocket hoạt động chuẩn.
 _SOCKETIO_ASYNC_MODE = os.environ.get('SOCKETIO_ASYNC_MODE', 'threading')
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode=_SOCKETIO_ASYNC_MODE, manage_session=False)
-# =====================================================================
-# Giả lập ngày (None = dùng thời gian thực)
-SIMULATED_TODAY = None
-def get_today():
-    return SIMULATED_TODAY if SIMULATED_TODAY else date.today()
-
 # 2. CƠ SỞ DỮ LIỆU TÀI KHOẢN VÀ LINK DỮ LIỆU
 # =====================================================================
 USER_SHEET_URL = "https://docs.google.com/spreadsheets/d/1VLlDF5XoXt0Rz0ACZ3EZRKcKWFnIRXptMPbQthimNE0/export?format=csv&gid=0"
@@ -936,7 +930,7 @@ def render_logtime_form_html(row, index, t, users, lang):
     tac_pham = str(row.get('Tên tác phẩm', '')).strip()
     chuong = row.get('Chương', '')
     tap = row.get('Tập', '')
-    today = get_today().isoformat()
+    today = date.today().isoformat()
 
     worker_options = ''.join(
         f'<option value="{u}" {"selected" if u == worker else ""}>{u}</option>'
