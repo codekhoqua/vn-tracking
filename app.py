@@ -442,11 +442,12 @@ def load_vntask_details():
             if not val or pd.isna(val) or str(val).strip() in ['nan', 'None', '', '::', '-', '->']:
                 return None
             s = str(val).strip()
-            if '-' in s:
-                s = s.split('-')[-1].strip()
-            s = re.sub(r'\([A-Za-z]+\)', '', s).strip()
+            matches = re.findall(r'\d{1,4}[/-]\d{1,2}(?:[/-]\d{1,4})?', s)
+            if not matches:
+                return None
+            clean_d = matches[-1]
             try:
-                return date_parser.parse(s, default=datetime(current_year, 1, 1)).date()
+                return date_parser.parse(clean_d, default=datetime(current_year, 1, 1)).date()
             except Exception:
                 return None
 
