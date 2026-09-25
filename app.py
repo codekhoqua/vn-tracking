@@ -58,8 +58,8 @@ app.secret_key = os.environ.get('SECRET_KEY', 'vn-tracking-secret-' + hashlib.md
 _SOCKETIO_ASYNC_MODE = os.environ.get('SOCKETIO_ASYNC_MODE', 'threading')
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode=_SOCKETIO_ASYNC_MODE, manage_session=False)
 # =====================================================================
-# Giả lập ngày hôm nay (Thứ 2 tuần sau: 2026-09-28)
-SIMULATED_TODAY = date(2026, 9, 28)
+# Giả lập ngày (None = dùng thời gian thực)
+SIMULATED_TODAY = None
 def get_today():
     return SIMULATED_TODAY if SIMULATED_TODAY else date.today()
 
@@ -78,7 +78,7 @@ csv_url_truoc = url_after_week.split("/edit")[0] + "/export?format=csv&" + url_a
 
 
 
-COLS = ['Công việc', 'Tên tác phẩm', 'Chương', 'Tập', 'Số trang', 'NXB', 'Ngày bắt đầu', 'Deadline (Nộp)', 'VN', 'Người thực hiện', 'QC Nội bộ', 'Quản lý', 'Trạng thái', 'Bắt đầu', 'Ghi chú']
+COLS = ['Công việc', 'Tên tác phẩm', 'Chương', 'Tập', 'Số trang', 'NXB', 'Ngày bắt đầu', 'Deadline (Nộp)', 'VN', 'Người thực hiện', 'QC Nội bộ', 'Quản lý', 'Trạng thái', 'Bắt đầu', 'Start', 'End', 'Ghi chú']
 
 VNTASK_URL = "https://docs.google.com/spreadsheets/d/1ec_v1hsKu0oCOwyrFNgxckpoaq3Q02J4NdIchqbYE3s/gviz/tq?tqx=out:csv&sheet=VN-task"
 
@@ -316,7 +316,7 @@ def load_checklist_data(api_url=None):
 @cached(ttl=180)
 def load_sheet_data(url):
     try:
-        df = pd.read_csv(url, usecols=list(range(1, 16)), header=None)
+        df = pd.read_csv(url, usecols=list(range(1, 18)), header=None)
         df.columns = COLS
         if df.empty:
             raise Exception("DataFrame rỗng")
@@ -339,9 +339,14 @@ def load_vntask_details():
             
         start_col = None
         for c in df_target.columns:
-            if any(k in str(c) for k in ['開始日', 'Ngày bắt đầu']):
+            if str(c).strip().lower() == 'start':
                 start_col = c
                 break
+        if not start_col:
+            for c in df_target.columns:
+                if any(k in str(c) for k in ['開始日', 'Ngày bắt đầu']):
+                    start_col = c
+                    break
         if not start_col:
             for c in df_target.columns:
                 if any(k in str(c).lower() for k in ['start', 'bắt đầu']):
@@ -422,25 +427,29 @@ def load_vntask_details():
         df_raw = load_sheet_data(csv_url)
         df_truoc_raw = load_sheet_data(csv_url_truoc)
 
-        idx_tuan = df_raw[df_raw.apply(lambda row: row.astype(str).str.contains('Tuần làm việc', case=False, na=False).any(), axis=1)].index
-        idx_tuan_truoc = df_truoc_raw[df_truoc_raw.apply(lambda row: row.astype(str).str.contains('Tuần làm việc', case=False, na=False).any(), axis=1)].index
+        def parse_date_obj(val):
+            if not val or pd.isna(val) or str(val).strip() in ['nan', 'None', '', '::', '-', '->']:
+                return None
+            s = re.sub(r'\([A-Za-z]+\)', '', str(val)).strip().replace('-', ' ')
+            try:
+                return date_parser.parse(s, default=datetime(current_year, 1, 1)).date()
+            except Exception:
+                return None
 
-        if len(idx_tuan) > 1:
-            df_tuan_nay = df_raw.iloc[idx_tuan[0]:idx_tuan[1]].copy()
-            df_tuan_sau = df_raw.iloc[idx_tuan[1]:].copy()
-        elif len(idx_tuan) > 0:
-            df_tuan_nay = df_raw.iloc[idx_tuan[0]:].copy()
-            df_tuan_sau = pd.DataFrame()
-        else:
-            df_tuan_nay = df_raw.copy()
-            df_tuan_sau = pd.DataFrame()
+        combined_all = clean_df(pd.concat([df_raw, df_truoc_raw], ignore_index=True))
 
-        df_tuan_truoc = df_truoc_raw.iloc[idx_tuan_truoc[0]:].copy() if len(idx_tuan_truoc) > 0 else df_truoc_raw
+        def get_task_week(row):
+            d = parse_date_obj(row.get('Start'))
+            if not d:
+                d = parse_date_obj(row.get('Ngày bắt đầu'))
+            return d.isocalendar()[1] if d else None
 
-        if SIMULATED_TODAY and SIMULATED_TODAY >= date(2026, 9, 28):
-            df_tuan_truoc = df_tuan_nay
-            df_tuan_nay = df_tuan_sau
-            df_tuan_sau = pd.DataFrame()
+        combined_all['task_week'] = [get_task_week(r) for _, r in combined_all.iterrows()]
+
+        current_w = date.today().isocalendar()[1]
+        df_tuan_truoc = combined_all[combined_all['task_week'] == (current_w - 1)]
+        df_tuan_nay = combined_all[combined_all['task_week'] == current_w]
+        df_tuan_sau = combined_all[combined_all['task_week'] >= (current_w + 1)]
 
         add_tasks(extract_tasks_from_df(df_tuan_nay, 'nay'))
         add_tasks(extract_tasks_from_df(df_tuan_truoc, 'truoc'))
@@ -1055,25 +1064,42 @@ def process_dashboard_data():
     info_sau = parse_week_info(df_raw, idx_tuan[1:2])
     info_truoc = parse_week_info(df_truoc_raw, idx_tuan_truoc[:1])
 
-    # Split data by week
-    if len(idx_tuan) > 1:
-        df_tuan_nay = clean_df(df_raw.iloc[idx_tuan[0]:idx_tuan[1]].copy())
-    elif len(idx_tuan) > 0:
-        df_tuan_nay = clean_df(df_raw.iloc[idx_tuan[0]:].copy())
-    else:
-        df_tuan_nay = df_raw.copy()
+    # Split data by week based on Start (or Ngày bắt đầu) column
+    current_year = date.today().year
+    def parse_task_date_obj(val):
+        if not val or pd.isna(val) or str(val).strip() in ['nan', 'None', '', '::', '-', '->']:
+            return None
+        s = re.sub(r'\([A-Za-z]+\)', '', str(val)).strip().replace('-', ' ')
+        try:
+            return date_parser.parse(s, default=datetime(current_year, 1, 1)).date()
+        except Exception:
+            return None
 
-    df_tuan_sau = clean_df(df_raw.iloc[idx_tuan[1]:].copy()) if len(idx_tuan) > 1 else pd.DataFrame(columns=df_raw.columns)
-    df_tuan_truoc = clean_df(df_truoc_raw.iloc[idx_tuan_truoc[0]:].copy()) if len(idx_tuan_truoc) > 0 else clean_df(df_truoc_raw)
+    def get_week_num_from_str(s):
+        try:
+            clean_s = re.sub(r'\([A-Za-z]+\)', '', str(s)).strip().replace('-', ' ')
+            dt = date_parser.parse(clean_s, default=datetime(current_year, 1, 1))
+            return dt.isocalendar()[1]
+        except Exception:
+            return None
 
-    if SIMULATED_TODAY and SIMULATED_TODAY >= date(2026, 9, 28):
-        df_tuan_truoc = df_tuan_nay
-        df_tuan_nay = df_tuan_sau
-        df_tuan_sau = pd.DataFrame(columns=df_raw.columns)
+    target_week_nay = get_week_num_from_str(info_nay.get('start')) or date.today().isocalendar()[1]
+    target_week_truoc = get_week_num_from_str(info_truoc.get('start')) or (target_week_nay - 1)
+    target_week_sau = get_week_num_from_str(info_sau.get('start')) or (target_week_nay + 1)
 
-        info_truoc = info_nay
-        info_nay = info_sau
-        info_sau = {"start": t['not_update'], "end": t['not_update'], "deadline": t['not_update']}
+    combined_all = clean_df(pd.concat([df_raw, df_truoc_raw], ignore_index=True))
+
+    def get_task_week(row):
+        d = parse_task_date_obj(row.get('Start'))
+        if not d:
+            d = parse_task_date_obj(row.get('Ngày bắt đầu'))
+        return d.isocalendar()[1] if d else None
+
+    combined_all['task_week'] = [get_task_week(r) for _, r in combined_all.iterrows()]
+
+    df_tuan_truoc = combined_all[combined_all['task_week'] == target_week_truoc].copy()
+    df_tuan_nay = combined_all[combined_all['task_week'] == target_week_nay].copy()
+    df_tuan_sau = combined_all[combined_all['task_week'] >= target_week_sau].copy()
 
     # Pre-calculate global volume partners across all raw data before member filtering
     global_vol_partners = defaultdict(list)
@@ -1201,8 +1227,8 @@ def process_dashboard_data():
             elif 'レタッチ' in cv or 'ﾚﾀｯﾁ' in cv or 'Retouch' in cv: job_type = 'Retouch'
             else: job_type = 'Prep'
             
-            start_date = format_jp_date(str(row.get('Ngày bắt đầu', '')).strip())
-            end_date = format_jp_date(str(row.get('Deadline (Nộp)', row.get('Hạn chót', row.get('Deadline', '')))).strip())
+            start_date = format_jp_date(str(row.get('Start', row.get('Ngày bắt đầu', ''))).strip())
+            end_date = format_jp_date(str(row.get('End', row.get('Deadline (Nộp)', row.get('Hạn chót', row.get('Deadline', ''))))).strip())
             
             data.append({
                 "key": tp_key,
