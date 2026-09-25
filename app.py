@@ -346,6 +346,13 @@ def load_vntask_details():
                 if any(k in str(c).lower() for k in ['start', 'bắt đầu']):
                     start_col = c
                     break
+                    
+        end_col = None
+        for c in df_target.columns:
+            c_str = str(c).strip().lower()
+            if c_str == 'end' or 'kết thúc' in c_str or 'deadline' in c_str or 'hạn chót' in c_str:
+                end_col = c
+                break
 
         job_col = None
         for c in df_target.columns:
@@ -370,7 +377,14 @@ def load_vntask_details():
 
         res = []
         for _, row in df_target.iterrows():
-            val = str(row[start_col]).strip() if pd.notna(row.get(start_col)) else ""
+            val = ""
+            end_val = str(row[end_col]).strip() if end_col and pd.notna(row.get(end_col)) else ""
+            if end_val and end_val not in ['nan', 'NaN', 'None', '', '::', '-', '->']:
+                val = end_val
+            else:
+                start_val = str(row[start_col]).strip() if start_col and pd.notna(row.get(start_col)) else ""
+                val = start_val
+                
             if val in ['nan', 'NaN', 'None', '', '::', '-', '->']:
                 continue
 
@@ -392,7 +406,9 @@ def load_vntask_details():
             if worker in ['nan', 'NaN', 'None', '作業者 \nNgười thực hiện']:
                 worker = ""
 
-            clean_d = re.sub(r'\([A-Za-z]+\)', '', val).strip().replace('-', ' ')
+            if '-' in val:
+                val = val.split('-')[-1].strip()
+            clean_d = re.sub(r'\([A-Za-z]+\)', '', val).strip()
             try:
                 dt = date_parser.parse(clean_d, default=datetime(current_year, 1, 1))
                 formatted_date = dt.strftime('%Y-%m-%d')
@@ -424,26 +440,49 @@ def load_vntask_details():
         def parse_date_obj(val):
             if not val or pd.isna(val) or str(val).strip() in ['nan', 'None', '', '::', '-', '->']:
                 return None
-            s = re.sub(r'\([A-Za-z]+\)', '', str(val)).strip().replace('-', ' ')
+            s = str(val).strip()
+            if '-' in s:
+                s = s.split('-')[-1].strip()
+            s = re.sub(r'\([A-Za-z]+\)', '', s).strip()
             try:
                 return date_parser.parse(s, default=datetime(current_year, 1, 1)).date()
             except Exception:
                 return None
 
         combined_all = clean_df(pd.concat([df_raw, df_truoc_raw], ignore_index=True))
+        combined_all = combined_all.drop_duplicates(
+            subset=['Công việc', 'Tên tác phẩm', 'Chương', 'Tập', 'Người thực hiện'],
+            keep='last'
+        )
 
-        def get_task_week(row):
-            d = parse_date_obj(row.get('Start'))
-            if not d:
-                d = parse_date_obj(row.get('Ngày bắt đầu'))
-            return d.isocalendar()[1] if d else None
+        def get_task_weeks(row):
+            start_d = parse_date_obj(row.get('Start'))
+            if not start_d: start_d = parse_date_obj(row.get('Ngày bắt đầu'))
+            end_d = parse_date_obj(row.get('End'))
+            if not end_d: end_d = parse_date_obj(row.get('Ngày kết thúc'))
+            if not end_d: end_d = parse_date_obj(row.get('Hạn chót'))
+            if not end_d: end_d = parse_date_obj(row.get('Deadline'))
+            if not end_d: end_d = parse_date_obj(row.get('Deadline (Nộp)'))
+            if start_d and not end_d:
+                end_d = start_d
+            elif end_d and not start_d:
+                start_d = end_d
+            if not start_d and not end_d:
+                return None, None
+            return start_d.isocalendar()[1], end_d.isocalendar()[1]
 
-        combined_all['task_week'] = [get_task_week(r) for _, r in combined_all.iterrows()]
+        sws, ews = [], []
+        for _, r in combined_all.iterrows():
+            sw, ew = get_task_weeks(r)
+            sws.append(sw)
+            ews.append(ew)
+        combined_all['start_w'] = sws
+        combined_all['end_w'] = ews
 
         current_w = date.today().isocalendar()[1]
-        df_tuan_truoc = combined_all[combined_all['task_week'] == (current_w - 1)]
-        df_tuan_nay = combined_all[combined_all['task_week'] == current_w]
-        df_tuan_sau = combined_all[combined_all['task_week'] >= (current_w + 1)]
+        df_tuan_truoc = combined_all[combined_all['end_w'] == (current_w - 1)]
+        df_tuan_nay = combined_all[combined_all['end_w'] == current_w]
+        df_tuan_sau = combined_all[combined_all['end_w'] >= (current_w + 1)]
 
         add_tasks(extract_tasks_from_df(df_tuan_nay, 'nay'))
         add_tasks(extract_tasks_from_df(df_tuan_truoc, 'truoc'))
@@ -455,7 +494,10 @@ def load_vntask_details():
     try:
         df_vntask = pd.read_csv(VNTASK_URL)
         if not df_vntask.empty and len(df_vntask.dropna(subset=[df_vntask.columns[1]])) > 0:
-            add_tasks(extract_tasks_from_df(df_vntask))
+            cutoff_date = date.today() - timedelta(days=date.today().weekday() + 7)
+            cutoff_str = cutoff_date.strftime('%Y-%m-%d')
+            h_tasks = extract_tasks_from_df(df_vntask)
+            add_tasks([t for t in h_tasks if t['date'] < cutoff_str])
     except Exception:
         pass
 
@@ -479,7 +521,10 @@ def load_vntask_details():
                 is_vn = is_vn | df_all[worker_col].astype(str).str.contains(worker_pattern, case=False, na=False)
             
             df_all_vn = df_all[is_vn]
-            add_tasks(extract_tasks_from_df(df_all_vn))
+            cutoff_date = date.today() - timedelta(days=date.today().weekday() + 7)
+            cutoff_str = cutoff_date.strftime('%Y-%m-%d')
+            h_tasks = extract_tasks_from_df(df_all_vn)
+            add_tasks([t for t in h_tasks if t['date'] < cutoff_str])
     except Exception as e:
         print("Error reading Schedule management - ALL for chart:", e)
 
@@ -1063,7 +1108,10 @@ def process_dashboard_data():
     def parse_task_date_obj(val):
         if not val or pd.isna(val) or str(val).strip() in ['nan', 'None', '', '::', '-', '->']:
             return None
-        s = re.sub(r'\([A-Za-z]+\)', '', str(val)).strip().replace('-', ' ')
+        s = str(val).strip()
+        if '-' in s:
+            s = s.split('-')[-1].strip()
+        s = re.sub(r'\([A-Za-z]+\)', '', s).strip()
         try:
             return date_parser.parse(s, default=datetime(current_year, 1, 1)).date()
         except Exception:
@@ -1071,7 +1119,10 @@ def process_dashboard_data():
 
     def get_week_num_from_str(s):
         try:
-            clean_s = re.sub(r'\([A-Za-z]+\)', '', str(s)).strip().replace('-', ' ')
+            val = str(s).strip()
+            if '-' in val:
+                val = val.split('-')[-1].strip()
+            clean_s = re.sub(r'\([A-Za-z]+\)', '', val).strip()
             dt = date_parser.parse(clean_s, default=datetime(current_year, 1, 1))
             return dt.isocalendar()[1]
         except Exception:
@@ -1082,18 +1133,52 @@ def process_dashboard_data():
     target_week_sau = get_week_num_from_str(info_sau.get('start')) or (target_week_nay + 1)
 
     combined_all = clean_df(pd.concat([df_raw, df_truoc_raw], ignore_index=True))
+    combined_all = combined_all.drop_duplicates(
+        subset=['Công việc', 'Tên tác phẩm', 'Chương', 'Tập', 'Người thực hiện'],
+        keep='last'
+    )
 
-    def get_task_week(row):
-        d = parse_task_date_obj(row.get('Start'))
-        if not d:
-            d = parse_task_date_obj(row.get('Ngày bắt đầu'))
-        return d.isocalendar()[1] if d else None
+    def get_task_weeks(row):
+        start_d = parse_task_date_obj(row.get('Start'))
+        if not start_d:
+            start_d = parse_task_date_obj(row.get('Ngày bắt đầu'))
+            
+        end_d = parse_task_date_obj(row.get('End'))
+        if not end_d: end_d = parse_task_date_obj(row.get('Ngày kết thúc'))
+        if not end_d: end_d = parse_task_date_obj(row.get('Hạn chót'))
+        if not end_d: end_d = parse_task_date_obj(row.get('Deadline'))
+        if not end_d: end_d = parse_task_date_obj(row.get('Deadline (Nộp)'))
+            
+        if start_d and not end_d:
+            end_d = start_d
+        elif end_d and not start_d:
+            start_d = end_d
+            
+        if not start_d and not end_d:
+            return None, None
+            
+        return start_d.isocalendar()[1], end_d.isocalendar()[1]
 
-    combined_all['task_week'] = [get_task_week(r) for _, r in combined_all.iterrows()]
+    start_ws = []
+    end_ws = []
+    for _, r in combined_all.iterrows():
+        sw, ew = get_task_weeks(r)
+        start_ws.append(sw)
+        end_ws.append(ew)
+    combined_all['start_w'] = start_ws
+    combined_all['end_w'] = end_ws
 
-    df_tuan_truoc = combined_all[combined_all['task_week'] == target_week_truoc].copy()
-    df_tuan_nay = combined_all[combined_all['task_week'] == target_week_nay].copy()
-    df_tuan_sau = combined_all[combined_all['task_week'] >= target_week_sau].copy()
+    def in_week(sw, ew, tw):
+        if sw is None or ew is None or tw is None: return False
+        return (sw <= tw <= ew) if sw <= ew else (tw >= sw or tw <= ew)
+
+    def in_or_after_week(sw, ew, tw):
+        if sw is None or ew is None or tw is None: return False
+        return (ew >= tw) if sw <= ew else True
+
+    df_tuan_truoc = combined_all[combined_all.apply(lambda r: in_week(r['start_w'], r['end_w'], target_week_truoc), axis=1)].copy()
+    df_tuan_nay = combined_all[combined_all.apply(lambda r: in_week(r['start_w'], r['end_w'], target_week_nay), axis=1)].copy()
+    df_tuan_sau = combined_all[combined_all.apply(lambda r: in_or_after_week(r['start_w'], r['end_w'], target_week_sau), axis=1)].copy()
 
     # Pre-calculate global volume partners across all raw data before member filtering
     global_vol_partners = defaultdict(list)
@@ -1182,7 +1267,7 @@ def process_dashboard_data():
 
         return records
 
-    def build_dashboard(df_target):
+    def build_dashboard(df_target, target_w):
         data = []
         current_year = date.today().year
         def format_jp_date(d_str):
@@ -1224,6 +1309,9 @@ def process_dashboard_data():
             start_date = format_jp_date(str(row.get('Start', row.get('Ngày bắt đầu', ''))).strip())
             end_date = format_jp_date(str(row.get('End', row.get('Deadline (Nộp)', row.get('Hạn chót', row.get('Deadline', ''))))).strip())
             
+            end_w = row.get('end_w')
+            is_future_deadline = (end_w > target_w) if pd.notna(end_w) else False
+            
             data.append({
                 "key": tp_key,
                 "name": tp_name,
@@ -1243,18 +1331,25 @@ def process_dashboard_data():
                 "partner_key": row.get('partner_key', ''),
                 "partner_progress": row.get('partner_progress', 0),
                 "has_comments": has_comments,
-                "comments_count": comments_count
+                "comments_count": comments_count,
+                "is_future_deadline": is_future_deadline
             })
         return data
 
-    def get_metrics(df_target):
+    def get_metrics(df_target, target_w):
         if df_target.empty:
             return {"total": 0, "retouch": 0, "lettering": 0, "lettering_qc": 0, "lettering_retouch": 0, "prep": 0}
+            
+        if 'end_w' in df_target.columns:
+            df_filtered = df_target[df_target['end_w'] == target_w]
+        else:
+            df_filtered = df_target
+            
         retouch_count = 0
         lettering_count = 0
         lettering_qc_count = 0
         lettering_retouch_count = 0
-        for cv_val in df_target["Công việc"].astype(str):
+        for cv_val in df_filtered["Công việc"].astype(str):
             cv = cv_val.strip()
             if '写植/ﾚﾀｯﾁ' in cv or '写植/レタッチ' in cv or 'Lettering/Retouch' in cv:
                 lettering_retouch_count += 1
@@ -1264,7 +1359,7 @@ def process_dashboard_data():
                 lettering_count += 1
             elif 'レタッチ' in cv or 'ﾚﾀｯﾁ' in cv or 'Retouch' in cv:
                 retouch_count += 1
-        total_count = len(df_target)
+        total_count = len(df_filtered)
         prep_count = total_count - (retouch_count + lettering_count + lettering_qc_count + lettering_retouch_count)
         return {
             "total": total_count,
@@ -1349,9 +1444,9 @@ def process_dashboard_data():
     USER_DB = load_users_from_sheet(USER_SHEET_URL)
     users = list(USER_DB.keys())
     
-    dash_nay = build_dashboard(df_tuan_nay)
-    dash_truoc = build_dashboard(df_tuan_truoc)
-    dash_sau = build_dashboard(df_tuan_sau)
+    dash_nay = build_dashboard(df_tuan_nay, target_week_nay)
+    dash_truoc = build_dashboard(df_tuan_truoc, target_week_truoc)
+    dash_sau = build_dashboard(df_tuan_sau, target_week_sau)
     ai_insights = generate_ai_insights(dash_nay, dash_truoc, lang)
 
     # Garbage Collect Checklists
@@ -1391,19 +1486,19 @@ def process_dashboard_data():
                 'info': info_truoc,
                 'tasks': df_to_records(df_tuan_truoc),
                 'dashboard': dash_truoc,
-                'metrics': get_metrics(df_tuan_truoc),
+                'metrics': get_metrics(df_tuan_truoc, target_week_truoc),
             },
             'nay': {
                 'info': info_nay,
                 'tasks': df_to_records(df_tuan_nay),
                 'dashboard': dash_nay,
-                'metrics': get_metrics(df_tuan_nay),
+                'metrics': get_metrics(df_tuan_nay, target_week_nay),
             },
             'sau': {
                 'info': info_sau,
                 'tasks': df_to_records(df_tuan_sau),
                 'dashboard': dash_sau,
-                'metrics': get_metrics(df_tuan_sau),
+                'metrics': get_metrics(df_tuan_sau, target_week_sau),
             }
         }
     }
@@ -1798,8 +1893,6 @@ def api_insights():
 
 @app.route('/api/chart_data')
 def api_chart_data():
-    if not session.get('logged_in'):
-        return jsonify([])
     return jsonify(load_vntask_details())
 
 @app.route('/')
