@@ -58,6 +58,11 @@ app.secret_key = os.environ.get('SECRET_KEY', 'vn-tracking-secret-' + hashlib.md
 _SOCKETIO_ASYNC_MODE = os.environ.get('SOCKETIO_ASYNC_MODE', 'threading')
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode=_SOCKETIO_ASYNC_MODE, manage_session=False)
 # =====================================================================
+# Giả lập ngày hôm nay (Thứ 2 tuần sau: 2026-09-28)
+SIMULATED_TODAY = date(2026, 9, 28)
+def get_today():
+    return SIMULATED_TODAY if SIMULATED_TODAY else date.today()
+
 # 2. CƠ SỞ DỮ LIỆU TÀI KHOẢN VÀ LINK DỮ LIỆU
 # =====================================================================
 USER_SHEET_URL = "https://docs.google.com/spreadsheets/d/1VLlDF5XoXt0Rz0ACZ3EZRKcKWFnIRXptMPbQthimNE0/export?format=csv&gid=0"
@@ -322,61 +327,155 @@ def load_sheet_data(url):
         traceback.print_exc()
         raise e
 
-@cached(ttl=300)
+@cached(ttl=120)
 def load_vntask_details():
-    try:
-        df = pd.read_csv(VNTASK_URL)
-        start_date_col = None
-        for col in df.columns:
-            if '開始日' in col:
-                start_date_col = col
+    combined = []
+    seen = set()
+    current_year = date.today().year
+
+    def extract_tasks_from_df(df_target, default_tag=None):
+        if df_target is None or df_target.empty:
+            return []
+            
+        start_col = None
+        for c in df_target.columns:
+            if any(k in str(c) for k in ['開始日', 'Ngày bắt đầu']):
+                start_col = c
                 break
-                
-        if not start_date_col:
-            if len(df.columns) > 7:
-                start_date_col = df.columns[7]
-            else:
-                return []
-            
-        job_col = df.columns[1] if len(df.columns) > 1 else None
-        task_col = df.columns[2] if len(df.columns) > 2 else None
-        worker_col = df.columns[10] if len(df.columns) > 10 else (df.columns[9] if len(df.columns) > 9 else None)
+        if not start_col:
+            for c in df_target.columns:
+                if any(k in str(c).lower() for k in ['start', 'bắt đầu']):
+                    start_col = c
+                    break
 
-        details = []
-        current_year = date.today().year
+        job_col = None
+        for c in df_target.columns:
+            if any(k in str(c) for k in ['作業内容', 'Công việc']):
+                job_col = c
+                break
 
-        for idx, row in df.iterrows():
-            val = str(row[start_date_col]).strip()
-            if val in ['nan', 'NaN', 'None', '']:
+        task_col = None
+        for c in df_target.columns:
+            if any(k in str(c) for k in ['作品名', 'Tên tác phẩm']):
+                task_col = c
+                break
+
+        worker_col = None
+        for c in df_target.columns:
+            if any(k in str(c) for k in ['作業者', 'Người thực hiện']):
+                worker_col = c
+                break
+
+        if not start_col:
+            return []
+
+        res = []
+        for _, row in df_target.iterrows():
+            val = str(row[start_col]).strip() if pd.notna(row.get(start_col)) else ""
+            if val in ['nan', 'NaN', 'None', '', '::', '-', '->']:
                 continue
-            
-            raw_job = str(row[job_col]).strip() if job_col and pd.notna(row[job_col]) else "Khác"
-            job_type = "Retouch" if "レタッチ" in raw_job else ("Lettering" if "写植" in raw_job else raw_job)
-            if job_type in ['nan', 'NaN', 'None', '']: job_type = "Khác"
-            
-            task_name = str(row[task_col]) if task_col and pd.notna(row[task_col]) else "Unknown Task"
-            worker = str(row[worker_col]) if worker_col and pd.notna(row[worker_col]) else ""
-            
-            # remove day of week like (Wed)
-            clean_d = re.sub(r'\([A-Za-z]+\)', '', val).strip()
-            # replace hyphens with space
-            clean_d = clean_d.replace('-', ' ')
+
+            raw_job = str(row[job_col]).strip() if job_col and pd.notna(row.get(job_col)) else "Khác"
+            if '写植/ﾚﾀｯﾁ' in raw_job or '写植/レタッチ' in raw_job or 'Lettering/Retouch' in raw_job:
+                job_type = "Lettering/Retouch"
+            elif '写植' in raw_job or 'Lettering' in raw_job:
+                job_type = "Lettering"
+            elif 'レタッチ' in raw_job or 'ﾚﾀｯﾁ' in raw_job or 'Retouch' in raw_job:
+                job_type = "Retouch"
+            else:
+                job_type = "Khác"
+
+            task_name = str(row[task_col]).strip() if task_col and pd.notna(row.get(task_col)) else ""
+            if not task_name or task_name in ['nan', 'NaN', 'None', 'Unknown Task', '作品名\nTên tác phẩm']:
+                continue
+
+            worker = str(row[worker_col]).strip() if worker_col and pd.notna(row.get(worker_col)) else ""
+            if worker in ['nan', 'NaN', 'None', '作業者 \nNgười thực hiện']:
+                worker = ""
+
+            clean_d = re.sub(r'\([A-Za-z]+\)', '', val).strip().replace('-', ' ')
             try:
                 dt = date_parser.parse(clean_d, default=datetime(current_year, 1, 1))
                 formatted_date = dt.strftime('%Y-%m-%d')
-                details.append({
+                item = {
                     "date": formatted_date,
                     "taskName": task_name,
                     "worker": worker,
                     "jobType": job_type
-                })
+                }
+                if default_tag:
+                    item["weekTag"] = default_tag
+                res.append(item)
             except Exception:
                 pass
-                
-        return details
+        return res
+
+    def add_tasks(tasks):
+        for t in tasks:
+            key = (t['date'], t['taskName'], t['worker'], t['jobType'])
+            if key not in seen:
+                seen.add(key)
+                combined.append(t)
+
+    # 1. Nạp từ các tab tuần đang hiển thị trên Dashboard (TUẦN NÀY, TUẦN TRƯỚC, TUẦN SAU)
+    try:
+        df_raw = load_sheet_data(csv_url)
+        df_truoc_raw = load_sheet_data(csv_url_truoc)
+
+        idx_tuan = df_raw[df_raw.apply(lambda row: row.astype(str).str.contains('Tuần làm việc', case=False, na=False).any(), axis=1)].index
+        idx_tuan_truoc = df_truoc_raw[df_truoc_raw.apply(lambda row: row.astype(str).str.contains('Tuần làm việc', case=False, na=False).any(), axis=1)].index
+
+        if len(idx_tuan) > 1:
+            df_tuan_nay = df_raw.iloc[idx_tuan[0]:idx_tuan[1]].copy()
+            df_tuan_sau = df_raw.iloc[idx_tuan[1]:].copy()
+        elif len(idx_tuan) > 0:
+            df_tuan_nay = df_raw.iloc[idx_tuan[0]:].copy()
+            df_tuan_sau = pd.DataFrame()
+        else:
+            df_tuan_nay = df_raw.copy()
+            df_tuan_sau = pd.DataFrame()
+
+        df_tuan_truoc = df_truoc_raw.iloc[idx_tuan_truoc[0]:].copy() if len(idx_tuan_truoc) > 0 else df_truoc_raw
+
+        add_tasks(extract_tasks_from_df(df_tuan_nay, 'nay'))
+        add_tasks(extract_tasks_from_df(df_tuan_truoc, 'truoc'))
+        add_tasks(extract_tasks_from_df(df_tuan_sau, 'sau'))
     except Exception as e:
-        print("Error load_vntask_details:", e)
-        return []
+        print("Error reading dashboard sheets for chart:", e)
+
+    # 2. Thử nạp từ sheet VN-task nếu có dữ liệu hợp lệ
+    try:
+        df_vntask = pd.read_csv(VNTASK_URL)
+        if not df_vntask.empty and len(df_vntask.dropna(subset=[df_vntask.columns[1]])) > 0:
+            add_tasks(extract_tasks_from_df(df_vntask))
+    except Exception:
+        pass
+
+    # 3. Nạp lịch sử các tháng từ Schedule management - ALL cho VN team
+    try:
+        import urllib.parse
+        sheet_encoded = urllib.parse.quote('Schedule management - ALL')
+        base_url = csv_url.split('/export')[0]
+        all_url = f"{base_url}/gviz/tq?tqx=out:csv&sheet={sheet_encoded}"
+        df_all = pd.read_csv(all_url)
+        if not df_all.empty:
+            vn_workers = ['Tan', 'Kim', 'Vinh', 'Thao', 'Hieu', 'Tho', 'Khuong', 'Anh', 'Thang']
+            worker_pattern = '|'.join(vn_workers)
+            worker_cols = [c for c in df_all.columns if '作業者' in c or 'Người thực hiện' in c]
+            worker_col = worker_cols[0] if worker_cols else None
+            
+            is_vn = pd.Series(False, index=df_all.index)
+            if 'VN' in df_all.columns:
+                is_vn = is_vn | df_all['VN'].astype(str).str.contains('VN', case=False, na=False)
+            if worker_col:
+                is_vn = is_vn | df_all[worker_col].astype(str).str.contains(worker_pattern, case=False, na=False)
+            
+            df_all_vn = df_all[is_vn]
+            add_tasks(extract_tasks_from_df(df_all_vn))
+    except Exception as e:
+        print("Error reading Schedule management - ALL for chart:", e)
+
+    return combined
 
 # =====================================================================
 # 5. HÀM XỬ LÝ DỮ LIỆU
@@ -823,7 +922,7 @@ def render_logtime_form_html(row, index, t, users, lang):
     tac_pham = str(row.get('Tên tác phẩm', '')).strip()
     chuong = row.get('Chương', '')
     tap = row.get('Tập', '')
-    today = date.today().isoformat()
+    today = get_today().isoformat()
 
     worker_options = ''.join(
         f'<option value="{u}" {"selected" if u == worker else ""}>{u}</option>'
