@@ -406,9 +406,10 @@ def load_vntask_details():
             if worker in ['nan', 'NaN', 'None', '作業者 \nNgười thực hiện']:
                 worker = ""
 
-            if '-' in val:
-                val = val.split('-')[-1].strip()
-            clean_d = re.sub(r'\([A-Za-z]+\)', '', val).strip()
+            matches = re.findall(r'\d{1,4}[/-]\d{1,2}(?:[/-]\d{1,4})?', val)
+            if not matches:
+                continue
+            clean_d = matches[-1]
             try:
                 dt = date_parser.parse(clean_d, default=datetime(current_year, 1, 1))
                 formatted_date = dt.strftime('%Y-%m-%d')
