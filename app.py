@@ -297,6 +297,8 @@ def load_checklist_data(api_url=None):
     rows = []
     for tp_key, cbs in data.items():
         for cb_id, status in cbs.items():
+            if cb_id == '_rewarded':
+                continue
             rows.append({
                 'Tên Tác Phẩm': tp_key,
                 'Checkbox ID': cb_id,
@@ -349,10 +351,15 @@ def load_vntask_details():
                     
         end_col = None
         for c in df_target.columns:
-            c_str = str(c).strip().lower()
-            if c_str == 'end' or 'kết thúc' in c_str or 'deadline' in c_str or 'hạn chót' in c_str:
+            if str(c).strip().lower() == 'end':
                 end_col = c
                 break
+        if not end_col:
+            for c in df_target.columns:
+                c_str = str(c).strip().lower()
+                if 'kết thúc' in c_str or 'deadline' in c_str or 'hạn chót' in c_str:
+                    end_col = c
+                    break
 
         job_col = None
         for c in df_target.columns:
@@ -364,6 +371,18 @@ def load_vntask_details():
         for c in df_target.columns:
             if any(k in str(c) for k in ['作品名', 'Tên tác phẩm']):
                 task_col = c
+                break
+
+        tap_col = None
+        for c in df_target.columns:
+            if any(k in str(c).lower() for k in ['tập', '巻']):
+                tap_col = c
+                break
+
+        chuong_col = None
+        for c in df_target.columns:
+            if any(k in str(c).lower() for k in ['chương', '話']):
+                chuong_col = c
                 break
 
         worker_col = None
@@ -401,6 +420,14 @@ def load_vntask_details():
             task_name = str(row[task_col]).strip() if task_col and pd.notna(row.get(task_col)) else ""
             if not task_name or task_name in ['nan', 'NaN', 'None', 'Unknown Task', '作品名\nTên tác phẩm']:
                 continue
+
+            tap_val = str(row[tap_col]).strip() if tap_col and pd.notna(row.get(tap_col)) else ""
+            if tap_val and tap_val not in ['nan', 'NaN', 'None', '']:
+                task_name = f"{tap_val}_{task_name}"
+
+            chuong_val = str(row[chuong_col]).strip() if chuong_col and pd.notna(row.get(chuong_col)) else ""
+            if chuong_val and chuong_val not in ['nan', 'NaN', 'None', '']:
+                task_name = f"{task_name} (Chương {chuong_val})"
 
             worker = str(row[worker_col]).strip() if worker_col and pd.notna(row.get(worker_col)) else ""
             if worker in ['nan', 'NaN', 'None', '作業者 \nNgười thực hiện']:
@@ -675,12 +702,28 @@ def render_checklist_html(tac_pham_key, index, lang, api_url, checked_ids=None, 
 
     def render_link_card(tool_key, name, icon_class, url):
         has_url = bool(url)
-        href_val = url if has_url else "javascript:void(0)"
-        target_val = 'target="_blank" rel="noopener noreferrer"' if has_url else ''
-        onclick_val = '' if has_url else f"openEditTaskLinksModal('{tac_pham_key}', '{tool_key}'); return false;"
-        badge_text = ("Mở link ↗" if lang == 'vi' else "開く ↗") if has_url else ("+ Thêm link" if lang == 'vi' else "+ リンク追加")
-        status_cls = "has-url" if has_url else "empty"
+        is_http = has_url and url.lower().startswith(('http://', 'https://'))
         
+        if not has_url:
+            href_val = "javascript:void(0)"
+            target_val = ''
+            onclick_val = f"openEditTaskLinksModal('{tac_pham_key}', '{tool_key}'); return false;"
+            badge_text = "+ Thêm link" if lang == 'vi' else "+ リンク追加"
+            status_cls = "empty"
+        elif is_http:
+            href_val = url
+            target_val = 'target="_blank" rel="noopener noreferrer"'
+            onclick_val = ''
+            badge_text = "Mở link ↗" if lang == 'vi' else "開く ↗"
+            status_cls = "has-url"
+        else:
+            href_val = "javascript:void(0)"
+            target_val = ''
+            safe_url = url.replace('\\', '\\\\').replace("'", "\\'")
+            onclick_val = f"navigator.clipboard.writeText('{safe_url}').then(()=>{{if(typeof showToast !== 'undefined') showToast('Đã copy đường dẫn!', 'success');}}); return false;"
+            badge_text = "Copy text" if lang == 'vi' else "コピー"
+            status_cls = "has-url"
+            
         return f'''
         <a href="{href_val}" class="task-link-card {tool_key} {status_cls}" {target_val} onclick="{onclick_val}" data-tool="{tool_key}" data-url="{url}" title="{url if has_url else ('Chưa có link ' + name)}">
             <div class="task-link-icon"><i class="{icon_class}"></i></div>
@@ -718,7 +761,7 @@ def render_checklist_html(tac_pham_key, index, lang, api_url, checked_ids=None, 
         badge_html = f'<span class="handover-partner-badge" style="opacity: 0.85;">💬 { "Ghi chú & Thảo luận" if lang == "vi" else "メモ・連絡" }</span>'
 
     handover_html = f'''
-    <div class="task-handover-box" id="handover_{index}" data-tp-key="{volume_key}">
+    <div class="task-handover-box" id="handover_{index}" data-tp-key="{volume_key}" style="margin-top: 0; height: 100%;">
         <div class="handover-header">
             <div class="handover-title-row">
                 <span class="handover-title"><i class="far fa-comments" style="margin-right: 6px; color: #818cf8;"></i>{ "Comment:" if lang == "vi" else "コメント:" } <span class="handover-volume-name">{volume_key}</span></span>
@@ -747,7 +790,7 @@ def render_checklist_html(tac_pham_key, index, lang, api_url, checked_ids=None, 
     </div>
     '''
 
-    tracker_html = f'''<div class="time-tracker-box" id="tracker_{index}" data-tp-key="{tac_pham_key}">
+    tracker_html = f'''<div class="time-tracker-box" id="tracker_{index}" data-tp-key="{tac_pham_key}" style="margin-top: 0; height: 100%;">
         <div class="tracker-header">
             ⏱️ { "Theo dõi thời gian" if lang == "vi" else "タイムトラッカー" }
             <label style="float: right; font-size: 0.8rem; font-weight: normal; cursor: pointer; color: var(--text-2);">
@@ -964,9 +1007,10 @@ def render_checklist_html(tac_pham_key, index, lang, api_url, checked_ids=None, 
             </div>
         </div>
     </div>
-    
-    {handover_html}
-    {tracker_html}
+    <div style="display: grid; grid-template-columns: 3fr 2fr; gap: 16px; align-items: start; margin-top: 16px;">
+        {handover_html}
+        {tracker_html}
+    </div>
     '''
 
 def render_logtime_form_html(row, index, t, users, lang):
@@ -1021,7 +1065,7 @@ def render_logtime_form_html(row, index, t, users, lang):
                     <input type="date" name="ngay_log" value="{today}" required>
                 </div>
             </div>
-            <div class="form-row cols-4">
+            <div class="form-row cols-4" style="margin-top: 16px;">
                 <div class="form-group">
                     <label>{t['f_hours']} <span style="color: #f43f5e; font-weight: bold; margin-left: 2px;">*</span></label>
                     <input type="number" name="so_gio" min="0.1" step="0.5" required placeholder="0.5, 1, 2...">
@@ -1039,7 +1083,9 @@ def render_logtime_form_html(row, index, t, users, lang):
                     <input type="text" name="ghi_chu" placeholder="...">
                 </div>
             </div>
-            <button type="submit" class="btn btn-primary">{t['f_btn']}</button>
+            <div style="margin-top: 20px; text-align: right;">
+                <button type="submit" class="btn btn-primary" style="min-width: 160px; padding: 12px 24px;">{t['f_btn']}</button>
+            </div>
             <div class="logtime-progress" id="progress-{index}" style="display:none; margin-top: 10px;">
                 <div style="display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 0.8rem; color: var(--text-3);">
                     <span class="progress-label">{ 'Đang gửi dữ liệu...' if lang == 'vi' else 'データを送信中...' }</span>
@@ -1234,12 +1280,7 @@ def process_dashboard_data():
             r['tp_name'] = tp_key
             r['volume_key'] = vol_key
             
-            # Merge old checklist data into the new tp_key for backward compatibility
-            if old_tp_key in checked_ids_dict:
-                existing = set(checked_ids_dict.get(tp_key, []))
-                merged = list(existing.union(checked_ids_dict[old_tp_key]))
-                checked_ids_dict[tp_key] = merged
-                check_counts[tp_key] = len(merged)
+
 
             # Detect Co-op / Partner tasks from global map
             partners = [p for p in global_vol_partners.get(vol_key, []) if p.get('worker') != my_worker or p.get('cv') != cv]
@@ -1547,7 +1588,16 @@ def api_checklist_sync():
                 data = get_supabase_checklists()
                 if tp_key not in data:
                     data[tp_key] = {}
+                was_checked = data[tp_key].get(cb_id, False)
                 data[tp_key][cb_id] = bool(status)
+                
+                # Check reward condition BEFORE uploading
+                reward_granted = False
+                if bool(status) and not was_checked:
+                    checked_count = sum(1 for k, v in data[tp_key].items() if v and not k.startswith('_'))
+                    if checked_count >= 9 and not data[tp_key].get('_rewarded', False):
+                        data[tp_key]['_rewarded'] = True
+                        reward_granted = True
                 
                 # Upload to Supabase
                 json_data = json.dumps(data, ensure_ascii=False).encode('utf-8')
@@ -1555,18 +1605,10 @@ def api_checklist_sync():
                 global checklist_version
                 checklist_version += 1
         
-        # Pet XP: +0 khi tick checkbox ON (chỉ lấy thịt)
         pet_result = None
-        if bool(status):
+        if reward_granted:
             username = session.get('user', '')
             pet_result = pet_add_xp(username, 0, 'checklist')
-            # Check 9/9 completion bonus
-            if tp_key and tp_key in data:
-                checked_count = sum(1 for v in data[tp_key].values() if v)
-                if checked_count >= 9:
-                    bonus = pet_add_xp(username, 0, 'checklist_bonus')
-                    if bonus:
-                        pet_result = bonus
 
         # Broadcast to other clients
         socketio.emit('checklist_updated', {
@@ -1718,10 +1760,7 @@ def api_task_links():
             
         def sanitize_url(u):
             if not u: return ""
-            u = str(u).strip()
-            if u and not u.startswith(('http://', 'https://', 'javascript:')):
-                u = 'https://' + u
-            return u
+            return str(u).strip()
             
         sanitized_links = {
             "mikan": sanitize_url(raw_links.get('mikan', '')),
@@ -3247,6 +3286,55 @@ def api_pet_feed():
         else:
             break
 
+@app.route('/api/pet/feed_all', methods=['POST'])
+def api_pet_feed_all():
+    """Cho pet ăn hết tất cả thức ăn hiện có."""
+    if not session.get('logged_in'):
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    username = session.get('user', '')
+    pet = _pet_read(username)
+    if not pet:
+        return jsonify({'error': 'No pet'}), 404
+
+    food_amount = pet.get('food', 0)
+    if food_amount <= 0:
+        return jsonify({'error': 'No food left', 'food': 0}), 400
+
+    pet['food'] = 0
+    pet['last_activity'] = datetime.now().isoformat()
+    pet['xp'] = pet.get('xp', 0) + (10 * food_amount)
+
+    # Level up
+    leveled_up = False
+    while True:
+        xp_needed = _pet_xp_for_level(pet.get('level', 1))
+        if pet['xp'] >= xp_needed:
+            pet['xp'] -= xp_needed
+            pet['level'] = pet.get('level', 1) + 1
+            leveled_up = True
+            
+            new_acc = _get_random_accessory(pet)
+            if new_acc:
+                accs = pet.get('accessories', [])
+                if new_acc not in accs:
+                    accs.append(new_acc)
+                pet['accessories'] = accs
+        else:
+            break
+
+    pet['stage'] = _pet_stage(pet.get('level', 1))
+    _pet_write(username, pet)
+    
+    return jsonify({
+        'success': True,
+        'food': pet['food'],
+        'xp': pet['xp'],
+        'level': pet['level'],
+        'leveled_up': leveled_up,
+        'pet_data': pet
+    })
+
     pet['stage'] = _pet_stage(pet.get('level', 1))
     pet['mood'] = 'happy'
     _pet_write(username, pet)
@@ -4176,6 +4264,7 @@ def prepare_psd():
     data = request.json or {}
     base_path = data.get('path', '').strip()
     tap_str = data.get('tap', '').strip()
+    role = data.get('role', 'retouch')
     
     if not base_path or not tap_str:
         return jsonify({'error': 'Vui lòng cung cấp đường dẫn và số tập.'}), 400
@@ -4185,69 +4274,25 @@ def prepare_psd():
         return jsonify({'error': 'Vui lòng cung cấp đường dẫn tuyệt đối hợp lệ (VD: C:\\Users\\...).'}), 400
         
     try:
-        # Create {tap}巻/01_レタッチ/PSD_Retouch_Lettering_Backups
-        folder_psd = os.path.join(base_path, f"{tap_str}巻", "01_レタッチ", "PSD_Retouch_Lettering_Backups")
-        # Create {tap}巻/01_レタッチ/02_写植・レタッチ時Mikan用jpg
-        folder_jpg = os.path.join(base_path, f"{tap_str}巻", "01_レタッチ", "02_写植・レタッチ時Mikan用jpg")
-        
+        # Xóa tập cũ nếu tồn tại
+        tap_dir = os.path.join(base_path, f"{tap_str}巻")
+        if os.path.exists(tap_dir):
+            import shutil
+            shutil.rmtree(tap_dir, ignore_errors=True)
+
+        if role == 'retouch':
+            folder_psd = os.path.join(base_path, f"{tap_str}巻", "PSD_Retouch_Backups")
+        else:
+            folder_psd = os.path.join(base_path, f"{tap_str}巻", "PSD_Lettering_Backups")
+            
         os.makedirs(folder_psd, exist_ok=True)
-        os.makedirs(folder_jpg, exist_ok=True)
         
         return jsonify({'success': True, 'message': 'Tạo cấu trúc thư mục thành công!'})
     except Exception as e:
         return jsonify({'error': f'Không thể tạo thư mục: {str(e)}'}), 500
 
 
-@app.route('/api/compare_psd', methods=['POST'])
-def compare_psd():
-    if not session.get('logged_in'):
-        return jsonify({'error': 'Unauthorized'}), 401
-        
-    data = request.json or {}
-    base_path = data.get('path', '').strip()
-    tap_str = data.get('tap', '').strip()
-    source_path = data.get('source_path', '').strip()
-    
-    if not base_path or not tap_str or not source_path:
-        return jsonify({'error': 'Vui lòng cung cấp đầy đủ đường dẫn gốc, số tập và đường dẫn chứa PSD tải về.'}), 400
-        
-    if not (os.path.isabs(base_path) or base_path.startswith('/')):
-        return jsonify({'error': 'Đường dẫn gốc không hợp lệ.'}), 400
-        
-    if not (os.path.isabs(source_path) or source_path.startswith('/')):
-        return jsonify({'error': 'Đường dẫn chứa PSD tải về không hợp lệ.'}), 400
-        
-    if not os.path.exists(source_path):
-        return jsonify({'error': 'Thư mục chứa PSD tải về không tồn tại!'}), 400
-        
-    try:
-        import shutil
-        import glob
-        
-        # Target folder: [path]/[tap]巻/01_レタッチ/PSD_Retouch_Lettering_Backups
-        folder_psd = os.path.join(base_path, f"{tap_str}巻", "01_レタッチ", "PSD_Retouch_Lettering_Backups")
-        
-        if not os.path.exists(folder_psd):
-            os.makedirs(folder_psd, exist_ok=True)
-            
-        # Find all .psd files in source_path
-        psd_files = glob.glob(os.path.join(source_path, '*.psd'))
-        if not psd_files:
-            return jsonify({'error': 'Không tìm thấy file .psd nào trong thư mục tải về!'}), 400
-            
-        # Move all .psd files to folder_psd
-        moved_count = 0
-        for psd_file in psd_files:
-            dest_file = os.path.join(folder_psd, os.path.basename(psd_file))
-            # Move and overwrite if exists
-            if os.path.exists(dest_file):
-                os.remove(dest_file)
-            shutil.move(psd_file, dest_file)
-            moved_count += 1
-            
-        return jsonify({'success': True, 'message': f'Đã chuyển {moved_count} file PSD thành công!'})
-    except Exception as e:
-        return jsonify({'error': f'Có lỗi xảy ra: {str(e)}'}), 500
+
 
 if __name__ == '__main__':
     threading.Thread(target=preload_data, daemon=True).start()

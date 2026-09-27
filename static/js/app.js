@@ -1428,6 +1428,18 @@ function updateTaskProgressLocally(tpKey, modalBody) {
             }
         }
     });
+
+    // Update partner progress spans in other cards that have this task as their partner
+    document.querySelectorAll(`.partner-progress-text[data-partner-key="${tpKey}"]`).forEach(span => {
+        span.textContent = `${progress}%`;
+        if (progress >= 100) {
+            span.style.color = '#34d399';
+        } else if (progress > 0) {
+            span.style.color = '#fbbf24';
+        } else {
+            span.style.color = 'var(--text-4)';
+        }
+    });
 }
 
 
@@ -1861,17 +1873,13 @@ function backgroundSyncChecklist() {
                     const tpKey = card.dataset.tpKey;
                     if (!tpKey) return;
 
-                    const tpKeyParts = tpKey.split(' - ');
-                    const oldTpKey = tpKeyParts.length > 1 ? tpKeyParts.slice(1).join(' - ') : tpKey;
-
                     // Count how many are checked for this tpKey in the fetched data
                     let localCheckedCount = 0;
                     let freshCheckedIds = [];
                     for (let i = 1; i <= 9; i++) {
                         const checkId = `t${i}`;
                         const isCheckedNew = checkedMap[tpKey] && checkedMap[tpKey][checkId];
-                        const isCheckedOld = checkedMap[oldTpKey] && checkedMap[oldTpKey][checkId];
-                        const finalChecked = Boolean(isCheckedNew || isCheckedOld);
+                        const finalChecked = Boolean(isCheckedNew);
                         if (finalChecked) {
                             localCheckedCount++;
                             freshCheckedIds.push(checkId);
@@ -1898,6 +1906,18 @@ function backgroundSyncChecklist() {
                     if (infoSpans.length > 1) infoSpans[1].textContent = `${progress}%`;
                     const fill = card.querySelector('.progress-fill');
                     if (fill) fill.style.width = `${progress}%`;
+
+                    // Update partner progress spans in other cards that have this task as their partner
+                    document.querySelectorAll(`.partner-progress-text[data-partner-key="${tpKey}"]`).forEach(span => {
+                        span.textContent = `${progress}%`;
+                        if (progress >= 100) {
+                            span.style.color = '#34d399';
+                        } else if (progress > 0) {
+                            span.style.color = '#fbbf24';
+                        } else {
+                            span.style.color = 'var(--text-4)';
+                        }
+                    });
 
                     // Move card to correct column
                     const newStatusClass = localCheckedCount === 0 ? 'not-started' : (localCheckedCount >= 9 ? 'delivered' : 'in-progress');
@@ -5101,14 +5121,11 @@ function setInputStatus(id, state) {
                 continue;
             }
 
-            // Vẽ vệt mưa bóng mượt bằng gradient
+            // Vẽ vệt mưa bóng mượt
             const tailX = drop.x - drop.wind * (drop.length / drop.speed);
             const tailY = drop.y - drop.length;
-            const grad = rainCtx.createLinearGradient(drop.x, drop.y, tailX, tailY);
-            grad.addColorStop(0, `rgba(186, 230, 253, ${drop.alpha})`);
-            grad.addColorStop(1, `rgba(186, 230, 253, 0)`);
 
-            rainCtx.strokeStyle = grad;
+            rainCtx.strokeStyle = `rgba(186, 230, 253, ${drop.alpha})`;
             rainCtx.lineWidth = 1.15;
             rainCtx.lineCap = 'round';
             rainCtx.beginPath();
@@ -5189,8 +5206,8 @@ function setInputStatus(id, state) {
             rainInterval = null;
         }
 
-        // Khởi tạo các giọt mưa tối ưu (khoảng 70-85 giọt)
-        const totalDrops = Math.min(85, Math.floor(window.innerWidth / 16));
+        // Khởi tạo các giọt mưa tối ưu
+        const totalDrops = Math.min(50, Math.floor(window.innerWidth / 24));
         rainDrops = [];
         rainSplashes = [];
         for (let i = 0; i < totalDrops; i++) {
