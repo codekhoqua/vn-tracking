@@ -863,7 +863,7 @@ select option { background: var(--surface); color: var(--text); }
 .modal-content {
     background: var(--surface);
     border-radius: var(--radius-2xl);
-    width: 100%; max-width: 1020px; max-height: 90vh;
+    width: 95%; max-width: 1280px; max-height: 90vh;
     overflow-y: auto;
     box-shadow: var(--shadow-xl), 0 0 0 1px var(--border);
     border: 1px solid var(--border);

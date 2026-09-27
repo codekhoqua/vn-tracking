@@ -244,7 +244,7 @@
         <div style="display: flex; flex-direction: column; justify-content: center;">
             <span>VN-Tracking</span>
             <sup class="version-tag"
-                style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.4.55</i></sup>
+                style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.4.73</i></sup>
         </div>
     </div>
 
@@ -438,7 +438,7 @@
                         <span>🔥</span><span id="pet-streak-count">0 ngày</span>
                     </span>
                 </div>
-                <button id="pet-feed-btn" onclick="feedPet()" class="sidebar-pet-feed-btn">
+                <button id="pet-feed-btn" onclick="feedAllPet()" class="sidebar-pet-feed-btn" title="{{ 'Cho ăn hết' if lang == 'vi' else 'すべてあげる' }}">
                     <span id="pet-feed-btn-content">🍖 {{ 'Cho Ăn' if lang == 'vi' else 'ごはん' }}</span>
                 </button>
             </div>
@@ -1604,6 +1604,9 @@
                             ('tag-retouch' if 'レタッチ' in cv or 'ﾚﾀｯﾁ' in cv or 'Retouch' in cv else ('tag-prep' if 'Prep'
                             in cv else '')))) %}
                             <span class="tag {{ tag_class }}">{{ cv }}</span>
+                            {% if card.is_future_deadline %}
+                            <span class="tag" style="background: rgba(147, 51, 234, 0.15); color: #d8b4fe; border-color: rgba(147, 51, 234, 0.3); margin-left: 4px;">{{ 'Task dài' if lang == 'vi' else '長期タスク' }}</span>
+                            {% endif %}
 
                             {% if card.has_comments %}
                             <span class="card-comment-alarm" data-alarm-key="{{ card.volume_key or card.key }}"
@@ -1719,7 +1722,7 @@
                                         }}</span>
                                 </div>
                             </div>
-                            <span
+                            <span class="partner-progress-text" data-partner-key="{{ card.partner_key }}"
                                 style="font-size: 0.7rem; color: {% if card.partner_progress >= 100 %}#34d399{% elif card.partner_progress > 0 %}#fbbf24{% else %}var(--text-4){% endif %}; font-weight: 700;">
                                 {{ card.partner_progress }}%
                             </span>
@@ -2036,6 +2039,9 @@
                             ('tag-retouch' if 'レタッチ' in cv or 'ﾚﾀｯﾁ' in cv or 'Retouch' in cv else ('tag-prep' if 'Prep'
                             in cv else '')))) %}
                             <span class="tag {{ tag_class }}">{{ cv }}</span>
+                            {% if card.is_future_deadline %}
+                            <span class="tag" style="background: rgba(147, 51, 234, 0.15); color: #d8b4fe; border-color: rgba(147, 51, 234, 0.3); margin-left: 4px;">{{ 'Task dài' if lang == 'vi' else '長期タスク' }}</span>
+                            {% endif %}
 
                             {% if card.has_comments %}
                             <span class="card-comment-alarm" data-alarm-key="{{ card.volume_key or card.key }}"
@@ -2468,6 +2474,9 @@
                             ('tag-retouch' if 'レタッチ' in cv or 'ﾚﾀｯﾁ' in cv or 'Retouch' in cv else ('tag-prep' if 'Prep'
                             in cv else '')))) %}
                             <span class="tag {{ tag_class }}">{{ cv }}</span>
+                            {% if card.is_future_deadline %}
+                            <span class="tag" style="background: rgba(147, 51, 234, 0.15); color: #d8b4fe; border-color: rgba(147, 51, 234, 0.3); margin-left: 4px;">{{ 'Task dài' if lang == 'vi' else '長期タスク' }}</span>
+                            {% endif %}
 
                             {% if card.has_comments %}
                             <span class="card-comment-alarm" data-alarm-key="{{ card.volume_key or card.key }}"
@@ -3019,9 +3028,16 @@
                 </svg>
             </button>
         </div>
-        <div class="modal-body">
+        <div class="modal-body" style="padding: 24px;">
             {{ render_checklist(tp_key, tab_key ~ '_' ~ loop.index0, lang, checklist_api, checked_ids_dict, row) }}
-            {{ render_logtime_form(row, tab_key ~ '_' ~ loop.index0, t, users, lang) }}
+            
+            <!-- Logtime form section with a visual separator -->
+            <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border);">
+                <h4 style="margin-top: 0; margin-bottom: 20px; color: var(--primary); display: flex; align-items: center; gap: 8px; font-size: 1.1rem;">
+                    <i class="fas fa-clock"></i> {{ 'Nhập Logtime' if lang == 'vi' else 'Logtime入力' }}
+                </h4>
+                {{ render_logtime_form(row, tab_key ~ '_' ~ loop.index0, t, users, lang) }}
+            </div>
         </div>
     </div>
 </div>
@@ -3029,8 +3045,7 @@
 {% endfor %}
 
 <!-- ============ 🔗 EDIT TASK LINKS MODAL ============ -->
-<div id="edit-task-links-modal" class="task-links-modal-overlay" style="display: none;"
-    onclick="if(event.target===this) closeEditTaskLinksModal()">
+<div id="edit-task-links-modal" class="task-links-modal-overlay" style="display: none;">
     <div class="task-links-modal-card">
         <div class="task-links-modal-header">
             <div style="display: flex; align-items: center; gap: 10px;">
@@ -5651,7 +5666,7 @@
         }
     }
 
-    async function feedPet() {
+    async function feedAllPet() {
         const btn = document.getElementById('pet-feed-btn');
         const type = (petData && petData.type) || 'shiba';
         const food = getPetFood(type);
@@ -5662,7 +5677,7 @@
         }
 
         try {
-            const res = await fetch('/api/pet/feed', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+            const res = await fetch('/api/pet/feed_all', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
             const data = await res.json();
             if (data.success) {
                 await fetchPetData();
@@ -5701,7 +5716,7 @@
                 btn.innerHTML = `<span>${food.icon} ${feedText}</span>`;
                 btn.disabled = (petData?.food || 0) <= 0;
             }
-        }, 1300);
+        }, 1000);
     }
 
     function showLevelUpCelebration(newLevel) {
