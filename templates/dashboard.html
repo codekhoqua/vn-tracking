@@ -244,7 +244,7 @@
         <div style="display: flex; flex-direction: column; justify-content: center;">
             <span>VN-Tracking</span>
             <sup class="version-tag"
-                style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.4.75</i></sup>
+                style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.4.95</i></sup>
         </div>
     </div>
 
@@ -3020,13 +3020,28 @@
                 <!-- Avatars injected by JS -->
             </div>
 
-            <button class="close-btn" onclick="closeModal('{{ tab_key }}-{{ loop.index0 }}', '{{ tp_key }}')">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                    stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                    <line x1="6" y1="6" x2="18" y2="18"></line>
-                </svg>
-            </button>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <button class="export-project-btn" title="Export Project (DB_作品管理)" onclick="exportProjectNotionCSV('{{ tp_key }}')" style="background: none; border: none; cursor: pointer; color: var(--text-2); padding: 4px; display: flex; align-items: center; justify-content: center; transition: color 0.2s;" onmouseover="this.style.color='#10b981'" onmouseout="this.style.color='var(--text-2)'">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                    </svg>
+                </button>
+                <button class="export-btn" title="Export Task (DB_工程管理)" onclick="exportSingleNotionCSV('{{ tp_key }}')" style="background: none; border: none; cursor: pointer; color: var(--text-2); padding: 4px; display: flex; align-items: center; justify-content: center; transition: color 0.2s;" onmouseover="this.style.color='var(--primary)'" onmouseout="this.style.color='var(--text-2)'">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7 10 12 15 17 10"></polyline>
+                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                    </svg>
+                </button>
+                <button class="close-btn" onclick="closeModal('{{ tab_key }}-{{ loop.index0 }}', '{{ tp_key }}')">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
         </div>
         <div class="modal-body" style="padding: 24px;">
             {{ render_checklist(tp_key, tab_key ~ '_' ~ loop.index0, lang, checklist_api, checked_ids_dict, row) }}
@@ -6348,5 +6363,139 @@
 </script>
 <!-- Confetti Library for Celebration Effects -->
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+<script>
+    const taskDetailsMap = {};
+    {% for w in ['truoc', 'nay', 'sau'] %}
+        {% for card in weeks[w].dashboard %}
+            taskDetailsMap["{{ card.key }}"] = {
+                title: "{{ card.job_type|replace('\"', '\\\"') }}",
+                project_name: "{{ card.name|replace('\"', '\\\"')|replace('\n', ' ') }}",
+                status_class: "{{ card.status_class }}",
+                start_date: "{{ card.start_date }}",
+                end_date: "{{ card.end_date }}",
+                vn_date: "{{ card.vn_date }}",
+                week_start: "{{ weeks[w].info.start }}",
+                week_end: "{{ weeks[w].info.end }}",
+                tab_key: "{{ w }}",
+                worker: "{{ card.worker|replace('\"', '\\\"') }}"
+            };
+        {% endfor %}
+    {% endfor %}
+
+    function getCleanProjectName(rawName) {
+        let name = rawName;
+        // Bỏ chữ "レタッチ - ", "Lettering - "... ở đầu
+        if (name.includes(' - ')) {
+            name = name.split(' - ').slice(1).join(' - ');
+        }
+        // Thêm chữ 巻 vào sau số nếu chưa có (ví dụ 1_Test -> 1巻_Test)
+        return name.replace(/^(\d+)_/, '$1巻_');
+    }
+
+    function exportSingleNotionCSV(tp_key) {
+        const task = taskDetailsMap[tp_key];
+        if (!task) return;
+        
+        let status = 'Not Started';
+        if (task.status_class === 'delivered') status = 'Done';
+        else if (task.status_class === 'in-progress') status = 'In Progress';
+        
+        const today = new Date();
+        const tab = task.tab_key;
+        if (tab === 'truoc') today.setDate(today.getDate() - 7);
+        else if (tab === 'sau') today.setDate(today.getDate() + 7);
+        
+        const day = today.getDay();
+        const diffToMonday = day === 0 ? -6 : 1 - day;
+        
+        const monday = new Date(today);
+        monday.setDate(today.getDate() + diffToMonday);
+        
+        let startDateObj = new Date(monday);
+        let endDateObj = new Date(monday);
+
+        if (task.title.includes('Lettering')) {
+            // Lettering: Thứ 4 tuần này -> Thứ 2 tuần sau
+            startDateObj.setDate(monday.getDate() + 2); // T2 + 2 = T4
+            endDateObj.setDate(monday.getDate() + 7);   // T2 + 7 = T2 tuần sau
+        } else {
+            // Retouch & Khác: Thứ 2 -> Thứ 6
+            endDateObj.setDate(monday.getDate() + 4);   // T2 + 4 = T6
+        }
+        
+        const fmt = (dt) => {
+            const yy = dt.getFullYear();
+            const mm = String(dt.getMonth() + 1).padStart(2, '0');
+            const dd = String(dt.getDate()).padStart(2, '0');
+            return `${yy}/${mm}/${dd}`;
+        };
+        
+        const dateRange = fmt(startDateObj) + ' → ' + fmt(endDateObj);
+
+        const personMap = {
+            "Tan-タン": "Phan Duy Tan (タン - Retouch)",
+            "Khuong クォン": "Nguyen An Khuong (クォン - 写植)",
+            "Thang タンコイ": "Pham Thanh Thang (タンコイ - Retouch )"
+        };
+        
+        let workerExport = task.worker;
+        for (const [name, notionName] of Object.entries(personMap)) {
+            if (task.worker.includes(name)) {
+                workerExport = notionName;
+                break;
+            }
+        }
+
+        const projectName = getCleanProjectName(task.project_name);
+
+        const header = ['Name', '作品名', 'ステータス', '作業日程', '作業者', '納品日'];
+        const escapeCSV = (val) => `"${(val || '').replace(/"/g, '""')}"`;
+        const row = [
+            escapeCSV(task.title), 
+            escapeCSV(projectName), 
+            escapeCSV(status), 
+            escapeCSV(dateRange), 
+            escapeCSV(workerExport),
+            escapeCSV(task.end_date)
+        ];
+        
+        const csvContent = "\uFEFF" + header.join(',') + "\n" + row.join(',');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `notion_export_${tp_key}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    function exportProjectNotionCSV(tp_key) {
+        const task = taskDetailsMap[tp_key];
+        if (!task) return;
+        
+        const projectName = getCleanProjectName(task.project_name);
+        
+        let category = '単行本';
+        if (projectName.includes('読切')) category = '読切';
+        else if (projectName.includes('話')) category = '連載';
+        
+        const header = ['Name', 'カテゴリ'];
+        const escapeCSV = (val) => `"${(val || '').replace(/"/g, '""')}"`;
+        const row = [
+            escapeCSV(projectName), 
+            escapeCSV(category)
+        ];
+        
+        const csvContent = "\uFEFF" + header.join(',') + "\n" + row.join(',');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `project_export_${tp_key}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+</script>
 
 {% endblock %}
