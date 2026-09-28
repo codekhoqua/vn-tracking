@@ -1368,6 +1368,7 @@ def process_dashboard_data():
                 "job_type": job_type,
                 "start_date": start_date,
                 "end_date": end_date,
+                "vn_date": format_jp_date(str(row.get('VN', '')).strip()),
                 "is_coop": row.get('is_coop', False),
                 "volume_key": vol_key,
                 "partner_worker": row.get('partner_worker', ''),
@@ -2689,6 +2690,101 @@ def calendar_view():
         embed_url = embed_url.replace('&amp;', '&')
         return redirect(embed_url)
     return "<h3 style='color: #cbd5e1; font-family: sans-serif; text-align: center; margin-top: 50px;'>Vui lòng dán mã nhúng vào biến GOOGLE_CALENDAR_EMBED_URL trong file .env.local</h3>", 200
+
+@app.route('/api/export_notion_csv')
+def export_notion_csv():
+    import csv, io
+    from flask import make_response
+    if not session.get('logged_in'):
+        return redirect('/')
+    w = request.args.get('w', 'nay')
+    data = process_dashboard_data()
+    if not data or 'weeks' not in data or w not in data['weeks']:
+        return "No data", 404
+        
+    dashboard_data = data['weeks'][w]['dashboard']
+    
+    si = io.StringIO()
+    si.write('\ufeff')
+    writer = csv.writer(si)
+    writer.writerow(['Name', '作品名', 'ステータス', 'Start Date', 'End Date', '作業者', '納品日'])
+    
+    for row in dashboard_data:
+        title = row.get('job_type', '')
+        project_name = row.get('name', '')
+        status_class = row.get('status_class', '')
+        if status_class == 'delivered':
+            status = 'Done'
+        elif status_class == 'in-progress':
+            status = 'In Progress'
+        else:
+            status = 'Not Started'
+            
+        start_date = row.get('start_date', '')
+        end_date = row.get('end_date', '')
+        worker = row.get('worker', '')
+        deadline = row.get('end_date', '') 
+        
+        writer.writerow([title, project_name, status, start_date, end_date, worker, deadline])
+        
+    output = make_response(si.getvalue())
+    output.headers["Content-Disposition"] = f"attachment; filename=notion_export_{w}.csv"
+    output.headers["Content-type"] = "text/csv"
+    return output
+
+@app.route('/api/export_single_notion_csv')
+def export_single_notion_csv():
+    import csv, io
+    from flask import make_response
+    if not session.get('logged_in'):
+        return redirect('/')
+    tp_key = request.args.get('tp_key', '')
+    if not tp_key:
+        return "No task specified", 400
+        
+    data = process_dashboard_data()
+    if not data:
+        return "No data", 404
+        
+    target_row = None
+    for w in ['truoc', 'nay', 'sau']:
+        for row in data['weeks'][w]['dashboard']:
+            if str(row.get('key')) == str(tp_key):
+                target_row = row
+                break
+        if target_row:
+            break
+            
+    if not target_row:
+        return "Task not found", 404
+        
+    si = io.StringIO()
+    si.write('\ufeff')
+    writer = csv.writer(si)
+    writer.writerow(['Name', '作品名', 'ステータス', 'Start Date', 'End Date', '作業者', '納品日'])
+    
+    title = target_row.get('job_type', '')
+    project_name = target_row.get('name', '')
+    status_class = target_row.get('status_class', '')
+    if status_class == 'delivered':
+        status = 'Done'
+    elif status_class == 'in-progress':
+        status = 'In Progress'
+    else:
+        status = 'Not Started'
+        
+    start_date = target_row.get('start_date', '')
+    end_date = target_row.get('end_date', '')
+    worker = target_row.get('worker', '')
+    deadline = target_row.get('end_date', '') 
+    
+    writer.writerow([title, project_name, status, start_date, end_date, worker, deadline])
+    
+    output = make_response(si.getvalue())
+    output.headers["Content-Disposition"] = f"attachment; filename=notion_export_{tp_key}.csv"
+    output.headers["Content-type"] = "text/csv"
+    return output
+
 
 @app.route('/api/data')
 def api_data():
