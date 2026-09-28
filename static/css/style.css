@@ -641,17 +641,7 @@ select option { background: var(--surface); color: var(--text); }
     backdrop-filter: blur(12px);
     overflow: hidden;
 }
-.progress-card::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 3px;
-    background: transparent;
-    transition: background 0.3s ease;
-}
-.progress-card.status-not-started::before { background: #94a3b8; }
-.progress-card.status-in-progress::before { background: linear-gradient(90deg, #f59e0b, #ea580c); }
-.progress-card.status-delivered::before { background: linear-gradient(90deg, #10b981, #059669); }
+
 
 .progress-card:hover { 
     transform: translateY(-4px); 
