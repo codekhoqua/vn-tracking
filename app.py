@@ -1353,7 +1353,8 @@ def process_dashboard_data():
             end_date = format_jp_date(str(row.get('End', row.get('Deadline (Nộp)', row.get('Hạn chót', row.get('Deadline', ''))))).strip())
             
             end_w = row.get('end_w')
-            is_future_deadline = (end_w > target_w) if pd.notna(end_w) else False
+            start_w = row.get('start_w')
+            is_future_deadline = (end_w != start_w) if pd.notna(end_w) and pd.notna(start_w) else False
             
             data.append({
                 "key": tp_key,
