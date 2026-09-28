@@ -1,4 +1,5 @@
 import os
+import uuid
 import zipfile
 import io
 from flask import send_file
@@ -7,6 +8,7 @@ from werkzeug.utils import secure_filename
 from flask import send_from_directory
 import time
 import threading
+from datetime import datetime, timezone, timedelta
 import hashlib
 import pandas as pd
 import requests
@@ -55,13 +57,12 @@ app.secret_key = os.environ.get('SECRET_KEY', 'vn-tracking-secret-' + hashlib.md
 # đặt SOCKETIO_ASYNC_MODE=eventlet để WebSocket hoạt động chuẩn.
 _SOCKETIO_ASYNC_MODE = os.environ.get('SOCKETIO_ASYNC_MODE', 'threading')
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode=_SOCKETIO_ASYNC_MODE, manage_session=False)
-# =====================================================================
 # 2. CƠ SỞ DỮ LIỆU TÀI KHOẢN VÀ LINK DỮ LIỆU
 # =====================================================================
 USER_SHEET_URL = "https://docs.google.com/spreadsheets/d/1VLlDF5XoXt0Rz0ACZ3EZRKcKWFnIRXptMPbQthimNE0/export?format=csv&gid=0"
 
 CHANGE_PASS_API = "https://script.google.com/macros/s/AKfycbzf59j11q0IfvgjRkhvUx6EhnSdssGbvpp3PnKQGL4JUmJC2w2uidZi0BKygpriqMVB/exec"
-LOGTIME_API_URL = "https://script.google.com/macros/s/AKfycbwRgcwRvxBZPOMEyfKbWCDXpLsY1H5edxQtxF4xihgaVIJn-eiqbuDB_2yCU9XYR_MwAQ/exec"
+LOGTIME_API_URL = "https://script.google.com/macros/s/AKfycbzZ--vv1xsR8u5pFKFqK7N_PCYwGnpl-yvyOVt15rXSoI99hJTwQV5WBXXMXiGMApljig/exec"
 
 url = "https://docs.google.com/spreadsheets/d/1ec_v1hsKu0oCOwyrFNgxckpoaq3Q02J4NdIchqbYE3s/edit?gid=597870203#gid=597870203"
 csv_url = url.split("/edit")[0] + "/export?format=csv" if "/edit" in url else url
@@ -71,7 +72,7 @@ csv_url_truoc = url_after_week.split("/edit")[0] + "/export?format=csv&" + url_a
 
 
 
-COLS = ['Công việc', 'Tên tác phẩm', 'Chương', 'Tập', 'Số trang', 'NXB', 'Ngày bắt đầu', 'Deadline (Nộp)', 'VN', 'Người thực hiện', 'QC Nội bộ', 'Quản lý', 'Trạng thái', 'Bắt đầu', 'Ghi chú']
+COLS = ['Công việc', 'Tên tác phẩm', 'Chương', 'Tập', 'Số trang', 'NXB', 'Ngày bắt đầu', 'Deadline (Nộp)', 'VN', 'Người thực hiện', 'QC Nội bộ', 'Quản lý', 'Trạng thái', 'Bắt đầu', 'Start', 'End', 'Ghi chú']
 
 VNTASK_URL = "https://docs.google.com/spreadsheets/d/1ec_v1hsKu0oCOwyrFNgxckpoaq3Q02J4NdIchqbYE3s/gviz/tq?tqx=out:csv&sheet=VN-task"
 
@@ -102,20 +103,48 @@ def is_japanese(text):
     return bool(re.search(r'[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]', text))
 
 def translate_text(text, target_lang):
+    if not text or not text.strip():
+        return ""
+    # 1. Thử qua Google Translate client dict-chrome-ex (nhanh, chuẩn xác, không bị lỗi 429)
     url = "https://translate.googleapis.com/translate_a/single"
-    params = {
-        "client": "gtx",
-        "sl": "auto",
-        "tl": target_lang,
-        "dt": "t",
-        "q": text
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
     }
+    for client in ['dict-chrome-ex', 'gtx']:
+        params = {
+            "client": client,
+            "sl": "auto",
+            "tl": target_lang,
+            "dt": "t",
+            "q": text
+        }
+        try:
+            res = requests.get(url, params=params, headers=headers, timeout=5)
+            if res.status_code == 200:
+                data = res.json()
+                if data and len(data) > 0 and data[0]:
+                    translated = "".join([x[0] for x in data[0] if x and len(x) > 0 and x[0]])
+                    if translated.strip():
+                        return translated.strip()
+        except Exception:
+            continue
+
+    # 2. Fallback qua MyMemory Translation API nếu Google trục trặc
     try:
-        res = requests.get(url, params=params, timeout=5)
-        data = res.json()
-        return "".join([x[0] for x in data[0]])
-    except Exception as e:
-        return f"[Lỗi hệ thống dịch thuật: {str(e)}]"
+        source_lang = 'ja' if target_lang == 'vi' else 'vi'
+        url_mm = "https://api.mymemory.translated.net/get"
+        params_mm = {"q": text, "langpair": f"{source_lang}|{target_lang}"}
+        res_mm = requests.get(url_mm, params=params_mm, headers=headers, timeout=5)
+        if res_mm.status_code == 200:
+            data_mm = res_mm.json()
+            if 'responseData' in data_mm and 'translatedText' in data_mm['responseData']:
+                trans = data_mm['responseData']['translatedText']
+                if trans and not str(trans).startswith("MYMEMORY WARNING"):
+                    return str(trans).strip()
+    except Exception:
+        pass
+
+    return "Không thể kết nối dịch vụ dịch thuật lúc này. Vui lòng thử lại sau."
 
 def clear_cache(func_name=None):
     global _cache
@@ -209,11 +238,67 @@ def get_supabase_checklists():
         _checklist_cache = {}
     return _checklist_cache
 
+_task_comments_cache = None
+task_comments_lock = threading.Lock()
+
+def get_supabase_task_comments():
+    global _task_comments_cache
+    if _task_comments_cache is not None:
+        return _task_comments_cache
+    try:
+        data = sb_download_bytes('_system/task_comments.json')
+        if data:
+            _task_comments_cache = json.loads(data.decode('utf-8'))
+        else:
+            _task_comments_cache = {}
+    except Exception:
+        _task_comments_cache = {}
+    return _task_comments_cache
+
+def save_supabase_task_comments(data):
+    global _task_comments_cache
+    with task_comments_lock:
+        _task_comments_cache = data
+        try:
+            json_bytes = json.dumps(data, ensure_ascii=False).encode('utf-8')
+            sb_upload('_system/task_comments.json', json_bytes, content_type='application/json')
+        except Exception as e:
+            print("Error uploading task comments to Supabase:", e)
+
+_task_links_cache = None
+task_links_lock = threading.Lock()
+
+def get_supabase_task_links():
+    global _task_links_cache
+    if _task_links_cache is not None:
+        return _task_links_cache
+    try:
+        data = sb_download_bytes('_system/task_links.json')
+        if data:
+            _task_links_cache = json.loads(data.decode('utf-8'))
+        else:
+            _task_links_cache = {}
+    except Exception:
+        _task_links_cache = {}
+    return _task_links_cache
+
+def save_supabase_task_links(data):
+    global _task_links_cache
+    with task_links_lock:
+        _task_links_cache = data
+        try:
+            json_bytes = json.dumps(data, ensure_ascii=False).encode('utf-8')
+            sb_upload('_system/task_links.json', json_bytes, content_type='application/json')
+        except Exception as e:
+            print("Error uploading task links to Supabase:", e)
+
 def load_checklist_data(api_url=None):
     data = get_supabase_checklists()
     rows = []
     for tp_key, cbs in data.items():
         for cb_id, status in cbs.items():
+            if cb_id == '_rewarded':
+                continue
             rows.append({
                 'Tên Tác Phẩm': tp_key,
                 'Checkbox ID': cb_id,
@@ -227,7 +312,7 @@ def load_checklist_data(api_url=None):
 @cached(ttl=180)
 def load_sheet_data(url):
     try:
-        df = pd.read_csv(url, usecols=list(range(1, 16)), header=None)
+        df = pd.read_csv(url, usecols=list(range(1, 18)), header=None)
         df.columns = COLS
         if df.empty:
             raise Exception("DataFrame rỗng")
@@ -238,61 +323,241 @@ def load_sheet_data(url):
         traceback.print_exc()
         raise e
 
-@cached(ttl=300)
+@cached(ttl=120)
 def load_vntask_details():
-    try:
-        df = pd.read_csv(VNTASK_URL)
-        start_date_col = None
-        for col in df.columns:
-            if '開始日' in col:
-                start_date_col = col
+    combined = []
+    seen = set()
+    current_year = date.today().year
+
+    def extract_tasks_from_df(df_target, default_tag=None):
+        if df_target is None or df_target.empty:
+            return []
+            
+        start_col = None
+        for c in df_target.columns:
+            if str(c).strip().lower() == 'start':
+                start_col = c
                 break
-                
-        if not start_date_col:
-            if len(df.columns) > 7:
-                start_date_col = df.columns[7]
+        if not start_col:
+            for c in df_target.columns:
+                if any(k in str(c) for k in ['開始日', 'Ngày bắt đầu']):
+                    start_col = c
+                    break
+        if not start_col:
+            for c in df_target.columns:
+                if any(k in str(c).lower() for k in ['start', 'bắt đầu']):
+                    start_col = c
+                    break
+                    
+        end_col = None
+        for c in df_target.columns:
+            if str(c).strip().lower() == 'end':
+                end_col = c
+                break
+        if not end_col:
+            for c in df_target.columns:
+                c_str = str(c).strip().lower()
+                if 'kết thúc' in c_str or 'deadline' in c_str or 'hạn chót' in c_str:
+                    end_col = c
+                    break
+
+        job_col = None
+        for c in df_target.columns:
+            if any(k in str(c) for k in ['作業内容', 'Công việc']):
+                job_col = c
+                break
+
+        task_col = None
+        for c in df_target.columns:
+            if any(k in str(c) for k in ['作品名', 'Tên tác phẩm']):
+                task_col = c
+                break
+
+        tap_col = None
+        for c in df_target.columns:
+            if any(k in str(c).lower() for k in ['tập', '巻']):
+                tap_col = c
+                break
+
+        chuong_col = None
+        for c in df_target.columns:
+            if any(k in str(c).lower() for k in ['chương', '話']):
+                chuong_col = c
+                break
+
+        worker_col = None
+        for c in df_target.columns:
+            if any(k in str(c) for k in ['作業者', 'Người thực hiện']):
+                worker_col = c
+                break
+
+        if not start_col:
+            return []
+
+        res = []
+        for _, row in df_target.iterrows():
+            val = ""
+            end_val = str(row[end_col]).strip() if end_col and pd.notna(row.get(end_col)) else ""
+            if end_val and end_val not in ['nan', 'NaN', 'None', '', '::', '-', '->']:
+                val = end_val
             else:
-                return []
-            
-        job_col = df.columns[1] if len(df.columns) > 1 else None
-        task_col = df.columns[2] if len(df.columns) > 2 else None
-        worker_col = df.columns[10] if len(df.columns) > 10 else (df.columns[9] if len(df.columns) > 9 else None)
-
-        details = []
-        current_year = date.today().year
-
-        for idx, row in df.iterrows():
-            val = str(row[start_date_col]).strip()
-            if val in ['nan', 'NaN', 'None', '']:
+                start_val = str(row[start_col]).strip() if start_col and pd.notna(row.get(start_col)) else ""
+                val = start_val
+                
+            if val in ['nan', 'NaN', 'None', '', '::', '-', '->']:
                 continue
-            
-            raw_job = str(row[job_col]).strip() if job_col and pd.notna(row[job_col]) else "Khác"
-            job_type = "Retouch" if "レタッチ" in raw_job else ("Lettering" if "写植" in raw_job else raw_job)
-            if job_type in ['nan', 'NaN', 'None', '']: job_type = "Khác"
-            
-            task_name = str(row[task_col]) if task_col and pd.notna(row[task_col]) else "Unknown Task"
-            worker = str(row[worker_col]) if worker_col and pd.notna(row[worker_col]) else ""
-            
-            # remove day of week like (Wed)
-            clean_d = re.sub(r'\([A-Za-z]+\)', '', val).strip()
-            # replace hyphens with space
-            clean_d = clean_d.replace('-', ' ')
+
+            raw_job = str(row[job_col]).strip() if job_col and pd.notna(row.get(job_col)) else "Khác"
+            if '写植/ﾚﾀｯﾁ' in raw_job or '写植/レタッチ' in raw_job or 'Lettering/Retouch' in raw_job:
+                job_type = "Lettering/Retouch"
+            elif '写植' in raw_job or 'Lettering' in raw_job:
+                job_type = "Lettering"
+            elif 'レタッチ' in raw_job or 'ﾚﾀｯﾁ' in raw_job or 'Retouch' in raw_job:
+                job_type = "Retouch"
+            else:
+                job_type = "Khác"
+
+            task_name = str(row[task_col]).strip() if task_col and pd.notna(row.get(task_col)) else ""
+            if not task_name or task_name in ['nan', 'NaN', 'None', 'Unknown Task', '作品名\nTên tác phẩm']:
+                continue
+
+            tap_val = str(row[tap_col]).strip() if tap_col and pd.notna(row.get(tap_col)) else ""
+            if tap_val and tap_val not in ['nan', 'NaN', 'None', '']:
+                task_name = f"{tap_val}_{task_name}"
+
+            chuong_val = str(row[chuong_col]).strip() if chuong_col and pd.notna(row.get(chuong_col)) else ""
+            if chuong_val and chuong_val not in ['nan', 'NaN', 'None', '']:
+                task_name = f"{task_name} (Chương {chuong_val})"
+
+            worker = str(row[worker_col]).strip() if worker_col and pd.notna(row.get(worker_col)) else ""
+            if worker in ['nan', 'NaN', 'None', '作業者 \nNgười thực hiện']:
+                worker = ""
+
+            matches = re.findall(r'\d{1,4}[/-]\d{1,2}(?:[/-]\d{1,4})?', val)
+            if not matches:
+                continue
+            clean_d = matches[-1]
             try:
                 dt = date_parser.parse(clean_d, default=datetime(current_year, 1, 1))
                 formatted_date = dt.strftime('%Y-%m-%d')
-                details.append({
+                item = {
                     "date": formatted_date,
                     "taskName": task_name,
                     "worker": worker,
                     "jobType": job_type
-                })
+                }
+                if default_tag:
+                    item["weekTag"] = default_tag
+                res.append(item)
             except Exception:
                 pass
-                
-        return details
+        return res
+
+    def add_tasks(tasks):
+        for t in tasks:
+            key = (t['date'], t['taskName'], t['worker'], t['jobType'])
+            if key not in seen:
+                seen.add(key)
+                combined.append(t)
+
+    # 1. Nạp từ các tab tuần đang hiển thị trên Dashboard (TUẦN NÀY, TUẦN TRƯỚC, TUẦN SAU)
+    try:
+        df_raw = load_sheet_data(csv_url)
+        df_truoc_raw = load_sheet_data(csv_url_truoc)
+
+        def parse_date_obj(val):
+            if not val or pd.isna(val) or str(val).strip() in ['nan', 'None', '', '::', '-', '->']:
+                return None
+            s = str(val).strip()
+            matches = re.findall(r'\d{1,4}[/-]\d{1,2}(?:[/-]\d{1,4})?', s)
+            if not matches:
+                return None
+            clean_d = matches[-1]
+            try:
+                return date_parser.parse(clean_d, default=datetime(current_year, 1, 1)).date()
+            except Exception:
+                return None
+
+        combined_all = clean_df(pd.concat([df_raw, df_truoc_raw], ignore_index=True))
+        combined_all = combined_all.drop_duplicates(
+            subset=['Công việc', 'Tên tác phẩm', 'Chương', 'Tập', 'Người thực hiện'],
+            keep='last'
+        )
+
+        def get_task_weeks(row):
+            start_d = parse_date_obj(row.get('Start'))
+            if not start_d: start_d = parse_date_obj(row.get('Ngày bắt đầu'))
+            end_d = parse_date_obj(row.get('End'))
+            if not end_d: end_d = parse_date_obj(row.get('Ngày kết thúc'))
+            if not end_d: end_d = parse_date_obj(row.get('Hạn chót'))
+            if not end_d: end_d = parse_date_obj(row.get('Deadline'))
+            if not end_d: end_d = parse_date_obj(row.get('Deadline (Nộp)'))
+            if start_d and not end_d:
+                end_d = start_d
+            elif end_d and not start_d:
+                start_d = end_d
+            if not start_d and not end_d:
+                return None, None
+            return start_d.isocalendar()[1], end_d.isocalendar()[1]
+
+        sws, ews = [], []
+        for _, r in combined_all.iterrows():
+            sw, ew = get_task_weeks(r)
+            sws.append(sw)
+            ews.append(ew)
+        combined_all['start_w'] = sws
+        combined_all['end_w'] = ews
+
+        current_w = date.today().isocalendar()[1]
+        df_tuan_truoc = combined_all[combined_all['end_w'] == (current_w - 1)]
+        df_tuan_nay = combined_all[combined_all['end_w'] == current_w]
+        df_tuan_sau = combined_all[combined_all['end_w'] >= (current_w + 1)]
+
+        add_tasks(extract_tasks_from_df(df_tuan_nay, 'nay'))
+        add_tasks(extract_tasks_from_df(df_tuan_truoc, 'truoc'))
+        add_tasks(extract_tasks_from_df(df_tuan_sau, 'sau'))
     except Exception as e:
-        print("Error load_vntask_details:", e)
-        return []
+        print("Error reading dashboard sheets for chart:", e)
+
+    # 2. Thử nạp từ sheet VN-task nếu có dữ liệu hợp lệ
+    try:
+        df_vntask = pd.read_csv(VNTASK_URL)
+        if not df_vntask.empty and len(df_vntask.dropna(subset=[df_vntask.columns[1]])) > 0:
+            cutoff_date = date.today() - timedelta(days=date.today().weekday() + 7)
+            cutoff_str = cutoff_date.strftime('%Y-%m-%d')
+            h_tasks = extract_tasks_from_df(df_vntask)
+            add_tasks([t for t in h_tasks if t['date'] < cutoff_str])
+    except Exception:
+        pass
+
+    # 3. Nạp lịch sử các tháng từ Schedule management - ALL cho VN team
+    try:
+        import urllib.parse
+        sheet_encoded = urllib.parse.quote('Schedule management - ALL')
+        base_url = csv_url.split('/export')[0]
+        all_url = f"{base_url}/gviz/tq?tqx=out:csv&sheet={sheet_encoded}"
+        df_all = pd.read_csv(all_url)
+        if not df_all.empty:
+            vn_workers = ['Tan', 'Kim', 'Vinh', 'Thao', 'Hieu', 'Tho', 'Khuong', 'Anh', 'Thang']
+            worker_pattern = '|'.join(vn_workers)
+            worker_cols = [c for c in df_all.columns if '作業者' in c or 'Người thực hiện' in c]
+            worker_col = worker_cols[0] if worker_cols else None
+            
+            is_vn = pd.Series(False, index=df_all.index)
+            if 'VN' in df_all.columns:
+                is_vn = is_vn | df_all['VN'].astype(str).str.contains('VN', case=False, na=False)
+            if worker_col:
+                is_vn = is_vn | df_all[worker_col].astype(str).str.contains(worker_pattern, case=False, na=False)
+            
+            df_all_vn = df_all[is_vn]
+            cutoff_date = date.today() - timedelta(days=date.today().weekday() + 7)
+            cutoff_str = cutoff_date.strftime('%Y-%m-%d')
+            h_tasks = extract_tasks_from_df(df_all_vn)
+            add_tasks([t for t in h_tasks if t['date'] < cutoff_str])
+    except Exception as e:
+        print("Error reading Schedule management - ALL for chart:", e)
+
+    return combined
 
 # =====================================================================
 # 5. HÀM XỬ LÝ DỮ LIỆU
@@ -346,13 +611,13 @@ DICT_LANG = {
         'tab0': "THÔNG TIN TUẦN TRƯỚC", 'tab1': "THÔNG TIN TUẦN NÀY", 'tab2': "THÔNG TIN TUẦN SAU",
         'time': "Thời gian làm việc:", 'deadline': "Deadline chú ý:",
         'no_filter': "Không có tác phẩm nào khớp với bộ lọc hoặc không có task của bạn!", 'no_task': "Hiện chưa có task nào được phân công!",
-        'metric_total': "Tổng số Task", 'metric_retouch': "Số task Retouch", 'metric_type': "Số task Lettering",
+        'metric_total': "Tổng số Task", 'metric_retouch': "Số task Retouch", 'metric_type': "Số task Lettering", 'metric_lettering_qc': "Số task Lettering QC", 'metric_lettering_retouch': "Số task Lettering/Retouch", 'metric_prep': "Số task Prep",
         'not_update': "Chưa cập nhật",
         'cols': ['Công việc', 'Tên tác phẩm', 'Chương', 'Tập', 'Số trang', 'NXB', 'Ngày bắt đầu', 'Deadline (Nộp)', 'VN', 'Người thực hiện', 'QC Nội bộ', 'Quản lý', 'Trạng thái', 'Bắt đầu', 'Ghi chú'],
         'logtime_title': "⏱️ KHU VỰC BÁO CÁO TIẾN ĐỘ (LOGTIME & CHECKLIST)",
         'logtime_empty': "Hiện không có task nào để logtime.",
         'f_date': "📅 Ngày làm việc:", 'f_cat': "📚 Loại truyện:", 'f_diff': "🔥 Độ khó:", 'f_worker': "👤 Người làm:",
-        'f_hours': "⏳ Giờ làm hôm nay:", 'f_pages': "📄 Số page HT (Tổng: {total}):", 'f_note': "📝 Ghi chú thêm:",
+        'f_hours': "⏱ Giờ làm hôm nay:", 'f_total_pages': "📄 Tổng số trang:", 'f_pages': "✅ Số page HT:", 'f_note': "📝 Ghi chú thêm:",
         'f_btn': "Lưu Logtime",
     },
     'ja': {
@@ -363,38 +628,52 @@ DICT_LANG = {
         'tab0': "先週の情報", 'tab1': "今週の情報", 'tab2': "来週の情報",
         'time': "勤務期間:", 'deadline': "ご注意の締め切り:",
         'no_filter': "フィルターに一致する作品はありません！", 'no_task': "タスクはまだ割り当てられていません！",
-        'metric_total': "表示中のタスク総数", 'metric_retouch': "レタッチタスク数", 'metric_type': "写植タスク数",
+        'metric_total': "表示中のタスク総数", 'metric_retouch': "レタッチタスク数", 'metric_type': "写植タスク数", 'metric_lettering_qc': "修正写植タスク数", 'metric_lettering_retouch': "写植/ﾚﾀｯﾁタスク数", 'metric_prep': "Prepタスク数",
         'not_update': "未更新",
         'cols': ['作業内容', '作品名', '話数', '巻数', 'ページ', '出版社', '開始日', '提出日', 'VN', '作業者', '社内QC', '進行管理', 'ステータス', '開始', '備考'],
         'logtime_title': "⏱️ 進捗報告エリア (ログタイム＆チェックリスト)",
         'logtime_empty': "現在、報告するタスクはありません。",
         'f_date': "📅 作業日:", 'f_cat': "📚 カテゴリ:", 'f_diff': "🔥 難易度:", 'f_worker': "👤 作業者:",
-        'f_hours': "⏳ 今日の作業時間:", 'f_pages': "📄 完了ページ数 (計: {total}):", 'f_note': "📝 備考:",
+        'f_hours': "⏱ 今日の作業時間:", 'f_total_pages': "📄 ページ数:", 'f_pages': "✅ 完了したページ数:", 'f_note': "📝 備考:",
         'f_btn': "保存する",
     }
 }
 
 CHECKLIST_TEXT = {
     'vi': {
-        'step1': 'STEP 1: CHUẨN BỊ', 'step2': 'STEP 2: BẮT ĐẦU', 'step3': 'STEP 3: GIAO HÀNG',
+        'phase1': 'CHUẨN BỊ', 'phase1_sub': 'Khởi tạo & nhận việc',
+        'phase2': 'BẮT ĐẦU', 'phase2_sub': 'Báo Asana & cập nhật',
+        'phase3': 'GIAO HÀNG', 'phase3_sub': 'Hoàn thành & bàn giao',
+        'step1': 'BƯỚC 1: CHUẨN BỊ', 'step2': 'BƯỚC 2: BẮT ĐẦU', 'step3': 'BƯỚC 3: GIAO HÀNG',
         't1': 'Tạo Task DB_工程管理', 't2': 'N: notion済', 't3': 'Báo bắt đầu', 't4': 'O: 開始 (Bắt đầu)', 't5': 'Not Started → In Progress',
         't6': 'Báo hoàn thành', 't7': 'N: 納品済み', 't8': 'Trạng thái: Delivered', 't9': 'Tick comment & Tick checklist in Mikan',
-        'copy_start': '📋 Copy Báo Bắt Đầu', 'ask_task': 'Trễ chỉ thị? (Hỏi Task)', 'copy_ask': '📋 Copy Hỏi Task',
-        'copy_done': '📋 Copy Báo Hoàn Thành', 'copied': '✅ Đã Copy', 'copy_deliver': '📋 Copy Báo Giao Hàng'
+        'copy_start': 'Sao chép', 'ask_task': 'Trễ chỉ thị? (Hỏi Task)', 'copy_ask': 'Sao chép',
+        'copy_done': 'Sao chép', 'copied': 'Đã sao chép', 'copy_deliver': 'Sao chép',
+        'tmpl_start': 'Mẫu tin nhắn Asana (Bắt đầu)',
+        'tmpl_ask': 'Mẫu hỏi khi trễ chỉ thị (Tiếng Nhật)',
+        'tmpl_done': 'Mẫu tin nhắn Asana (Hoàn thành)',
+        'tmpl_deliver': 'Mẫu tin nhắn giao hàng (Tiếng Nhật)'
     },
     'ja': {
+        'phase1': '準備フェーズ', 'phase1_sub': 'タスク作成・確認',
+        'phase2': '着手フェーズ', 'phase2_sub': 'Asana報告・更新',
+        'phase3': '納品フェーズ', 'phase3_sub': '完了報告・納品',
         'step1': 'STEP 1: 準備', 'step2': 'STEP 2: 着手', 'step3': 'STEP 3: 納品',
         't1': 'DB_工程管理に作成', 't2': 'N列：notion済', 't3': '着手報告 (Asana)', 't4': 'O列：開始', 't5': 'Not Started → In Progress',
         't6': '完了報告 (Asana)', 't7': 'N列：納品済み', 't8': 'ステータス：Delivered', 't9': 'Mikanでコメント＆チェックリストをTick',
-        'copy_start': '📋 着手報告コピー', 'ask_task': '指示遅れ？', 'copy_ask': '📋 確認文コピー',
-        'copy_done': '📋 完了報告コピー', 'copied': '✅ コピー完了', 'copy_deliver': '📋 納品メッセージコピー'
+        'copy_start': 'コピー', 'ask_task': '指示遅れ？(確認文)', 'copy_ask': 'コピー',
+        'copy_done': 'コピー', 'copied': 'コピー完了', 'copy_deliver': 'コピー',
+        'tmpl_start': 'Asana着手報告テンプレート',
+        'tmpl_ask': '指示遅れ確認テンプレート',
+        'tmpl_done': 'Asana完了報告テンプレート',
+        'tmpl_deliver': '納品メッセージテンプレート'
     }
 }
 
 # =====================================================================
 # 7. JINJA2 HELPER FUNCTIONS (Render checklist & logtime inline)
 # =====================================================================
-def render_checklist_html(tac_pham_key, index, lang, api_url, checked_ids=None):
+def render_checklist_html(tac_pham_key, index, lang, api_url, checked_ids=None, row_data=None, task_links_dict=None):
     l = CHECKLIST_TEXT.get(lang, CHECKLIST_TEXT['vi'])
     if checked_ids is None:
         checked_ids = set()
@@ -404,37 +683,333 @@ def render_checklist_html(tac_pham_key, index, lang, api_url, checked_ids=None):
     def ch(tid):
         return 'checked' if tid in checked_ids else ''
 
-    return f'''
-    <div class="checklist-grid" data-tp-key="{tac_pham_key}">
-        <div class="step-col">
-            <div class="step-header">{l['step1']}</div>
-            <div class="task-row"><span class="platform-badge notion">Notion</span><label class="check-label"><input type="checkbox" data-checklist data-check-id="t1" {ch('t1')}><span class="checkmark"></span><span class="action-text">{l['t1']}</span></label></div>
-            <div class="task-row"><span class="platform-badge sheet">Sheet</span><label class="check-label"><input type="checkbox" data-checklist data-check-id="t2" {ch('t2')}><span class="checkmark"></span><span class="action-text">{l['t2']}</span></label></div>
-        </div>
-        <div class="step-col">
-            <div class="step-header">{l['step2']}</div>
-            <div class="task-row"><span class="platform-badge asana">Asana</span><label class="check-label"><input type="checkbox" data-checklist data-check-id="t3" {ch('t3')}><span class="checkmark"></span><span class="action-text">{l['t3']}</span></label></div>
-            <div class="snippet-box" id="msg_t3_{index}">(PC) cc @Shiori Fujimura @Miho Osada @Erika Kawasaki\n===タスク着手===</div>
-            <button class="btn-copy" onclick="copyText(this, 'msg_t3_{index}')">{l['copy_start']}</button>
-            <div class="ask-task-toggle" onclick="toggleAskTask(this)">▸ {l['ask_task']}</div>
-            <div class="ask-task-content">
-                <div class="snippet-box" id="jp_t3_{index}">お疲れ様です。\n写植工程を担当しております○○です。\n本日が作業開始日となっておりますが、現時点でまだご指示をいただいておりません。\nお手数をおかけいたしますが、ご確認のほどよろしくお願いいたします。</div>
-                <button class="btn-copy" onclick="copyText(this, 'jp_t3_{index}')">{l['copy_ask']}</button>
+    is_combined = ('写植/ﾚﾀｯﾁ' in str(tac_pham_key) or '写植/レタッチ' in str(tac_pham_key) or 'Lettering/Retouch' in str(tac_pham_key) or 'lettering/retouch' in str(tac_pham_key).lower())
+    
+    is_coop = is_combined or bool(row_data and row_data.get('is_coop'))
+    volume_key = (row_data and row_data.get('volume_key')) or (tac_pham_key.split(' - ')[1] if ' - ' in str(tac_pham_key) else str(tac_pham_key))
+    partner_worker = (row_data and row_data.get('partner_worker')) or ''
+    partner_cv = (row_data and row_data.get('partner_cv')) or ''
+
+    # Task Resource Links (Mikan, Notion, Asana, Dropbox) - Keyed strictly by individual task role (tac_pham_key)
+    t_links = {}
+    if task_links_dict:
+        t_links = task_links_dict.get(tac_pham_key) or {}
+
+    mikan_url = t_links.get('mikan', '').strip()
+    notion_url = t_links.get('notion', '').strip()
+    asana_url = t_links.get('asana', '').strip()
+    dropbox_url = t_links.get('dropbox', '').strip()
+
+    def render_link_card(tool_key, name, icon_class, url):
+        has_url = bool(url)
+        is_http = has_url and url.lower().startswith(('http://', 'https://'))
+        
+        if not has_url:
+            href_val = "javascript:void(0)"
+            target_val = ''
+            onclick_val = f"openEditTaskLinksModal('{tac_pham_key}', '{tool_key}'); return false;"
+            badge_text = "+ Thêm link" if lang == 'vi' else "+ リンク追加"
+            status_cls = "empty"
+        elif is_http:
+            href_val = url
+            target_val = 'target="_blank" rel="noopener noreferrer"'
+            onclick_val = ''
+            badge_text = "Mở link ↗" if lang == 'vi' else "開く ↗"
+            status_cls = "has-url"
+        else:
+            href_val = "javascript:void(0)"
+            target_val = ''
+            safe_url = url.replace('\\', '\\\\').replace("'", "\\'")
+            onclick_val = f"navigator.clipboard.writeText('{safe_url}').then(()=>{{if(typeof showToast !== 'undefined') showToast('Đã copy đường dẫn!', 'success');}}); return false;"
+            badge_text = "Copy text" if lang == 'vi' else "コピー"
+            status_cls = "has-url"
+            
+        return f'''
+        <a href="{href_val}" class="task-link-card {tool_key} {status_cls}" {target_val} onclick="{onclick_val}" data-tool="{tool_key}" data-url="{url}" title="{url if has_url else ('Chưa có link ' + name)}">
+            <div class="task-link-icon"><i class="{icon_class}"></i></div>
+            <div class="task-link-info">
+                <span class="task-link-name">{name}</span>
+                <span class="task-link-status">{badge_text}</span>
             </div>
-            <div class="task-row"><span class="platform-badge sheet">Sheet</span><label class="check-label"><input type="checkbox" data-checklist data-check-id="t4" {ch('t4')}><span class="checkmark"></span><span class="action-text">{l['t4']}</span></label></div>
-            <div class="task-row"><span class="platform-badge notion">Notion</span><label class="check-label"><input type="checkbox" data-checklist data-check-id="t5" {ch('t5')}><span class="checkmark"></span><span class="action-text">{l['t5']}</span></label></div>
+            <span class="task-link-edit-btn" onclick="event.preventDefault(); event.stopPropagation(); openEditTaskLinksModal('{tac_pham_key}', '{tool_key}')" title="{ 'Sửa link' if lang == 'vi' else 'リンク編集' }"><i class="fas fa-pen"></i></span>
+        </a>
+        '''
+
+    links_html = f'''
+    <div class="task-links-box" id="task_links_{index}" data-tp-key="{tac_pham_key}">
+        <div class="task-links-header">
+            <span class="task-links-title"><i class="fas fa-link" style="color: var(--primary); margin-right: 6px;"></i>{ "Liên kết làm việc:" if lang == "vi" else "作業リンク:" }</span>
+            <button type="button" class="btn-manage-links" onclick="openEditTaskLinksModal('{tac_pham_key}')" title="{ 'Cài đặt liên kết' if lang == "vi" else 'リンク設定' }">
+                <i class="fas fa-cog"></i> { "Cài đặt link" if lang == "vi" else "設定" }
+            </button>
         </div>
-        <div class="step-col">
-            <div class="step-header">{l['step3']}</div>
-            <div class="task-row"><span class="platform-badge asana">Asana</span><label class="check-label"><input type="checkbox" data-checklist data-check-id="t6" {ch('t6')}><span class="checkmark"></span><span class="action-text">{l['t6']}</span></label></div>
-            <div class="snippet-box" id="msg_t6_{index}">(PC) cc @Shiori Fujimura @Miho Osada @Erika Kawasaki\n===タスク完了===</div>
-            <button class="btn-copy" onclick="copyText(this, 'msg_t6_{index}')">{l['copy_done']}</button>
-            <div class="task-row"><span class="platform-badge sheet">Sheet</span><label class="check-label"><input type="checkbox" data-checklist data-check-id="t7" {ch('t7')}><span class="checkmark"></span><span class="action-text">{l['t7']}</span></label></div>
-            <div class="task-row"><span class="platform-badge notion">Notion</span><label class="check-label"><input type="checkbox" data-checklist data-check-id="t8" {ch('t8')}><span class="checkmark"></span><span class="action-text">{l['t8']}</span></label></div>
-            <div class="snippet-box" id="msg_t8_{index}">納品いたしました。\nご確認のほどよろしくお願いいたします。</div>
-            <button class="btn-copy" onclick="copyText(this, 'msg_t8_{index}')">{l['copy_deliver']}</button>
-            <div class="task-row"><span class="platform-badge mikan">Mikan</span><label class="check-label"><input type="checkbox" data-checklist data-check-id="t9" {ch('t9')}><span class="checkmark"></span><span class="action-text">{l['t9']}</span></label></div>
+        <div class="task-links-grid">
+            {render_link_card('mikan', 'MIKAN', 'fas fa-tasks', mikan_url)}
+            {render_link_card('notion', 'NOTION', 'fas fa-book-open', notion_url)}
+            {render_link_card('asana', 'ASANA', 'fas fa-circle-notch', asana_url)}
+            {render_link_card('dropbox', 'DROPBOX', 'fab fa-dropbox', dropbox_url)}
         </div>
+    </div>
+    '''
+
+    if partner_worker:
+        partner_info_text = f"Đồng đội: <strong>{partner_worker}</strong> ({partner_cv})" if partner_cv else f"Đồng đội: <strong>{partner_worker}</strong>"
+        badge_html = f'<span class="handover-partner-badge">{partner_info_text}</span>'
+    elif is_coop:
+        badge_html = '<span class="handover-partner-badge">Retouch ⇄ Lettering</span>'
+    else:
+        badge_html = f'<span class="handover-partner-badge" style="opacity: 0.85;">💬 { "Ghi chú & Thảo luận" if lang == "vi" else "メモ・連絡" }</span>'
+
+    handover_html = f'''
+    <div class="task-handover-box" id="handover_{index}" data-tp-key="{volume_key}" style="margin-top: 0; height: 100%;">
+        <div class="handover-header">
+            <div class="handover-title-row">
+                <span class="handover-title"><i class="far fa-comments" style="margin-right: 6px; color: #818cf8;"></i>{ "Comment:" if lang == "vi" else "コメント:" } <span class="handover-volume-name">{volume_key}</span></span>
+                {badge_html}
+            </div>
+        </div>
+        <div class="handover-body" id="handover_body_{index}">
+            <div class="quick-handover-actions">
+                <span class="quick-handover-label">{ "Mẫu nhanh:" if lang == "vi" else "定型文:" }</span>
+                <button type="button" class="btn-quick-tag done-retouch" onclick="sendQuickHandover('{index}', '{volume_key}', '{ "✓ Đã xong Retouch ➔ Chuyển giao Lettering" if lang == "vi" else "✓ レタッチ完了 ➔ 写植へ引き継ぎ" }', 'handover')">{ "✓ Xong Retouch ➔ Lettering" if lang == "vi" else "✓ レタッチ完了 ➔ 写植へ" }</button>
+                <button type="button" class="btn-quick-tag in-progress" onclick="sendQuickHandover('{index}', '{volume_key}', '{ "Đang xử lý khâu Retouch..." if lang == "vi" else "レタッチ作業中..." }', 'progress')">{ "Đang làm Retouch" if lang == "vi" else "レタッチ作業中" }</button>
+                <button type="button" class="btn-quick-tag in-progress" onclick="sendQuickHandover('{index}', '{volume_key}', '{ "Đang xử lý khâu Lettering..." if lang == "vi" else "写植作業中..." }', 'progress')">{ "Đang làm Lettering" if lang == "vi" else "写植作業中" }</button>
+                <button type="button" class="btn-quick-tag in-progress" onclick="sendQuickHandover('{index}', '{volume_key}', '{ "Đang làm dở trang..." if lang == "vi" else "作業中..." }', 'progress')">{ "Đang làm dở" if lang == "vi" else "作業中" }</button>
+                <button type="button" class="btn-quick-tag note" onclick="sendQuickHandover('{index}', '{volume_key}', '{ "Lưu ý font / style đặc biệt" if lang == "vi" else "フォント・スタイルの注意事項あり" }', 'warning')">{ "Lưu ý font/style" if lang == "vi" else "注意事項" }</button>
+            </div>
+
+            <div class="handover-comments-list" id="comments_list_{index}">
+                <div class="handover-empty">{ "Chưa có ghi chú nào. Hãy để lại lời nhắn cho đồng đội!" if lang == "vi" else "メッセージはまだありません。" }</div>
+            </div>
+
+            <div class="handover-input-group">
+                <input type="text" id="handover_input_{index}" class="handover-input" placeholder="{ "Nhập tin nhắn hoặc ghi chú bàn giao..." if lang == "vi" else "引き継ぎメッセージを入力..." }" onkeydown="if(event.key==='Enter') sendTaskComment('{index}', '{volume_key}')">
+                <button type="button" class="btn-handover-send" id="btn_send_comment_{index}" onclick="sendTaskComment('{index}', '{volume_key}')">{ "Gửi" if lang == "vi" else "送信" }</button>
+            </div>
+        </div>
+    </div>
+    '''
+
+    tracker_html = f'''<div class="time-tracker-box" id="tracker_{index}" data-tp-key="{tac_pham_key}" style="margin-top: 0; height: 100%;">
+        <div class="tracker-header">
+            ⏱️ { "Theo dõi thời gian" if lang == "vi" else "タイムトラッカー" }
+            <label style="float: right; font-size: 0.8rem; font-weight: normal; cursor: pointer; color: var(--text-2);">
+                 <input type="checkbox" id="manual_time_cb_{index}" onchange="toggleManualTime('{index}')"> { "Nhập tay" if lang == "vi" else "手 động入力" }
+            </label>
+        </div>
+        
+        <div class="tracker-controls" id="auto_controls_{index}">
+            <button class="btn-tracker start" id="btn_start_{index}" onclick="startTracker('{index}')">▶ { "Bắt đầu" if lang == "vi" else "開始" }</button>
+            <button class="btn-tracker end" id="btn_end_{index}" onclick="endTracker('{index}')" disabled>⏹ { "Kết thúc" if lang == "vi" else "終了" }</button>
+            <span class="tracker-time" id="time_display_{index}">00:00:00</span>
+        </div>
+        
+        <div class="tracker-controls" id="manual_controls_{index}" style="display: none;">
+            <input type="text" id="manual_start_{index}" class="tracker-note" style="width: 140px;" placeholder="{ "Chọn Giờ Bắt Đầu" if lang == "vi" else "開始時刻" }">
+            <span style="color: var(--text-2);">→</span>
+            <input type="text" id="manual_end_{index}" class="tracker-note" style="width: 140px;" placeholder="{ "Chọn Giờ Kết Thúc" if lang == "vi" else "終了時刻" }">
+            <span style="color: var(--text-2);">{ "hoặc" if lang == "vi" else "または" }</span>
+            <input type="number" id="manual_duration_{index}" class="tracker-note" style="width: 80px;" step="0.01" placeholder="{ "Giờ (h)" if lang == "vi" else "時間 (h)" }" oninput="calcManualTime('{index}', 'dur')">
+        </div>
+
+        <div class="tracker-inputs">
+            <input type="text" id="tracker_note_{index}" placeholder="{ "Mô tả công việc..." if lang == "vi" else "備考..." }" class="tracker-note">
+            <button class="btn-tracker save" id="btn_save_{index}" onclick="saveTracker('{index}', '{tac_pham_key}')">{ "Lưu Log" if lang == "vi" else "保存" }</button>
+        </div>
+    </div>'''
+
+    return f'''
+    {links_html}
+    <div class="checklist-grid" data-tp-key="{tac_pham_key}">
+        <!-- GIAI ĐOẠN 1: CHUẨN BỊ -->
+        <div class="step-col" data-step="1">
+            <div class="step-header">
+                <div class="step-badge-wrap">
+                    <span class="step-num">01</span>
+                    <div class="step-meta">
+                        <span class="step-title">{l.get('phase1', 'CHUẨN BỊ')}</span>
+                        <span class="step-sub">{l.get('phase1_sub', 'Khởi tạo & nhận việc')}</span>
+                    </div>
+                </div>
+                <span class="step-count" id="count_s1_{index}">0/2</span>
+            </div>
+            <div class="step-progress-bar"><div class="step-progress-fill" id="bar_s1_{index}"></div></div>
+
+            <div class="step-items">
+                <div class="task-row">
+                    <span class="platform-badge notion">Notion</span>
+                    <label class="check-label">
+                        <input type="checkbox" data-checklist data-check-id="t1" {ch('t1')}>
+                        <span class="checkmark"></span>
+                        <span class="action-text">{l['t1']}</span>
+                    </label>
+                </div>
+                <div class="task-row">
+                    <span class="platform-badge sheet">Sheet</span>
+                    <label class="check-label">
+                        <input type="checkbox" data-checklist data-check-id="t2" {ch('t2')}>
+                        <span class="checkmark"></span>
+                        <span class="action-text">{l['t2']}</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="step-hint-box">
+                <i class="far fa-lightbulb"></i>
+                <span>{ "Kiểm tra kỹ thông tin tác phẩm & file raw trước khi bắt đầu." if lang == "vi" else "作業開始前に作品情報と元データをご確認ください。" }</span>
+            </div>
+        </div>
+
+        <!-- GIAI ĐOẠN 2: BẮT ĐẦU -->
+        <div class="step-col" data-step="2">
+            <div class="step-header">
+                <div class="step-badge-wrap">
+                    <span class="step-num">02</span>
+                    <div class="step-meta">
+                        <span class="step-title">{l.get('phase2', 'BẮT ĐẦU')}</span>
+                        <span class="step-sub">{l.get('phase2_sub', 'Báo Asana & cập nhật')}</span>
+                    </div>
+                </div>
+                <span class="step-count" id="count_s2_{index}">0/3</span>
+            </div>
+            <div class="step-progress-bar"><div class="step-progress-fill" id="bar_s2_{index}"></div></div>
+
+            <div class="step-items">
+                <div class="task-row">
+                    <span class="platform-badge asana">Asana</span>
+                    <label class="check-label">
+                        <input type="checkbox" data-checklist data-check-id="t3" {ch('t3')}>
+                        <span class="checkmark"></span>
+                        <span class="action-text">{l['t3']}</span>
+                    </label>
+                </div>
+
+                <!-- Template Card Start -->
+                <div class="msg-template-card">
+                    <div class="msg-template-header">
+                        <span class="msg-template-label"><i class="far fa-comment-dots"></i> {l.get('tmpl_start', 'Mẫu tin nhắn Asana')}</span>
+                        <button type="button" class="btn-copy-action" onclick="copyText(this, 'msg_t3_{index}')" title="{l.get('copy_start', 'Sao chép')}">
+                            <i class="far fa-clone"></i> <span>{l.get('copy_start', 'Copy')}</span>
+                        </button>
+                    </div>
+                    <div class="msg-template-body" id="msg_t3_{index}">(PC) cc @Shiori Fujimura @Miho Osada @Erika Kawasaki&#10;===タスク着手===</div>
+                </div>
+
+                <!-- Collapsible Ask Task Accordion -->
+                <div class="ask-task-accordion">
+                    <div class="ask-task-trigger" onclick="toggleAskTask(this)">
+                        <span><i class="far fa-question-circle"></i> {l['ask_task']}</span>
+                        <i class="fas fa-chevron-down arrow-icon"></i>
+                    </div>
+                    <div class="ask-task-panel">
+                        <div class="msg-template-card nested">
+                            <div class="msg-template-header">
+                                <span class="msg-template-label">{l.get('tmpl_ask', 'Mẫu hỏi trễ chỉ thị')}</span>
+                                <button type="button" class="btn-copy-action" onclick="copyText(this, 'jp_t3_{index}')" title="{l.get('copy_ask', 'Sao chép')}">
+                                    <i class="far fa-clone"></i> <span>{l.get('copy_ask', 'Copy')}</span>
+                                </button>
+                            </div>
+                            <div class="msg-template-body" id="jp_t3_{index}">お疲れ様です。&#10;写植工程を担当しております○○です。&#10;本日が作業開始日となっておりますが、現時点でまだご指示をいただいておりません。&#10;お手数をおかけいたしますが、ご確認のほどよろしくお願いいたします。</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="task-row">
+                    <span class="platform-badge sheet">Sheet</span>
+                    <label class="check-label">
+                        <input type="checkbox" data-checklist data-check-id="t4" {ch('t4')}>
+                        <span class="checkmark"></span>
+                        <span class="action-text">{l['t4']}</span>
+                    </label>
+                </div>
+                <div class="task-row">
+                    <span class="platform-badge notion">Notion</span>
+                    <label class="check-label">
+                        <input type="checkbox" data-checklist data-check-id="t5" {ch('t5')}>
+                        <span class="checkmark"></span>
+                        <span class="action-text">{l['t5']}</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- GIAI ĐOẠN 3: GIAO HÀNG -->
+        <div class="step-col" data-step="3">
+            <div class="step-header">
+                <div class="step-badge-wrap">
+                    <span class="step-num">03</span>
+                    <div class="step-meta">
+                        <span class="step-title">{l.get('phase3', 'GIAO HÀNG')}</span>
+                        <span class="step-sub">{l.get('phase3_sub', 'Hoàn thành & bàn giao')}</span>
+                    </div>
+                </div>
+                <span class="step-count" id="count_s3_{index}">0/4</span>
+            </div>
+            <div class="step-progress-bar"><div class="step-progress-fill" id="bar_s3_{index}"></div></div>
+
+            <div class="step-items">
+                <div class="task-row">
+                    <span class="platform-badge asana">Asana</span>
+                    <label class="check-label">
+                        <input type="checkbox" data-checklist data-check-id="t6" {ch('t6')}>
+                        <span class="checkmark"></span>
+                        <span class="action-text">{l['t6']}</span>
+                    </label>
+                </div>
+
+                <!-- Template Card Done -->
+                <div class="msg-template-card">
+                    <div class="msg-template-header">
+                        <span class="msg-template-label"><i class="far fa-check-circle"></i> {l.get('tmpl_done', 'Mẫu báo hoàn thành')}</span>
+                        <button type="button" class="btn-copy-action" onclick="copyText(this, 'msg_t6_{index}')" title="{l.get('copy_done', 'Sao chép')}">
+                            <i class="far fa-clone"></i> <span>{l.get('copy_done', 'Copy')}</span>
+                        </button>
+                    </div>
+                    <div class="msg-template-body" id="msg_t6_{index}">(PC) cc @Shiori Fujimura @Miho Osada @Erika Kawasaki&#10;===タスク完了===</div>
+                </div>
+
+                <div class="task-row">
+                    <span class="platform-badge sheet">Sheet</span>
+                    <label class="check-label">
+                        <input type="checkbox" data-checklist data-check-id="t7" {ch('t7')}>
+                        <span class="checkmark"></span>
+                        <span class="action-text">{l['t7']}</span>
+                    </label>
+                </div>
+                <div class="task-row">
+                    <span class="platform-badge notion">Notion</span>
+                    <label class="check-label">
+                        <input type="checkbox" data-checklist data-check-id="t8" {ch('t8')}>
+                        <span class="checkmark"></span>
+                        <span class="action-text">{l['t8']}</span>
+                    </label>
+                </div>
+
+                <!-- Template Card Deliver -->
+                <div class="msg-template-card">
+                    <div class="msg-template-header">
+                        <span class="msg-template-label"><i class="far fa-paper-plane"></i> {l.get('tmpl_deliver', 'Mẫu báo giao hàng')}</span>
+                        <button type="button" class="btn-copy-action" onclick="copyText(this, 'msg_t8_{index}')" title="{l.get('copy_deliver', 'Sao chép')}">
+                            <i class="far fa-clone"></i> <span>{l.get('copy_deliver', 'Copy')}</span>
+                        </button>
+                    </div>
+                    <div class="msg-template-body" id="msg_t8_{index}">納品いたしました。&#10;ご確認のほどよろしくお願いいたします。</div>
+                </div>
+
+                <div class="task-row">
+                    <span class="platform-badge mikan">Mikan</span>
+                    <label class="check-label">
+                        <input type="checkbox" data-checklist data-check-id="t9" {ch('t9')}>
+                        <span class="checkmark"></span>
+                        <span class="action-text">{l['t9']}</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div style="display: grid; grid-template-columns: 3fr 2fr; gap: 16px; align-items: start; margin-top: 16px;">
+        {handover_html}
+        {tracker_html}
     </div>
     '''
 
@@ -455,45 +1030,71 @@ def render_logtime_form_html(row, index, t, users, lang):
 
     return f'''
     <div class="logtime-form">
-        <form id="logtime-{index}" onsubmit="return handleLogtime(event, 'logtime-{index}')">
+        <form id="logtime-{index}" onsubmit="return handleLogtime(event, 'logtime-{index}')" novalidate>
             <input type="hidden" name="cong_viec" value="{cong_viec}">
             <input type="hidden" name="tac_pham" value="{tac_pham}">
             <input type="hidden" name="chuong" value="{chuong if pd.notna(chuong) else ''}">
             <input type="hidden" name="tap" value="{tap if pd.notna(tap) else ''}">
-            <input type="hidden" name="so_trang_tong" value="{so_trang}">
             <div class="form-row cols-4">
                 <div class="form-group">
-                    <label>{t['f_cat']}</label>
-                    <select name="category"><option value="単行本">単行本</option><option value="読切">読切</option><option value="連載">連載</option></select>
+                    <label>{t['f_cat']} <span style="color: #f43f5e; font-weight: bold; margin-left: 2px;">*</span></label>
+                    <select name="category" required>
+                        <option value="単行本" selected>単行本</option>
+                        <option value="読切">読切</option>
+                        <option value="連載">連載</option>
+                    </select>
                 </div>
                 <div class="form-group">
-                    <label>{t['f_diff']}</label>
-                    <select name="difficulty"><option value="">--</option><option value="低">低</option><option value="中">中</option><option value="高">高</option></select>
+                    <label>{t['f_diff']} <span style="color: #f43f5e; font-weight: bold; margin-left: 2px;">*</span></label>
+                    <select name="difficulty" required>
+                        <option value="" selected disabled>--</option>
+                        <option value="低">低</option>
+                        <option value="中">中</option>
+                        <option value="高">高</option>
+                    </select>
                 </div>
                 <div class="form-group">
-                    <label>{t['f_worker']}</label>
-                    <select name="nguoi_thuc_hien">{worker_options}</select>
+                    <label>{t['f_worker']} <span style="color: #f43f5e; font-weight: bold; margin-left: 2px;">*</span></label>
+                    <select name="nguoi_thuc_hien" required>
+                        <option value="" disabled {"selected" if not worker else ""}>--</option>
+                        {worker_options}
+                    </select>
                 </div>
                 <div class="form-group">
-                    <label>{t['f_date']}</label>
-                    <input type="date" name="ngay_log" value="{today}">
+                    <label>{t['f_date']} <span style="color: #f43f5e; font-weight: bold; margin-left: 2px;">*</span></label>
+                    <input type="date" name="ngay_log" value="{today}" required>
                 </div>
             </div>
-            <div class="form-row cols-3">
+            <div class="form-row cols-4" style="margin-top: 16px;">
                 <div class="form-group">
-                    <label>{t['f_hours']}</label>
-                    <input type="number" name="so_gio" min="0" step="0.5">
+                    <label>{t['f_hours']} <span style="color: #f43f5e; font-weight: bold; margin-left: 2px;">*</span></label>
+                    <input type="number" name="so_gio" min="0.1" step="0.5" required placeholder="0.5, 1, 2...">
                 </div>
                 <div class="form-group">
-                    <label>{t['f_pages'].format(total=so_trang)}</label>
-                    <input type="number" name="so_page" min="0" step="1">
+                    <label>{t['f_total_pages']} <span style="color: #f43f5e; font-weight: bold; margin-left: 2px;">*</span></label>
+                    <input type="number" name="so_trang_tong" value="{so_trang if so_trang else ''}" min="0" step="1" required placeholder="Ví dụ: 200">
+                </div>
+                <div class="form-group">
+                    <label>{t['f_pages']} <span style="color: #f43f5e; font-weight: bold; margin-left: 2px;">*</span></label>
+                    <input type="number" name="so_page" min="0" step="1" required placeholder="Số page hoàn thành...">
                 </div>
                 <div class="form-group">
                     <label>{t['f_note']}</label>
                     <input type="text" name="ghi_chu" placeholder="...">
                 </div>
             </div>
-            <button type="submit" class="btn btn-primary">{t['f_btn']}</button>
+            <div style="margin-top: 20px; text-align: right;">
+                <button type="submit" class="btn btn-primary" style="min-width: 160px; padding: 12px 24px;">{t['f_btn']}</button>
+            </div>
+            <div class="logtime-progress" id="progress-{index}" style="display:none; margin-top: 10px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 0.8rem; color: var(--text-3);">
+                    <span class="progress-label">{ 'Đang gửi dữ liệu...' if lang == 'vi' else 'データを送信中...' }</span>
+                    <span class="progress-time"></span>
+                </div>
+                <div style="width: 100%; height: 6px; background: var(--border); border-radius: 100px; overflow: hidden;">
+                    <div class="progress-fill" style="width: 0%; height: 100%; background: linear-gradient(90deg, var(--primary), #818cf8); border-radius: 100px; transition: width 0.3s ease;"></div>
+                </div>
+            </div>
         </form>
     </div>
     '''
@@ -501,9 +1102,10 @@ def render_logtime_form_html(row, index, t, users, lang):
 # Register template helpers
 @app.context_processor
 def utility_processor():
-    def render_checklist(tp_key, idx, lang, api_url, checked_ids_dict=None):
+    def render_checklist(tp_key, idx, lang, api_url, checked_ids_dict=None, row_data=None, task_links_dict=None):
         ids = (checked_ids_dict or {}).get(tp_key, [])
-        return Markup(render_checklist_html(tp_key, idx, lang, api_url, ids))
+        links_db = task_links_dict if task_links_dict is not None else get_supabase_task_links()
+        return Markup(render_checklist_html(tp_key, idx, lang, api_url, ids, row_data=row_data, task_links_dict=links_db))
     def render_logtime_form(row, idx, t, users, lang):
         return Markup(render_logtime_form_html(row, idx, t, users, lang))
     return dict(render_checklist=render_checklist, render_logtime_form=render_logtime_form)
@@ -549,16 +1151,95 @@ def process_dashboard_data():
     info_sau = parse_week_info(df_raw, idx_tuan[1:2])
     info_truoc = parse_week_info(df_truoc_raw, idx_tuan_truoc[:1])
 
-    # Split data by week
-    if len(idx_tuan) > 1:
-        df_tuan_nay = clean_df(df_raw.iloc[idx_tuan[0]:idx_tuan[1]].copy())
-    elif len(idx_tuan) > 0:
-        df_tuan_nay = clean_df(df_raw.iloc[idx_tuan[0]:].copy())
-    else:
-        df_tuan_nay = df_raw.copy()
+    # Split data by week based on Start (or Ngày bắt đầu) column
+    current_year = date.today().year
+    def parse_task_date_obj(val):
+        if not val or pd.isna(val) or str(val).strip() in ['nan', 'None', '', '::', '-', '->']:
+            return None
+        s = str(val).strip()
+        if '-' in s:
+            s = s.split('-')[-1].strip()
+        s = re.sub(r'\([A-Za-z]+\)', '', s).strip()
+        try:
+            return date_parser.parse(s, default=datetime(current_year, 1, 1)).date()
+        except Exception:
+            return None
 
-    df_tuan_sau = clean_df(df_raw.iloc[idx_tuan[1]:].copy()) if len(idx_tuan) > 1 else pd.DataFrame(columns=df_raw.columns)
-    df_tuan_truoc = clean_df(df_truoc_raw.iloc[idx_tuan_truoc[0]:].copy()) if len(idx_tuan_truoc) > 0 else clean_df(df_truoc_raw)
+    def get_week_num_from_str(s):
+        try:
+            val = str(s).strip()
+            if '-' in val:
+                val = val.split('-')[-1].strip()
+            clean_s = re.sub(r'\([A-Za-z]+\)', '', val).strip()
+            dt = date_parser.parse(clean_s, default=datetime(current_year, 1, 1))
+            return dt.isocalendar()[1]
+        except Exception:
+            return None
+
+    target_week_nay = get_week_num_from_str(info_nay.get('start')) or date.today().isocalendar()[1]
+    target_week_truoc = get_week_num_from_str(info_truoc.get('start')) or (target_week_nay - 1)
+    target_week_sau = get_week_num_from_str(info_sau.get('start')) or (target_week_nay + 1)
+
+    combined_all = clean_df(pd.concat([df_raw, df_truoc_raw], ignore_index=True))
+    combined_all = combined_all.drop_duplicates(
+        subset=['Công việc', 'Tên tác phẩm', 'Chương', 'Tập', 'Người thực hiện'],
+        keep='last'
+    )
+
+    def get_task_weeks(row):
+        start_d = parse_task_date_obj(row.get('Start'))
+        if not start_d:
+            start_d = parse_task_date_obj(row.get('Ngày bắt đầu'))
+            
+        end_d = parse_task_date_obj(row.get('End'))
+        if not end_d: end_d = parse_task_date_obj(row.get('Ngày kết thúc'))
+        if not end_d: end_d = parse_task_date_obj(row.get('Hạn chót'))
+        if not end_d: end_d = parse_task_date_obj(row.get('Deadline'))
+        if not end_d: end_d = parse_task_date_obj(row.get('Deadline (Nộp)'))
+            
+        if start_d and not end_d:
+            end_d = start_d
+        elif end_d and not start_d:
+            start_d = end_d
+            
+        if not start_d and not end_d:
+            return None, None
+            
+        return start_d.isocalendar()[1], end_d.isocalendar()[1]
+
+    start_ws = []
+    end_ws = []
+    for _, r in combined_all.iterrows():
+        sw, ew = get_task_weeks(r)
+        start_ws.append(sw)
+        end_ws.append(ew)
+    combined_all['start_w'] = start_ws
+    combined_all['end_w'] = end_ws
+
+    def in_week(sw, ew, tw):
+        if sw is None or ew is None or tw is None: return False
+        return (sw <= tw <= ew) if sw <= ew else (tw >= sw or tw <= ew)
+
+    def in_or_after_week(sw, ew, tw):
+        if sw is None or ew is None or tw is None: return False
+        return (ew >= tw) if sw <= ew else True
+
+    df_tuan_truoc = combined_all[combined_all.apply(lambda r: in_week(r['start_w'], r['end_w'], target_week_truoc), axis=1)].copy()
+    df_tuan_nay = combined_all[combined_all.apply(lambda r: in_week(r['start_w'], r['end_w'], target_week_nay), axis=1)].copy()
+    df_tuan_sau = combined_all[combined_all.apply(lambda r: in_or_after_week(r['start_w'], r['end_w'], target_week_sau), axis=1)].copy()
+
+    # Pre-calculate global volume partners across all raw data before member filtering
+    global_vol_partners = defaultdict(list)
+    for df_src in [df_raw, df_truoc_raw]:
+        if not df_src.empty:
+            for _, row_full in df_src.iterrows():
+                tp = str(row_full.get('Tên tác phẩm', '')).strip()
+                tap = str(row_full.get('Tập', '')).strip()
+                cv = str(row_full.get('Công việc', '')).strip()
+                w = str(row_full.get('Người thực hiện', '')).strip()
+                vol_k = f"{tap}_{tp}" if tap and tap.lower() not in ['nan', 'none', ''] else tp
+                if vol_k and w and w.lower() not in ['nan', 'none', '']:
+                    global_vol_partners[vol_k].append({'worker': w, 'cv': cv, 'tp_key': f"{cv} - {vol_k}"})
 
     # Phân quyền: member chỉ thấy task của mình
     if role == "member":
@@ -584,33 +1265,74 @@ def process_dashboard_data():
             cv = str(r.get('Công việc', '')).strip()
             tp = str(r.get('Tên tác phẩm', '')).strip()
             tap = str(r.get('Tập', '')).strip()
+            my_worker = str(r.get('Người thực hiện', '')).strip()
             
             if tap and tap.lower() not in ['nan', 'none', '']:
                 old_tp_key = f"{tap}_{tp}"
                 tp_key = f"{cv} - {tap}_{tp}"
+                vol_key = f"{tap}_{tp}"
             else:
                 old_tp_key = f"{tp}"
                 tp_key = f"{cv} - {tp}"
+                vol_key = f"{tp}"
                 
             r['tp_key'] = tp_key
             r['tp_name'] = tp_key
+            r['volume_key'] = vol_key
             
-            # Merge old checklist data into the new tp_key for backward compatibility
-            if old_tp_key in checked_ids_dict:
-                existing = set(checked_ids_dict.get(tp_key, []))
-                merged = list(existing.union(checked_ids_dict[old_tp_key]))
-                checked_ids_dict[tp_key] = merged
-                check_counts[tp_key] = len(merged)
+
+
+            # Detect Co-op / Partner tasks from global map
+            partners = [p for p in global_vol_partners.get(vol_key, []) if p.get('worker') != my_worker or p.get('cv') != cv]
+            if partners:
+                p_workers = list(dict.fromkeys([p['worker'] for p in partners if p.get('worker')]))
+                p_cvs = list(dict.fromkeys([p['cv'] for p in partners if p.get('cv')]))
+                p_keys = [p['tp_key'] for p in partners]
+                p_progresses = [int((check_counts.get(pk, 0) / 9) * 100) for pk in p_keys]
+                
+                r['is_coop'] = True
+                r['partner_worker'] = ', '.join(p_workers)
+                r['partner_cv'] = ', '.join(p_cvs)
+                r['partner_key'] = p_keys[0] if p_keys else ''
+                r['partner_progress'] = p_progresses[0] if p_progresses else 0
+            elif '写植/ﾚﾀｯﾁ' in cv or '写植/レタッチ' in cv or 'Lettering/Retouch' in cv or ',' in my_worker:
+                r['is_coop'] = True
+                r['partner_worker'] = my_worker
+                r['partner_cv'] = 'Retouch ⇄ Lettering'
+                r['partner_key'] = r['tp_key']
+                r['partner_progress'] = int((check_counts.get(r['tp_key'], 0) / 9) * 100)
+            else:
+                r['is_coop'] = False
+                r['partner_worker'] = ''
+                r['partner_cv'] = ''
+                r['partner_key'] = ''
+                r['partner_progress'] = 0
 
         return records
 
-    def build_dashboard(df_target):
+    def build_dashboard(df_target, target_w):
         data = []
+        current_year = date.today().year
+        def format_jp_date(d_str):
+            if not d_str or str(d_str).strip() in ['nan', 'NaN', 'None', '']: return ''
+            clean_d = re.sub(r'\([A-Za-z]+\)', '', str(d_str)).strip().replace('-', ' ')
+            try:
+                dt = date_parser.parse(clean_d, default=datetime(current_year, 1, 1))
+                return dt.strftime('%m/%d/%Y')
+            except:
+                return str(d_str)
         records = df_to_records(df_target)
+        comments_db = get_supabase_task_comments() or {}
         for row in records:
             tp_key = row['tp_key']
             tp_name = row['tp_name']
+            vol_key = row.get('volume_key', tp_name)
+            cmts = comments_db.get(tp_key) or comments_db.get(vol_key) or comments_db.get(tp_name) or []
+            has_comments = bool(cmts and len(cmts) > 0)
+            comments_count = len(cmts) if cmts else 0
+
             worker = str(row.get('Người thực hiện', '')).strip()
+            qc_person = str(row.get('QC Nội bộ', '')).strip()
             checked = check_counts.get(tp_key, 0)
             checked_ids = ','.join(checked_ids_dict.get(tp_key, []))
             if checked == 0:
@@ -620,14 +1342,77 @@ def process_dashboard_data():
             else:
                 status, status_class = "🔥 Đang Tiến Hành", "in-progress"
             progress = int((checked / 9) * 100)
-            data.append({"key": tp_key, "name": tp_name, "worker": worker, "progress": progress, "status": status, "status_class": status_class, "checked_ids": checked_ids})
+            cv = str(row.get('Công việc', '')).strip()
+            if '写植/ﾚﾀｯﾁ' in cv or '写植/レタッチ' in cv or 'Lettering/Retouch' in cv: job_type = 'Lettering/Retouch'
+            elif '修正' in cv or 'Lettering QC' in cv: job_type = 'Lettering QC'
+            elif '写植' in cv or 'Lettering' in cv: job_type = 'Lettering'
+            elif 'レタッチ' in cv or 'ﾚﾀｯﾁ' in cv or 'Retouch' in cv: job_type = 'Retouch'
+            else: job_type = 'Prep'
+            
+            start_date = format_jp_date(str(row.get('Start', row.get('Ngày bắt đầu', ''))).strip())
+            end_date = format_jp_date(str(row.get('End', row.get('Deadline (Nộp)', row.get('Hạn chót', row.get('Deadline', ''))))).strip())
+            
+            end_w = row.get('end_w')
+            start_w = row.get('start_w')
+            is_future_deadline = (end_w != start_w) if pd.notna(end_w) and pd.notna(start_w) else False
+            
+            data.append({
+                "key": tp_key,
+                "name": tp_name,
+                "worker": worker,
+                "qc_person": qc_person,
+                "progress": progress,
+                "status": status,
+                "status_class": status_class,
+                "checked_ids": checked_ids,
+                "job_type": job_type,
+                "start_date": start_date,
+                "end_date": end_date,
+                "vn_date": format_jp_date(str(row.get('VN', '')).strip()),
+                "is_coop": row.get('is_coop', False),
+                "volume_key": vol_key,
+                "partner_worker": row.get('partner_worker', ''),
+                "partner_cv": row.get('partner_cv', ''),
+                "partner_key": row.get('partner_key', ''),
+                "partner_progress": row.get('partner_progress', 0),
+                "has_comments": has_comments,
+                "comments_count": comments_count,
+                "is_future_deadline": is_future_deadline
+            })
         return data
 
-    def get_metrics(df_target):
+    def get_metrics(df_target, target_w):
+        if df_target.empty:
+            return {"total": 0, "retouch": 0, "lettering": 0, "lettering_qc": 0, "lettering_retouch": 0, "prep": 0}
+            
+        if 'end_w' in df_target.columns:
+            df_filtered = df_target[df_target['end_w'] == target_w]
+        else:
+            df_filtered = df_target
+            
+        retouch_count = 0
+        lettering_count = 0
+        lettering_qc_count = 0
+        lettering_retouch_count = 0
+        for cv_val in df_filtered["Công việc"].astype(str):
+            cv = cv_val.strip()
+            if '写植/ﾚﾀｯﾁ' in cv or '写植/レタッチ' in cv or 'Lettering/Retouch' in cv:
+                lettering_retouch_count += 1
+            elif '修正' in cv or 'Lettering QC' in cv:
+                lettering_qc_count += 1
+            elif '写植' in cv or 'Lettering' in cv:
+                lettering_count += 1
+            elif 'レタッチ' in cv or 'ﾚﾀｯﾁ' in cv or 'Retouch' in cv:
+                retouch_count += 1
+        total_count = len(df_filtered)
+        prep_count = total_count - (retouch_count + lettering_count + lettering_qc_count + lettering_retouch_count)
         return {
-            "total": len(df_target),
-            "retouch": len(df_target[df_target["Công việc"].astype(str).str.contains("Retouch|レタッチ", case=False, na=False)]) if not df_target.empty else 0,
-            "lettering": len(df_target[df_target["Công việc"].astype(str).str.contains("Lettering|写植", case=False, na=False)]) if not df_target.empty else 0
+            "total": total_count,
+            "retouch": retouch_count,
+            "lettering": lettering_count,
+            "lettering_qc": lettering_qc_count,
+            "lettering_retouch": lettering_retouch_count,
+            "prep": prep_count
         }
 
     def generate_ai_insights(dash_nay, dash_truoc, lang):
@@ -704,28 +1489,29 @@ def process_dashboard_data():
     USER_DB = load_users_from_sheet(USER_SHEET_URL)
     users = list(USER_DB.keys())
     
-    dash_nay = build_dashboard(df_tuan_nay)
-    dash_truoc = build_dashboard(df_tuan_truoc)
-    dash_sau = build_dashboard(df_tuan_sau)
+    dash_nay = build_dashboard(df_tuan_nay, target_week_nay)
+    dash_truoc = build_dashboard(df_tuan_truoc, target_week_truoc)
+    dash_sau = build_dashboard(df_tuan_sau, target_week_sau)
     ai_insights = generate_ai_insights(dash_nay, dash_truoc, lang)
 
     # Garbage Collect Checklists
-    active_keys = set()
-    for row in dash_nay + dash_truoc + dash_sau:
-        active_keys.add(row['key'])
+    if role != "member":
+        active_keys = set()
+        for row in dash_nay + dash_truoc + dash_sau:
+            active_keys.add(row['key'])
 
-    try:
-        with checklist_lock:
-            chk_data = get_supabase_checklists()
-            if chk_data:
-                keys_to_delete = [k for k in chk_data.keys() if k not in active_keys]
-                if keys_to_delete:
-                    for k in keys_to_delete:
-                        del chk_data[k]
-                    json_data = json.dumps(chk_data, ensure_ascii=False).encode('utf-8')
-                    sb_upload('_system/checklists.json', json_data, content_type='application/json')
-    except Exception as e:
-        print("Cleanup checklist error:", e)
+        try:
+            with checklist_lock:
+                chk_data = get_supabase_checklists()
+                if chk_data:
+                    keys_to_delete = [k for k in chk_data.keys() if k not in active_keys]
+                    if keys_to_delete:
+                        for k in keys_to_delete:
+                            del chk_data[k]
+                        json_data = json.dumps(chk_data, ensure_ascii=False).encode('utf-8')
+                        sb_upload('_system/checklists.json', json_data, content_type='application/json')
+        except Exception as e:
+            print("Cleanup checklist error:", e)
 
     return {
         'user': user,
@@ -745,19 +1531,19 @@ def process_dashboard_data():
                 'info': info_truoc,
                 'tasks': df_to_records(df_tuan_truoc),
                 'dashboard': dash_truoc,
-                'metrics': get_metrics(df_tuan_truoc),
+                'metrics': get_metrics(df_tuan_truoc, target_week_truoc),
             },
             'nay': {
                 'info': info_nay,
                 'tasks': df_to_records(df_tuan_nay),
                 'dashboard': dash_nay,
-                'metrics': get_metrics(df_tuan_nay),
+                'metrics': get_metrics(df_tuan_nay, target_week_nay),
             },
             'sau': {
                 'info': info_sau,
                 'tasks': df_to_records(df_tuan_sau),
                 'dashboard': dash_sau,
-                'metrics': get_metrics(df_tuan_sau),
+                'metrics': get_metrics(df_tuan_sau, target_week_sau),
             }
         }
     }
@@ -804,7 +1590,16 @@ def api_checklist_sync():
                 data = get_supabase_checklists()
                 if tp_key not in data:
                     data[tp_key] = {}
+                was_checked = data[tp_key].get(cb_id, False)
                 data[tp_key][cb_id] = bool(status)
+                
+                # Check reward condition BEFORE uploading
+                reward_granted = False
+                if bool(status) and not was_checked:
+                    checked_count = sum(1 for k, v in data[tp_key].items() if v and not k.startswith('_'))
+                    if checked_count >= 9 and not data[tp_key].get('_rewarded', False):
+                        data[tp_key]['_rewarded'] = True
+                        reward_granted = True
                 
                 # Upload to Supabase
                 json_data = json.dumps(data, ensure_ascii=False).encode('utf-8')
@@ -812,18 +1607,10 @@ def api_checklist_sync():
                 global checklist_version
                 checklist_version += 1
         
-        # Pet XP: +0 khi tick checkbox ON (chỉ lấy thịt)
         pet_result = None
-        if bool(status):
+        if reward_granted:
             username = session.get('user', '')
             pet_result = pet_add_xp(username, 0, 'checklist')
-            # Check 9/9 completion bonus
-            if tp_key and tp_key in data:
-                checked_count = sum(1 for v in data[tp_key].values() if v)
-                if checked_count >= 9:
-                    bonus = pet_add_xp(username, 0, 'checklist_bonus')
-                    if bonus:
-                        pet_result = bonus
 
         # Broadcast to other clients
         socketio.emit('checklist_updated', {
@@ -839,6 +1626,162 @@ def api_checklist_sync():
     except Exception as e:
         print("Error saving checklist:", e)
         return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route('/api/task_comments', methods=['GET', 'POST'])
+def api_task_comments():
+    if not session.get('logged_in'):
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+    
+    if request.method == 'GET':
+        tp_key = request.args.get('tp_key', '').strip()
+        comments_db = get_supabase_task_comments()
+        if tp_key:
+            return jsonify({"status": "success", "comments": comments_db.get(tp_key, [])})
+        return jsonify({"status": "success", "comments_db": comments_db})
+        
+    if request.method == 'POST':
+        data = request.get_json() or {}
+        tp_key = data.get('tp_key', '').strip()
+        message = data.get('message', '').strip()
+        tag = data.get('tag', 'chat')
+        user = session.get('user', '')
+        
+        if not tp_key or not message:
+            return jsonify({"status": "error", "message": "Missing task or message"}), 400
+            
+        now = datetime.now()
+        comment_item = {
+            "id": f"{int(time.time()*1000)}",
+            "user": user,
+            "message": message,
+            "tag": tag,
+            "time": now.strftime('%H:%M %d/%m'),
+            "timestamp": int(time.time())
+        }
+        
+        comments_db = get_supabase_task_comments()
+        if tp_key not in comments_db:
+            comments_db[tp_key] = []
+        comments_db[tp_key].append(comment_item)
+        save_supabase_task_comments(comments_db)
+        
+        # Collect assignees for this task / volume to target notifications
+        assignees = []
+        try:
+            df_raw = load_sheet_data(csv_url)
+            df_truoc = load_sheet_data(csv_url_truoc)
+            combined_df = pd.concat([df_raw, df_truoc], ignore_index=True)
+            for _, r in combined_df.iterrows():
+                tp = str(r.get('Tên tác phẩm', '')).strip()
+                tap = str(r.get('Tập', '')).strip()
+                vol = f"{tap}_{tp}" if tap and tap.lower() not in ['nan', 'none', ''] else tp
+                if vol in tp_key or tp_key in vol or tp in tp_key or tp_key in tp:
+                    w = str(r.get('Người thực hiện', '')).strip()
+                    if w and w.lower() not in ['nan', 'none', '']:
+                        for p in w.split(','):
+                            p_clean = p.strip()
+                            if p_clean and p_clean not in assignees:
+                                assignees.append(p_clean)
+        except Exception:
+            pass
+
+        # Broadcast via SocketIO
+        socketio.emit('task_comment_new', {
+            "tp_key": tp_key,
+            "comment": comment_item,
+            "assignees": assignees
+        })
+        
+        return jsonify({"status": "success", "comment": comment_item})
+
+@app.route('/api/task_comments/delete', methods=['POST'])
+def api_task_comments_delete():
+    if not session.get('logged_in'):
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+    
+    data = request.get_json() or {}
+    tp_key = data.get('tp_key', '').strip()
+    comment_id = str(data.get('id', '')).strip()
+    user = session.get('user', '')
+    role = session.get('role', 'member')
+    
+    if not comment_id:
+        return jsonify({"status": "error", "message": "Missing comment ID"}), 400
+        
+    comments_db = get_supabase_task_comments()
+    found_key = None
+    target_comment = None
+    
+    if tp_key and tp_key in comments_db:
+        matches = [c for c in comments_db[tp_key] if str(c.get('id')) == comment_id]
+        if matches:
+            found_key = tp_key
+            target_comment = matches[0]
+            
+    if not found_key:
+        for k, clist in comments_db.items():
+            matches = [c for c in clist if str(c.get('id')) == comment_id]
+            if matches:
+                found_key = k
+                target_comment = matches[0]
+                break
+                
+    if found_key and target_comment:
+        comment_owner = target_comment.get('user', '')
+        if user == comment_owner or role in ['admin', 'manager', 'leader']:
+            comments_db[found_key] = [c for c in comments_db[found_key] if str(c.get('id')) != comment_id]
+            save_supabase_task_comments(comments_db)
+            
+            socketio.emit('task_comment_deleted', {
+                "tp_key": found_key,
+                "id": comment_id
+            })
+        else:
+            return jsonify({"status": "error", "message": "Permission denied"}), 403
+            
+    return jsonify({"status": "success"})
+
+@app.route('/api/task_links', methods=['GET', 'POST'])
+def api_task_links():
+    if not session.get('logged_in'):
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+        
+    if request.method == 'GET':
+        tp_key = request.args.get('tp_key', '').strip()
+        links_db = get_supabase_task_links()
+        if tp_key:
+            return jsonify({"status": "success", "links": links_db.get(tp_key, {})})
+        return jsonify({"status": "success", "links_db": links_db})
+        
+    if request.method == 'POST':
+        data = request.get_json() or {}
+        tp_key = data.get('tp_key', '').strip()
+        raw_links = data.get('links', {})
+        if not tp_key:
+            return jsonify({"status": "error", "message": "Missing tp_key"}), 400
+            
+        def sanitize_url(u):
+            if not u: return ""
+            return str(u).strip()
+            
+        sanitized_links = {
+            "mikan": sanitize_url(raw_links.get('mikan', '')),
+            "notion": sanitize_url(raw_links.get('notion', '')),
+            "asana": sanitize_url(raw_links.get('asana', '')),
+            "dropbox": sanitize_url(raw_links.get('dropbox', ''))
+        }
+        
+        links_db = get_supabase_task_links()
+        links_db[tp_key] = sanitized_links
+        save_supabase_task_links(links_db)
+        
+        # Broadcast via SocketIO
+        socketio.emit('task_links_updated', {
+            "tp_key": tp_key,
+            "links": sanitized_links
+        })
+        
+        return jsonify({"status": "success", "links": sanitized_links})
 
 @app.route('/api/weather')
 def api_weather():
@@ -886,10 +1829,113 @@ def api_weather():
         }
         return jsonify(dummy_data)
 
+@app.route('/api/insights', methods=['POST'])
+def api_insights():
+    try:
+        data = request.json or {}
+        lang = data.get('lang', 'vi')
+        summary = data.get('summary', {})
+        
+        is_vi = lang == 'vi'
+        insights = []
+        
+        total_nay = int(summary.get('total_nay', 0))
+        total_truoc = int(summary.get('total_truoc', 0))
+        completed = int(summary.get('completed', 0))
+        not_started = int(summary.get('not_started', 0))
+        
+        # 1. Weather Insight
+        try:
+            loc = 'Ho+Chi+Minh' if is_vi else 'Gifu'
+            now = time.time()
+            loc_insight = loc + '_insight'
+            if loc_insight in weather_cache and now - weather_cache[loc_insight]['time'] < 1800:
+                om_data = weather_cache[loc_insight]['data']
+            else:
+                lat, lon = (10.823, 106.6296) if loc == 'Ho+Chi+Minh' else (35.4233, 136.7607)
+                url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&daily=weather_code&timezone=Asia%2FBangkok"
+                om_data = requests.get(url, timeout=3).json()
+                weather_cache[loc_insight] = {'time': now, 'data': om_data, 'open_meteo': True}
+            
+            if 'daily' in om_data and 'weather_code' in om_data['daily']:
+                today_code = om_data['daily']['weather_code'][0]
+                if today_code >= 51:
+                    insights.append("🌧️ Sắp tới có khả năng mưa, bạn ra ngoài nhớ mang theo ô nhé!" if is_vi else "🌧️ もうすぐ雨が降る可能性があります。外出時は傘をお忘れなく！")
+                else:
+                    insights.append("☀️ Thời tiết khá đẹp, chúc bạn một ngày làm việc tràn đầy năng lượng!" if is_vi else "☀️ 天気は良好です。今日も一日頑張りましょう！")
+        except Exception as e:
+            print(f"Weather prediction error in insights API: {e}")
+            
+        # 2. Basic Statistical Insights
+        if total_truoc > 0:
+            diff = ((total_nay - total_truoc) / total_truoc) * 100
+            if diff > 0:
+                insights.append(f"📈 Khối lượng task tăng {diff:.0f}% so với tuần trước." if is_vi else f"📈 今週のタスク量は先週より{diff:.0f}%増加。")
+            elif diff < 0:
+                insights.append(f"📉 Khối lượng task giảm {-diff:.0f}% so với tuần trước." if is_vi else f"📉 今週のタスク量は先週より{-diff:.0f}%減少。")
+            else:
+                insights.append(f"⚖️ Khối lượng task ổn định so với tuần trước." if is_vi else f"⚖️ 今週のタスク量は先週と同じです。")
+        else:
+            insights.append(f"🚀 Một tuần mới đầy năng lượng! Hãy lập kế hoạch thật tốt nhé." if is_vi else f"🚀 新しい一週間の始まりです！計画をしっかり立てましょう。")
+        
+        if total_nay > 0:
+            completion_rate = (completed / total_nay) * 100
+            if completion_rate >= 100:
+                insights.append(f"🏆 Xuất sắc! Toàn bộ công việc tuần này đã được hoàn thành 100%." if is_vi else f"🏆 素晴らしい！全てのタスクが完了しました。")
+            elif completion_rate >= 80:
+                insights.append(f"🔥 Tuyệt vời! Đã hoàn thành {completion_rate:.0f}% công việc." if is_vi else f"🔥 素晴らしい！タスクの{completion_rate:.0f}%が完了しました。")
+            elif completion_rate > 0:
+                insights.append(f"📊 Tiến độ: {completion_rate:.0f}% task đã hoàn thành." if is_vi else f"📊 現在の進捗：タスクの{completion_rate:.0f}%が完了。")
+            else:
+                insights.append(f"🎯 Hãy bắt tay vào hoàn thành task đầu tiên của tuần này nhé!" if is_vi else f"🎯 今週の最初のタスクを完了させましょう！")
+                
+            in_progress = total_nay - completed - not_started
+            if in_progress > 0:
+                insights.append(f"⏳ Đang xử lý {in_progress} task, cố lên nào team!" if is_vi else f"⏳ 現在{in_progress}件のタスクが進行中です。頑張って！")
+                
+            if not_started > 0:
+                insights.append(f"⚠️ Chú ý: Còn {not_started} task chưa bắt đầu." if is_vi else f"⚠️ 注意：まだ開始されていないタスクが{not_started}件。")
+            else:
+                if completed < total_nay:
+                    insights.append(f"✨ Tuyệt vời! Tất cả các task đều đã được bắt đầu triển khai." if is_vi else f"✨ 素晴らしい！全てのタスクが開始されました。")
+
+        # 3. LLM Insights via Groq
+        groq_api_key = os.environ.get('GROQ_API_KEY', '')
+        if groq_api_key:
+            prompt = f"Bạn là một trợ lý AI thông minh phân tích tiến độ công việc của team dựa trên dữ liệu sau:\n"
+            prompt += f"Ngôn ngữ: {'Tiếng Việt' if is_vi else '日本語'}\n"
+            prompt += f"Tổng số task tuần này: {total_nay}\n"
+            prompt += f"Tổng số task tuần trước: {total_truoc}\n"
+            prompt += f"Số task đã hoàn thành tuần này: {completed}\n"
+            prompt += f"Số task chưa bắt đầu: {not_started}\n"
+            prompt += f"Hãy viết NGẮN GỌN (tối đa 2 câu) nhận xét về tiến độ và khích lệ team. Trả lời duy nhất nội dung nhận xét, bắt đầu bằng emoji phù hợp (như 🚀, 🔥, 📉, ⚠️)."
+            
+            try:
+                res = requests.post(
+                    "https://api.groq.com/openai/v1/chat/completions",
+                    headers={"Authorization": f"Bearer {groq_api_key}", "Content-Type": "application/json"},
+                    json={
+                        "model": "llama-3.1-8b-instant",
+                        "messages": [{"role": "user", "content": prompt}],
+                        "temperature": 0.7,
+                        "max_tokens": 100
+                    },
+                    timeout=5
+                )
+                if res.status_code == 200:
+                    ai_text = res.json()["choices"][0]["message"]["content"].strip()
+                    if ai_text:
+                        insights.append(ai_text)
+            except Exception as e:
+                print(f"Groq API error in insights: {e}")
+                
+        return jsonify({"status": "success", "insights": insights})
+    except Exception as e:
+        print("API Insights error:", e)
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 @app.route('/api/chart_data')
 def api_chart_data():
-    if not session.get('logged_in'):
-        return jsonify([])
     return jsonify(load_vntask_details())
 
 @app.route('/')
@@ -1492,13 +2538,24 @@ def dashboard():
 
     return render_template('dashboard.html', **data)
 
-@app.route('/set-lang')
-def set_lang():
-    lang = request.args.get('lang', 'vi')
-    if lang in ('vi', 'ja'):
-        session['lang'] = lang
-    next_url = request.args.get('next', '/dashboard')
-    return redirect(next_url)
+@app.route('/debug-who-am-i')
+def debug_who_am_i():
+    import os, re
+    t_path = os.path.abspath(os.path.join(app.template_folder, 'dashboard.html'))
+    try:
+        with open(t_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        ver_match = re.findall(r'v1\.\d+\.\d+', content)
+    except Exception as e:
+        ver_match = [str(e)]
+    return jsonify({
+        'pid': os.getpid(),
+        'cwd': os.getcwd(),
+        'file': os.path.abspath(__file__),
+        'template_path': t_path,
+        'versions_in_file': ver_match[:5]
+    })
+
 
 # =====================================================================
 # 10. API ENDPOINTS
@@ -1509,6 +2566,30 @@ def api_logtime():
         return jsonify({"status": "error", "message": "Unauthorized"}), 401
     
     data = request.get_json()
+    if not data:
+        return jsonify({"status": "error", "message": "Không có dữ liệu gửi lên"}), 400
+
+    # Bắt buộc điền đủ tất cả các trường, ngoại lệ chỉ ghi chú được bỏ trống
+    required_map = {
+        'category': 'Loại truyện',
+        'difficulty': 'Độ khó',
+        'nguoi_thuc_hien': 'Người làm',
+        'ngay_log': 'Ngày làm việc',
+        'so_gio': 'Giờ làm hôm nay',
+        'so_trang_tong': 'Tổng số trang',
+        'so_page': 'Số page hoàn thành'
+    }
+    for field_key, field_name in required_map.items():
+        val = data.get(field_key)
+        if val is None or str(val).strip() == '':
+            return jsonify({"status": "error", "message": f"Vui lòng nhập/chọn {field_name}, không được để trống!"}), 400
+
+    try:
+        if float(data.get('so_gio', 0)) <= 0:
+            return jsonify({"status": "error", "message": "Giờ làm hôm nay phải lớn hơn 0!"}), 400
+    except (ValueError, TypeError):
+        return jsonify({"status": "error", "message": "Giờ làm hôm nay không hợp lệ!"}), 400
+
     if save_logtime(data):
         # Pet XP: +0 khi submit logtime (Pet reward)
         username = session.get('user', '')
@@ -1519,6 +2600,34 @@ def api_logtime():
         return jsonify(resp)
     else:
         return jsonify({"status": "error", "message": "Lỗi khi lưu logtime"}), 500
+
+@app.route('/api/log_member_time', methods=['POST'])
+def api_log_member_time():
+    if not session.get('logged_in'):
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+    
+    data = request.get_json()
+    username = session.get('user', '')
+    payload = {
+        "action": "log_member_time",
+        "username": username,
+        "task_name": data.get('task_name', ''),
+        "duration": data.get('duration', '0'),
+        "start_time": data.get('start_time', ''),
+        "end_time": data.get('end_time', ''),
+        "start_date": data.get('start_date', ''),
+        "end_date": data.get('end_date', ''),
+        "note": data.get('note', '')
+    }
+    
+    try:
+        res = requests.post(LOGTIME_API_URL, json=payload)
+        if res.status_code == 200 and res.json().get('status') == 'success':
+            return jsonify({"status": "success"})
+        return jsonify({"status": "error", "message": "Apps Script error"})
+    except Exception as e:
+        print("Log member time error:", e)
+        return jsonify({"status": "error", "message": "Server error"}), 500
 
 @app.route('/api/change-password', methods=['POST'])
 def api_change_password():
@@ -1582,6 +2691,101 @@ def calendar_view():
         return redirect(embed_url)
     return "<h3 style='color: #cbd5e1; font-family: sans-serif; text-align: center; margin-top: 50px;'>Vui lòng dán mã nhúng vào biến GOOGLE_CALENDAR_EMBED_URL trong file .env.local</h3>", 200
 
+@app.route('/api/export_notion_csv')
+def export_notion_csv():
+    import csv, io
+    from flask import make_response
+    if not session.get('logged_in'):
+        return redirect('/')
+    w = request.args.get('w', 'nay')
+    data = process_dashboard_data()
+    if not data or 'weeks' not in data or w not in data['weeks']:
+        return "No data", 404
+        
+    dashboard_data = data['weeks'][w]['dashboard']
+    
+    si = io.StringIO()
+    si.write('\ufeff')
+    writer = csv.writer(si)
+    writer.writerow(['Name', '作品名', 'ステータス', 'Start Date', 'End Date', '作業者', '納品日'])
+    
+    for row in dashboard_data:
+        title = row.get('job_type', '')
+        project_name = row.get('name', '')
+        status_class = row.get('status_class', '')
+        if status_class == 'delivered':
+            status = 'Done'
+        elif status_class == 'in-progress':
+            status = 'In Progress'
+        else:
+            status = 'Not Started'
+            
+        start_date = row.get('start_date', '')
+        end_date = row.get('end_date', '')
+        worker = row.get('worker', '')
+        deadline = row.get('end_date', '') 
+        
+        writer.writerow([title, project_name, status, start_date, end_date, worker, deadline])
+        
+    output = make_response(si.getvalue())
+    output.headers["Content-Disposition"] = f"attachment; filename=notion_export_{w}.csv"
+    output.headers["Content-type"] = "text/csv"
+    return output
+
+@app.route('/api/export_single_notion_csv')
+def export_single_notion_csv():
+    import csv, io
+    from flask import make_response
+    if not session.get('logged_in'):
+        return redirect('/')
+    tp_key = request.args.get('tp_key', '')
+    if not tp_key:
+        return "No task specified", 400
+        
+    data = process_dashboard_data()
+    if not data:
+        return "No data", 404
+        
+    target_row = None
+    for w in ['truoc', 'nay', 'sau']:
+        for row in data['weeks'][w]['dashboard']:
+            if str(row.get('key')) == str(tp_key):
+                target_row = row
+                break
+        if target_row:
+            break
+            
+    if not target_row:
+        return "Task not found", 404
+        
+    si = io.StringIO()
+    si.write('\ufeff')
+    writer = csv.writer(si)
+    writer.writerow(['Name', '作品名', 'ステータス', 'Start Date', 'End Date', '作業者', '納品日'])
+    
+    title = target_row.get('job_type', '')
+    project_name = target_row.get('name', '')
+    status_class = target_row.get('status_class', '')
+    if status_class == 'delivered':
+        status = 'Done'
+    elif status_class == 'in-progress':
+        status = 'In Progress'
+    else:
+        status = 'Not Started'
+        
+    start_date = target_row.get('start_date', '')
+    end_date = target_row.get('end_date', '')
+    worker = target_row.get('worker', '')
+    deadline = target_row.get('end_date', '') 
+    
+    writer.writerow([title, project_name, status, start_date, end_date, worker, deadline])
+    
+    output = make_response(si.getvalue())
+    output.headers["Content-Disposition"] = f"attachment; filename=notion_export_{tp_key}.csv"
+    output.headers["Content-type"] = "text/csv"
+    return output
+
+
 @app.route('/api/data')
 def api_data():
     if not session.get('logged_in'):
@@ -1644,13 +2848,32 @@ def _get_random_accessory(pet):
     return random.choice(available)['id']
 
 PET_TYPES = {
-    'neko':    {'name_vi': 'Mèo Neko',   'name_ja': 'ネコ',      'emoji': '🐈'},
-    'shiba':   {'name_vi': 'Chó Shiba',  'name_ja': '柴犬',     'emoji': '🐕'},
-    'bunny':   {'name_vi': 'Thỏ',        'name_ja': 'うさぎ',   'emoji': '🐰'},
-    'dragon':  {'name_vi': 'Rồng',       'name_ja': 'ドラゴン', 'emoji': '🐲'},
-    'fox':     {'name_vi': 'Cáo',        'name_ja': 'キツネ',   'emoji': '🦊'},
-    'hamster': {'name_vi': 'Hamster',    'name_ja': 'ハムスター','emoji': '🐹'},
+    'shiba':          {'name_vi': 'Chó Cưng',               'name_ja': '子犬',        'emoji': '🐕', 'sound': 'Gâu gâu! Woof! 🐾',   'food_name': 'Xương thịt 🍖', 'desc': 'Trung thành, hoạt bát, luôn hăng hái nhắc bạn nộp task'},
+    'neko':           {'name_vi': 'Mèo Kitty',              'name_ja': '子猫',        'emoji': '🐱', 'sound': 'Nya~ Meow! 🐾',       'food_name': 'Cá tươi 🐟',   'desc': 'Dễ thương, quấn quýt, thích được xoa đầu và cưng nựng'},
+    'fox':            {'name_vi': 'Hổ Vằn',                 'name_ja': 'トラ',        'emoji': '🐯', 'sound': 'Grrr~ Gầm! 🐾',       'food_name': 'Thịt bò 🥩',   'desc': 'Dũng mãnh, bảo vệ bạn hoàn thành mọi deadline'},
+    'bunny':          {'name_vi': 'Cánh Cụt',               'name_ja': 'ペンギン',    'emoji': '🐧', 'sound': 'Pingu pingu~ ❄️',     'food_name': 'Cá nhỏ 🐟',   'desc': 'Lon ton, ngộ nghĩnh, dáng đi lắc lư cực kỳ giải trí'},
+    'panda':          {'name_vi': 'Ngựa Con',               'name_ja': '子馬',        'emoji': '🐴', 'sound': 'Hí hí~ Nhong! 🌾',    'food_name': 'Cà rốt 🥕',   'desc': 'Năng động, chạy nhảy siêu nhanh giúp tiến độ luôn thần tốc'},
+    'dragon':         {'name_vi': 'Hươu Sao',               'name_ja': 'シカ',        'emoji': '🦌', 'sound': 'Ngơ ngác ngác~ 🌿',   'food_name': 'Lộc non 🍀',   'desc': 'Thanh thoát, hiền lành, mang lại may mắn và bình an'},
+    'chicken':        {'name_vi': 'Gà Con',                 'name_ja': 'ヒヨコ',      'emoji': '🐥', 'sound': 'Chíp chíp! 🌾',       'food_name': 'Thóc vàng 🌾', 'desc': 'Nhí nhảnh, siêng năng dậy sớm gáy nhắc việc'},
+    'husky':          {'name_vi': 'Chó Husky',              'name_ja': 'ハスキー',    'emoji': '🐺', 'sound': 'Húuu~ Woof! ❄️',     'food_name': 'Thịt nướng 🍖', 'desc': 'Ngáo ngơ, hài hước, năng lượng tràn trề tiếp thêm động lực'},
+    'alpaca':         {'name_vi': 'Lạc Đà Alpaca',          'name_ja': 'アルパカ',    'emoji': '🦙', 'sound': 'Hummm~ 🌸',           'food_name': 'Cỏ non 🌿',    'desc': 'Bông xù đáng yêu, điềm tĩnh xả stress cực tốt'},
+    'duck':           {'name_vi': 'Vịt Vàng',               'name_ja': 'アヒル',      'emoji': '🦆', 'sound': 'Cạp cạp! Quack! 🌊',   'food_name': 'Bánh mì 🍞',   'desc': 'Vui tươi, dáng đi lạch bạch ngộ nghĩnh xua tan mệt mỏi'},
+    'redfox':         {'name_vi': 'Cáo Đỏ',                 'name_ja': 'キツネ',      'emoji': '🦊', 'sound': 'Yip yip! 🍁',          'food_name': 'Quả mọng 🫐',  'desc': 'Nhanh nhẹn, thông minh, tinh ranh giúp bạn xử lý task thần tốc'},
+    'cat':            {'name_vi': 'Mèo Mun',                'name_ja': '黒猫',        'emoji': '🐈', 'sound': 'Meo meo~ Nya! 🐾',      'food_name': 'Cá nướng 🐟',  'desc': 'Linh hoạt, uyển chuyển, thích nhảy nhót và xoa đầu'},
+    'deer_forest':    {'name_vi': 'Hươu Rừng',              'name_ja': '森のシカ',    'emoji': '🦌', 'sound': 'Ngơ ngác~ 🌲',         'food_name': 'Cỏ tươi 🌿',   'desc': 'Dáng vẻ oai phong, bước đi uyển chuyển giữa rừng xanh'},
+    'horse_stallion': {'name_vi': 'Chiến Mã',               'name_ja': '駿馬',        'emoji': '🐎', 'sound': 'Hí hí~ Phi nhanh! ⚔️', 'food_name': 'Táo đỏ 🍎',   'desc': 'Dũng mãnh, phi nước đại bứt phá mọi chỉ tiêu công việc'},
+    'shiba_inu':      {'name_vi': 'Shiba Inu',              'name_ja': '柴犬',        'emoji': '🐕', 'sound': 'Gâu gâu! Wan! 🐾',     'food_name': 'Thịt nướng 🍖', 'desc': 'Chó Shiba chuẩn Nhật Bản, thông minh và trung thành'},
 }
+
+# Aliases for multi-key compatibility
+PET_TYPES['dog'] = PET_TYPES['shiba']
+PET_TYPES['kitty'] = PET_TYPES['neko']
+PET_TYPES['tiger'] = PET_TYPES['fox']
+PET_TYPES['penguin'] = PET_TYPES['bunny']
+PET_TYPES['pinguin'] = PET_TYPES['bunny']
+PET_TYPES['horse'] = PET_TYPES['panda']
+PET_TYPES['deer'] = PET_TYPES['dragon']
+PET_TYPES['duckling'] = PET_TYPES['duck']
 
 # XP thresholds per level range
 def _pet_xp_for_level(level):
@@ -1766,7 +2989,22 @@ def _pet_write(username, pet_data):
             return True
         except Exception as e:
             print(f"Local pet write error for {username}: {e}")
-            return False
+def _pet_delete(username):
+    """Xóa hoàn toàn pet data của user khỏi Supabase và Local."""
+    if not username:
+        return
+    if USE_SUPABASE:
+        try:
+            sb_user = safe_sb_filename(username)
+            sb_delete([f'_system/pets/{sb_user}.json', f'_system/pets/{username}.json'])
+        except Exception as e:
+            print(f"Pet delete error on Supabase for {username}: {e}")
+    try:
+        path = os.path.join(DRIVE_ROOT, '_system', 'pets', f'{username}.json')
+        if os.path.exists(path):
+            os.remove(path)
+    except Exception as e:
+        print(f"Local pet delete error for {username}: {e}")
 
 
 def pet_add_xp(username, amount, reason=''):
@@ -1852,8 +3090,7 @@ def api_pet_reset():
     if not session.get('logged_in'):
         return jsonify({'error': 'Unauthorized'}), 401
     username = session.get('user', '')
-    # Ghi đè bằng dict rỗng để xóa hoàn toàn pet
-    _pet_write(username, {})
+    _pet_delete(username)
     return jsonify({'success': True})
 
 @app.route('/api/pet', methods=['GET'])
@@ -1944,7 +3181,7 @@ def api_pet_get():
     if needs_write:
         _pet_write(username, pet)
 
-    return jsonify({'has_pet': True, **pet})
+    return jsonify({'has_pet': True, 'pet_types': PET_TYPES, **pet})
 
 
 @app.route('/api/pet/adopt', methods=['POST'])
@@ -1986,53 +3223,106 @@ def api_pet_adopt():
     return jsonify({'error': 'Failed to save'}), 500
 
 
+@app.route('/api/pet/switch', methods=['POST'])
+def api_pet_switch():
+    """Chuyển đổi loài thú cưng (giữ nguyên level, xp, food, streak)."""
+    if not session.get('logged_in'):
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    username = session.get('user', '')
+    pet = _pet_read(username)
+    if not pet:
+        return jsonify({'error': 'No pet'}), 404
+
+    data = request.get_json(silent=True) or {}
+    new_type = data.get('type', '').strip()
+    if new_type not in PET_TYPES:
+        return jsonify({'error': 'Invalid pet type'}), 400
+
+    pet['type'] = new_type
+    new_name = data.get('name', '').strip()
+    if new_name and len(new_name) <= 20:
+        pet['name'] = new_name
+    pet['last_activity'] = datetime.now().isoformat()
+
+    if _pet_write(username, pet):
+        return jsonify({'success': True, 'pet': pet})
+    return jsonify({'error': 'Failed to save'}), 500
+
+
 @app.route('/api/pet/brief', methods=['GET'])
 def api_pet_brief():
-    """Lấy thông báo Now Brief từ Groq AI cho Pet."""
+    """Lấy thông báo Now Brief từ Groq AI cho Pet theo đúng loài thú cưng."""
     GROQ_API_KEY = os.environ.get('GROQ_API_KEY', '')
-    if not GROQ_API_KEY:
-        # Fallback dummy logic
-        return jsonify({
-            "message": "Trời hôm nay đẹp quá! Bạn có muốn nghe nhạc cùng mình không? 🎵",
-            "action": {
-                "type": "play_music",
-                "payload": "KxGrk4n9Duo", # Son Tung MTP - Hay trao cho anh
-                "title": "Hãy trao cho anh"
-            }
-        })
-    
-    username = session.get('user', 'Guest')
-    context_str = f"User: {username}\n"
-    
+    username = session.get('user', 'Bạn')
+    pet = _pet_read(username) or {}
+    pet_type = pet.get('type', 'shiba')
+    pet_name = pet.get('name', 'Bé cưng')
+    pet_info = PET_TYPES.get(pet_type, PET_TYPES.get('shiba', {}))
+    species_sound = pet_info.get('sound', 'Woof!')
+    species_name = pet_info.get('name_vi', 'Thú cưng')
+
+    # Fallback message chuẩn loài
+    fallback_msg = f"{species_sound} Xin chào {username}! Chúc bạn một ngày làm việc tràn đầy năng lượng và thật nhiều may mắn nha! ✨"
+
     global radio_state
-    if radio_state.get('is_playing') and radio_state.get('dj_username'):
-        context_str += f"Music room: {radio_state['dj_username']} is DJing.\n"
+    radio_playing = radio_state.get('is_playing') and radio_state.get('dj_username')
+    radio_dj = radio_state.get('dj_username', '')
+
+    context_str = f"User: {username}\nPet Name: {pet_name}\nPet Species: {species_name} ({pet_type})\nSignature Sound: {species_sound}\n"
+    if radio_playing:
+        context_str += f"Music room: {radio_dj} is DJing right now.\n"
     else:
         context_str += "Music room: silent.\n"
-        
+
     loc = 'Ho+Chi+Minh'
     w_data = "Unknown"
     if loc in weather_cache:
         w_data = f"Temp: {weather_cache[loc]['data'].get('temp', '?')}C, Code: {weather_cache[loc]['data'].get('wmo', '?')}"
     context_str += f"Weather: {w_data}\n"
-    
+
+    if not GROQ_API_KEY:
+        action_data = None
+        if not radio_playing:
+            action_data = {
+                "type": "play_music",
+                "payload": "KxGrk4n9Duo",
+                "title": "Hãy trao cho anh"
+            }
+        return jsonify({
+            "message": fallback_msg,
+            "action": action_data
+        })
+
     prompt = f"""
-You are a cute virtual pet assistant. The user {username} just clicked on you.
+You are {pet_name}, a cute virtual {species_name} ({pet_type}).
+Your signature sound/catchphrase is: "{species_sound}".
+The user {username} just clicked or interacted with you.
+
 Context:
 {context_str}
 
-Task: Generate a short, friendly, and cute greeting/notification (in Vietnamese).
-Mention the weather or music room if relevant. 
-Recommend a YouTube song (provide a valid 11-char YouTube video ID) if the music room is silent, e.g., "Hãy trao cho anh" (KxGrk4n9Duo).
-Return ONLY valid JSON format:
+Task: Generate a short (1-2 sentences), friendly, heartwarming, and super cute message in Vietnamese.
+CRITICAL RULE: YOU MUST MATCH THE ANIMAL SPECIES!
+- If Shiba/Dog: Energetic, loyal, eager ("Gâu gâu! Woof!"). NEVER say meow/nya!
+- If Neko/Cat: Sweet, playful, slightly regal ("Nya~ Meow meow!").
+- If Bunny/Rabbit: Gentle, cute ("Pyon pyon~").
+- If Fox/Kitsune: Clever, mischievous ("Kon kon~").
+- If Panda: Chill, relaxed, calm, cute ("Panda roll~").
+- If Dragon: Enthusiastic, fiery yet adorable ("Grrr~ Phì phì!").
+
+Mention hydration (uống nước), taking breaks, deadline cheer, or music if appropriate.
+If music room is silent, you may recommend a fun song with a valid 11-char YouTube ID (e.g. "KxGrk4n9Duo").
+Return ONLY valid JSON:
 {{
-    "message": "your cute message here",
+    "message": "câu thoại siêu cute ở đây",
     "action": {{
         "type": "play_music",
         "payload": "YOUTUBE_ID",
         "title": "Song Title"
     }}
 }}
+If no music recommendation is needed or music room is already active, set "action": null.
 """
     try:
         r = requests.post(
@@ -2051,9 +3341,9 @@ Return ONLY valid JSON format:
             return jsonify(json.loads(content))
     except Exception as e:
         print("Groq API error:", e)
-        
+
     return jsonify({
-        "message": "Xin chào! Chúc bạn một ngày tốt lành nha! meow meow",
+        "message": fallback_msg
     })
 
 
@@ -2092,6 +3382,55 @@ def api_pet_feed():
                 pet['accessories'] = accs
         else:
             break
+
+@app.route('/api/pet/feed_all', methods=['POST'])
+def api_pet_feed_all():
+    """Cho pet ăn hết tất cả thức ăn hiện có."""
+    if not session.get('logged_in'):
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    username = session.get('user', '')
+    pet = _pet_read(username)
+    if not pet:
+        return jsonify({'error': 'No pet'}), 404
+
+    food_amount = pet.get('food', 0)
+    if food_amount <= 0:
+        return jsonify({'error': 'No food left', 'food': 0}), 400
+
+    pet['food'] = 0
+    pet['last_activity'] = datetime.now().isoformat()
+    pet['xp'] = pet.get('xp', 0) + (10 * food_amount)
+
+    # Level up
+    leveled_up = False
+    while True:
+        xp_needed = _pet_xp_for_level(pet.get('level', 1))
+        if pet['xp'] >= xp_needed:
+            pet['xp'] -= xp_needed
+            pet['level'] = pet.get('level', 1) + 1
+            leveled_up = True
+            
+            new_acc = _get_random_accessory(pet)
+            if new_acc:
+                accs = pet.get('accessories', [])
+                if new_acc not in accs:
+                    accs.append(new_acc)
+                pet['accessories'] = accs
+        else:
+            break
+
+    pet['stage'] = _pet_stage(pet.get('level', 1))
+    _pet_write(username, pet)
+    
+    return jsonify({
+        'success': True,
+        'food': pet['food'],
+        'xp': pet['xp'],
+        'level': pet['level'],
+        'leveled_up': leveled_up,
+        'pet_data': pet
+    })
 
     pet['stage'] = _pet_stage(pet.get('level', 1))
     pet['mood'] = 'happy'
@@ -2156,7 +3495,8 @@ _DEFAULT_RADIO_STATE = {
     'current_time': 0,
     'last_update': 0,
     'dj_username': None,
-    'allow_requests': False,
+    'allow_requests': True,
+    'is_automix_enabled': False,
     'queue': []
 }
 
@@ -2320,6 +3660,10 @@ def api_radio_sync():
         state['next_title'] = data['next_title']
     if 'video_active' in data:
         state['video_active'] = data['video_active']
+    if 'is_crossfading' in data:
+        state['is_crossfading'] = data['is_crossfading']
+    if 'is_automix_enabled' in data:
+        state['is_automix_enabled'] = data['is_automix_enabled']
     _radio_write_state(state)
     return jsonify({'success': True})
 
@@ -2363,7 +3707,8 @@ def api_radio_release():
         state['is_playing'] = False
         state['youtube_id'] = '4xDzrIxC4Dk'
         state['current_time'] = 0
-        state['allow_requests'] = False
+        state['allow_requests'] = True
+        state['is_automix_enabled'] = False
         state['queue'] = []
         _radio_write_state(state)
         _radio_write_listeners([])
@@ -2578,9 +3923,9 @@ radio_state = {
     'last_update': time.time(),
     'dj_username': None,
     'dj_sid': None,
-    'allow_requests': False,
+    'allow_requests': True,
     'is_crossfading': False,
-    'is_automix_enabled': True
+    'is_automix_enabled': False
 }
 
 radio_queue = []
@@ -2703,6 +4048,8 @@ def handle_radio_sync(data):
     if 'video_active' in data:
         radio_state['video_active'] = data['video_active']
     radio_state['is_crossfading'] = data.get('is_crossfading', False)
+    if 'is_automix_enabled' in data:
+        radio_state['is_automix_enabled'] = data['is_automix_enabled']
     radio_state['last_update'] = time.time()
     state = radio_state.copy()
     state['queue'] = radio_queue
@@ -2737,7 +4084,9 @@ def handle_release_dj():
         radio_state['is_playing'] = False
         radio_state['youtube_id'] = '4xDzrIxC4Dk'
         radio_state['current_time'] = 0
-        radio_state['allow_requests'] = False
+        radio_state['allow_requests'] = True
+        radio_state['is_automix_enabled'] = False
+        radio_state['is_crossfading'] = False
         radio_queue.clear()
         # Tắt DJ: xóa toàn bộ người nghe, mở lại sẽ không còn ai join
         radio_listeners.clear()
@@ -2762,7 +4111,13 @@ def handle_disconnect():
 @socketio.on('toggle_allow_requests')
 def handle_toggle_allow_requests(data):
     if radio_state.get('dj_sid') == request.sid:
-        radio_state['allow_requests'] = data.get('allow_requests', False)
+        radio_state['allow_requests'] = data.get('allow_requests', True)
+        emit('radio_sync', radio_state, broadcast=True)
+
+@socketio.on('toggle_automix')
+def handle_toggle_automix(data):
+    if radio_state.get('dj_sid') == request.sid:
+        radio_state['is_automix_enabled'] = data.get('is_automix_enabled', False)
         emit('radio_sync', radio_state, broadcast=True)
 
 @socketio.on('queue_add')
@@ -2835,46 +4190,145 @@ def on_sync_drag_drop(data):
             'target_status': target_status
         }, broadcast=True, include_self=False)
 
+chat_history = []
+
+@socketio.on('request_chat_history')
+def handle_request_chat_history():
+    emit('chat_history', chat_history)
+
 @socketio.on('chat_message')
 def handle_chat_message(data):
     username = session.get('user', 'Guest')
     msg = data.get('msg', '').strip()
-    if msg:
+    file_name = data.get('file_name')
+    file_type = data.get('file_type')
+    file_data = data.get('file_data')
+    
+    if msg or file_data:
         fullname = username
         avatar = ""
         try:
-            USER_DB = load_users_from_sheet(USER_SHEET_URL)
-            fullname = USER_DB.get(username, {}).get("fullname", username)
-            avatar = USER_DB.get(username, {}).get("avatar", "")
+            # Try to get avatar from pet data first
+            if USE_SUPABASE:
+                pet_data = read_pet_data(username)
+                if pet_data and 'sprite' in pet_data:
+                    avatar = f"/static/img/pet/{pet_data['sprite']}.gif"
         except:
             pass
-        
-        emit('chat_message', {
+            
+        if not avatar:
+            try:
+                USER_DB = load_users_from_sheet(USER_SHEET_URL)
+                fullname = USER_DB.get(username, {}).get("fullname", username)
+                avatar = USER_DB.get(username, {}).get("avatar", f"https://ui-avatars.com/api/?name={fullname}&background=random")
+            except:
+                avatar = f"https://ui-avatars.com/api/?name={username}&background=random"
+
+        message_obj = {
+            'id': str(uuid.uuid4()),
             'username': username,
             'fullname': fullname,
             'avatar': avatar,
             'msg': msg,
-            'time': pd.Timestamp.now().strftime("%H:%M")
-        }, broadcast=True)
+            'file_name': file_name,
+            'file_type': file_type,
+            'file_data': file_data,
+            'time': datetime.now(timezone(timedelta(hours=7))).strftime("%H:%M"),
+            'read_by': []
+        }
+        
+        chat_history.append(message_obj)
+        if len(chat_history) > 100:
+            chat_history.pop(0)
+
+        emit('chat_message', message_obj, broadcast=True)
         
         # --- Xử lý Bot Dịch Thuật ---
-        if msg.lower().startswith('@bot '):
-            text_to_translate = msg[5:].strip()
+        bot_match = re.match(r'^@bot\b[:\s\-\–]*(.*)', msg.strip(), re.IGNORECASE)
+        if bot_match:
+            text_to_translate = bot_match.group(1).strip()
             if text_to_translate:
                 # Tự động nhận diện nếu có tiếng Nhật -> Dịch sang Tiếng Việt. Nếu không -> Dịch sang Tiếng Nhật
                 target_lang = 'vi' if is_japanese(text_to_translate) else 'ja'
                 translated_text = translate_text(text_to_translate, target_lang)
                 
                 lang_name = "Tiếng Việt" if target_lang == 'vi' else "Tiếng Nhật"
+                lang_flag = "🇻🇳" if target_lang == 'vi' else "🇯🇵"
                 
                 # Bot trả lời vào chat
-                emit('chat_message', {
+                bot_msg = {
+                    'id': str(uuid.uuid4()),
                     'username': 'bot',
                     'fullname': '🤖 Bot Dịch Thuật',
                     'avatar': 'https://api.dicebear.com/7.x/bottts/svg?seed=TranslateBot',
-                    'msg': f"**[Dịch sang {lang_name}]:**\n{translated_text}",
-                    'time': pd.Timestamp.now().strftime("%H:%M")
-                }, broadcast=True)
+                    'msg': f"**{lang_flag} [Dịch sang {lang_name}]:**\n{translated_text}",
+                    'time': datetime.now(timezone(timedelta(hours=7))).strftime("%H:%M"),
+                    'read_by': []
+                }
+                chat_history.append(bot_msg)
+                if len(chat_history) > 100:
+                    chat_history.pop(0)
+                emit('chat_message', bot_msg, broadcast=True)
+
+@socketio.on('chat_typing')
+def handle_chat_typing():
+    username = session.get('user')
+    if username:
+        try:
+            USER_DB = load_users_from_sheet(USER_SHEET_URL)
+            fullname = USER_DB.get(username, {}).get("fullname", username)
+        except:
+            fullname = username
+        emit('chat_typing', {'username': username, 'fullname': fullname}, broadcast=True, include_self=False)
+
+@socketio.on('chat_stop_typing')
+def handle_chat_stop_typing():
+    username = session.get('user')
+    if username:
+        emit('chat_stop_typing', {'username': username}, broadcast=True, include_self=False)
+
+@socketio.on('chat_mark_read')
+def handle_chat_mark_read():
+    username = session.get('user')
+    if not username:
+        return
+        
+    avatar = ""
+    try:
+        if USE_SUPABASE:
+            pet_data = read_pet_data(username)
+            if pet_data and 'sprite' in pet_data:
+                avatar = f"/static/img/pet/{pet_data['sprite']}.gif"
+    except:
+        pass
+    if not avatar:
+        try:
+            USER_DB = load_users_from_sheet(USER_SHEET_URL)
+            fullname = USER_DB.get(username, {}).get("fullname", username)
+            avatar = USER_DB.get(username, {}).get("avatar", f"https://ui-avatars.com/api/?name={fullname}&background=random")
+        except:
+            avatar = f"https://ui-avatars.com/api/?name={username}&background=random"
+
+    updated_msg_ids = []
+    # Mark unread messages as read
+    for msg in reversed(chat_history):
+        # Prevent self-reads from cluttering
+        if msg.get('username') == username:
+            continue
+            
+        has_read = any(u.get('username') == username for u in msg.get('read_by', []))
+        if not has_read:
+            msg.setdefault('read_by', []).append({'username': username, 'avatar': avatar})
+            updated_msg_ids.append(msg.get('id'))
+        else:
+            # We can optionally break here if we assume consecutive reading
+            pass
+            
+    if updated_msg_ids:
+        emit('chat_read_update', {
+            'message_ids': updated_msg_ids,
+            'user': {'username': username, 'avatar': avatar}
+        }, broadcast=True)
 
 @socketio.on('cursor_move')
 def handle_cursor_move(data):
@@ -2907,6 +4361,7 @@ def prepare_psd():
     data = request.json or {}
     base_path = data.get('path', '').strip()
     tap_str = data.get('tap', '').strip()
+    role = data.get('role', 'retouch')
     
     if not base_path or not tap_str:
         return jsonify({'error': 'Vui lòng cung cấp đường dẫn và số tập.'}), 400
@@ -2916,79 +4371,26 @@ def prepare_psd():
         return jsonify({'error': 'Vui lòng cung cấp đường dẫn tuyệt đối hợp lệ (VD: C:\\Users\\...).'}), 400
         
     try:
-        # Create {tap}巻/01_レタッチ/01_★編集用PSD
-        folder_psd = os.path.join(base_path, f"{tap_str}巻", "01_レタッチ", "01_★編集用PSD")
-        # Create {tap}巻/01_レタッチ/02_写植・レタッチ時Mikan用jpg
-        folder_jpg = os.path.join(base_path, f"{tap_str}巻", "01_レタッチ", "02_写植・レタッチ時Mikan用jpg")
-        
+        # Xóa tập cũ nếu tồn tại
+        tap_dir = os.path.join(base_path, f"{tap_str}巻")
+        if os.path.exists(tap_dir):
+            import shutil
+            shutil.rmtree(tap_dir, ignore_errors=True)
+
+        if role == 'retouch':
+            folder_psd = os.path.join(base_path, f"{tap_str}巻", "PSD_Retouch_Backups")
+        else:
+            folder_psd = os.path.join(base_path, f"{tap_str}巻", "PSD_Lettering_Backups")
+            
         os.makedirs(folder_psd, exist_ok=True)
-        os.makedirs(folder_jpg, exist_ok=True)
         
         return jsonify({'success': True, 'message': 'Tạo cấu trúc thư mục thành công!'})
     except Exception as e:
         return jsonify({'error': f'Không thể tạo thư mục: {str(e)}'}), 500
 
 
-@app.route('/api/compare_psd', methods=['POST'])
-def compare_psd():
-    if not session.get('logged_in'):
-        return jsonify({'error': 'Unauthorized'}), 401
-        
-    data = request.json or {}
-    base_path = data.get('path', '').strip()
-    tap_str = data.get('tap', '').strip()
-    source_path = data.get('source_path', '').strip()
-    
-    if not base_path or not tap_str or not source_path:
-        return jsonify({'error': 'Vui lòng cung cấp đầy đủ đường dẫn gốc, số tập và đường dẫn chứa PSD tải về.'}), 400
-        
-    if not (os.path.isabs(base_path) or base_path.startswith('/')):
-        return jsonify({'error': 'Đường dẫn gốc không hợp lệ.'}), 400
-        
-    if not (os.path.isabs(source_path) or source_path.startswith('/')):
-        return jsonify({'error': 'Đường dẫn chứa PSD tải về không hợp lệ.'}), 400
-        
-    if not os.path.exists(source_path):
-        return jsonify({'error': 'Thư mục chứa PSD tải về không tồn tại!'}), 400
-        
-    try:
-        import shutil
-        import glob
-        
-        # Target folder: [path]/[tap]巻/01_レタッチ/01_★編集用PSD
-        folder_psd = os.path.join(base_path, f"{tap_str}巻", "01_レタッチ", "01_★編集用PSD")
-        
-        if not os.path.exists(folder_psd):
-            os.makedirs(folder_psd, exist_ok=True)
-            
-        # Find all .psd files in source_path
-        psd_files = glob.glob(os.path.join(source_path, '*.psd'))
-        if not psd_files:
-            return jsonify({'error': 'Không tìm thấy file .psd nào trong thư mục tải về!'}), 400
-            
-        # Move all .psd files to folder_psd
-        moved_count = 0
-        for psd_file in psd_files:
-            dest_file = os.path.join(folder_psd, os.path.basename(psd_file))
-            # Move and overwrite if exists
-            if os.path.exists(dest_file):
-                os.remove(dest_file)
-            shutil.move(psd_file, dest_file)
-            moved_count += 1
-            
-        # Duplicate 01_★編集用PSD to 99_Backup
-        folder_backup = os.path.join(base_path, f"{tap_str}巻", "01_レタッチ", "99_Backup")
-        
-        if os.path.exists(folder_backup):
-            # If backup already exists, we might want to remove it or merge. Let's just remove old backup to replace with new one.
-            shutil.rmtree(folder_backup)
-            
-        shutil.copytree(folder_psd, folder_backup)
-        
-        return jsonify({'success': True, 'message': f'Đã chuyển {moved_count} file PSD và tạo thư mục 99_Backup thành công!'})
-    except Exception as e:
-        return jsonify({'error': f'Có lỗi xảy ra: {str(e)}'}), 500
+
 
 if __name__ == '__main__':
     threading.Thread(target=preload_data, daemon=True).start()
-    socketio.run(app, debug=True, host='0.0.0.0', port=5000, allow_unsafe_werkzeug=True)
+    socketio.run(app, debug=True, use_reloader=True, host='0.0.0.0', port=5000, allow_unsafe_werkzeug=True)

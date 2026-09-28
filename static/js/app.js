@@ -21,7 +21,7 @@ function showToast(message, type = 'info') {
 }
 
 // ===================== TAB MANAGEMENT =====================
-function switchTab(tabId) {
+function switchTab(tabId, syncChart = true) {
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tabId));
     document.querySelectorAll('.tab-content').forEach(c => c.classList.toggle('active', c.id === `tab-${tabId}`));
     document.querySelectorAll('.info-banner').forEach(b => b.style.display = b.id === `banner-${tabId}` ? 'flex' : 'none');
@@ -32,6 +32,31 @@ function switchTab(tabId) {
     });
 
     sessionStorage.setItem('activeTab', tabId);
+
+    // Sync chart week if applicable
+    if (syncChart && typeof selectWeek === 'function') {
+        const isVi = (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi');
+        
+        // Ensure the chart period "week" button is active
+        document.querySelectorAll('.chart-time-controls button').forEach(btn => {
+            if (btn.dataset.period === 'week') {
+                btn.classList.add('active', 'btn-primary');
+                btn.classList.remove('btn-outline');
+            } else {
+                btn.classList.remove('active', 'btn-primary');
+                btn.classList.add('btn-outline');
+            }
+        });
+        
+        const weekSelect = document.getElementById('custom-week-select');
+        const monthSelect = document.getElementById('custom-month-select');
+        if (weekSelect) weekSelect.style.display = 'block';
+        if (monthSelect) monthSelect.style.display = 'none';
+        
+        if (tabId === 'truoc') selectWeek(-1, isVi ? 'Tuần trước' : '先週', null, false);
+        else if (tabId === 'nay') selectWeek(0, isVi ? 'Tuần này' : '今週', null, false);
+        else if (tabId === 'sau') selectWeek(1, isVi ? 'Tuần sau' : '来週', null, false);
+    }
 }
 
 // ===================== DRAWER FILTER =====================
@@ -274,6 +299,849 @@ function initWeatherTime() {
         });
 }
 
+// ==================== AI INSIGHTS REALTIME ====================
+async function fetchAiInsights() {
+    if (!window.DASHBOARD_SUMMARY) return;
+    try {
+        const res = await fetch('/api/insights', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                lang: window.DASHBOARD_SUMMARY.lang,
+                summary: window.DASHBOARD_SUMMARY
+            })
+        });
+        const data = await res.json();
+        
+        const container = document.getElementById('aiInsightsScroll');
+        if (container && data.status === 'success' && data.insights && data.insights.length > 0) {
+            container.innerHTML = '';
+            
+            // Multiply the insights to ensure they easily overflow the screen width for seamless looping
+            let itemsHtml = '';
+            data.insights.forEach(insight => {
+                itemsHtml += `
+                    <div class="ai-insight-item">
+                        <span class="ai-insight-dot"></span>
+                        ${insight}
+                    </div>
+                `;
+            });
+            
+            // Repeat 10 times to form a massive seamless chain
+            for (let i = 0; i < 10; i++) {
+                container.innerHTML += itemsHtml;
+            }
+            
+            // Recalculate duration based on half width (since animation translates -50%)
+            requestAnimationFrame(() => {
+                const halfWidth = container.scrollWidth / 2;
+                const duration = Math.max(15, halfWidth / 60); // ~60px/s
+                container.style.setProperty('--marquee-duration', duration + 's');
+            });
+        }
+    } catch (e) {
+        console.error("AI Insights fetch error:", e);
+    }
+}
+
+// ==================== TASK HANDOVER & COMMENTS ====================
+let isSendingTaskComment = false;
+
+function getAvatarForUser(username) {
+    if (typeof userProfilesDB !== 'undefined' && userProfilesDB[username] && userProfilesDB[username].avatar) {
+        return userProfilesDB[username].avatar;
+    }
+    return '';
+}
+
+function createCommentItemHtml(c, tpKey) {
+    const avatar = getAvatarForUser(c.user);
+    const initial = (c.user || 'U').charAt(0).toUpperCase();
+    
+    let tagBadge = '';
+    if (c.tag === 'handover') {
+        tagBadge = `<span class="comment-tag handover">Bàn giao</span>`;
+    } else if (c.tag === 'progress') {
+        tagBadge = `<span class="comment-tag progress">Tiến độ</span>`;
+    } else if (c.tag === 'warning') {
+        tagBadge = `<span class="comment-tag warning">Lưu ý</span>`;
+    }
+
+    const currentLoggedUser = typeof CURRENT_USER !== 'undefined' ? CURRENT_USER : '';
+    const canDelete = (c.user === currentLoggedUser || (typeof USER_ROLE !== 'undefined' && ['admin', 'manager', 'leader'].includes(USER_ROLE)));
+    const deleteBtnHtml = canDelete 
+        ? `<button type="button" class="btn-delete-comment" onclick="event.stopPropagation(); event.preventDefault(); deleteTaskComment('${c.id}', '${tpKey}', this)" title="Xóa"><i class="fas fa-trash-alt" style="pointer-events: none;"></i></button>`
+        : '';
+
+    const avatarHtml = avatar 
+        ? `<img src="${avatar}" alt="${c.user}" class="comment-avatar-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><div class="comment-avatar-fallback" style="display:none;">${initial}</div>`
+        : `<div class="comment-avatar-fallback">${initial}</div>`;
+
+    return `
+        <div class="handover-comment-item" id="comment_${c.id || Date.now()}" data-comment-id="${c.id || ''}">
+            <div class="comment-avatar">${avatarHtml}</div>
+            <div class="comment-content">
+                <div class="comment-meta">
+                    <span class="comment-user">${c.user || 'Thành viên'}</span>
+                    ${tagBadge}
+                    <span class="comment-time">${c.time || ''}</span>
+                    ${deleteBtnHtml}
+                </div>
+                <div class="comment-text">${c.message}</div>
+            </div>
+        </div>
+    `;
+}
+
+async function loadTaskComments(index, tpKey) {
+    const box = document.getElementById(`handover_${index}`) || document.querySelector(`.task-handover-box[data-tp-key="${tpKey}"]`);
+    const list = box ? box.querySelector('.handover-comments-list') : document.getElementById(`comments_list_${index}`);
+    if (!list) return;
+    try {
+        const res = await fetch(`/api/task_comments?tp_key=${encodeURIComponent(tpKey)}`);
+        const data = await res.json();
+        if (data.status === 'success' && data.comments && data.comments.length > 0) {
+            list.innerHTML = '';
+            data.comments.forEach(c => {
+                list.insertAdjacentHTML('beforeend', createCommentItemHtml(c, tpKey));
+            });
+            list.scrollTop = list.scrollHeight;
+        } else {
+            const isVN = (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi');
+            list.innerHTML = `<div class="handover-empty">${isVN ? 'Chưa có ghi chú nào. Hãy để lại lời nhắn cho đồng đội!' : 'メッセージはまだありません。'}</div>`;
+        }
+    } catch (e) {
+        console.error('Error loading task comments:', e);
+    }
+}
+
+async function sendTaskComment(index, tpKey, messageOverride = null, tag = 'chat') {
+    if (isSendingTaskComment) return;
+    const box = document.getElementById(`handover_${index}`) || document.querySelector(`.task-handover-box[data-tp-key="${tpKey}"]`);
+    const input = box ? box.querySelector('.handover-input') : document.getElementById(`handover_input_${index}`);
+    const message = messageOverride ? messageOverride.trim() : (input ? input.value.trim() : '');
+    if (!message) return;
+
+    isSendingTaskComment = true;
+    const sendBtn = box ? box.querySelector('.btn-handover-send') : document.getElementById(`btn_send_comment_${index}`);
+    if (sendBtn) { sendBtn.disabled = true; sendBtn.style.opacity = '0.5'; }
+    if (input && !messageOverride) { input.value = ''; }
+
+    try {
+        const res = await fetch('/api/task_comments', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                tp_key: tpKey,
+                message: message,
+                tag: tag
+            })
+        });
+        const data = await res.json();
+        if (data.status === 'success' && data.comment) {
+            // Append to ALL handover boxes in DOM matching this task/index immediately
+            document.querySelectorAll('.task-handover-box').forEach(hBox => {
+                const boxKey = hBox.getAttribute('data-tp-key');
+                if (boxKey === tpKey || (boxKey && tpKey && (boxKey.includes(tpKey) || tpKey.includes(boxKey))) || hBox.id === `handover_${index}`) {
+                    const list = hBox.querySelector('.handover-comments-list');
+                    if (list) {
+                        const empty = list.querySelector('.handover-empty');
+                        if (empty) empty.remove();
+                        if (!list.querySelector(`[data-comment-id="${data.comment.id}"]`) && !list.querySelector(`[id="comment_${data.comment.id}"]`)) {
+                            list.insertAdjacentHTML('beforeend', createCommentItemHtml(data.comment, tpKey));
+                            list.scrollTop = list.scrollHeight;
+                        }
+                    }
+                }
+            });
+        } else {
+            showToast(data.message || 'Lỗi gửi tin nhắn', 'error');
+        }
+    } catch (e) {
+        console.error('Error sending task comment:', e);
+    } finally {
+        isSendingTaskComment = false;
+        if (sendBtn) { sendBtn.disabled = false; sendBtn.style.opacity = '1'; }
+    }
+}
+
+function sendQuickHandover(index, tpKey, text, tag = 'handover') {
+    sendTaskComment(index, tpKey, text, tag);
+}
+
+async function deleteTaskComment(commentId, tpKey, btnEl) {
+    if (!commentId || !tpKey) return;
+    const isVN = (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi');
+
+    // Instant 1-touch optimistic UI update across all matching boxes
+    document.querySelectorAll(`[id="comment_${commentId}"], .handover-comment-item[data-comment-id="${commentId}"]`).forEach(el => {
+        el.dataset.deleting = 'true';
+        el.style.transition = 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)';
+        el.style.opacity = '0';
+        el.style.transform = 'scale(0.9) translateY(-6px)';
+        el.style.pointerEvents = 'none';
+
+        setTimeout(() => {
+            if (el && el.parentElement) {
+                const list = el.parentElement;
+                el.remove();
+                if (list && list.querySelectorAll('.handover-comment-item').length === 0) {
+                    list.innerHTML = `<div class="handover-empty">${isVN ? 'Chưa có ghi chú nào. Hãy để lại lời nhắn cho đồng đội!' : 'メッセージはまだありません。'}</div>`;
+                }
+            }
+        }, 250);
+    });
+
+    try {
+        const res = await fetch('/api/task_comments/delete', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ id: commentId, tp_key: tpKey })
+        });
+        const data = await res.json();
+        if (data.status !== 'success') {
+            showToast(data.message || (isVN ? 'Không thể xóa tin nhắn' : '削除できませんでした'), 'error');
+            const box = document.querySelector(`.task-handover-box[data-tp-key="${tpKey}"]`);
+            if (box) {
+                const index = box.id.replace('handover_', '');
+                loadTaskComments(index, tpKey);
+            }
+        }
+    } catch (e) {
+        console.error('Error deleting task comment:', e);
+    }
+}
+
+// ==================== NOTIFICATION CENTER (TOP RIGHT ALARM) ====================
+function getNotifStorageKey() {
+    const user = (typeof CURRENT_USER !== 'undefined' && CURRENT_USER) ? CURRENT_USER.trim() : 'default';
+    return `vn_tracking_notifications_${user}`;
+}
+
+function isTaskAssignedToMe(tpKey, assignees = []) {
+    const currentLoggedUser = (typeof CURRENT_USER !== 'undefined' ? CURRENT_USER : '').trim().toLowerCase();
+    if (!currentLoggedUser) return false;
+
+    // 1. Check server-provided assignees list first (most accurate)
+    if (Array.isArray(assignees) && assignees.length > 0) {
+        return assignees.some(w => {
+            const wLower = String(w).trim().toLowerCase();
+            return wLower === currentLoggedUser || wLower.includes(currentLoggedUser) || currentLoggedUser.includes(wLower);
+        });
+    }
+
+    // 2. Check modalMap on this user's page (which only contains the user's tasks if member)
+    const cleanKey = String(tpKey || '').trim().toLowerCase();
+    if (cleanKey && typeof modalMap !== 'undefined') {
+        for (const tab of ['nay', 'truoc', 'sau']) {
+            if (!modalMap[tab]) continue;
+            for (const [k, mId] of Object.entries(modalMap[tab])) {
+                const kLower = k.toLowerCase();
+                const kVol = kLower.includes(' - ') ? kLower.split(' - ')[1].trim() : kLower;
+                const cVol = cleanKey.includes(' - ') ? cleanKey.split(' - ')[1].trim() : cleanKey;
+                if (kVol === cVol || kLower === cleanKey || kLower.includes(cleanKey) || cleanKey.includes(kLower)) {
+                    return true;
+                }
+            }
+        }
+    }
+
+    return false;
+}
+
+function getStoredNotifications() {
+    try {
+        const data = localStorage.getItem(getNotifStorageKey());
+        const list = data ? JSON.parse(data) : [];
+        return list.filter(n => isTaskAssignedToMe(n.tpKey));
+    } catch (e) {
+        return [];
+    }
+}
+
+function saveStoredNotifications(list) {
+    try {
+        localStorage.setItem(getNotifStorageKey(), JSON.stringify(list.slice(0, 50)));
+    } catch (e) {}
+    renderNotificationCenter();
+}
+
+function addNotification(item) {
+    // Only add if the task is assigned to this user
+    if (item.tpKey && !isTaskAssignedToMe(item.tpKey)) return;
+
+    const list = getStoredNotifications();
+    const notifId = item.id || `notif_${Date.now()}`;
+
+    // Deduplicate: If exact same notification ID exists OR same message & tpKey within 15 seconds, don't duplicate
+    const isDup = list.some(n => (item.id && n.id === item.id) || (n.message === item.message && n.tpKey === item.tpKey && (Date.now() - n.timestamp < 15000)));
+    if (isDup) return;
+
+    const now = new Date();
+    const notif = {
+        id: notifId,
+        type: item.type || 'comment',
+        user: item.user || 'Hệ thống',
+        tpKey: item.tpKey || '',
+        message: item.message || '',
+        time: item.time || `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')} ${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}`,
+        timestamp: Date.now(),
+        isRead: false
+    };
+
+    list.unshift(notif);
+    saveStoredNotifications(list);
+
+    // Animate bell
+    const bellBtn = document.getElementById('notification-bell-btn');
+    if (bellBtn) {
+        bellBtn.classList.remove('ringing');
+        void bellBtn.offsetWidth;
+        bellBtn.classList.add('ringing');
+        setTimeout(() => bellBtn.classList.remove('ringing'), 1000);
+    }
+}
+
+function renderNotificationCenter() {
+    const list = getStoredNotifications();
+    const unreadCount = list.filter(n => !n.isRead).length;
+
+    // Update bell badge
+    const badge = document.getElementById('notification-unread-badge');
+    const bellBtn = document.getElementById('notification-bell-btn');
+    if (badge) {
+        if (unreadCount > 0) {
+            badge.style.display = 'flex';
+            badge.textContent = unreadCount > 99 ? '99+' : unreadCount;
+        } else {
+            badge.style.display = 'none';
+        }
+    }
+    if (bellBtn) {
+        bellBtn.classList.toggle('has-unread', unreadCount > 0);
+    }
+
+    // Update summary count
+    const summaryCount = document.getElementById('notification-summary-count');
+    if (summaryCount) {
+        const isVN = (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi');
+        summaryCount.textContent = `${list.length} ${isVN ? 'thông báo' : '件'}`;
+    }
+
+    // Render items list
+    const container = document.getElementById('notification-items-list');
+    if (!container) return;
+
+    if (list.length === 0) {
+        const isVN = (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi');
+        container.innerHTML = `
+            <div class="notification-empty-state">
+                <i class="far fa-bell-slash" style="font-size: 24px; color: var(--text-4); margin-bottom: 8px;"></i>
+                <span>${isVN ? 'Không có thông báo nào' : '通知はありません'}</span>
+            </div>
+        `;
+        return;
+    }
+
+    let html = '';
+    list.forEach(n => {
+        const avatar = getAvatarForUser(n.user);
+        const initial = (n.user || 'U').charAt(0).toUpperCase();
+        const avatarHtml = avatar 
+            ? `<img src="${avatar}" class="notif-avatar" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><div class="notif-avatar-fallback" style="display:none;">${initial}</div>`
+            : `<div class="notif-avatar-fallback">${initial}</div>`;
+        
+        const shortTp = n.tpKey.includes(' - ') ? n.tpKey.split(' - ')[1] : n.tpKey;
+
+        html += `
+            <div class="notification-item ${n.isRead ? '' : 'unread'}" id="notif_item_${n.id}" onclick="handleNotificationClick('${n.id}', '${(n.tpKey || '').replace(/'/g, "\\'")}')">
+                ${avatarHtml}
+                <div class="notif-body">
+                    <div class="notif-header-row">
+                        <span class="notif-user-name">${n.user}</span>
+                        <span class="notif-time">${n.time}</span>
+                    </div>
+                    ${shortTp ? `<div class="notif-task-title">📖 ${shortTp}</div>` : ''}
+                    <div class="notif-message-text">${n.message}</div>
+                </div>
+                <button type="button" class="btn-notif-dismiss" onclick="event.stopPropagation(); dismissNotification('${n.id}')" title="Bỏ qua">&times;</button>
+            </div>
+        `;
+    });
+    container.innerHTML = html;
+}
+
+function toggleNotificationPanel(event) {
+    if (event) event.stopPropagation();
+    const panel = document.getElementById('notification-dropdown-panel');
+    if (!panel) return;
+    const isOpen = panel.style.display !== 'none';
+    if (isOpen) {
+        panel.style.display = 'none';
+    } else {
+        renderNotificationCenter();
+        panel.style.display = 'flex';
+
+        const closeHandler = function(e) {
+            if (!panel.contains(e.target) && e.target !== document.getElementById('notification-bell-btn')) {
+                panel.style.display = 'none';
+                document.removeEventListener('click', closeHandler);
+            }
+        };
+        setTimeout(() => document.addEventListener('click', closeHandler), 10);
+    }
+}
+
+function navigateToTask(tpKey) {
+    if (!tpKey) return;
+    const cleanKey = String(tpKey).trim();
+    
+    // Close notification dropdown panel if open
+    const panel = document.getElementById('notification-dropdown-panel');
+    if (panel) panel.style.display = 'none';
+
+    // Remove any existing toast
+    document.querySelectorAll('.task-handover-toast').forEach(t => t.remove());
+
+    const tabs = ['nay', 'truoc', 'sau'];
+    let targetTab = null;
+    let targetModalId = null;
+
+    if (typeof modalMap !== 'undefined') {
+        const activeTab = sessionStorage.getItem('activeTab') || 'nay';
+        const searchTabs = [activeTab, ...tabs.filter(t => t !== activeTab)];
+
+        for (const tab of searchTabs) {
+            if (!modalMap[tab]) continue;
+
+            // 1. Exact match
+            if (modalMap[tab][cleanKey]) {
+                targetTab = tab;
+                targetModalId = modalMap[tab][cleanKey];
+                break;
+            }
+
+            // 2. Volume match (e.g. key ends with cleanKey or contains cleanKey)
+            for (const [k, mId] of Object.entries(modalMap[tab])) {
+                const kVol = k.includes(' - ') ? k.split(' - ')[1].trim() : k.trim();
+                const cVol = cleanKey.includes(' - ') ? cleanKey.split(' - ')[1].trim() : cleanKey;
+                if (kVol === cVol || k === cleanKey || k.includes(cleanKey) || cleanKey.includes(k)) {
+                    targetTab = tab;
+                    targetModalId = mId;
+                    break;
+                }
+            }
+            if (targetModalId) break;
+        }
+    }
+
+    if (targetTab && targetModalId) {
+        // Switch tab if different
+        const currentTab = sessionStorage.getItem('activeTab') || 'nay';
+        if (currentTab !== targetTab && typeof switchTab === 'function') {
+            switchTab(targetTab);
+        }
+
+        // Open modal
+        const modal = document.getElementById(`modal-${targetModalId}`);
+        if (modal) {
+            modal.classList.add('open');
+            document.body.style.overflow = 'hidden';
+            if (typeof initChecklistInContainer === 'function') {
+                initChecklistInContainer(modal.querySelector('.modal-body'));
+            }
+
+            const handoverBox = modal.querySelector('.task-handover-box');
+            if (handoverBox) {
+                if (typeof setupTaskCommentsSocket === 'function') setupTaskCommentsSocket();
+                const index = handoverBox.id.replace('handover_', '');
+                const boxTpKey = handoverBox.getAttribute('data-tp-key');
+                if (typeof loadTaskComments === 'function') loadTaskComments(index, boxTpKey);
+
+                // Auto-scroll directly to the Comment box and highlight input
+                setTimeout(() => {
+                    handoverBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    const input = document.getElementById(`handover_input_${index}`);
+                    if (input) {
+                        input.focus();
+                        input.style.boxShadow = '0 0 0 3px rgba(129, 140, 248, 0.5)';
+                        setTimeout(() => input.style.boxShadow = '', 2000);
+                    }
+                }, 250);
+            }
+            return;
+        }
+    }
+
+    // Fallback: search card in DOM
+    const card = document.querySelector(`.progress-card[data-tp-key*="${cleanKey}"]`) || 
+                 document.querySelector(`.card-comment-alarm[data-alarm-key*="${cleanKey}"]`)?.closest('.progress-card');
+    if (card) {
+        card.click();
+        setTimeout(() => {
+            const openModalEl = document.querySelector('.modal-overlay.open');
+            if (openModalEl) {
+                const handoverBox = openModalEl.querySelector('.task-handover-box');
+                if (handoverBox) {
+                    handoverBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    const index = handoverBox.id.replace('handover_', '');
+                    const input = document.getElementById(`handover_input_${index}`);
+                    if (input) {
+                        input.focus();
+                        input.style.boxShadow = '0 0 0 3px rgba(129, 140, 248, 0.5)';
+                        setTimeout(() => input.style.boxShadow = '', 2000);
+                    }
+                }
+            }
+        }, 300);
+    }
+}
+
+function handleNotificationClick(notifId, tpKey) {
+    const list = getStoredNotifications();
+    const item = list.find(n => n.id === notifId);
+    if (item) {
+        item.isRead = true;
+        saveStoredNotifications(list);
+    }
+    navigateToTask(tpKey);
+}
+
+function dismissNotification(notifId) {
+    const list = getStoredNotifications().filter(n => n.id !== notifId);
+    saveStoredNotifications(list);
+}
+
+function markAllNotificationsRead() {
+    const list = getStoredNotifications().map(n => ({ ...n, isRead: true }));
+    saveStoredNotifications(list);
+}
+
+function clearAllNotifications() {
+    saveStoredNotifications([]);
+}
+
+function showTaskToast(user, tpKey, message, id = null) {
+    // Avoid duplicate toast on screen
+    const existingToasts = document.querySelectorAll('.task-handover-toast');
+    for (let t of existingToasts) {
+        if ((id && t.dataset.toastId === String(id)) || (t.dataset.tpKey === tpKey && t.dataset.message === message)) {
+            return;
+        }
+    }
+
+    // Add to Notification Center
+    addNotification({ id, user, tpKey, message });
+
+    let container = document.getElementById('task-toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'task-toast-container';
+        container.style.cssText = 'position: fixed; top: 24px; right: 24px; z-index: 999999; display: flex; flex-direction: column; gap: 10px; max-width: 360px; pointer-events: none;';
+        document.body.appendChild(container);
+    }
+
+    const toast = document.createElement('div');
+    toast.className = 'task-handover-toast';
+    if (id) toast.dataset.toastId = id;
+    toast.dataset.tpKey = tpKey;
+    toast.dataset.message = message;
+    toast.style.cssText = 'pointer-events: auto; background: rgba(17, 24, 39, 0.96); border: 1px solid rgba(129, 140, 248, 0.4); backdrop-filter: blur(12px); border-radius: 10px; padding: 10px 14px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); display: flex; gap: 10px; align-items: flex-start; color: #fff; animation: toastSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1); transition: all 0.3s ease; cursor: pointer;';
+    
+    const avatar = getAvatarForUser(user);
+    const initial = (user || 'U').charAt(0).toUpperCase();
+    const avatarHtml = avatar 
+        ? `<img src="${avatar}" style="width:32px; height:32px; border-radius:50%; object-fit:cover; border:1.5px solid #818cf8;">`
+        : `<div style="width:32px; height:32px; border-radius:50%; background:#4f46e5; display:flex; align-items:center; justify-content:center; font-weight:bold; color:#fff; font-size:12px;">${initial}</div>`;
+
+    const shortTp = tpKey.includes(' - ') ? tpKey.split(' - ')[1] : tpKey;
+
+    toast.onclick = function() {
+        navigateToTask(tpKey);
+    };
+
+    toast.innerHTML = `
+        <div style="flex-shrink: 0;">${avatarHtml}</div>
+        <div style="flex: 1; min-width: 0;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+                <span style="font-weight: 700; font-size: 0.82rem; color: #818cf8;">${user}</span>
+                <span style="font-size: 0.7rem; color: var(--text-4);">Vừa xong</span>
+            </div>
+            <div style="font-size: 0.72rem; color: #fbbf24; font-weight: 600; margin-bottom: 3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">📖 ${shortTp}</div>
+            <div style="font-size: 0.82rem; color: var(--text); line-height: 1.3;">${message}</div>
+        </div>
+        <button onclick="event.stopPropagation(); this.parentElement.remove()" style="background:none; border:none; color:var(--text-4); cursor:pointer; font-size:16px; padding:0; line-height:1;">&times;</button>
+    `;
+
+    container.appendChild(toast);
+
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(-15px)';
+        setTimeout(() => toast.remove(), 300);
+    }, 4500);
+}
+
+function setupTaskCommentsSocket() {
+    if (!window.socket) {
+        setTimeout(setupTaskCommentsSocket, 300);
+        return;
+    }
+
+    // Always unbind first to guarantee no duplicate event listeners
+    window.socket.off('task_comment_new');
+    window.socket.off('task_comment_deleted');
+
+    window.socket.on('task_comment_new', function(data) {
+        if (!data || !data.tp_key || !data.comment) return;
+        
+        // 1. Real-time update in open modal comment box (User B and User A)
+        document.querySelectorAll('.task-handover-box').forEach(box => {
+            const boxKey = box.getAttribute('data-tp-key');
+            if (boxKey === data.tp_key || (boxKey && data.tp_key && (boxKey.includes(data.tp_key) || data.tp_key.includes(boxKey)))) {
+                const list = box.querySelector('.handover-comments-list');
+                if (list) {
+                    const empty = list.querySelector('.handover-empty');
+                    if (empty) empty.remove();
+                    if (!list.querySelector(`[data-comment-id="${data.comment.id}"]`) && !list.querySelector(`[id="comment_${data.comment.id}"]`)) {
+                        list.insertAdjacentHTML('beforeend', createCommentItemHtml(data.comment, data.tp_key));
+                        list.scrollTop = list.scrollHeight;
+                    }
+                }
+            }
+        });
+
+        // 2. Filter: ONLY users assigned to this task receive notifications & card alarm updates!
+        const isMyTask = isTaskAssignedToMe(data.tp_key, data.assignees || []);
+        if (!isMyTask) {
+            return;
+        }
+
+        // 3. Update alarm bells on this user's Kanban cards
+        const volKey = data.tp_key;
+        document.querySelectorAll(`.card-comment-alarm[data-alarm-key="${volKey}"]`).forEach(alarm => {
+            alarm.style.display = 'inline-flex';
+            const countSpan = alarm.querySelector('.alarm-count-badge');
+            if (countSpan) {
+                const currentCount = parseInt(countSpan.textContent) || 1;
+                countSpan.textContent = currentCount + 1;
+            }
+        });
+
+        // 4. Show Toast and add to top-right Notification Center (if sent by another user)
+        const currentLoggedUser = (typeof CURRENT_USER !== 'undefined' ? CURRENT_USER : '').trim();
+        if (data.comment.user !== currentLoggedUser) {
+            showTaskToast(data.comment.user, data.tp_key, data.comment.message, data.comment.id);
+        }
+    });
+
+    window.socket.on('task_comment_deleted', function(data) {
+        if (!data || !data.id) return;
+        
+        // Real-time remove on User B's screen across all open modal boxes
+        document.querySelectorAll(`[id="comment_${data.id}"], .handover-comment-item[data-comment-id="${data.id}"]`).forEach(el => {
+            el.style.transition = 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)';
+            el.style.opacity = '0';
+            el.style.transform = 'scale(0.85) translateY(-5px)';
+            setTimeout(() => {
+                const list = el.parentElement;
+                el.remove();
+                if (list && list.querySelectorAll('.handover-comment-item').length === 0) {
+                    const isVN = (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi');
+                    list.innerHTML = `<div class="handover-empty">${isVN ? 'Chưa có ghi chú nào. Hãy để lại lời nhắn cho đồng đội!' : 'メッセージはまだありません。'}</div>`;
+                }
+            }, 250);
+        });
+
+        // Update card alarms in real time on both User A and User B
+        const volKey = data.tp_key;
+        if (volKey) {
+            document.querySelectorAll(`.card-comment-alarm[data-alarm-key="${volKey}"]`).forEach(alarm => {
+                const countSpan = alarm.querySelector('.alarm-count-badge');
+                if (countSpan) {
+                    const currentCount = parseInt(countSpan.textContent) || 1;
+                    if (currentCount <= 2) {
+                        countSpan.remove();
+                    } else {
+                        countSpan.textContent = currentCount - 1;
+                    }
+                } else {
+                    alarm.style.display = 'none';
+                }
+            });
+        }
+    });
+
+    // Real-time synchronization of Task Resource Links across teammates
+    window.socket.on('task_links_updated', function(data) {
+        if (data && data.tp_key && data.links) {
+            updateTaskLinksUI(data.tp_key, data.links);
+        }
+    });
+}
+
+// =====================================================================
+// TASK RESOURCE LINKS (Mikan, Notion, Asana, Dropbox)
+// =====================================================================
+function openEditTaskLinksModal(tpKey, focusTool) {
+    if (!tpKey) return;
+    const modal = document.getElementById('edit-task-links-modal');
+    if (!modal) return;
+
+    document.getElementById('edit-task-links-key').value = tpKey;
+    const subTitleEl = document.getElementById('edit-task-links-subtitle');
+    if (subTitleEl) subTitleEl.textContent = tpKey;
+
+    const tools = ['mikan', 'notion', 'asana', 'dropbox'];
+    tools.forEach(tool => {
+        const input = document.getElementById(`link_input_${tool}`);
+        if (input) {
+            input.value = '';
+            const card = document.querySelector(`.task-links-box[data-tp-key="${tpKey}"] .task-link-card.${tool}`);
+            if (card && card.getAttribute('data-url')) {
+                input.value = card.getAttribute('data-url');
+            }
+        }
+    });
+
+    fetch(`/api/task_links?tp_key=${encodeURIComponent(tpKey)}`)
+        .then(r => r.json())
+        .then(data => {
+            if (data && data.status === 'success' && data.links) {
+                tools.forEach(tool => {
+                    const input = document.getElementById(`link_input_${tool}`);
+                    if (input && data.links[tool] !== undefined) {
+                        input.value = data.links[tool] || '';
+                    }
+                });
+            }
+        })
+        .catch(() => {});
+
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+
+    if (focusTool) {
+        setTimeout(() => {
+            const targetInput = document.getElementById(`link_input_${focusTool}`);
+            if (targetInput) {
+                targetInput.focus();
+                targetInput.select();
+            }
+        }, 120);
+    }
+}
+
+function closeEditTaskLinksModal() {
+    const modal = document.getElementById('edit-task-links-modal');
+    if (modal) {
+        modal.style.display = 'none';
+        document.body.style.overflow = '';
+    }
+}
+
+async function pasteClipboardToInput(inputId) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    try {
+        if (navigator.clipboard && navigator.clipboard.readText) {
+            const text = await navigator.clipboard.readText();
+            if (text) {
+                input.value = text.trim();
+                input.focus();
+                return;
+            }
+        }
+    } catch (err) {}
+    input.focus();
+    input.select();
+}
+
+async function submitSaveTaskLinks() {
+    const tpKey = document.getElementById('edit-task-links-key').value;
+    if (!tpKey) return;
+
+    const btn = document.getElementById('btn-save-task-links');
+    const oldText = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang lưu...';
+    }
+
+    const links = {
+        mikan: (document.getElementById('link_input_mikan')?.value || '').trim(),
+        notion: (document.getElementById('link_input_notion')?.value || '').trim(),
+        asana: (document.getElementById('link_input_asana')?.value || '').trim(),
+        dropbox: (document.getElementById('link_input_dropbox')?.value || '').trim()
+    };
+
+    try {
+        const res = await fetch('/api/task_links', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tp_key: tpKey, links: links })
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+            updateTaskLinksUI(tpKey, data.links || links);
+            closeEditTaskLinksModal();
+            showTaskToast('Hệ thống', tpKey, '✓ Đã cập nhật liên kết làm việc!', `link_${Date.now()}`);
+        } else {
+            alert('Lỗi lưu liên kết: ' + (data.message || 'Không xác định'));
+        }
+    } catch (e) {
+        alert('Lỗi lưu liên kết: ' + e.message);
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = oldText;
+        }
+    }
+}
+
+function updateTaskLinksUI(tpKey, links) {
+    if (!tpKey || !links) return;
+    const isVN = (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi');
+    const tools = ['mikan', 'notion', 'asana', 'dropbox'];
+
+    document.querySelectorAll(`.task-links-box`).forEach(box => {
+        const boxKey = box.getAttribute('data-tp-key');
+        if (boxKey === tpKey) {
+            tools.forEach(tool => {
+                const card = box.querySelector(`.task-link-card.${tool}`);
+                if (card) {
+                    const url = (links[tool] || '').trim();
+                    const hasUrl = Boolean(url);
+                    
+                    card.setAttribute('data-url', url);
+                    if (hasUrl) {
+                        card.classList.remove('empty');
+                        card.classList.add('has-url');
+                        card.href = url;
+                        card.target = '_blank';
+                        card.rel = 'noopener noreferrer';
+                        card.onclick = null;
+                        card.title = url;
+                        const statusSpan = card.querySelector('.task-link-status');
+                        if (statusSpan) statusSpan.textContent = isVN ? 'Mở link ↗' : '開く ↗';
+                    } else {
+                        card.classList.remove('has-url');
+                        card.classList.add('empty');
+                        card.href = 'javascript:void(0)';
+                        card.target = '_self';
+                        card.removeAttribute('rel');
+                        card.onclick = function() { openEditTaskLinksModal(tpKey, tool); return false; };
+                        card.title = isVN ? `Chưa có link ${tool.toUpperCase()}` : `リンクなし`;
+                        const statusSpan = card.querySelector('.task-link-status');
+                        if (statusSpan) statusSpan.textContent = isVN ? '+ Thêm link' : '+ リンク追加';
+                    }
+                }
+            });
+        }
+    });
+}
+
 // ===================== MODAL =====================
 function openModal(tabKey, cardName) {
     if (typeof modalMap === 'undefined') return;
@@ -284,6 +1152,15 @@ function openModal(tabKey, cardName) {
             modal.classList.add('open');
             document.body.style.overflow = 'hidden';
             initChecklistInContainer(modal.querySelector('.modal-body'));
+
+            // Load Task Handover Comments if combined task
+            const handoverBox = modal.querySelector('.task-handover-box');
+            if (handoverBox) {
+                setupTaskCommentsSocket();
+                const index = handoverBox.id.replace('handover_', '');
+                const tpKey = handoverBox.getAttribute('data-tp-key');
+                loadTaskComments(index, tpKey);
+            }
         }
     }
 }
@@ -362,6 +1239,16 @@ document.addEventListener('click', (e) => {
 });
 
 // ===================== CHECKLIST =====================
+// ===================== CHECKLIST =====================
+function getProgressCardsByTpKey(tpKey) {
+    if (!tpKey) return [];
+    const results = [];
+    document.querySelectorAll('.progress-card').forEach(c => {
+        if (c.dataset.tpKey === tpKey) results.push(c);
+    });
+    return results;
+}
+
 function initChecklistInContainer(container) {
     if (!container || container.dataset.checklistInit) return;
     container.dataset.checklistInit = 'true';
@@ -377,9 +1264,9 @@ function initChecklistInContainer(container) {
             cb.addEventListener('change', (e) => {
                 cb.dataset.userModified = 'true';
 
-                // Keep the card's local checked_ids up to date
-                const card = document.querySelector(`.progress-card[data-tp-key="${tpKey}"]`);
-                if (card) {
+                // Keep ALL matching cards across all tabs up to date
+                const cards = getProgressCardsByTpKey(tpKey);
+                cards.forEach(card => {
                     let checkedIds = (card.dataset.checkedIds || '').split(',').filter(Boolean);
                     if (e.target.checked) {
                         if (!checkedIds.includes(rawId)) checkedIds.push(rawId);
@@ -387,24 +1274,24 @@ function initChecklistInContainer(container) {
                         checkedIds = checkedIds.filter(id => id !== rawId);
                     }
                     card.dataset.checkedIds = checkedIds.join(',');
-                }
+                });
 
-                if (true) {
-                    fetch('/api/checklist_sync', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ tac_pham: tpKey, checkbox_id: rawId, status: e.target.checked })
-                    }).then(r => r.json()).then(data => {
-                        if (typeof handlePetXPResponse === 'function') handlePetXPResponse(data);
-                    }).catch(() => {});
-                }
+                fetch('/api/checklist_sync', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ tac_pham: tpKey, checkbox_id: rawId, status: e.target.checked })
+                }).then(r => r.json()).then(data => {
+                    if (typeof handlePetXPResponse === 'function') handlePetXPResponse(data);
+                }).catch(() => {});
+
                 updateTaskProgressLocally(tpKey, container);
             });
         });
 
         // 1. FAST LOCAL RENDER FROM CARD DATA (Injected by Python)
-        const card = document.querySelector(`.progress-card[data-tp-key="${tpKey}"]`);
-        if (card) {
+        const matchedCards = getProgressCardsByTpKey(tpKey);
+        if (matchedCards.length > 0) {
+            const card = matchedCards[0];
             const checkedIds = (card.dataset.checkedIds || '').toLowerCase().split(',').filter(Boolean);
             checkboxes.forEach(cb => {
                 const rawId = (cb.dataset.checkId || '').toLowerCase();
@@ -426,6 +1313,46 @@ function updateTaskProgressLocally(tpKey, modalBody) {
     const checkedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
     const progress = Math.round((checkedCount / total) * 100);
 
+    // Update step phase counters & progress fills
+    if (modalBody) {
+        const s1Cbs = modalBody.querySelectorAll('input[data-check-id="t1"], input[data-check-id="t2"]');
+        const s2Cbs = modalBody.querySelectorAll('input[data-check-id="t3"], input[data-check-id="t4"], input[data-check-id="t5"]');
+        const s3Cbs = modalBody.querySelectorAll('input[data-check-id="t6"], input[data-check-id="t7"], input[data-check-id="t8"], input[data-check-id="t9"]');
+
+        if (s1Cbs.length > 0) {
+            const s1Done = Array.from(s1Cbs).filter(c => c.checked).length;
+            const count1 = modalBody.querySelector('.step-col[data-step="1"] .step-count');
+            if (count1) {
+                count1.textContent = `${s1Done}/${s1Cbs.length}${s1Done === s1Cbs.length ? ' ✓' : ''}`;
+                count1.classList.toggle('complete', s1Done === s1Cbs.length);
+            }
+            const fill1 = modalBody.querySelector('.step-col[data-step="1"] .step-progress-fill');
+            if (fill1) fill1.style.width = `${(s1Done / s1Cbs.length) * 100}%`;
+        }
+
+        if (s2Cbs.length > 0) {
+            const s2Done = Array.from(s2Cbs).filter(c => c.checked).length;
+            const count2 = modalBody.querySelector('.step-col[data-step="2"] .step-count');
+            if (count2) {
+                count2.textContent = `${s2Done}/${s2Cbs.length}${s2Done === s2Cbs.length ? ' ✓' : ''}`;
+                count2.classList.toggle('complete', s2Done === s2Cbs.length);
+            }
+            const fill2 = modalBody.querySelector('.step-col[data-step="2"] .step-progress-fill');
+            if (fill2) fill2.style.width = `${(s2Done / s2Cbs.length) * 100}%`;
+        }
+
+        if (s3Cbs.length > 0) {
+            const s3Done = Array.from(s3Cbs).filter(c => c.checked).length;
+            const count3 = modalBody.querySelector('.step-col[data-step="3"] .step-count');
+            if (count3) {
+                count3.textContent = `${s3Done}/${s3Cbs.length}${s3Done === s3Cbs.length ? ' ✓' : ''}`;
+                count3.classList.toggle('complete', s3Done === s3Cbs.length);
+            }
+            const fill3 = modalBody.querySelector('.step-col[data-step="3"] .step-progress-fill');
+            if (fill3) fill3.style.width = `${(s3Done / s3Cbs.length) * 100}%`;
+        }
+    }
+
     // Find the card for this task across all tabs
     document.querySelectorAll('.progress-card').forEach(card => {
         if (card.dataset.tpKey === tpKey) {
@@ -438,6 +1365,32 @@ function updateTaskProgressLocally(tpKey, modalBody) {
             const fill = card.querySelector('.progress-fill');
             if (fill) {
                 fill.style.width = `${progress}%`;
+            }
+
+            // Sync external start toggle
+            const externalToggle = card.querySelector('.t4-external-toggle > div');
+            if (externalToggle) {
+                const t4Checkbox = modalBody.querySelector('input[data-check-id="t4"]');
+                if (t4Checkbox) {
+                    const isChecked = t4Checkbox.checked;
+                    const extCb = externalToggle.querySelector('input[type="checkbox"]');
+                    const textSpan = externalToggle.querySelector('.t4-text');
+                    
+                    if (extCb) extCb.checked = isChecked;
+                    if (textSpan) {
+                        if (isChecked) {
+                            externalToggle.style.color = 'var(--primary)';
+                            externalToggle.style.background = 'rgba(16, 185, 129, 0.1)';
+                            externalToggle.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+                            textSpan.textContent = (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi') ? 'O: 開始 (Bắt đầu)' : 'O列：開始';
+                        } else {
+                            externalToggle.style.color = 'var(--text-3)';
+                            externalToggle.style.background = 'var(--bg-page)';
+                            externalToggle.style.borderColor = 'var(--border)';
+                            textSpan.textContent = (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi') ? 'Chưa bắt đầu' : '未着手';
+                        }
+                    }
+                }
             }
 
             // Move card to correct column
@@ -461,7 +1414,7 @@ function updateTaskProgressLocally(tpKey, modalBody) {
                 if (tab) {
                     const targetCol = tab.querySelector(`.kanban-column[data-status="${newStatusClass}"] .kanban-cards`);
                     if (targetCol) {
-                        targetCol.appendChild(card);
+                        moveCardToColumn(card, targetCol);
                     }
 
                     // Update column badges
@@ -470,8 +1423,21 @@ function updateTaskProgressLocally(tpKey, modalBody) {
                         const badge = col.querySelector('.kanban-col-count');
                         if (badge) badge.textContent = count;
                     });
+                    updateKanbanGroups(tab);
                 }
             }
+        }
+    });
+
+    // Update partner progress spans in other cards that have this task as their partner
+    document.querySelectorAll(`.partner-progress-text[data-partner-key="${tpKey}"]`).forEach(span => {
+        span.textContent = `${progress}%`;
+        if (progress >= 100) {
+            span.style.color = '#34d399';
+        } else if (progress > 0) {
+            span.style.color = '#fbbf24';
+        } else {
+            span.style.color = 'var(--text-4)';
         }
     });
 }
@@ -567,11 +1533,63 @@ function showSuccessModal() {
     overlay.classList.add('open');
 }
 
+// ===================== CONFIRMATION MODAL =====================
+function showConfirmDateModal(logDate, todayDate, onConfirm, onCancel) {
+    let overlay = document.getElementById('confirm-modal-overlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'confirm-modal-overlay';
+        overlay.className = 'modal-overlay';
+        overlay.style.zIndex = '100002'; // Above task modal
+        document.body.appendChild(overlay);
+    }
+
+    const isVi = (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi');
+    const titleText = isVi ? 'Xác nhận ngày làm việc' : '作業日の確認';
+    const subText = isVi 
+        ? `Ngày bạn chọn (<strong style="color: #f59e0b;">${logDate}</strong>) không phải là hôm nay (<strong style="color: #10b981;">${todayDate}</strong>).`
+        : `選択された日付 (<strong style="color: #f59e0b;">${logDate}</strong>) は本日 (<strong style="color: #10b981;">${todayDate}</strong>) と異なります。`;
+    const promptText = isVi
+        ? 'Bạn có chắc chắn muốn ghi nhận Logtime cho ngày này không?'
+        : 'この日付でログタイムを保存してもよろしいですか？';
+    const btnCancelText = isVi ? 'Hủy bỏ' : 'キャンセル';
+    const btnConfirmText = isVi ? 'Đồng ý' : 'はい、保存します';
+
+    overlay.innerHTML = `
+        <div class="modal-content" style="max-width: 440px; text-align: center; padding: 32px 28px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-xl); box-shadow: var(--shadow-lg); animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
+            <div style="width: 56px; height: 56px; border-radius: 50%; background: rgba(245, 158, 11, 0.15); color: #f59e0b; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; font-size: 26px; border: 1px solid rgba(245, 158, 11, 0.3);">
+                ⚠️
+            </div>
+            <h2 style="font-size: 1.3rem; font-weight: 800; margin-bottom: 10px; color: var(--text);">${titleText}</h2>
+            <p style="color: var(--text-2); font-size: 0.92rem; margin-bottom: 8px; line-height: 1.5;">${subText}</p>
+            <p style="color: var(--text-3); font-size: 0.88rem; margin-bottom: 24px;">${promptText}</p>
+            <div style="display: flex; gap: 12px; justify-content: center;">
+                <button id="btn-confirm-modal-cancel" class="btn btn-outline" style="flex: 1; justify-content: center; padding: 10px 16px; border-radius: var(--radius-md); font-weight: 600;">${btnCancelText}</button>
+                <button id="btn-confirm-modal-ok" class="btn btn-primary" style="flex: 1; justify-content: center; padding: 10px 16px; border-radius: var(--radius-md); font-weight: 600; background: linear-gradient(135deg, var(--primary), var(--primary-hover));">${btnConfirmText}</button>
+            </div>
+        </div>
+    `;
+
+    overlay.classList.add('open');
+
+    document.getElementById('btn-confirm-modal-cancel').onclick = () => {
+        overlay.classList.remove('open');
+        if (typeof onCancel === 'function') onCancel();
+    };
+
+    document.getElementById('btn-confirm-modal-ok').onclick = () => {
+        overlay.classList.remove('open');
+        if (typeof onConfirm === 'function') onConfirm();
+    };
+}
+
 // ===================== LOGTIME FORM =====================
-const logtimeCooldowns = {};
+var logtimeCooldowns = {};
+var logtimeAvgTime = 3000; // Average save time in ms (starts at 3s, adapts over time)
 
 function handleLogtime(event, formId) {
     event.preventDefault();
+    const isVi = typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi';
     const form = document.getElementById(formId);
     if (!form) return;
 
@@ -581,34 +1599,186 @@ function handleLogtime(event, formId) {
 
     if (diff < 300) {
         const rem = 300 - Math.floor(diff);
-        showToast(`⏳ Vui lòng chờ ${Math.floor(rem / 60)}p ${rem % 60}s nữa!`, 'warning');
+        showToast(isVi ? `⏳ Vui lòng chờ ${Math.floor(rem / 60)}p ${rem % 60}s nữa!` : `⏳ あと ${Math.floor(rem / 60)}分 ${rem % 60}秒お待ちください！`, 'warning');
         return;
     }
 
     const data = Object.fromEntries(new FormData(form).entries());
-    const hours = parseFloat(data.so_gio) || 0;
-    const pages = parseInt(data.so_page) || 0;
 
-    if (hours === 0 && pages === 0) { showToast('⚠️ Vui lòng nhập số giờ hoặc số trang!', 'warning'); return; }
+    // Hàm tiện ích cảnh báo và highlight input vi phạm
+    function markInvalidField(fieldName, msg) {
+        const input = form.querySelector(`[name="${fieldName}"]`);
+        if (input) {
+            input.focus();
+            input.style.borderColor = '#ef4444';
+            input.style.boxShadow = '0 0 0 4px rgba(239, 68, 68, 0.25)';
+            const clearHighlight = () => {
+                input.style.borderColor = '';
+                input.style.boxShadow = '';
+                input.removeEventListener('input', clearHighlight);
+                input.removeEventListener('change', clearHighlight);
+            };
+            input.addEventListener('input', clearHighlight);
+            input.addEventListener('change', clearHighlight);
+        }
+        showToast(msg, 'warning');
+    }
 
+    // 1. Loại truyện (Category)
+    if (!data.category || !data.category.trim()) {
+        markInvalidField('category', isVi ? '⚠️ Vui lòng chọn Loại truyện!' : '⚠️ カテゴリを選択してください！');
+        return;
+    }
+
+    // 2. Độ khó (Difficulty) - Không được để trống hoặc để mặc định '--'
+    if (!data.difficulty || !data.difficulty.trim()) {
+        markInvalidField('difficulty', isVi ? '⚠️ Vui lòng chọn Độ khó!' : '⚠️ 難易度を選択してください！');
+        return;
+    }
+
+    // 3. Người làm (Worker)
+    if (!data.nguoi_thuc_hien || !data.nguoi_thuc_hien.trim()) {
+        markInvalidField('nguoi_thuc_hien', isVi ? '⚠️ Vui lòng chọn Người làm!' : '⚠️ 作業者を選択してください！');
+        return;
+    }
+
+    // 4. Ngày làm việc (Log date)
+    if (!data.ngay_log || !data.ngay_log.trim()) {
+        markInvalidField('ngay_log', isVi ? '⚠️ Vui lòng chọn Ngày làm việc!' : '⚠️ 作業日を選択してください！');
+        return;
+    }
+
+    // 5. Giờ làm hôm nay (Hours) - Bắt buộc nhập, không được để trống, > 0
+    if (data.so_gio === undefined || data.so_gio === null || String(data.so_gio).trim() === '') {
+        markInvalidField('so_gio', isVi ? '⚠️ Vui lòng nhập Giờ làm hôm nay!' : '⚠️ 今日の作業時間を入力してください！');
+        return;
+    }
+    const hours = parseFloat(data.so_gio);
+    if (isNaN(hours) || hours <= 0) {
+        markInvalidField('so_gio', isVi ? '⚠️ Giờ làm hôm nay phải lớn hơn 0!' : '⚠️ 作業時間は0より大きい値を入力してください！');
+        return;
+    }
+
+    // 6. Tổng số trang (Total pages) - Bắt buộc nhập, không được để trống
+    if (data.so_trang_tong === undefined || data.so_trang_tong === null || String(data.so_trang_tong).trim() === '') {
+        markInvalidField('so_trang_tong', isVi ? '⚠️ Vui lòng nhập Tổng số trang!' : '⚠️ 総ページ数を入力してください！');
+        return;
+    }
+    const totalPages = parseInt(data.so_trang_tong);
+    if (isNaN(totalPages) || totalPages < 0) {
+        markInvalidField('so_trang_tong', isVi ? '⚠️ Tổng số trang không hợp lệ!' : '⚠️ 総ページ数が無効です！');
+        return;
+    }
+
+    // 7. Số page HT (Completed pages) - Bắt buộc nhập, không được để trống
+    if (data.so_page === undefined || data.so_page === null || String(data.so_page).trim() === '') {
+        markInvalidField('so_page', isVi ? '⚠️ Vui lòng nhập Số page hoàn thành (Số page HT)!' : '⚠️ 完了ページ数を入力してください！');
+        return;
+    }
+    const pages = parseInt(data.so_page);
+    if (isNaN(pages) || pages < 0) {
+        markInvalidField('so_page', isVi ? '⚠️ Số page hoàn thành không hợp lệ!' : '⚠️ 完了ページ数が無効です！');
+        return;
+    }
+
+    // 8. Ghi chú thêm (ghi_chu) -> Ngoại lệ duy nhất được để trống!
+
+    // Check if the log date is today
+    if (data.ngay_log) {
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        const todayStr = `${yyyy}-${mm}-${dd}`;
+
+        if (data.ngay_log !== todayStr) {
+            showConfirmDateModal(data.ngay_log, todayStr, () => {
+                executeLogtimeSubmit(form, formId, data);
+            });
+            return;
+        }
+    }
+
+    executeLogtimeSubmit(form, formId, data);
+}
+
+function executeLogtimeSubmit(form, formId, data) {
+    const isVi = typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi';
     const btn = form.querySelector('button[type="submit"]');
-    const orig = btn.textContent;
+    const orig = btn.innerHTML; // Keep HTML if there are icons
     btn.disabled = true;
-    btn.innerHTML = '<span class="loading-spinner" style="width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-radius: 50%; border-top-color: #fff; animation: spin 1s linear infinite; display: inline-block; margin-right: 8px;"></span>ĐANG LƯU...';
+    btn.textContent = isVi ? '⏳ ĐANG LƯU...' : '⏳ 保存中...';
+
+    // Show progress bar
+    const formIndex = formId.replace('logtime-', '');
+    const progressEl = document.getElementById('progress-' + formIndex);
+    var progressFill, progressLabel, progressTime, progressInterval, startTime;
+
+    if (progressEl) {
+        progressEl.style.display = 'block';
+        progressFill = progressEl.querySelector('.progress-fill');
+        progressLabel = progressEl.querySelector('.progress-label');
+        progressTime = progressEl.querySelector('.progress-time');
+        startTime = Date.now();
+        var estimatedMs = logtimeAvgTime;
+
+        if (progressFill) progressFill.style.width = '0%';
+        if (progressLabel) progressLabel.textContent = isVi ? 'Đang gửi dữ liệu lên Google Sheet...' : 'Googleスプレッドシートに送信中...';
+        if (progressTime) progressTime.textContent = '~' + Math.ceil(estimatedMs / 1000) + 's';
+
+        // Animate progress: fast at first, slows down as it approaches 90%
+        progressInterval = setInterval(function() {
+            var elapsed = Date.now() - startTime;
+            var ratio = elapsed / estimatedMs;
+            // Ease-out curve: fast start, slow near end. Caps at 92%.
+            var pct = Math.min(92, ratio * 100 * (1 - ratio * 0.3));
+            if (progressFill) progressFill.style.width = pct + '%';
+
+            var remaining = Math.max(0, Math.ceil((estimatedMs - elapsed) / 1000));
+            if (progressTime) progressTime.textContent = remaining > 0 ? '~' + remaining + 's' : '...';
+
+            // Update label based on progress
+            if (pct > 60 && progressLabel) progressLabel.textContent = isVi ? 'Đang lưu vào Google Sheet...' : 'Googleスプレッドシートに保存中...';
+            if (pct > 85 && progressLabel) progressLabel.textContent = isVi ? 'Sắp xong...' : 'もうすぐ完了します...';
+        }, 100);
+    }
 
     fetch('/api/logtime', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
         .then(r => r.json())
         .then(result => {
+            var actualTime = Date.now() - startTime;
+            // Adapt average: weighted moving average (70% old, 30% new)
+            logtimeAvgTime = Math.round(logtimeAvgTime * 0.7 + actualTime * 0.3);
+
+            if (progressInterval) clearInterval(progressInterval);
+            if (progressFill) progressFill.style.width = '100%';
+            if (progressLabel) progressLabel.textContent = result.status === 'success' ? (isVi ? '✅ Hoàn tất!' : '✅ 完了！') : (isVi ? '❌ Lỗi!' : '❌ エラー！');
+            if (progressTime) progressTime.textContent = (actualTime / 1000).toFixed(1) + 's';
+
             if (result.status === 'success') {
+                if (progressFill) progressFill.style.background = 'linear-gradient(90deg, #22c55e, #4ade80)';
                 logtimeCooldowns[formId] = Date.now();
-                showSuccessModal();
+                setTimeout(function() {
+                    showSuccessModal();
+                    if (progressEl) progressEl.style.display = 'none';
+                    if (progressFill) { progressFill.style.width = '0%'; progressFill.style.background = 'linear-gradient(90deg, var(--primary), #818cf8)'; }
+                }, 600);
                 if (typeof handlePetXPResponse === 'function') handlePetXPResponse(result);
             } else {
-                showToast('❌ ' + (result.message || 'Có lỗi xảy ra.'), 'error');
+                if (progressFill) progressFill.style.background = 'linear-gradient(90deg, #ef4444, #f87171)';
+                showToast('❌ ' + (result.message || (isVi ? 'Có lỗi xảy ra.' : 'エラーが発生しました。')), 'error');
+                setTimeout(function() { if (progressEl) progressEl.style.display = 'none'; if (progressFill) { progressFill.style.width = '0%'; progressFill.style.background = 'linear-gradient(90deg, var(--primary), #818cf8)'; } }, 2000);
             }
         })
-        .catch(() => showToast('❌ Lỗi kết nối!', 'error'))
-        .finally(() => { btn.disabled = false; btn.textContent = orig; });
+        .catch(function() {
+            if (progressInterval) clearInterval(progressInterval);
+            if (progressFill) { progressFill.style.width = '100%'; progressFill.style.background = 'linear-gradient(90deg, #ef4444, #f87171)'; }
+            if (progressLabel) progressLabel.textContent = isVi ? '❌ Lỗi kết nối!' : '❌ 接続エラー！';
+            if (progressTime) progressTime.textContent = '';
+            showToast(isVi ? '❌ Lỗi kết nối!' : '❌ 接続エラー！', 'error');
+            setTimeout(function() { if (progressEl) progressEl.style.display = 'none'; if (progressFill) { progressFill.style.width = '0%'; progressFill.style.background = 'linear-gradient(90deg, var(--primary), #818cf8)'; } }, 2000);
+        })
+        .finally(() => { btn.disabled = false; btn.innerHTML = orig; });
 }
 
 // ===================== UTILS =====================
@@ -641,15 +1811,26 @@ function copyText(btn, elementId) {
     const el = document.getElementById(elementId);
     if (!el) return;
     navigator.clipboard.writeText(el.textContent).then(() => {
-        const old = btn.innerHTML;
-        btn.innerHTML = '✅ Đã Copy';
-        setTimeout(() => { btn.innerHTML = old; }, 2000);
-    }).catch(() => showToast('Copy thất bại!', 'error'));
+        const oldHtml = btn.innerHTML;
+        btn.classList.add('copied');
+        btn.innerHTML = '<i class="fas fa-check" style="color: #10b981;"></i> <span>' + ((typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'ja') ? 'コピー完了' : 'Đã chép') + '</span>';
+        setTimeout(() => {
+            btn.innerHTML = oldHtml;
+            btn.classList.remove('copied');
+        }, 1800);
+    }).catch(() => {
+        if (window.showToast) showToast('Copy thất bại!', 'error');
+    });
 }
 
 function toggleAskTask(el) {
-    const content = el.nextElementSibling;
-    if (content) content.classList.toggle('open');
+    const accordion = el.closest('.ask-task-accordion');
+    if (accordion) {
+        accordion.classList.toggle('open');
+    } else {
+        const content = el.nextElementSibling;
+        if (content) content.classList.toggle('open');
+    }
 }
 
 // ===================== THEME TOGGLE =====================
@@ -692,27 +1873,26 @@ function backgroundSyncChecklist() {
                     const tpKey = card.dataset.tpKey;
                     if (!tpKey) return;
 
-                    const tpKeyParts = tpKey.split(' - ');
-                    const oldTpKey = tpKeyParts.length > 1 ? tpKeyParts.slice(1).join(' - ') : tpKey;
-
                     // Count how many are checked for this tpKey in the fetched data
                     let localCheckedCount = 0;
                     let freshCheckedIds = [];
                     for (let i = 1; i <= 9; i++) {
                         const checkId = `t${i}`;
                         const isCheckedNew = checkedMap[tpKey] && checkedMap[tpKey][checkId];
-                        const isCheckedOld = checkedMap[oldTpKey] && checkedMap[oldTpKey][checkId];
-                        const finalChecked = Boolean(isCheckedNew || isCheckedOld);
+                        const finalChecked = Boolean(isCheckedNew);
                         if (finalChecked) {
                             localCheckedCount++;
                             freshCheckedIds.push(checkId);
                         }
                         
-                        // Update checkboxes inside the modal
-                        const escapedTpKey = tpKey.replace(/"/g, '\\"');
-                        const checkboxes = document.querySelectorAll(`.checklist-grid[data-tp-key="${escapedTpKey}"] input[data-check-id="${checkId}"]`);
-                        checkboxes.forEach(cb => {
-                            cb.checked = finalChecked;
+                        // Update checkboxes inside the modal safely without DOM query selector errors
+                        document.querySelectorAll('.checklist-grid').forEach(g => {
+                            if (g.dataset.tpKey === tpKey) {
+                                const cb = g.querySelector(`input[data-check-id="${checkId}"]`);
+                                if (cb && !cb.matches(':focus') && !cb.matches(':active')) {
+                                    cb.checked = finalChecked;
+                                }
+                            }
                         });
                     }
 
@@ -726,6 +1906,18 @@ function backgroundSyncChecklist() {
                     if (infoSpans.length > 1) infoSpans[1].textContent = `${progress}%`;
                     const fill = card.querySelector('.progress-fill');
                     if (fill) fill.style.width = `${progress}%`;
+
+                    // Update partner progress spans in other cards that have this task as their partner
+                    document.querySelectorAll(`.partner-progress-text[data-partner-key="${tpKey}"]`).forEach(span => {
+                        span.textContent = `${progress}%`;
+                        if (progress >= 100) {
+                            span.style.color = '#34d399';
+                        } else if (progress > 0) {
+                            span.style.color = '#fbbf24';
+                        } else {
+                            span.style.color = 'var(--text-4)';
+                        }
+                    });
 
                     // Move card to correct column
                     const newStatusClass = localCheckedCount === 0 ? 'not-started' : (localCheckedCount >= 9 ? 'delivered' : 'in-progress');
@@ -777,6 +1969,16 @@ document.addEventListener('DOMContentLoaded', () => {
     // Init Weather & Time
     initWeatherTime();
 
+    // Init AI Insights
+    const scrollContainer = document.getElementById('aiInsightsScroll');
+    if (scrollContainer) {
+        fetchAiInsights();
+        setInterval(fetchAiInsights, 600000);
+    }
+
+    // Init Task Comments Socket
+    setupTaskCommentsSocket();
+
     // Background Sync for Server Truth
     backgroundSyncChecklist();
 
@@ -789,6 +1991,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 vntaskDataList = data;
                 if (chartLoader) chartLoader.style.display = 'none';
                 setChartPeriod('week');
+                
+                // Sync chart with active tab
+                const currentTab = sessionStorage.getItem('activeTab') || 'nay';
+                const isVi = (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi');
+                if (currentTab === 'truoc') selectWeek(-1, isVi ? 'Tuần trước' : '先週', null, false);
+                else if (currentTab === 'nay') selectWeek(0, isVi ? 'Tuần này' : '今週', null, false);
+                else if (currentTab === 'sau') selectWeek(1, isVi ? 'Tuần sau' : '来週', null, false);
             }
         })
         .catch(err => {
@@ -1511,7 +2720,7 @@ function toggleWeekSelect(e) {
     }
 }
 
-function selectWeek(offset, text, e) {
+function selectWeek(offset, text, e, syncTab = true) {
     if (e) e.stopPropagation();
     const textSpan = document.getElementById('week-text');
     if (textSpan) {
@@ -1522,6 +2731,18 @@ function selectWeek(offset, text, e) {
     if (select) {
         select.classList.remove('open');
     }
+    
+    if (syncTab && typeof switchTab === 'function') {
+        let tabId = 'nay';
+        if (offset === -1) tabId = 'truoc';
+        else if (offset === 1) tabId = 'sau';
+        
+        const currentActive = sessionStorage.getItem('activeTab');
+        if (currentActive !== tabId) {
+            switchTab(tabId, false);
+        }
+    }
+    
     updateAreaChart('week');
 }
 
@@ -1652,80 +2873,498 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ======================================
-// MINI CHAT BOX
+// MINI CHAT BOX (Redesigned v1.3.28)
 // ======================================
 let unreadChatCount = 0;
 let isChatOpen = false;
+let currentChatFile = null;
+
+// Messenger-style notification sound using Web Audio API
+function playChatNotification() {
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        // First tone (higher pitch "ding")
+        const osc1 = ctx.createOscillator();
+        const gain1 = ctx.createGain();
+        osc1.type = 'sine';
+        osc1.frequency.setValueAtTime(830, ctx.currentTime);
+        gain1.gain.setValueAtTime(0.3, ctx.currentTime);
+        gain1.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+        osc1.connect(gain1);
+        gain1.connect(ctx.destination);
+        osc1.start(ctx.currentTime);
+        osc1.stop(ctx.currentTime + 0.15);
+
+        // Second tone (slightly higher, delayed)
+        const osc2 = ctx.createOscillator();
+        const gain2 = ctx.createGain();
+        osc2.type = 'sine';
+        osc2.frequency.setValueAtTime(1050, ctx.currentTime + 0.12);
+        gain2.gain.setValueAtTime(0.01, ctx.currentTime);
+        gain2.gain.setValueAtTime(0.25, ctx.currentTime + 0.12);
+        gain2.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+        osc2.connect(gain2);
+        gain2.connect(ctx.destination);
+        osc2.start(ctx.currentTime + 0.12);
+        osc2.stop(ctx.currentTime + 0.3);
+
+        // Cleanup
+        setTimeout(() => ctx.close(), 500);
+    } catch(e) {
+        console.log('Notification sound failed:', e);
+    }
+}
 
 window.toggleChat = function () {
-    const win = document.getElementById('chat-window');
+    const panel = document.getElementById('chat-panel');
     const badge = document.getElementById('chat-badge');
-    if (!win) return;
+    const bubbleBtn = document.getElementById('chat-bubble-btn');
+    if (!panel) return;
 
-    isChatOpen = win.style.display === 'flex';
+    isChatOpen = panel.classList.contains('open');
     if (isChatOpen) {
-        win.style.display = 'none';
+        panel.classList.remove('open');
         isChatOpen = false;
+        // Close emoji picker too
+        const emojiPicker = document.getElementById('emoji-picker');
+        if (emojiPicker) emojiPicker.classList.remove('open');
     } else {
-        win.style.display = 'flex';
+        panel.classList.add('open');
         isChatOpen = true;
+        window.socket && window.socket.emit('chat_mark_read');
         unreadChatCount = 0;
         if (badge) badge.style.display = 'none';
+        if (bubbleBtn) bubbleBtn.classList.remove('has-unread');
         const input = document.getElementById('chat-input');
-        if (input) input.focus();
-
-        // Scroll to bottom
+        if (input) setTimeout(() => input.focus(), 100);
         const msgs = document.getElementById('chat-messages');
         if (msgs) msgs.scrollTop = msgs.scrollHeight;
     }
 };
 
-window.sendChatMessage = function () {
+// ---- EMOJI PICKER ----
+const EMOJI_DATA = {
+    '😀': { cat: 'smileys', keywords: 'grinning happy smile vui cuoi' },
+    '😂': { cat: 'smileys', keywords: 'joy tears laughing cuoi khoc' },
+    '🤣': { cat: 'smileys', keywords: 'rofl rolling laugh' },
+    '😊': { cat: 'smileys', keywords: 'blush shy smile' },
+    '😍': { cat: 'smileys', keywords: 'heart eyes love yeu' },
+    '🥰': { cat: 'smileys', keywords: 'smiling hearts love' },
+    '😘': { cat: 'smileys', keywords: 'kiss wink hon' },
+    '😜': { cat: 'smileys', keywords: 'wink tongue playful' },
+    '😎': { cat: 'smileys', keywords: 'cool sunglasses' },
+    '🤩': { cat: 'smileys', keywords: 'star struck excited' },
+    '😢': { cat: 'smileys', keywords: 'cry sad buon' },
+    '😭': { cat: 'smileys', keywords: 'sob crying khoc' },
+    '😤': { cat: 'smileys', keywords: 'angry mad gian' },
+    '😡': { cat: 'smileys', keywords: 'rage angry' },
+    '🤔': { cat: 'smileys', keywords: 'thinking hmm suy nghi' },
+    '😏': { cat: 'smileys', keywords: 'smirk sly' },
+    '🙄': { cat: 'smileys', keywords: 'eye roll' },
+    '😴': { cat: 'smileys', keywords: 'sleeping zzz ngu' },
+    '🤗': { cat: 'smileys', keywords: 'hugging hug om' },
+    '🤭': { cat: 'smileys', keywords: 'hand over mouth oops' },
+    '😇': { cat: 'smileys', keywords: 'angel halo innocent' },
+    '🥺': { cat: 'smileys', keywords: 'pleading puppy eyes xin' },
+    '😱': { cat: 'smileys', keywords: 'scream shock so' },
+    '🤯': { cat: 'smileys', keywords: 'exploding head mind blown' },
+    '👍': { cat: 'hands', keywords: 'thumbs up ok good tot' },
+    '👎': { cat: 'hands', keywords: 'thumbs down bad' },
+    '👏': { cat: 'hands', keywords: 'clap bravo vo tay' },
+    '🙏': { cat: 'hands', keywords: 'pray please thanks cam on' },
+    '✌️': { cat: 'hands', keywords: 'peace victory' },
+    '🤝': { cat: 'hands', keywords: 'handshake deal' },
+    '💪': { cat: 'hands', keywords: 'muscle strong suc manh' },
+    '👋': { cat: 'hands', keywords: 'wave hello hi chao' },
+    '🫡': { cat: 'hands', keywords: 'salute respect' },
+    '🫶': { cat: 'hands', keywords: 'heart hands love' },
+    '❤️': { cat: 'symbols', keywords: 'red heart love tim' },
+    '🔥': { cat: 'symbols', keywords: 'fire hot lit lua' },
+    '⭐': { cat: 'symbols', keywords: 'star sao' },
+    '✅': { cat: 'symbols', keywords: 'check done xong' },
+    '❌': { cat: 'symbols', keywords: 'cross no wrong sai' },
+    '⚡': { cat: 'symbols', keywords: 'lightning fast nhanh' },
+    '💯': { cat: 'symbols', keywords: 'hundred perfect' },
+    '💀': { cat: 'symbols', keywords: 'skull dead' },
+    '🎯': { cat: 'symbols', keywords: 'target bullseye muc tieu' },
+    '💡': { cat: 'symbols', keywords: 'light bulb idea y tuong' },
+    '💬': { cat: 'symbols', keywords: 'speech bubble chat' },
+    '🔔': { cat: 'symbols', keywords: 'bell notification thong bao' },
+    '⏰': { cat: 'symbols', keywords: 'alarm clock time gio' },
+    '🎉': { cat: 'activities', keywords: 'party celebration chuc mung' },
+    '🎊': { cat: 'activities', keywords: 'confetti celebrate' },
+    '🎁': { cat: 'activities', keywords: 'gift present qua' },
+    '🏆': { cat: 'activities', keywords: 'trophy winner giai' },
+    '🎮': { cat: 'activities', keywords: 'game controller choi game' },
+    '🎵': { cat: 'activities', keywords: 'music note nhac' },
+    '📸': { cat: 'activities', keywords: 'camera photo anh' },
+    '☕': { cat: 'food', keywords: 'coffee cafe ca phe' },
+    '🍕': { cat: 'food', keywords: 'pizza' },
+    '🍜': { cat: 'food', keywords: 'noodle ramen pho' },
+    '🍻': { cat: 'food', keywords: 'beer cheers bia' },
+    '🧋': { cat: 'food', keywords: 'bubble tea tra sua' },
+    '🍩': { cat: 'food', keywords: 'donut doughnut' },
+    '🍰': { cat: 'food', keywords: 'cake shortcake banh' },
+    '🌈': { cat: 'nature', keywords: 'rainbow cau vong' },
+    '🌙': { cat: 'nature', keywords: 'moon night dem trang' },
+    '☀️': { cat: 'nature', keywords: 'sun sunny nang' },
+    '🌸': { cat: 'nature', keywords: 'cherry blossom flower hoa' },
+    '🐱': { cat: 'nature', keywords: 'cat meo' },
+    '🐶': { cat: 'nature', keywords: 'dog cho' },
+    '🦊': { cat: 'nature', keywords: 'fox cao' },
+    '💻': { cat: 'objects', keywords: 'laptop computer may tinh' },
+    '📱': { cat: 'objects', keywords: 'phone dien thoai' },
+    '📁': { cat: 'objects', keywords: 'folder file thu muc' },
+    '✏️': { cat: 'objects', keywords: 'pencil edit viet' },
+    '📝': { cat: 'objects', keywords: 'memo note ghi chu' },
+    '🗂️': { cat: 'objects', keywords: 'card index files' },
+    '📊': { cat: 'objects', keywords: 'chart graph bieu do' },
+    '🚀': { cat: 'objects', keywords: 'rocket launch ship' },
+};
+
+const EMOJI_CATEGORIES = {
+    'smileys': '😀',
+    'hands': '👍',
+    'symbols': '❤️',
+    'activities': '🎉',
+    'food': '☕',
+    'nature': '🌸',
+    'objects': '💻'
+};
+
+let currentEmojiCat = 'smileys';
+
+function initEmojiPicker() {
+    const tabsEl = document.getElementById('emoji-tabs');
+    const gridEl = document.getElementById('emoji-grid');
+    const searchEl = document.getElementById('emoji-search');
+    if (!tabsEl || !gridEl) return;
+
+    // Build tabs
+    tabsEl.innerHTML = Object.entries(EMOJI_CATEGORIES).map(([cat, icon]) =>
+        `<button class="emoji-tab ${cat === currentEmojiCat ? 'active' : ''}" data-cat="${cat}" onclick="selectEmojiCategory('${cat}')">${icon}</button>`
+    ).join('');
+
+    renderEmojiGrid();
+
+    if (searchEl) {
+        searchEl.addEventListener('input', (e) => {
+            const q = e.target.value.toLowerCase().trim();
+            renderEmojiGrid(q);
+        });
+    }
+}
+
+function renderEmojiGrid(search) {
+    const gridEl = document.getElementById('emoji-grid');
+    if (!gridEl) return;
+
+    let emojis = Object.entries(EMOJI_DATA);
+    if (search) {
+        emojis = emojis.filter(([_, data]) => data.keywords.includes(search));
+    } else {
+        emojis = emojis.filter(([_, data]) => data.cat === currentEmojiCat);
+    }
+
+    gridEl.innerHTML = emojis.map(([emoji]) =>
+        `<button class="emoji-item" onclick="insertEmoji('${emoji}')">${emoji}</button>`
+    ).join('');
+}
+
+window.selectEmojiCategory = function(cat) {
+    currentEmojiCat = cat;
+    document.querySelectorAll('.emoji-tab').forEach(t => t.classList.toggle('active', t.dataset.cat === cat));
+    document.getElementById('emoji-search').value = '';
+    renderEmojiGrid();
+};
+
+window.insertEmoji = function(emoji) {
     const input = document.getElementById('chat-input');
-    if (!input || !window.socket) return;
-    const msg = input.value.trim();
-    if (msg) {
-        window.socket.emit('chat_message', { msg: msg });
-        input.value = '';
+    if (!input) return;
+    const start = input.selectionStart;
+    const end = input.selectionEnd;
+    input.value = input.value.substring(0, start) + emoji + input.value.substring(end);
+    input.focus();
+    input.setSelectionRange(start + emoji.length, start + emoji.length);
+};
+
+window.toggleEmojiPicker = function() {
+    const picker = document.getElementById('emoji-picker');
+    if (!picker) return;
+    const isOpen = picker.classList.contains('open');
+    if (isOpen) {
+        picker.classList.remove('open');
+    } else {
+        picker.classList.add('open');
+        initEmojiPicker();
+        const searchEl = document.getElementById('emoji-search');
+        if (searchEl) setTimeout(() => searchEl.focus(), 50);
     }
 };
 
+// Close emoji picker when clicking outside
+document.addEventListener('click', (e) => {
+    const picker = document.getElementById('emoji-picker');
+    const toggleBtn = document.getElementById('emoji-toggle-btn');
+    if (picker && picker.classList.contains('open')) {
+        if (!picker.contains(e.target) && !toggleBtn.contains(e.target)) {
+            picker.classList.remove('open');
+        }
+    }
+});
+
+// ---- FILE HANDLING (Auto-send on attach) ----
+window.handleChatFileSelect = function (e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+        alert("File quá lớn. Vui lòng chọn file dưới 5MB.");
+        e.target.value = '';
+        return;
+    }
+    const reader = new FileReader();
+    reader.onload = function(evt) {
+        currentChatFile = {
+            name: file.name,
+            type: file.type,
+            data: evt.target.result
+        };
+        // Auto-send immediately when file is selected
+        sendChatMessage();
+    };
+    reader.readAsDataURL(file);
+};
+
+window.cancelChatFile = function() {
+    currentChatFile = null;
+    const fileInput = document.getElementById('chat-file-input');
+    const preview = document.getElementById('chat-file-preview');
+    if (fileInput) fileInput.value = '';
+    if (preview) preview.classList.remove('active');
+};
+
+// ---- SEND MESSAGE ----
+window.sendChatMessage = function () {
+    const input = document.getElementById('chat-input');
+    const fileInput = document.getElementById('chat-file-input');
+    if (!input || !window.socket) return;
+    
+    const msg = input.value.trim();
+    if (msg || currentChatFile) {
+        let payload = { msg: msg };
+        if (currentChatFile) {
+            payload.file_name = currentChatFile.name;
+            payload.file_type = currentChatFile.type;
+            payload.file_data = currentChatFile.data;
+        }
+        window.socket.emit('chat_message', payload);
+        window.socket.emit('chat_stop_typing');
+        
+        input.value = '';
+        if (fileInput) fileInput.value = '';
+        currentChatFile = null;
+        const preview = document.getElementById('chat-file-preview');
+        if (preview) preview.classList.remove('active');
+        
+        // Close emoji picker after send
+        const emojiPicker = document.getElementById('emoji-picker');
+        if (emojiPicker) emojiPicker.classList.remove('open');
+    }
+};
+
+// ---- CHAT INIT & SOCKET EVENTS ----
 document.addEventListener('DOMContentLoaded', () => {
     const input = document.getElementById('chat-input');
     if (input) {
+        let typingTimeout;
+        input.addEventListener('input', function(e) {
+            if (!window.socket) return;
+            if (this.value.trim() === '') {
+                window.socket.emit('chat_stop_typing');
+                clearTimeout(typingTimeout);
+                return;
+            }
+            window.socket.emit('chat_typing');
+            clearTimeout(typingTimeout);
+            typingTimeout = setTimeout(() => {
+                window.socket.emit('chat_stop_typing');
+            }, 2000);
+        });
         input.addEventListener('keypress', function (e) {
             if (e.key === 'Enter') sendChatMessage();
         });
     }
 
     if (typeof window.socket !== 'undefined' && window.socket) {
+        
+        window.socket.on('connect', () => {
+            window.socket.emit('request_chat_history');
+        });
+
+        window.socket.on('chat_history', function (messages) {
+            const msgs = document.getElementById('chat-messages');
+            if (!msgs) return;
+            
+            const welcomeText = typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi' 
+                ? 'Chào mừng bạn đến với kênh chat chung! 💬' 
+                : 'グループチャットへようこそ！💬';
+            msgs.innerHTML = `<div class="chat-welcome">${welcomeText}</div>`;
+            
+            messages.forEach(data => appendChatMessage(msgs, data, false));
+            msgs.scrollTop = msgs.scrollHeight;
+            if (isChatOpen) {
+                window.socket.emit('chat_mark_read');
+            }
+        });
+
+        const typingUsers = new Map();
+        window.socket.on('chat_typing', function(data) {
+            if (typeof CURRENT_USER !== 'undefined' && data.username === CURRENT_USER) return;
+            typingUsers.set(data.username, data.fullname || data.username);
+            updateTypingIndicator();
+        });
+        window.socket.on('chat_stop_typing', function(data) {
+            typingUsers.delete(data.username);
+            updateTypingIndicator();
+        });
+        function updateTypingIndicator() {
+            const ind = document.getElementById('chat-typing-indicator');
+            const txt = document.getElementById('chat-typing-text');
+            if (!ind || !txt) return;
+            if (typingUsers.size > 0) {
+                const names = Array.from(typingUsers.values()).join(', ');
+                const isVi = typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi';
+                txt.textContent = names + (isVi ? ' đang soạn tin' : ' が入力中');
+                ind.style.display = 'flex';
+                const msgs = document.getElementById('chat-messages');
+                if (msgs && msgs.scrollHeight - msgs.scrollTop <= msgs.clientHeight + 50) {
+                    setTimeout(() => msgs.scrollTop = msgs.scrollHeight, 10);
+                }
+            } else {
+                ind.style.display = 'none';
+            }
+        }
+        
+        window.socket.on('chat_read_update', function(data) {
+            const { message_ids, user } = data;
+            message_ids.forEach(id => {
+                const container = document.getElementById(`read-avatars-${id}`);
+                if (container) {
+                    const existing = container.querySelector(`img[data-user="${user.username}"]`);
+                    if (!existing) {
+                        const img = document.createElement('img');
+                        img.src = user.avatar;
+                        img.title = user.username;
+                        img.dataset.user = user.username;
+                        img.onerror = function() { this.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.username)}&background=random&size=30`; };
+                        container.appendChild(img);
+                    }
+                }
+            });
+        });
+
         window.socket.on('chat_message', function (data) {
             const msgs = document.getElementById('chat-messages');
             if (!msgs) return;
 
-            const isMe = data.username === (document.querySelector('.user-name')?.innerText || '');
-
-            let html = `
-                <div style="display: flex; flex-direction: column; align-items: ${isMe ? 'flex-end' : 'flex-start'}; margin-bottom: 4px;">
-                    <span style="font-size: 10px; color: var(--text-3); margin-bottom: 2px;">${isMe ? 'Bạn' : data.fullname} - ${data.time}</span>
-                    <div style="background: ${isMe ? 'var(--primary)' : 'var(--bg-body)'}; color: ${isMe ? 'white' : 'var(--text)'}; padding: 8px 12px; border-radius: 12px; max-width: 85%; word-wrap: break-word;">
-                        ${data.msg}
-                    </div>
-                </div>
-            `;
-
-            msgs.innerHTML += html;
+            const isMe = appendChatMessage(msgs, data, true);
             msgs.scrollTop = msgs.scrollHeight;
 
             if (!isChatOpen) {
                 unreadChatCount++;
                 const badge = document.getElementById('chat-badge');
+                const bubbleBtn = document.getElementById('chat-bubble-btn');
                 if (badge) {
                     badge.innerText = unreadChatCount;
                     badge.style.display = 'flex';
                 }
+                if (bubbleBtn) bubbleBtn.classList.add('has-unread');
+            } else {
+                window.socket.emit('chat_mark_read');
+            }
+            
+            if (!isMe && !isChatOpen) {
+                playChatNotification();
             }
         });
+
+        // Update online count in chat header
+        window.socket.on('online_users_update', (users) => {
+            const countEl = document.getElementById('chat-online-count');
+            if (countEl && users) {
+                const count = Array.isArray(users) ? users.length : 0;
+                const langStr = typeof CURRENT_LANG !== 'undefined' ? CURRENT_LANG : 'vi';
+                countEl.textContent = langStr === 'vi' 
+                    ? `🟢 ${count} người đang online` 
+                    : `🟢 ${count}人がオンライン`;
+            }
+        });
+        
+        function appendChatMessage(container, data, animate) {
+            const isMe = data.username === (typeof CURRENT_USER !== 'undefined' ? CURRENT_USER : '');
+            let contentHtml = '';
+            
+            // File content
+            if (data.file_data) {
+                if (data.file_type && data.file_type.startsWith('image/')) {
+                    contentHtml += `<div style="margin-bottom: 4px;"><img src="${data.file_data}" onclick="window.open('${data.file_data}', '_blank')" alt="image" /></div>`;
+                } else {
+                    contentHtml += `<div style="margin-bottom: 4px;"><a href="${data.file_data}" download="${data.file_name}" class="file-link">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                        ${data.file_name || 'Download file'}
+                    </a></div>`;
+                }
+            }
+            
+            // Text content — check if it's emoji-only
+            if (data.msg) {
+                const escapedMsg = data.msg.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                const emojiOnlyRegex = /^[\p{Emoji}\p{Emoji_Component}\s]+$/u;
+                const isEmojiOnly = emojiOnlyRegex.test(data.msg) && data.msg.trim().length <= 8 && !data.file_data;
+                if (isEmojiOnly) {
+                    contentHtml += `<div class="msg-only-emoji">${escapedMsg}</div>`;
+                } else {
+                    let formattedMsg = escapedMsg.replace(/\n/g, '<br>');
+                    formattedMsg = formattedMsg.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                    contentHtml += `<div>${formattedMsg}</div>`;
+                }
+            }
+            
+            const avatarUrl = data.avatar || `/static/img/pet/1.gif`;
+            const senderName = isMe 
+                ? (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi' ? 'Bạn' : 'あなた')
+                : (data.fullname || data.username);
+
+            let readAvatarsHtml = '';
+            if (data.read_by && data.read_by.length > 0) {
+                data.read_by.forEach(u => {
+                    readAvatarsHtml += `<img src="${u.avatar}" title="${u.username}" data-user="${u.username}" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(u.username)}&background=random&size=30'" />`;
+                });
+            }
+
+            const row = document.createElement('div');
+            row.className = `chat-msg-row ${isMe ? 'me' : ''}`;
+            if (!animate) row.style.animation = 'none';
+            
+            row.innerHTML = `
+                <img src="${avatarUrl}" class="chat-msg-avatar" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(data.username)}&background=random&size=30'" />
+                <div class="chat-msg-content">
+                    <div class="chat-msg-meta">
+                        <span class="msg-sender">${senderName}</span> • ${data.time}
+                    </div>
+                    <div class="chat-msg-bubble ${isMe ? 'me' : 'other'}">
+                        ${contentHtml}
+                    </div>
+                    <div class="chat-msg-read-avatars" id="read-avatars-${data.id || ''}">
+                        ${readAvatarsHtml}
+                    </div>
+                </div>
+            `;
+            
+            container.appendChild(row);
+            return isMe;
+        }
     }
 });
 
@@ -1844,9 +3483,11 @@ let radioState = {
     is_playing: false,
     youtube_id: '4xDzrIxC4Dk', // Lofi Girl Synthwave
     current_time: 0,
-    allow_requests: false,
+    allow_requests: true,
+    is_automix_enabled: false,
     queue: []
 };
+let targetCrossfadeVideoId = null;
 let djSyncInterval = null;
 let radioUpdateInterval = null;
 let radioPollingInterval = null;
@@ -1908,6 +3549,7 @@ window.cancelCrossfade = function() {
         window.fadeInterval = null;
     }
     isCrossfading = false;
+    targetCrossfadeVideoId = null;
     var overlay = document.getElementById('radio-mixing-overlay');
     var label = document.getElementById('radio-mixing-label');
     if (overlay) overlay.style.display = 'none';
@@ -1941,15 +3583,28 @@ window.crossfadeTo = function(newVideoId, startTime, callback) {
         if (callback) callback();
         return;
     }
+
+    // Nếu DJ đã crossfade gần xong (đã qua 18s của 20s mix), chuyển thẳng luôn không crossfade
+    if (startTime >= 18) {
+        if (ytPlayer && ytPlayer.loadVideoById) {
+            ytPlayer.loadVideoById(newVideoId, startTime);
+            ytPlayer.playVideo();
+        }
+        if (callback) callback();
+        return;
+    }
+
     isCrossfading = true;
+    targetCrossfadeVideoId = newVideoId;
 
     ytPlayer2.setVolume(0);
     ytPlayer2.loadVideoById(newVideoId, startTime);
     ytPlayer2.playVideo();
 
-    var fadeTime = 20000; // 20 seconds crossfade (Apple Music style)
+    // Tính thời gian mix còn lại tương ứng với DJ (tối đa 20s, tối thiểu 4s)
+    var fadeTime = Math.max(4000, Math.min(20000, Math.round((20 - startTime) * 1000)));
     var intervalTime = 100;
-    var steps = fadeTime / intervalTime;
+    var steps = Math.max(1, Math.round(fadeTime / intervalTime));
     var currentStep = 0;
     var startVol = 100;
     try { startVol = ytPlayer.getVolume() || 100; } catch (e) {}
@@ -2006,6 +3661,7 @@ window.crossfadeTo = function(newVideoId, startTime, callback) {
             ytPlayer = ytPlayer2;
             ytPlayer2 = temp;
             isCrossfading = false;
+            targetCrossfadeVideoId = null;
             if (callback) callback();
         }
     }, intervalTime);
@@ -2123,7 +3779,7 @@ function handleRadioStateFromPolling(state) {
         radioState.current_time = state.current_time;
         if (state.next_title !== undefined) radioState.next_title = state.next_title;
         radioState.allow_requests = state.allow_requests === true || state.allow_requests === 'true';
-        radioState.is_automix_enabled = state.is_automix_enabled !== false;
+        radioState.is_automix_enabled = state.is_automix_enabled === true || state.is_automix_enabled === 'true';
         radioState.video_active = !!state.video_active;
         if (state.queue) {
         radioState.queue = state.queue;
@@ -2161,14 +3817,23 @@ function handleRadioStateFromPolling(state) {
         const currentVideo = ytPlayer.getVideoData?.()?.video_id;
         const duration = ytPlayer.getDuration?.() || 0;
         const currentTime = ytPlayer.getCurrentTime?.() || 0;
-        const isNearEnd = duration > 0 && (duration - currentTime) <= 22;
+        const isNearEnd = duration > 0 && (duration - currentTime) <= 25;
 
         if (currentVideo !== state.youtube_id) {
-            if (!isCrossfading && currentVideo && window.crossfadeTo && isNearEnd) {
-                window.crossfadeTo(state.youtube_id, state.current_time);
+            if (isCrossfading && targetCrossfadeVideoId === state.youtube_id) {
+                // Đang trong tiến trình crossfade mượt sang bài này - không ngắt hay reload!
             } else {
-                if (isCrossfading && window.cancelCrossfade) window.cancelCrossfade();
-                ytPlayer.loadVideoById(state.youtube_id, state.current_time);
+                const canCrossfade = !isCrossfading && currentVideo && window.crossfadeTo && (
+                    state.is_crossfading === true ||
+                    (radioState.is_automix_enabled && isNearEnd)
+                );
+
+                if (canCrossfade) {
+                    window.crossfadeTo(state.youtube_id, state.current_time);
+                } else {
+                    if (isCrossfading && window.cancelCrossfade) window.cancelCrossfade();
+                    ytPlayer.loadVideoById(state.youtube_id, state.current_time);
+                }
             }
         } else if (!isCrossfading && Math.abs(currentTime - state.current_time) > 3) {
             const now = Date.now();
@@ -2440,7 +4105,7 @@ function setupSocketRadio() {
         radioState.is_playing = state.is_playing;
         if (state.next_title !== undefined) radioState.next_title = state.next_title;
         radioState.allow_requests = state.allow_requests === true || state.allow_requests === 'true';
-        radioState.is_automix_enabled = state.is_automix_enabled !== false;
+        radioState.is_automix_enabled = state.is_automix_enabled === true || state.is_automix_enabled === 'true';
         radioState.video_active = !!state.video_active;
         if (state.queue) {
         radioState.queue = state.queue;
@@ -2451,14 +4116,23 @@ function setupSocketRadio() {
             const currentVideo = ytPlayer.getVideoData?.()?.video_id;
             const duration = ytPlayer.getDuration?.() || 0;
             const currentTime = ytPlayer.getCurrentTime?.() || 0;
-            const isNearEnd = duration > 0 && (duration - currentTime) <= 22;
+            const isNearEnd = duration > 0 && (duration - currentTime) <= 25;
 
             if (currentVideo !== state.youtube_id) {
-                if (!isCrossfading && currentVideo && window.crossfadeTo && isNearEnd) {
-                    window.crossfadeTo(state.youtube_id, state.current_time);
+                if (isCrossfading && targetCrossfadeVideoId === state.youtube_id) {
+                    // Đang trong tiến trình crossfade mượt sang bài này - không ngắt hay reload!
                 } else {
-                    if (isCrossfading && window.cancelCrossfade) window.cancelCrossfade();
-                    ytPlayer.loadVideoById(state.youtube_id, state.current_time);
+                    const canCrossfade = !isCrossfading && currentVideo && window.crossfadeTo && (
+                        state.is_crossfading === true ||
+                        (radioState.is_automix_enabled && isNearEnd)
+                    );
+
+                    if (canCrossfade) {
+                        window.crossfadeTo(state.youtube_id, state.current_time);
+                    } else {
+                        if (isCrossfading && window.cancelCrossfade) window.cancelCrossfade();
+                        ytPlayer.loadVideoById(state.youtube_id, state.current_time);
+                    }
                 }
             } else if (!isCrossfading && Math.abs(currentTime - state.current_time) > 3) {
                 const now = Date.now();
@@ -2583,14 +4257,24 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // Hàm chuyên biệt để join radio từ Pet - không bị chặn bởi ytPlayer check
-    window.joinRadioFromPet = function () {
-        if (isRadioDJ || isListening) return; // Đã là DJ hoặc đang nghe rồi thì bỏ qua
+    // Hàm chuyên biệt để join radio từ Pet - sửa triệt để các trường hợp bị chặn/lag
+    window.joinRadioFromPet = function (targetYoutubeId) {
+        if (isRadioDJ) {
+            if (typeof showToast === 'function') {
+                showToast('Bạn đang là DJ phát nhạc!', 'info');
+            }
+            return;
+        }
 
-        // 1. Đánh dấu đang nghe
+        // 1. Nếu có targetYoutubeId truyền vào, cập nhật trực tiếp cho radioState
+        if (targetYoutubeId && typeof targetYoutubeId === 'string' && targetYoutubeId.trim().length > 0) {
+            radioState.youtube_id = targetYoutubeId.trim();
+        }
+
+        // 2. Đánh dấu đang nghe
         isListening = true;
 
-        // 2. Thông báo server
+        // 3. Thông báo server tham gia phòng nghe
         if (useRadioPolling) {
             radioApiPost('/api/radio/join');
             startListenerHeartbeat();
@@ -2599,27 +4283,65 @@ document.addEventListener('DOMContentLoaded', () => {
             window.socket.emit('join_radio');
         }
 
-        // 3. Load & play video nếu YT Player sẵn sàng
-        if (ytPlayer && ytPlayer.getPlayerState) {
-            const currentVideo = ytPlayer.getVideoData?.()?.video_id;
-            if (currentVideo !== radioState.youtube_id) {
-                ytPlayer.loadVideoById(radioState.youtube_id, radioState.current_time);
-            } else {
-                ytPlayer.seekTo(radioState.current_time, true);
-            }
-            if (radioState.is_playing) ytPlayer.playVideo();
-        } else {
-            // YT Player chưa sẵn sàng → retry sau 1 giây
-            setTimeout(() => {
-                if (ytPlayer && ytPlayer.loadVideoById) {
-                    ytPlayer.loadVideoById(radioState.youtube_id, radioState.current_time);
-                    if (radioState.is_playing) ytPlayer.playVideo();
+        // 4. Kích hoạt phát video & xử lý browser autoplay restrictions
+        const playTarget = function () {
+            if (!ytPlayer) return;
+            const currentVideoId = radioState.youtube_id || targetYoutubeId;
+            if (!currentVideoId) return;
+
+            try {
+                if (ytPlayer.unMute) ytPlayer.unMute();
+                if (ytPlayer.setVolume) ytPlayer.setVolume(100);
+
+                const currentLoaded = ytPlayer.getVideoData?.()?.video_id;
+                const startTime = radioState.current_time || 0;
+
+                if (currentLoaded !== currentVideoId) {
+                    if (ytPlayer.loadVideoById) {
+                        ytPlayer.loadVideoById(currentVideoId, startTime);
+                    }
+                } else {
+                    if (ytPlayer.seekTo) ytPlayer.seekTo(startTime, true);
                 }
-            }, 1000);
+
+                if (ytPlayer.playVideo) ytPlayer.playVideo();
+            } catch (err) {
+                console.warn('[joinRadioFromPet] Play error:', err);
+            }
+        };
+
+        if (ytPlayer && (ytPlayer.getPlayerState || ytPlayer.loadVideoById)) {
+            playTarget();
+        } else {
+            // Retry linh hoạt trong 2 giây nếu YouTube Iframe đang load
+            let retries = 0;
+            const retryInterval = setInterval(() => {
+                retries++;
+                if (ytPlayer && (ytPlayer.getPlayerState || ytPlayer.loadVideoById)) {
+                    clearInterval(retryInterval);
+                    playTarget();
+                } else if (retries >= 5) {
+                    clearInterval(retryInterval);
+                }
+            }, 400);
         }
 
-        // 4. Cập nhật UI
+        // 5. Cập nhật UI Radio
         updateRadioUI();
+
+        // 6. Kích hoạt hiệu ứng Pet Dancing nếu Pet Engine đang chạy
+        if (window.PetRoamEngine && window.PetRoamEngine.setDancing) {
+            window.PetRoamEngine.setDancing(true);
+        }
+        if (window.Pet3DEngine && window.Pet3DEngine.setDancing) {
+            window.Pet3DEngine.setDancing(true);
+        }
+
+        // 7. Hiển thị Toast thông báo thành công cho người dùng
+        if (typeof showToast === 'function') {
+            const djText = radioState.dj_username ? `cùng DJ ${radioState.dj_username}` : '';
+            showToast(`🎵 Đã kết nối tham gia nghe nhạc ${djText}!`, 'success');
+        }
     };
 
     window.toggleDJMode = function () {
@@ -2762,7 +4484,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (e) { }
 
         // --- Auto-Mix Crossfade Check ---
-        if (!window.manualSkipInProgress && radioState.is_automix_enabled !== false && !isCrossfading && duration > 0 && (duration - time) <= 20 && (duration - time) > 0 && radioState.queue && radioState.queue.length > 0) {
+        if (!window.manualSkipInProgress && !!radioState.is_automix_enabled && !isCrossfading && duration > 0 && (duration - time) <= 20 && (duration - time) > 0 && radioState.queue && radioState.queue.length > 0) {
             const nextItem = radioState.queue[0];
             if (window.socket) window.socket.emit('queue_pop');
             radioState.youtube_id = nextItem.youtube_id;
@@ -2772,6 +4494,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.crossfadeTo(nextItem.youtube_id, 0, function() {
                     if (window.updateRadioUI) updateRadioUI();
                     if (window.syncRadioToServer) syncRadioToServer();
+                });
+            }
+            // Ngay lập tức emit radio_sync để tất cả listener bắt đầu crossfade cùng lúc với DJ
+            if (window.socket) {
+                window.socket.emit('radio_sync', {
+                    is_playing: true,
+                    youtube_id: nextItem.youtube_id,
+                    current_time: 0,
+                    next_title: radioState.next_title,
+                    is_crossfading: true,
+                    is_automix_enabled: true,
+                    video_active: radioState.video_active
                 });
             }
             return;
@@ -2814,8 +4548,10 @@ document.addEventListener('DOMContentLoaded', () => {
             radioApiPost('/api/radio/sync', {
                 is_playing: radioState.is_playing,
                 youtube_id: radioState.youtube_id,
-                current_time: time,
+                current_time: isCrossfading && ytPlayer2 ? ytPlayer2.getCurrentTime() || 0 : time,
                 next_title: radioState.next_title,
+                is_crossfading: isCrossfading,
+                is_automix_enabled: !!radioState.is_automix_enabled,
                 video_active: radioState.video_active
             });
         } else if (window.socket) {
@@ -2826,7 +4562,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 current_time: isCrossfading && ytPlayer2 ? ytPlayer2.getCurrentTime() || 0 : time,
                 next_title: radioState.next_title,
                 is_crossfading: isCrossfading,
-                is_automix_enabled: radioState.is_automix_enabled !== false,
+                is_automix_enabled: !!radioState.is_automix_enabled,
                 video_active: radioState.video_active
             });
         }
@@ -2917,7 +4653,16 @@ document.addEventListener('DOMContentLoaded', () => {
     window.updateRadioUI = function () {
         if (!playIcon || !pauseIcon || !trackName) return;
 
-        const displayPlaying = isRadioDJ ? radioState.is_playing : isListening;
+        const displayPlaying = isRadioDJ ? radioState.is_playing : (isListening && radioState.is_playing);
+
+        // Sync 3D Pet Dancing mode with active music participation
+        const shouldPetDance = Boolean(displayPlaying);
+        if (window.Pet3DEngine && window.Pet3DEngine.setDancing) {
+            window.Pet3DEngine.setDancing(shouldPetDance);
+        }
+        if (window.PetRoamEngine && window.PetRoamEngine.setDancing) {
+            window.PetRoamEngine.setDancing(shouldPetDance);
+        }
 
         if (displayPlaying) {
             playIcon.style.display = 'none';
@@ -2929,19 +4674,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const wrapper = document.getElementById('radio-video-wrapper');
         const btn = document.getElementById('radio-video-toggle');
-        if (wrapper && btn) {
-            if (radioState.video_active) {
-                wrapper.style.display = 'block';
+        const popoutIconBtn = document.getElementById('radio-video-popout-icon');
+        if (btn) {
+            if (window.isRadioPoppedOut && window.isRadioVideoVisible) {
                 btn.style.color = '#34c759';
+                if (popoutIconBtn) popoutIconBtn.style.color = '#6366f1';
+            } else if (window.isRadioVideoVisible) {
+                btn.style.color = '#34c759';
+                if (popoutIconBtn) popoutIconBtn.style.color = 'rgba(255,255,255,0.45)';
             } else {
-                wrapper.style.display = 'none';
                 btn.style.color = 'rgba(255,255,255,0.4)';
+                if (popoutIconBtn) popoutIconBtn.style.color = 'rgba(255,255,255,0.45)';
             }
-            if (!isRadioDJ) {
-                btn.style.cursor = 'default';
-            } else {
-                btn.style.cursor = 'pointer';
-            }
+            btn.style.cursor = 'pointer';
+            if (popoutIconBtn) popoutIconBtn.style.cursor = 'pointer';
         }
 
         if (isRadioDJ || isListening) {
@@ -2957,7 +4703,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (checkbox) checkbox.checked = radioState.allow_requests === true || radioState.allow_requests === 'true';
                 }
                 const automixCheckbox = document.getElementById('radio-automix-toggle');
-                if (automixCheckbox) automixCheckbox.checked = radioState.is_automix_enabled !== false;
+                if (automixCheckbox) automixCheckbox.checked = radioState.is_automix_enabled === true || radioState.is_automix_enabled === 'true';
                 const automixContainer = document.getElementById('dj-automix-toggle');
                 if (automixContainer) automixContainer.style.display = 'flex';
             } else {
@@ -3171,71 +4917,322 @@ function setInputStatus(id, state) {
         return `${yyyy}年${mm}月${dd}日 (${dayName})`;
     }
     
-    // Realtime Rain Effect Global Functions
-    let rainInterval = null;
+    // =========================================================================
+    // Realtime Cinematic Rain Effect with Chart Collision & Splash (Tách Nước)
+    // =========================================================================
+    let rainCanvas = null;
+    let rainCtx = null;
+    let rainAnimId = null;
+    let rainDrops = [];
+    let rainSplashes = [];
+    let rainActive = false;
+    let cachedChartRect = null;
+    let lastRectUpdate = 0;
 
-    window.startRainEffect = function() {
-        let overlay = document.getElementById('rain-overlay');
-        if (!overlay) {
-            overlay = document.createElement('div');
-            overlay.id = 'rain-overlay';
-            overlay.style.position = 'fixed';
-            overlay.style.top = '0';
-            overlay.style.left = '0';
-            overlay.style.width = '100vw';
-            overlay.style.height = '100vh';
-            overlay.style.pointerEvents = 'none';
-            overlay.style.zIndex = '9999';
-            overlay.style.overflow = 'hidden';
-            document.body.appendChild(overlay);
-            
-            if (!document.getElementById('rain-css')) {
-                const style = document.createElement('style');
-                style.id = 'rain-css';
-                style.innerHTML = `
-                    .raindrop {
-                        position: absolute;
-                        background: linear-gradient(transparent, rgba(255, 255, 255, 0.4));
-                        width: 1px;
-                        height: 50px;
-                        bottom: 100%;
-                        animation: fall linear infinite;
-                    }
-                    @keyframes fall {
-                        to { transform: translateY(100vh); }
-                    }
-                `;
-                document.head.appendChild(style);
+    function getChartCollisionRect() {
+        const now = performance.now();
+        if (!cachedChartRect || now - lastRectUpdate > 250) {
+            const chartEl = document.getElementById('main-chart-section') || document.querySelector('.chart-section');
+            if (chartEl) {
+                const r = chartEl.getBoundingClientRect();
+                if (r.width > 0 && r.height > 0) {
+                    cachedChartRect = {
+                        left: r.left,
+                        right: r.right,
+                        top: r.top,
+                        bottom: r.bottom,
+                        width: r.width,
+                        height: r.height
+                    };
+                } else {
+                    cachedChartRect = null;
+                }
+            } else {
+                cachedChartRect = null;
+            }
+            lastRectUpdate = now;
+        }
+        return cachedChartRect;
+    }
+
+    // Tính tọa độ Y của mép viền trên ôm sát từng pixel kể cả góc cong bo tròn (border-radius: 24px)
+    function getChartRimSurfaceY(x, rect) {
+        if (!rect) return 0;
+        const radius = 24;
+        if (x < rect.left + radius) {
+            const dx = (rect.left + radius) - x;
+            return rect.top + (radius - Math.sqrt(Math.max(0, radius * radius - dx * dx)));
+        } else if (x > rect.right - radius) {
+            const dx = x - (rect.right - radius);
+            return rect.top + (radius - Math.sqrt(Math.max(0, radius * radius - dx * dx)));
+        }
+        return rect.top;
+    }
+
+    function initRainCanvas() {
+        if (!rainCanvas) {
+            rainCanvas = document.getElementById('rain-canvas');
+            if (!rainCanvas) {
+                rainCanvas = document.createElement('canvas');
+                rainCanvas.id = 'rain-canvas';
+            }
+            // Gắn trực tiếp vào documentElement để không bị ảnh hưởng bởi CSS zoom: 0.92 trên body
+            if (rainCanvas.parentElement !== document.documentElement) {
+                document.documentElement.appendChild(rainCanvas);
+            }
+            rainCanvas.style.position = 'fixed';
+            rainCanvas.style.top = '0';
+            rainCanvas.style.left = '0';
+            rainCanvas.style.width = '100vw';
+            rainCanvas.style.height = '100vh';
+            rainCanvas.style.pointerEvents = 'none';
+            rainCanvas.style.zIndex = '9999';
+
+            rainCtx = rainCanvas.getContext('2d');
+            window.addEventListener('resize', handleRainResize);
+            window.addEventListener('scroll', () => { lastRectUpdate = 0; }, { passive: true });
+            document.addEventListener('scroll', () => { lastRectUpdate = 0; }, { passive: true });
+        } else if (rainCanvas.parentElement !== document.documentElement) {
+            document.documentElement.appendChild(rainCanvas);
+        }
+        handleRainResize();
+    }
+
+    function handleRainResize() {
+        if (!rainCanvas) return;
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        rainCanvas.width = window.innerWidth * dpr;
+        rainCanvas.height = window.innerHeight * dpr;
+        if (rainCtx) {
+            rainCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        }
+        lastRectUpdate = 0;
+    }
+
+    function createRainDrop(isInitial = false) {
+        const rect = getChartCollisionRect();
+        let x;
+        // 70% số giọt mưa tập trung rơi ngay phía trên khung biểu đồ để tạo hiệu ứng tách nước liên tục
+        if (rect && rect.width > 0 && Math.random() < 0.70) {
+            x = rect.left + Math.random() * rect.width;
+        } else {
+            x = Math.random() * window.innerWidth;
+        }
+
+        // Tốc độ mưa rơi chậm lại, êm dịu và thanh thoát theo yêu cầu
+        const speed = 5.5 + Math.random() * 3.5;
+        return {
+            x: x,
+            y: isInitial ? (Math.random() * (window.innerHeight * 0.8)) : (-15 - Math.random() * 60),
+            speed: speed,
+            length: 12 + Math.random() * 10,
+            wind: 0.35 + Math.random() * 0.45,
+            alpha: 0.25 + Math.random() * 0.42
+        };
+    }
+
+    function triggerSplash(x, y, speed) {
+        // 1. Giọt nước văng tóe tách ra 2 bên ("Tách nước / hạt nước nảy lên nhẹ nhàng")
+        const count = 3 + Math.floor(Math.random() * 3);
+        for (let i = 0; i < count; i++) {
+            const spread = (Math.random() - 0.5) * 3.4;
+            const upVelocity = -(Math.random() * 2.0 + 0.8);
+            rainSplashes.push({
+                type: 'bead',
+                x: x + (Math.random() - 0.5) * 3,
+                y: y,
+                vx: spread,
+                vy: upVelocity,
+                gravity: 0.13,
+                radius: 0.7 + Math.random() * 1.1,
+                alpha: 0.85,
+                decay: 0.038 + Math.random() * 0.02
+            });
+        }
+
+        // 2. Vòng sóng / gợn nước loang sát mép thành khung biểu đồ
+        rainSplashes.push({
+            type: 'ripple',
+            x: x,
+            y: y,
+            rx: 2,
+            ry: 0.6,
+            maxRx: 6 + Math.random() * 6,
+            alpha: 0.8,
+            decay: 0.04
+        });
+
+        // 3. Giọt nước đọng trượt nhẹ trên thành viền
+        if (Math.random() < 0.18) {
+            rainSplashes.push({
+                type: 'drip',
+                x: x,
+                y: y,
+                speed: 0.3 + Math.random() * 0.4,
+                maxDistance: 6 + Math.random() * 10,
+                distance: 0,
+                radius: 1.0 + Math.random() * 0.5,
+                alpha: 0.75
+            });
+        }
+    }
+
+    function updateRain() {
+        if (!rainActive || !rainCtx) return;
+
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        rainCtx.clearRect(0, 0, w, h);
+
+        const rect = getChartCollisionRect();
+        const hasChart = rect && rect.top > 0 && rect.top < h && rect.width > 0;
+
+        // Thêm class ánh sáng thành viền ướt mưa
+        const chartEl = document.getElementById('main-chart-section') || document.querySelector('.chart-section');
+        if (chartEl && !chartEl.classList.contains('rain-wet-rim')) {
+            chartEl.classList.add('rain-wet-rim');
+        }
+
+        // 1. Vẽ và cập nhật các giọt mưa rơi
+        for (let i = 0; i < rainDrops.length; i++) {
+            const drop = rainDrops[i];
+            const prevY = drop.y;
+
+            drop.x += drop.wind;
+            drop.y += drop.speed;
+
+            // Kiểm tra va chạm SÁT VIỀN THÀNH của khung biểu đồ (đụng cái thành)
+            if (hasChart && drop.x >= rect.left && drop.x <= rect.right) {
+                const surfaceY = getChartRimSurfaceY(drop.x, rect) + 1;
+                if (prevY <= surfaceY && drop.y >= surfaceY) {
+                    // ĐỤNG THÀNH KHUNG BIỂU ĐỒ -> TÁCH NƯỚC / TÓE NƯỚC SÁT VIỀN
+                    triggerSplash(drop.x, surfaceY, drop.speed);
+                    rainDrops[i] = createRainDrop(false);
+                    continue;
+                }
+            }
+
+            // Kiểm tra chạm đáy màn hình
+            if (drop.y > h + 20 || drop.x > w + 40) {
+                if (drop.y > h && Math.random() < 0.10) {
+                    triggerSplash(drop.x, h - 2, drop.speed);
+                }
+                rainDrops[i] = createRainDrop(false);
+                continue;
+            }
+
+            // Vẽ vệt mưa bóng mượt
+            const tailX = drop.x - drop.wind * (drop.length / drop.speed);
+            const tailY = drop.y - drop.length;
+
+            rainCtx.strokeStyle = `rgba(186, 230, 253, ${drop.alpha})`;
+            rainCtx.lineWidth = 1.15;
+            rainCtx.lineCap = 'round';
+            rainCtx.beginPath();
+            rainCtx.moveTo(drop.x, drop.y);
+            rainCtx.lineTo(tailX, tailY);
+            rainCtx.stroke();
+        }
+
+        // 2. Vẽ và cập nhật các hiệu ứng tách nước / văng tóe
+        for (let i = rainSplashes.length - 1; i >= 0; i--) {
+            const sp = rainSplashes[i];
+
+            if (sp.type === 'bead') {
+                sp.x += sp.vx;
+                sp.vy += sp.gravity;
+                sp.y += sp.vy;
+                sp.alpha -= sp.decay;
+
+                if (sp.alpha <= 0) {
+                    rainSplashes.splice(i, 1);
+                    continue;
+                }
+
+                rainCtx.fillStyle = `rgba(186, 230, 253, ${sp.alpha})`;
+                rainCtx.beginPath();
+                rainCtx.arc(sp.x, sp.y, sp.radius, 0, Math.PI * 2);
+                rainCtx.fill();
+            } else if (sp.type === 'ripple') {
+                sp.rx += 0.38;
+                sp.ry += 0.12;
+                sp.alpha -= sp.decay;
+
+                if (sp.alpha <= 0 || sp.rx >= sp.maxRx) {
+                    rainSplashes.splice(i, 1);
+                    continue;
+                }
+
+                rainCtx.strokeStyle = `rgba(147, 197, 253, ${sp.alpha})`;
+                rainCtx.lineWidth = 1.0;
+                rainCtx.beginPath();
+                rainCtx.ellipse(sp.x, sp.y, sp.rx, sp.ry, 0, 0, Math.PI * 2);
+                rainCtx.stroke();
+            } else if (sp.type === 'drip') {
+                sp.y += sp.speed;
+                sp.distance += sp.speed;
+                if (sp.distance >= sp.maxDistance) {
+                    sp.alpha -= 0.04;
+                }
+                if (sp.alpha <= 0) {
+                    rainSplashes.splice(i, 1);
+                    continue;
+                }
+
+                rainCtx.fillStyle = `rgba(186, 230, 253, ${sp.alpha})`;
+                rainCtx.beginPath();
+                rainCtx.arc(sp.x, sp.y, sp.radius, 0, Math.PI * 2);
+                rainCtx.fill();
             }
         }
-        
-        if (rainInterval) return;
-        overlay.style.display = 'block';
-        
-        rainInterval = setInterval(() => {
-            const drop = document.createElement('div');
-            drop.className = 'raindrop';
-            drop.style.left = Math.random() * 100 + 'vw';
-            drop.style.animationDuration = (Math.random() * 0.5 + 0.5) + 's';
-            drop.style.opacity = Math.random() * 0.5 + 0.2;
-            overlay.appendChild(drop);
-            
-            setTimeout(() => {
-                if (drop.parentNode) drop.parentNode.removeChild(drop);
-            }, 1000);
-        }, 50);
-    };
 
-    window.stopRainEffect = function() {
-        const overlay = document.getElementById('rain-overlay');
-        if (overlay) {
-            overlay.style.display = 'none';
-            overlay.innerHTML = '';
+        rainAnimId = requestAnimationFrame(updateRain);
+    }
+
+    window.startRainEffect = function() {
+        initRainCanvas();
+        if (rainActive) return;
+        rainActive = true;
+
+        if (rainCanvas) {
+            rainCanvas.style.display = 'block';
         }
-        if (rainInterval) {
+
+        // Dọn dẹp overlay cũ nếu có
+        const oldOverlay = document.getElementById('rain-overlay');
+        if (oldOverlay) oldOverlay.remove();
+        if (typeof rainInterval !== 'undefined' && rainInterval) {
             clearInterval(rainInterval);
             rainInterval = null;
         }
+
+        // Khởi tạo các giọt mưa tối ưu
+        const totalDrops = Math.min(50, Math.floor(window.innerWidth / 24));
+        rainDrops = [];
+        rainSplashes = [];
+        for (let i = 0; i < totalDrops; i++) {
+            rainDrops.push(createRainDrop(true));
+        }
+
+        lastRectUpdate = 0;
+        if (rainAnimId) cancelAnimationFrame(rainAnimId);
+        rainAnimId = requestAnimationFrame(updateRain);
+    };
+
+    window.stopRainEffect = function() {
+        rainActive = false;
+        if (rainAnimId) {
+            cancelAnimationFrame(rainAnimId);
+            rainAnimId = null;
+        }
+        if (rainCtx && rainCanvas) {
+            rainCtx.clearRect(0, 0, rainCanvas.width, rainCanvas.height);
+            rainCanvas.style.display = 'none';
+        }
+        const chartEl = document.getElementById('main-chart-section') || document.querySelector('.chart-section');
+        if (chartEl) chartEl.classList.remove('rain-wet-rim');
+        rainDrops = [];
+        rainSplashes = [];
     };
 
 async function submitPreparePsd() {
@@ -3314,14 +5311,287 @@ async function submitComparePsd() {
     }
 }
 
-window.toggleRadioVideo = function() {
-    if (!isRadioDJ) {
-        showToast(CURRENT_LANG === 'vi' ? 'Chỉ DJ mới có thể chuyển đổi hiển thị video' : 'DJのみがビデオ表示を切り替えることができます', 'info');
+function safelyMoveRadioWrapper(element, targetParent, beforeChild) {
+    if (!element || !targetParent) return;
+    try {
+        if (typeof targetParent.moveBefore === 'function') {
+            targetParent.moveBefore(element, beforeChild || null);
+        } else {
+            if (beforeChild) {
+                targetParent.insertBefore(element, beforeChild);
+            } else {
+                targetParent.appendChild(element);
+            }
+        }
+    } catch (err) {
+        if (beforeChild) {
+            targetParent.insertBefore(element, beforeChild);
+        } else {
+            targetParent.appendChild(element);
+        }
+    }
+}
+
+window.isRadioVideoVisible = false;
+window.isRadioPoppedOut = false;
+
+window.applyRadioVideoState = function() {
+    const wrapper = document.getElementById('radio-video-wrapper');
+    const innerContent = document.getElementById('lofi-inner-content');
+    const anchor = document.getElementById('radio-video-anchor');
+    if (!wrapper || !innerContent) return;
+
+    if (!window.isRadioVideoVisible) {
+        wrapper.style.display = 'none';
+        wrapper.classList.remove('is-popped-out');
+        if (wrapper.parentNode !== innerContent) {
+            safelyMoveRadioWrapper(wrapper, innerContent, anchor ? anchor.nextSibling : innerContent.firstChild);
+        }
         return;
     }
-    radioState.video_active = !radioState.video_active;
+
+    if (window.isRadioPoppedOut) {
+        // Pop out directly to document.body (floats on top of entire screen)
+        if (wrapper.parentNode !== document.body) {
+            safelyMoveRadioWrapper(wrapper, document.body);
+        }
+        wrapper.classList.add('is-popped-out');
+        wrapper.style.display = 'flex';
+        wrapper.style.flexDirection = 'column';
+        wrapper.style.position = 'fixed';
+        wrapper.style.zIndex = '100000';
+        wrapper.style.borderRadius = '16px';
+        wrapper.style.boxShadow = '0 24px 60px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(99, 102, 241, 0.4)';
+        wrapper.style.aspectRatio = 'unset';
+
+        const header = document.getElementById('radio-popout-header');
+        if (header) header.style.display = 'flex';
+        const resizer = document.getElementById('radio-popout-resizer');
+        if (resizer) resizer.style.display = 'flex';
+
+        // Restore position & size from localStorage if valid
+        const savedPos = JSON.parse(localStorage.getItem('lsa_popout_pos') || 'null');
+        const savedSize = JSON.parse(localStorage.getItem('lsa_popout_size') || 'null');
+
+        if (savedPos && savedPos.left >= 10 && savedPos.left < window.innerWidth - 80 && savedPos.top >= 10 && savedPos.top < window.innerHeight - 80) {
+            wrapper.style.left = savedPos.left + 'px';
+            wrapper.style.top = savedPos.top + 'px';
+            wrapper.style.right = 'auto';
+            wrapper.style.bottom = 'auto';
+        } else {
+            wrapper.style.left = 'auto';
+            wrapper.style.top = 'auto';
+            wrapper.style.bottom = '90px';
+            wrapper.style.right = '40px';
+        }
+
+        if (savedSize && savedSize.width >= 260 && savedSize.height >= 180) {
+            wrapper.style.width = savedSize.width + 'px';
+            wrapper.style.height = savedSize.height + 'px';
+        } else {
+            wrapper.style.width = '480px';
+            wrapper.style.height = '310px';
+        }
+
+        if (window.initPopoutDragAndResize) initPopoutDragAndResize();
+    } else {
+        // Natural Inline Mode inside sidebar LSA Music panel
+        if (wrapper.parentNode !== innerContent) {
+            safelyMoveRadioWrapper(wrapper, innerContent, anchor ? anchor.nextSibling : innerContent.firstChild);
+        }
+        wrapper.classList.remove('is-popped-out');
+        wrapper.style.display = 'block';
+        wrapper.style.position = 'relative';
+        wrapper.style.left = '';
+        wrapper.style.top = '';
+        wrapper.style.right = '';
+        wrapper.style.bottom = '';
+        wrapper.style.width = '100%';
+        wrapper.style.height = '';
+        wrapper.style.aspectRatio = '16 / 9';
+        wrapper.style.zIndex = '';
+        wrapper.style.borderRadius = '8px';
+        wrapper.style.boxShadow = '0 4px 12px rgba(0,0,0,0.4)';
+
+        const header = document.getElementById('radio-popout-header');
+        if (header) header.style.display = 'none';
+        const resizer = document.getElementById('radio-popout-resizer');
+        if (resizer) resizer.style.display = 'none';
+    }
+};
+
+window.toggleRadioVideo = function() {
+    if (window.isRadioPoppedOut) {
+        // If popped out, switch to inline
+        window.isRadioPoppedOut = false;
+        window.isRadioVideoVisible = true;
+    } else {
+        // Toggle visibility
+        window.isRadioVideoVisible = !window.isRadioVideoVisible;
+    }
+
+    if (isRadioDJ) {
+        radioState.video_active = window.isRadioVideoVisible;
+        if (window.syncRadioToServer) syncRadioToServer();
+    }
+
+    window.applyRadioVideoState();
     if (window.updateRadioUI) updateRadioUI();
-    if (window.syncRadioToServer) syncRadioToServer();
+};
+
+window.toggleRadioPopout = function(show) {
+    if (show === undefined) {
+        show = !window.isRadioPoppedOut;
+    }
+
+    if (show) {
+        window.isRadioVideoVisible = true;
+        window.isRadioPoppedOut = true;
+    } else {
+        // Dock back to sidebar
+        window.isRadioPoppedOut = false;
+        window.isRadioVideoVisible = true;
+    }
+
+    if (isRadioDJ) {
+        radioState.video_active = window.isRadioVideoVisible;
+        if (window.syncRadioToServer) syncRadioToServer();
+    }
+
+    window.applyRadioVideoState();
+    if (window.updateRadioUI) updateRadioUI();
+};
+
+window.closeRadioPopout = function() {
+    window.isRadioPoppedOut = false;
+    window.isRadioVideoVisible = false;
+
+    if (isRadioDJ) {
+        radioState.video_active = false;
+        if (window.syncRadioToServer) syncRadioToServer();
+    }
+
+    window.applyRadioVideoState();
+    if (window.updateRadioUI) updateRadioUI();
+};
+
+let popoutDragInitialized = false;
+window.initPopoutDragAndResize = function() {
+    if (popoutDragInitialized) return;
+    popoutDragInitialized = true;
+
+    const wrapper = document.getElementById('radio-video-wrapper');
+    const header = document.getElementById('radio-popout-header');
+    const resizer = document.getElementById('radio-popout-resizer');
+    if (!wrapper || !header || !resizer) return;
+
+    // --- DRAG LOGIC ---
+    let isDragging = false;
+    let dragStartX = 0, dragStartY = 0;
+    let startLeft = 0, startTop = 0;
+
+    header.addEventListener('mousedown', function(e) {
+        if (e.target.closest('button')) return; // ignore clicks on buttons
+        isDragging = true;
+        const rect = wrapper.getBoundingClientRect();
+        dragStartX = e.clientX;
+        dragStartY = e.clientY;
+        startLeft = rect.left;
+        startTop = rect.top;
+
+        wrapper.style.left = startLeft + 'px';
+        wrapper.style.top = startTop + 'px';
+        wrapper.style.right = 'auto';
+        wrapper.style.bottom = 'auto';
+
+        document.addEventListener('mousemove', onDragMove);
+        document.addEventListener('mouseup', onDragEnd);
+        e.preventDefault();
+    });
+
+    function onDragMove(e) {
+        if (!isDragging) return;
+        const dx = e.clientX - dragStartX;
+        const dy = e.clientY - dragStartY;
+        let newLeft = startLeft + dx;
+        let newTop = startTop + dy;
+
+        const maxLeft = window.innerWidth - wrapper.offsetWidth - 10;
+        const maxTop = window.innerHeight - wrapper.offsetHeight - 10;
+        newLeft = Math.max(10, Math.min(newLeft, maxLeft));
+        newTop = Math.max(10, Math.min(newTop, maxTop));
+
+        wrapper.style.left = newLeft + 'px';
+        wrapper.style.top = newTop + 'px';
+    }
+
+    function onDragEnd() {
+        if (!isDragging) return;
+        isDragging = false;
+        document.removeEventListener('mousemove', onDragMove);
+        document.removeEventListener('mouseup', onDragEnd);
+        localStorage.setItem('lsa_popout_pos', JSON.stringify({
+            left: parseInt(wrapper.style.left, 10),
+            top: parseInt(wrapper.style.top, 10)
+        }));
+    }
+
+    // Double-click header to center and resize to 640x400
+    header.addEventListener('dblclick', function(e) {
+        if (e.target.closest('button')) return;
+        wrapper.style.width = '640px';
+        wrapper.style.height = '400px';
+        wrapper.style.left = Math.max(20, (window.innerWidth - 640) / 2) + 'px';
+        wrapper.style.top = Math.max(20, (window.innerHeight - 400) / 2) + 'px';
+        localStorage.setItem('lsa_popout_size', JSON.stringify({ width: 640, height: 400 }));
+        localStorage.setItem('lsa_popout_pos', JSON.stringify({
+            left: parseInt(wrapper.style.left, 10),
+            top: parseInt(wrapper.style.top, 10)
+        }));
+    });
+
+    // --- RESIZE LOGIC ---
+    let isResizing = false;
+    let resizeStartX = 0, resizeStartY = 0;
+    let startWidth = 0, startHeight = 0;
+
+    resizer.addEventListener('mousedown', function(e) {
+        isResizing = true;
+        resizeStartX = e.clientX;
+        resizeStartY = e.clientY;
+        startWidth = wrapper.offsetWidth;
+        startHeight = wrapper.offsetHeight;
+
+        document.addEventListener('mousemove', onResizeMove);
+        document.addEventListener('mouseup', onResizeEnd);
+        e.preventDefault();
+        e.stopPropagation();
+    });
+
+    function onResizeMove(e) {
+        if (!isResizing) return;
+        const dx = e.clientX - resizeStartX;
+        const dy = e.clientY - resizeStartY;
+        let newW = startWidth + dx;
+        let newH = startHeight + dy;
+
+        newW = Math.max(260, Math.min(newW, window.innerWidth - 30));
+        newH = Math.max(180, Math.min(newH, window.innerHeight - 30));
+
+        wrapper.style.width = newW + 'px';
+        wrapper.style.height = newH + 'px';
+    }
+
+    function onResizeEnd() {
+        if (!isResizing) return;
+        isResizing = false;
+        document.removeEventListener('mousemove', onResizeMove);
+        document.removeEventListener('mouseup', onResizeEnd);
+        localStorage.setItem('lsa_popout_size', JSON.stringify({
+            width: wrapper.offsetWidth,
+            height: wrapper.offsetHeight
+        }));
+    }
 };
 
 // ==========================================
@@ -3536,5 +5806,775 @@ window.removeLocalPlaylist = function(videoId, e) {
     list = list.filter(item => item.id !== videoId);
     localStorage.setItem('lsa_music_history', JSON.stringify(list));
     window.renderLocalPlaylist();
+};
+
+// ===================== TIME TRACKER =====================
+let trackerIntervals = {};
+
+function startTracker(index) {
+    const startTime = Date.now();
+    localStorage.setItem(`tracker_start_${index}`, startTime);
+    localStorage.removeItem(`tracker_end_${index}`);
+    
+    const startBtn = document.getElementById(`btn_start_${index}`);
+    const endBtn = document.getElementById(`btn_end_${index}`);
+    if (startBtn) startBtn.disabled = true;
+    if (endBtn) endBtn.disabled = false;
+    
+    updateTrackerDisplay(index);
+    trackerIntervals[index] = setInterval(() => updateTrackerDisplay(index), 1000);
 }
+
+function updateTrackerDisplay(index) {
+    const startTime = localStorage.getItem(`tracker_start_${index}`);
+    if (!startTime) return;
+    
+    const diff = Date.now() - parseInt(startTime);
+    let h = Math.floor(diff / 3600000).toString().padStart(2, '0');
+    let m = Math.floor((diff % 3600000) / 60000).toString().padStart(2, '0');
+    let s = Math.floor((diff % 60000) / 1000).toString().padStart(2, '0');
+    
+    const display = document.getElementById(`time_display_${index}`);
+    if(display) display.textContent = `${h}:${m}:${s}`;
+    
+    updateCardBadge(index, true, h, m);
+}
+
+function endTracker(index) {
+    const startTime = localStorage.getItem(`tracker_start_${index}`);
+    if (!startTime) return;
+    
+    const endTime = Date.now();
+    localStorage.setItem(`tracker_end_${index}`, endTime);
+    
+    clearInterval(trackerIntervals[index]);
+    const startBtn = document.getElementById(`btn_start_${index}`);
+    const endBtn = document.getElementById(`btn_end_${index}`);
+    if (startBtn) startBtn.disabled = false;
+    if (endBtn) endBtn.disabled = true;
+    
+    updateCardBadge(index, false);
+}
+
+function toggleManualTime(index) {
+    const cb = document.getElementById(`manual_time_cb_${index}`);
+    const autoControls = document.getElementById(`auto_controls_${index}`);
+    const manualControls = document.getElementById(`manual_controls_${index}`);
+    if (cb && cb.checked) {
+        if(autoControls) autoControls.style.display = 'none';
+        if(manualControls) {
+            manualControls.style.display = 'flex';
+            manualControls.style.alignItems = 'center';
+            manualControls.style.gap = '8px';
+            
+            if (typeof flatpickr !== 'undefined') {
+                const now = new Date();
+                const sEl = document.getElementById(`manual_start_${index}`);
+                const eEl = document.getElementById(`manual_end_${index}`);
+                if (sEl && !sEl._flatpickr) {
+                    flatpickr(`#manual_start_${index}`, {
+                        enableTime: true,
+                        time_24hr: true,
+                        dateFormat: "Y-m-d H:i",
+                        defaultDate: now,
+                        onChange: function() { calcManualTime(index, 'start'); }
+                    });
+                }
+                if (eEl && !eEl._flatpickr) {
+                    flatpickr(`#manual_end_${index}`, {
+                        enableTime: true,
+                        time_24hr: true,
+                        dateFormat: "Y-m-d H:i",
+                        defaultDate: now,
+                        onChange: function() { calcManualTime(index, 'end'); }
+                    });
+                }
+            }
+        }
+    } else {
+        if(autoControls) autoControls.style.display = 'flex';
+        if(manualControls) manualControls.style.display = 'none';
+    }
+}
+
+function calcManualTime(index, field) {
+    const startEl = document.getElementById(`manual_start_${index}`);
+    const endEl = document.getElementById(`manual_end_${index}`);
+    const durEl = document.getElementById(`manual_duration_${index}`);
+    
+    if (!startEl || !startEl.value) return; 
+    
+    let sDate = new Date(startEl.value.replace(' ', 'T'));
+    if (isNaN(sDate.getTime())) return;
+    
+    if (field === 'dur' || field === 'start') {
+        if (durEl && durEl.value && parseFloat(durEl.value) > 0) {
+            let durHours = parseFloat(durEl.value);
+            let eDate = new Date(sDate.getTime() + durHours * 3600000);
+            
+            if (endEl) {
+                if (endEl._flatpickr) {
+                    endEl._flatpickr.setDate(eDate);
+                } else {
+                    let tzOffset = eDate.getTimezoneOffset() * 60000;
+                    endEl.value = (new Date(eDate - tzOffset)).toISOString().slice(0, 16).replace('T', ' ');
+                }
+                endEl.disabled = true;
+            }
+        } else if (field === 'dur' && durEl && !durEl.value) {
+            if (endEl) {
+                endEl.disabled = false;
+                if (endEl._flatpickr) endEl._flatpickr.clear();
+                else endEl.value = ''; 
+            }
+        } else if (field === 'start') {
+            if (durEl && durEl.value) {
+                let durHours = parseFloat(durEl.value);
+                let eDate = new Date(sDate.getTime() + durHours * 3600000);
+                
+                if (endEl) {
+                    if (endEl._flatpickr) {
+                        endEl._flatpickr.setDate(eDate);
+                    } else {
+                        let tzOffset = eDate.getTimezoneOffset() * 60000;
+                        endEl.value = (new Date(eDate - tzOffset)).toISOString().slice(0, 16).replace('T', ' ');
+                    }
+                }
+            } else if (endEl && endEl.value) {
+                let eDate = new Date(endEl.value.replace(' ', 'T'));
+                let diffHours = (eDate - sDate) / 3600000;
+                if (diffHours < 0) diffHours += 24;
+                if (durEl) durEl.value = parseFloat(diffHours.toFixed(2));
+            }
+        }
+    }
+    
+    if (field === 'end') {
+        if (endEl && endEl.value) {
+            let eDate = new Date(endEl.value.replace(' ', 'T'));
+            let diffHours = (eDate - sDate) / 3600000;
+            if (diffHours < 0) diffHours += 24;
+            if (durEl) durEl.value = parseFloat(diffHours.toFixed(2));
+            endEl.disabled = false;
+        } else if (durEl) {
+            durEl.value = '';
+        }
+    }
+}
+
+function updateCardBadge(index, active, h='00', m='00') {
+    const trackerBox = document.getElementById(`tracker_${index}`);
+    if (!trackerBox) return;
+    const tpKey = trackerBox.getAttribute('data-tp-key');
+    document.querySelectorAll(`.progress-card[data-tp-key="${tpKey}"]`).forEach(card => {
+        let badge = card.querySelector('.tracker-badge');
+        if (!active) {
+            if (badge) badge.style.display = 'none';
+            return;
+        }
+        if (!badge) {
+            badge = document.createElement('span');
+            badge.className = 'tracker-badge';
+            badge.style.cssText = 'display: inline-flex; align-items: center; gap: 4px; font-size: 0.75rem; background: rgba(46, 213, 115, 0.2); color: #2ed573; padding: 2px 6px; border-radius: 4px; margin-left: 8px; font-family: monospace; font-weight: bold;';
+            const tagsDiv = card.querySelector('.card-tags');
+            if (tagsDiv) {
+                tagsDiv.appendChild(badge);
+            } else {
+                card.prepend(badge);
+            }
+        }
+        badge.style.display = 'inline-flex';
+        badge.innerHTML = `⏱️ ${h}:${m}`;
+    });
+}
+
+async function saveTracker(index, tpKey) {
+    const isManual = document.getElementById(`manual_time_cb_${index}`)?.checked;
+    
+    let durationHours = 0;
+    let finalStartTime = '';
+    let finalEndTime = '';
+    let finalStartDate = '';
+    let finalEndDate = '';
+    
+    if (isManual) {
+        const st = document.getElementById(`manual_start_${index}`)?.value;
+        const et = document.getElementById(`manual_end_${index}`)?.value;
+        const dur = document.getElementById(`manual_duration_${index}`)?.value;
+        
+        if (!st && !et && !dur) {
+            showToast((typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi') ? 'Vui lòng nhập Giờ Bắt Đầu & Kết Thúc HOẶC nhập số phút!' : '開始と終了の時間を入力するか、分を入力してください！', 'error');
+            return;
+        }
+
+        let formatTimeOnly = (date) => date.toLocaleTimeString('en-GB', {hour: '2-digit', minute:'2-digit'});
+        let formatDateOnly = (date) => date.toLocaleDateString('en-US'); // MM/DD/YYYY
+
+        if (dur) {
+            durationHours = parseFloat(dur);
+            let sD = st ? new Date(st.replace(' ', 'T')) : new Date();
+            let eD = et ? new Date(et.replace(' ', 'T')) : new Date(sD.getTime() + durationHours * 3600000);
+            finalStartTime = formatTimeOnly(sD);
+            finalEndTime = formatTimeOnly(eD);
+            finalStartDate = formatDateOnly(sD);
+            finalEndDate = formatDateOnly(eD);
+        } else if (st && et) {
+            let sDate = new Date(st.replace(' ', 'T'));
+            let eDate = new Date(et.replace(' ', 'T'));
+            if (eDate < sDate) {
+                eDate.setDate(eDate.getDate() + 1);
+            }
+            durationHours = (eDate - sDate) / 3600000;
+            finalStartTime = formatTimeOnly(sDate);
+            finalEndTime = formatTimeOnly(eDate);
+            finalStartDate = formatDateOnly(sDate);
+            finalEndDate = formatDateOnly(eDate);
+        } else {
+            showToast((typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi') ? 'Vui lòng nhập đủ thời gian!' : '時間を入力してください！', 'error');
+            return;
+        }
+    } else {
+        const startTimeStr = localStorage.getItem(`tracker_start_${index}`);
+        const endTimeStr = localStorage.getItem(`tracker_end_${index}`);
+        if (!startTimeStr || !endTimeStr) {
+            showToast((typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi') ? 'Vui lòng bắt đầu và kết thúc trước khi lưu!' : '保存する前に開始と終了を行ってください！', 'error');
+            return;
+        }
+        
+        const startTime = parseInt(startTimeStr);
+        const endTime = parseInt(endTimeStr);
+        durationHours = (endTime - startTime) / 3600000;
+        
+        let formatTimeOnly = (date) => date.toLocaleTimeString('en-GB', {hour: '2-digit', minute:'2-digit'});
+        let formatDateOnly = (date) => date.toLocaleDateString('en-US');
+        
+        let sD = new Date(startTime);
+        let eD = new Date(endTime);
+        finalStartTime = formatTimeOnly(sD);
+        finalEndTime = formatTimeOnly(eD);
+        finalStartDate = formatDateOnly(sD);
+        finalEndDate = formatDateOnly(eD);
+    }
+    
+    // Check if the log date is today in manual tracker
+    if (isManual && finalStartDate) {
+        const today = new Date();
+        const todayFormatted = today.toLocaleDateString('en-US'); // MM/DD/YYYY
+        if (finalStartDate !== todayFormatted) {
+            showConfirmDateModal(finalStartDate, todayFormatted, () => {
+                executeSaveTracker(index, tpKey, durationHours, finalStartTime, finalEndTime, finalStartDate, finalEndDate, isManual);
+            });
+            return;
+        }
+    }
+
+    executeSaveTracker(index, tpKey, durationHours, finalStartTime, finalEndTime, finalStartDate, finalEndDate, isManual);
+}
+
+async function executeSaveTracker(index, tpKey, durationHours, finalStartTime, finalEndTime, finalStartDate, finalEndDate, isManual) {
+    const note = document.getElementById(`tracker_note_${index}`)?.value || '';
+    
+    const payload = {
+        action: 'log_member_time',
+        task_name: tpKey,
+        duration: durationHours.toFixed(2),
+        start_time: finalStartTime,
+        end_time: finalEndTime,
+        start_date: finalStartDate,
+        end_date: finalEndDate,
+        note: note
+    };
+    
+    const btn = document.getElementById(`btn_save_${index}`);
+    const oldText = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.innerHTML = '...';
+        btn.disabled = true;
+    }
+    
+    try {
+        const res = await fetch('/api/log_member_time', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+            showToast((typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi') ? 'Đã lưu thời gian!' : '時間を保存しました！', 'success');
+            // Reset
+            if (!isManual) {
+                localStorage.removeItem(`tracker_start_${index}`);
+                localStorage.removeItem(`tracker_end_${index}`);
+                const td = document.getElementById(`time_display_${index}`);
+                if (td) td.textContent = '00:00:00';
+                const sBtn = document.getElementById(`btn_start_${index}`);
+                const eBtn = document.getElementById(`btn_end_${index}`);
+                if (sBtn) sBtn.disabled = false;
+                if (eBtn) eBtn.disabled = true;
+                updateCardBadge(index, false);
+            } else {
+                const sIn = document.getElementById(`manual_start_${index}`);
+                const eIn = document.getElementById(`manual_end_${index}`);
+                const dIn = document.getElementById(`manual_duration_${index}`);
+                if (sIn) sIn.value = '';
+                if (eIn) { eIn.value = ''; eIn.disabled = false; }
+                if (dIn) dIn.value = '';
+            }
+            const noteEl = document.getElementById(`tracker_note_${index}`);
+            if (noteEl) noteEl.value = '';
+        } else {
+            showToast('Error: ' + (data.message || 'Server error'), 'error');
+        }
+    } catch (e) {
+        showToast('Lỗi kết nối!', 'error');
+    } finally {
+        if (btn) {
+            btn.innerHTML = oldText;
+            btn.disabled = false;
+        }
+    }
+}
+
+// Khôi phục tracker đang chạy khi load lại trang
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.time-tracker-box').forEach(box => {
+        const index = box.id.replace('tracker_', '');
+        const startTime = localStorage.getItem(`tracker_start_${index}`);
+        const endTime = localStorage.getItem(`tracker_end_${index}`);
+        
+        if (startTime && !endTime) {
+            const sBtn = document.getElementById(`btn_start_${index}`);
+            const eBtn = document.getElementById(`btn_end_${index}`);
+            if (sBtn) sBtn.disabled = true;
+            if (eBtn) eBtn.disabled = false;
+            updateTrackerDisplay(index);
+            trackerIntervals[index] = setInterval(() => updateTrackerDisplay(index), 1000);
+        } else if (startTime && endTime) {
+            const sBtn = document.getElementById(`btn_start_${index}`);
+            const eBtn = document.getElementById(`btn_end_${index}`);
+            if (sBtn) sBtn.disabled = false;
+            if (eBtn) eBtn.disabled = true;
+            const diff = parseInt(endTime) - parseInt(startTime);
+            let h = Math.floor(diff / 3600000).toString().padStart(2, '0');
+            let m = Math.floor((diff % 3600000) / 60000).toString().padStart(2, '0');
+            let s = Math.floor((diff % 60000) / 1000).toString().padStart(2, '0');
+            const td = document.getElementById(`time_display_${index}`);
+            if (td) td.textContent = `${h}:${m}:${s}`;
+        }
+    });
+
+    // Store original DOM order for default sort
+    document.querySelectorAll('.kanban-cards').forEach(container => {
+        Array.from(container.children).forEach((child, idx) => {
+            child.dataset.defaultOrder = idx;
+        });
+    });
+});
+
+// --- Kanban Search & Sort Logic ---
+window.filterKanban = function(input) {
+    const clearBtn = input.nextElementSibling;
+    if (clearBtn && clearBtn.classList.contains('clear-search')) {
+        clearBtn.style.display = input.value ? 'block' : 'none';
+    }
+    const tabPane = input.closest('.tab-content');
+    if (!tabPane) return;
+    const query = input.value.toLowerCase();
+    const cards = tabPane.querySelectorAll('.progress-card');
+    
+    cards.forEach(card => {
+        const title = (card.querySelector('.card-title')?.textContent || '').toLowerCase();
+        const worker = (card.querySelector('.worker-name')?.textContent || '').toLowerCase();
+        const tag = (card.querySelector('.tag')?.textContent || '').toLowerCase();
+        const qc = (card.querySelector('.qc-badge')?.textContent || '').toLowerCase();
+        
+        if (title.includes(query) || worker.includes(query) || tag.includes(query) || qc.includes(query)) {
+            card.style.display = '';
+        } else {
+            card.style.display = 'none';
+        }
+    });
+    
+    updateKanbanCounts(tabPane);
+    updateKanbanGroups(tabPane);
+};
+
+window.sortKanban = function(select) {
+    const tabPane = select.closest('.tab-content');
+    if (!tabPane) return;
+    const sortValue = select.value;
+    const columns = tabPane.querySelectorAll('.kanban-column');
+    
+    columns.forEach(col => {
+        const container = col.querySelector('.kanban-cards');
+        const children = Array.from(container.children);
+        const headers = children.filter(c => c.classList.contains('job-group-header'));
+        const cards = children.filter(c => c.classList.contains('progress-card'));
+        
+        // Group cards by their closest preceding header
+        const groups = new Map();
+        headers.forEach(h => groups.set(h, []));
+        const unassigned = [];
+        
+        let currentHeader = null;
+        children.forEach(c => {
+            if (c.classList.contains('job-group-header')) {
+                currentHeader = c;
+            } else if (c.classList.contains('progress-card')) {
+                if (currentHeader) {
+                    groups.get(currentHeader).push(c);
+                } else {
+                    unassigned.push(c);
+                }
+            }
+        });
+        
+        const sortCards = (cardArray) => {
+            if (sortValue === 'default' || sortValue === 'job_asc') {
+                cardArray.sort((a, b) => parseInt(a.dataset.defaultOrder) - parseInt(b.dataset.defaultOrder));
+            } else {
+                cardArray.sort((a, b) => {
+                    if (sortValue === 'name_asc' || sortValue === 'name_desc') {
+                        const nameA = (a.querySelector('.card-title')?.textContent || '').trim();
+                        const nameB = (b.querySelector('.card-title')?.textContent || '').trim();
+                        return sortValue === 'name_asc' ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA);
+                    }
+                    if (sortValue === 'date_asc' || sortValue === 'date_desc') {
+                        const dateTextA = a.querySelector('.card-dates span')?.textContent || '';
+                        const dateTextB = b.querySelector('.card-dates span')?.textContent || '';
+                        const extractDate = (text) => {
+                            const matches = text.match(/\d{2}\/\d{2}\/\d{4}/g);
+                            const dateStr = matches && matches.length > 1 ? matches[1] : (matches ? matches[0] : null);
+                            return dateStr ? new Date(dateStr).getTime() : (sortValue === 'date_asc' ? Infinity : -Infinity);
+                        };
+                        const dA = extractDate(dateTextA);
+                        const dB = extractDate(dateTextB);
+                        return sortValue === 'date_asc' ? dA - dB : dB - dA;
+                    }
+                    return 0;
+                });
+            }
+        };
+
+        container.innerHTML = '';
+        
+        if (unassigned.length > 0) {
+            sortCards(unassigned);
+            unassigned.forEach(c => container.appendChild(c));
+        }
+        
+        headers.forEach(h => {
+            container.appendChild(h);
+            const cardArray = groups.get(h);
+            sortCards(cardArray);
+            cardArray.forEach(c => container.appendChild(c));
+        });
+    });
+    
+    updateKanbanGroups(tabPane);
+};
+
+function updateKanbanCounts(tabPane) {
+    const columns = tabPane.querySelectorAll('.kanban-column');
+    columns.forEach(col => {
+        const visibleCards = Array.from(col.querySelectorAll('.progress-card')).filter(c => c.style.display !== 'none').length;
+        const countSpan = col.querySelector('.kanban-col-count');
+        if (countSpan) countSpan.textContent = visibleCards;
+    });
+}
+
+function moveCardToColumn(card, targetCol) {
+    const tagText = (card.querySelector('.tag')?.textContent || '').trim();
+    let jobType = 'Prep';
+    if (tagText.includes('写植/ﾚﾀｯﾁ') || tagText.includes('写植/レタッチ') || tagText.includes('Lettering/Retouch')) jobType = 'Lettering/Retouch';
+    else if (tagText.includes('修正') || tagText.includes('Correction') || tagText.includes('Lettering QC')) jobType = 'Lettering QC';
+    else if (tagText.includes('写植') || tagText.includes('Lettering')) jobType = 'Lettering';
+    else if (tagText.includes('レタッチ') || tagText.includes('ﾚﾀｯﾁ') || tagText.includes('Retouch')) jobType = 'Retouch';
+    else if (tagText.includes('Prep')) jobType = 'Prep';
+
+    const jobOrder = ['Prep', 'Lettering', 'Lettering QC', 'Retouch', 'Lettering/Retouch'];
+    
+    let header = Array.from(targetCol.querySelectorAll('.job-group-header')).find(h => h.textContent.trim() === jobType);
+    
+    if (!header) {
+        header = document.createElement('div');
+        header.className = 'job-group-header';
+        header.textContent = jobType;
+        
+        const headers = Array.from(targetCol.querySelectorAll('.job-group-header'));
+        const myIndex = jobOrder.indexOf(jobType);
+        let inserted = false;
+        for (let h of headers) {
+            const hIndex = jobOrder.indexOf(h.textContent.trim());
+            if (hIndex > myIndex || hIndex === -1) {
+                targetCol.insertBefore(header, h);
+                inserted = true;
+                break;
+            }
+        }
+        if (!inserted) {
+            targetCol.appendChild(header);
+        }
+    }
+    
+    let nextNode = header.nextElementSibling;
+    let lastCardInGroup = header;
+    while (nextNode && !nextNode.classList.contains('job-group-header')) {
+        lastCardInGroup = nextNode;
+        nextNode = nextNode.nextElementSibling;
+    }
+    
+    if (lastCardInGroup.nextSibling) {
+        targetCol.insertBefore(card, lastCardInGroup.nextSibling);
+    } else {
+        targetCol.appendChild(card);
+    }
+}
+
+function updateKanbanGroups(tab) {
+    tab.querySelectorAll('.kanban-column').forEach(col => {
+        const container = col.querySelector('.kanban-cards');
+        if (!container) return;
+        const children = Array.from(container.children);
+        const headers = children.filter(c => c.classList.contains('job-group-header'));
+        
+        headers.forEach(h => {
+            let nextNode = h.nextElementSibling;
+            let hasVisibleCard = false;
+            while (nextNode && !nextNode.classList.contains('job-group-header')) {
+                if (nextNode.classList.contains('progress-card') && nextNode.style.display !== 'none') {
+                    hasVisibleCard = true;
+                    break;
+                }
+                nextNode = nextNode.nextElementSibling;
+            }
+            h.style.display = hasVisibleCard ? '' : 'none';
+        });
+    });
+}
+
+window.toggleNotionDropdown = function(e, btn) {
+    e.stopPropagation();
+    document.querySelectorAll('.notion-dropdown-menu').forEach(menu => {
+        if (menu !== btn.querySelector('.notion-dropdown-menu')) {
+            menu.style.display = 'none';
+        }
+    });
+    
+    const menu = btn.querySelector('.notion-dropdown-menu');
+    if (menu) {
+        menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+    }
+};
+
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.notion-icon-btn.kanban-sort-btn')) {
+        document.querySelectorAll('.notion-dropdown-menu').forEach(menu => {
+            menu.style.display = 'none';
+        });
+    }
+});
+
+window.handleSortOptionClick = function(e, item) {
+    e.stopPropagation();
+    const type = item.getAttribute('data-type');
+    
+    if (type === 'group') {
+        item.classList.toggle('active');
+    } else if (type === 'sort') {
+        const isActive = item.classList.contains('active');
+        const menu = item.closest('.notion-dropdown-menu');
+        menu.querySelectorAll('.notion-dropdown-item[data-type="sort"]').forEach(i => i.classList.remove('active'));
+        if (!isActive) {
+            item.classList.add('active');
+        }
+    }
+    
+    const tabPane = item.closest('.tab-content');
+    if (tabPane) {
+        applyKanbanSort(tabPane, item.closest('.notion-dropdown-menu'));
+    }
+};
+
+window.applyKanbanSort = function(tabPane, menu) {
+    const isGrouped = menu.querySelector('.notion-dropdown-item[data-type="group"]')?.classList.contains('active');
+    const activeSortItem = menu.querySelector('.notion-dropdown-item[data-type="sort"].active');
+    const sortValue = activeSortItem ? activeSortItem.getAttribute('data-value') : 'default';
+    
+    const columns = tabPane.querySelectorAll('.kanban-column');
+    columns.forEach(col => {
+        const container = col.querySelector('.kanban-cards');
+        const children = Array.from(container.children);
+        const headers = children.filter(c => c.classList.contains('job-group-header'));
+        
+        const groups = new Map();
+        headers.forEach(h => groups.set(h, []));
+        const unassigned = [];
+        
+        children.forEach(c => {
+            if (c.classList.contains('progress-card')) {
+                const tagText = (c.querySelector('.tag')?.textContent || '').trim();
+                let jobType = 'Prep';
+                if (tagText.includes('写植/ﾚﾀｯﾁ') || tagText.includes('写植/レタッチ') || tagText.includes('Lettering/Retouch')) jobType = 'Lettering/Retouch';
+                else if (tagText.includes('修正') || tagText.includes('Correction') || tagText.includes('Lettering QC')) jobType = 'Lettering QC';
+                else if (tagText.includes('写植') || tagText.includes('Lettering')) jobType = 'Lettering';
+                else if (tagText.includes('レタッチ') || tagText.includes('ﾚﾀｯﾁ') || tagText.includes('Retouch')) jobType = 'Retouch';
+                else if (tagText.includes('Prep')) jobType = 'Prep';
+                
+                const matchingHeader = headers.find(h => h.textContent.trim().toUpperCase() === jobType.toUpperCase());
+                
+                if (matchingHeader) {
+                    groups.get(matchingHeader).push(c);
+                } else {
+                    const fallbackHeader = headers.find(h => h.textContent.trim().toUpperCase() === tagText.toUpperCase());
+                    if (fallbackHeader) {
+                        groups.get(fallbackHeader).push(c);
+                    } else {
+                        unassigned.push(c);
+                    }
+                }
+            }
+        });
+        
+        const sortCards = (cardArray) => {
+            if (sortValue === 'default') {
+                cardArray.sort((a, b) => parseInt(a.dataset.defaultOrder || 0) - parseInt(b.dataset.defaultOrder || 0));
+            } else {
+                cardArray.sort((a, b) => {
+                    if (sortValue === 'name_asc' || sortValue === 'name_desc') {
+                        const nameA = (a.querySelector('.card-title')?.textContent || '').trim();
+                        const nameB = (b.querySelector('.card-title')?.textContent || '').trim();
+                        return sortValue === 'name_asc' ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA);
+                    }
+                    if (sortValue === 'date_asc' || sortValue === 'date_desc') {
+                        const dateTextA = a.querySelector('.card-dates span')?.textContent || '';
+                        const dateTextB = b.querySelector('.card-dates span')?.textContent || '';
+                        const extractDate = (text) => {
+                            const matches = text.match(/\d{2}\/\d{2}\/\d{4}/g);
+                            const dateStr = matches && matches.length > 1 ? matches[1] : (matches ? matches[0] : null);
+                            return dateStr ? new Date(dateStr).getTime() : (sortValue === 'date_asc' ? Infinity : -Infinity);
+                        };
+                        const dA = extractDate(dateTextA);
+                        const dB = extractDate(dateTextB);
+                        return sortValue === 'date_asc' ? dA - dB : dB - dA;
+                    }
+                    return 0;
+                });
+            }
+        };
+
+        container.innerHTML = '';
+        
+        if (isGrouped) {
+            if (unassigned.length > 0) {
+                sortCards(unassigned);
+                unassigned.forEach(c => container.appendChild(c));
+            }
+            headers.forEach(h => {
+                container.appendChild(h);
+                const cardArray = groups.get(h);
+                sortCards(cardArray);
+                cardArray.forEach(c => container.appendChild(c));
+            });
+        } else {
+            headers.forEach(h => {
+                h.style.display = 'none';
+                container.appendChild(h);
+            });
+            const allCards = [...unassigned];
+            headers.forEach(h => allCards.push(...groups.get(h)));
+            sortCards(allCards);
+            allCards.forEach(c => container.appendChild(c));
+        }
+    });
+    
+    tabPane.querySelectorAll('.kanban-column').forEach(col => {
+        const container = col.querySelector('.kanban-cards');
+        if (!container) return;
+        const headers = Array.from(container.children).filter(c => c.classList.contains('job-group-header'));
+        headers.forEach(h => {
+            if (!isGrouped) {
+                h.style.display = 'none';
+                return;
+            }
+            let nextNode = h.nextElementSibling;
+            let hasVisibleCard = false;
+            while (nextNode && !nextNode.classList.contains('job-group-header')) {
+                if (nextNode.classList.contains('progress-card') && nextNode.style.display !== 'none') {
+                    hasVisibleCard = true;
+                    break;
+                }
+                nextNode = nextNode.nextElementSibling;
+            }
+            h.style.display = hasVisibleCard ? '' : 'none';
+        });
+    });
+};
+
+window.toggleExternalStart = function(tpKey, element) {
+    const checkbox = element.querySelector('input[type="checkbox"]');
+    const textSpan = element.querySelector('.t4-text');
+    const isChecked = !checkbox.checked;
+    
+    checkbox.checked = isChecked;
+    
+    // Update visuals
+    if (isChecked) {
+        element.style.color = 'var(--primary)';
+        element.style.background = 'rgba(16, 185, 129, 0.1)';
+        element.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+        textSpan.textContent = (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi') ? 'O: 開始 (Bắt đầu)' : 'O列：開始';
+    } else {
+        element.style.color = 'var(--text-3)';
+        element.style.background = 'var(--bg-page)';
+        element.style.borderColor = 'var(--border)';
+        textSpan.textContent = (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi') ? 'Chưa bắt đầu' : '未着手';
+    }
+    
+    // Update dataset on card
+    const card = element.closest('.progress-card');
+    if (card) {
+        let checkedIds = (card.dataset.checkedIds || '').split(',').filter(Boolean);
+        if (isChecked && !checkedIds.includes('t4')) {
+            checkedIds.push('t4');
+        } else if (!isChecked) {
+            checkedIds = checkedIds.filter(id => id !== 't4');
+        }
+        card.dataset.checkedIds = checkedIds.join(',');
+    }
+    
+    // Sync with server
+    fetch(typeof CHECKLIST_API_POST !== 'undefined' && CHECKLIST_API_POST ? CHECKLIST_API_POST : '/api/checklist_sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tac_pham: tpKey, checkbox_id: 't4', status: isChecked })
+    }).catch(console.error);
+    
+    // If modal for this task is open, sync it too safely
+    let modalCb = null;
+    document.querySelectorAll('.checklist-grid').forEach(g => {
+        if (g.dataset.tpKey === tpKey) {
+            const found = g.querySelector('input[data-check-id="t4"]');
+            if (found) modalCb = found;
+        }
+    });
+    if (modalCb) {
+        modalCb.checked = isChecked;
+        updateTaskProgressLocally(tpKey, modalCb.closest('.checklist-grid').parentElement);
+    }
+};
+
+// Initialize Notification Center and Task Sockets on load
+if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+            renderNotificationCenter();
+            setTimeout(setupTaskCommentsSocket, 500);
+        });
+    } else {
+        renderNotificationCenter();
+        setTimeout(setupTaskCommentsSocket, 500);
+    }
+}
+
 
