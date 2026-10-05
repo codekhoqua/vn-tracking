@@ -1,7 +1,18 @@
+import sys
 import os
+
+if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+        sys.stderr.reconfigure(encoding='utf-8')
+    except Exception:
+        pass
+
 import uuid
 import zipfile
 import io
+import base64
+import gspread
 from flask import send_file
 import shutil
 from werkzeug.utils import secure_filename
@@ -63,6 +74,103 @@ USER_SHEET_URL = "https://docs.google.com/spreadsheets/d/1VLlDF5XoXt0Rz0ACZ3EZRK
 
 CHANGE_PASS_API = "https://script.google.com/macros/s/AKfycbzf59j11q0IfvgjRkhvUx6EhnSdssGbvpp3PnKQGL4JUmJC2w2uidZi0BKygpriqMVB/exec"
 LOGTIME_API_URL = "https://script.google.com/macros/s/AKfycbzZ--vv1xsR8u5pFKFqK7N_PCYwGnpl-yvyOVt15rXSoI99hJTwQV5WBXXMXiGMApljig/exec"
+
+# ==================== CẤU HÌNH LOGTIME GSPREAD ====================
+LOGTIME_SPREADSHEET_ID = '1EvTrNJx7dBO5pK58sc25WXkKPMTCJogzpMRz_e-Tr0k'
+LOGTIME_SHEET_NAME = 'JP 日報'
+logtime_submit_lock = threading.Lock()
+_logtime_ws_cache = {}  # (spreadsheet_id, tab) -> gspread Worksheet đã xác thực, tái sử dụng để lưu nhanh hơn
+creds_path = 'credentials.json'
+scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+last_sheet_error = ""
+
+def load_credentials_dict():
+    global last_sheet_error
+    if os.path.exists(creds_path):
+        try:
+            with open(creds_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception as e:
+            last_sheet_error = f"Lỗi đọc credentials.json: {e}"
+            print(last_sheet_error)
+
+    raw_val = (
+        os.environ.get('GOOGLE_CREDENTIALS_B64') or
+        os.environ.get('GOOGLE_CREDENTIALS') or
+        os.environ.get('GOOGLE_SHEETS_CREDENTIALS') or
+        ''
+    ).strip()
+
+    if not raw_val:
+        last_sheet_error = "Chưa cấu hình credentials.json hoặc biến môi trường GOOGLE_CREDENTIALS_B64 / GOOGLE_CREDENTIALS trên server."
+        return None
+
+    if (raw_val.startswith('"') and raw_val.endswith('"')) or (raw_val.startswith("'") and raw_val.endswith("'")):
+        raw_val = raw_val[1:-1].strip()
+
+    if raw_val.startswith('{'):
+        try:
+            return json.loads(raw_val)
+        except Exception as e:
+            last_sheet_error = f"Lỗi parse JSON credentials: {e}"
+            print(last_sheet_error)
+            return None
+
+    try:
+        s = raw_val.replace('-', '+').replace('_', '/')
+        s = re.sub(r'[^A-Za-z0-9+/=]', '', s)
+        s = s.rstrip('=')
+        s += '=' * ((4 - len(s) % 4) % 4)
+        decoded = base64.b64decode(s).decode('utf-8')
+        return json.loads(decoded)
+    except Exception as e:
+        last_sheet_error = f"Lỗi giải mã Base64 GOOGLE_CREDENTIALS: {e}"
+        print(last_sheet_error)
+        return None
+
+def get_gspread_client():
+    global last_sheet_error
+    creds_dict = load_credentials_dict()
+    if not creds_dict:
+        return None
+
+    if 'private_key' in creds_dict and isinstance(creds_dict['private_key'], str):
+        creds_dict['private_key'] = creds_dict['private_key'].replace('\\n', '\n')
+        if 'EKmHf/h)AgMBAAE' in creds_dict['private_key']:
+            creds_dict['private_key'] = creds_dict['private_key'].replace('EKmHf/h)AgMBAAE', 'EKmHf/gpAgMBAAE')
+
+    creds = None
+    try:
+        from google.oauth2.service_account import Credentials
+        creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
+    except Exception as e1:
+        try:
+            from oauth2client.service_account import ServiceAccountCredentials
+            creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+        except Exception as e2:
+            last_sheet_error = f"Lỗi tạo Credentials: {e1} | {e2}"
+            print(last_sheet_error)
+            return None
+
+    try:
+        client = gspread.authorize(creds)
+        last_sheet_error = ""
+        return client
+    except Exception as e:
+        last_sheet_error = f"Lỗi kết nối Google Sheets: {e}"
+        print(last_sheet_error)
+        return None
+
+def get_sheet():
+    client = get_gspread_client()
+    if not client:
+        return None
+    try:
+        return client.open_by_key(LOGTIME_SPREADSHEET_ID)
+    except Exception as e:
+        print("Lỗi open_by_key LOGTIME_SPREADSHEET_ID:", e)
+        return None
+# ==================================================================
 
 url = "https://docs.google.com/spreadsheets/d/1ec_v1hsKu0oCOwyrFNgxckpoaq3Q02J4NdIchqbYE3s/edit?gid=597870203#gid=597870203"
 csv_url = url.split("/edit")[0] + "/export?format=csv" if "/edit" in url else url
@@ -578,26 +686,117 @@ def clean_df(df):
     df = df[df['Công việc'].astype(str).str.strip() != '']
     return df[~df['Công việc'].astype(str).str.lower().isin(['nan', 'none'])]
 
+_logtime_ws_build_locks = {}
+
+def _logtime_targets():
+    return [
+        (LOGTIME_SPREADSHEET_ID, LOGTIME_SHEET_NAME),
+        ("1dkCu_HUs12DTas--yZlDTB9M17DKnUGBvWJ6vdVuIGU", "日報"),
+    ]
+
+def _get_logtime_ws(target):
+    """Lấy worksheet đã xác thực từ cache; nếu chưa có thì kết nối (mỗi sheet 1 client riêng, an toàn khi chạy song song)."""
+    ws = _logtime_ws_cache.get(target)
+    if ws is not None:
+        return ws
+    lock = _logtime_ws_build_locks.setdefault(target, threading.Lock())
+    with lock:
+        ws = _logtime_ws_cache.get(target)
+        if ws is None:
+            client = get_gspread_client()
+            if not client:
+                raise RuntimeError("Không lấy được gspread client: " + str(last_sheet_error))
+            ws = client.open_by_key(target[0]).worksheet(target[1])
+            _logtime_ws_cache[target] = ws
+        return ws
+
+def warmup_logtime_connections():
+    """Chạy nền: mở sẵn kết nối tới 2 sheet để lần bấm Lưu Logtime không phải chờ đăng nhập/mở file."""
+    def _warm(target):
+        try:
+            _get_logtime_ws(target)
+        except Exception as ex:
+            print("Warmup logtime lỗi:", repr(ex))
+    for tg in _logtime_targets():
+        threading.Thread(target=_warm, args=(tg,), daemon=True).start()
+
 def save_logtime(data):
-    payload = {
-        "ngay_log": str(data.get('ngay_log', '')),
-        "category": data.get('category', ''),
-        "cong_viec": data.get('cong_viec', ''),
-        "tac_pham": data.get('tac_pham', ''),
-        "chuong": str(data.get('chuong', '')),
-        "tap": str(data.get('tap', '')),
-        "so_trang_tong": str(data.get('so_trang_tong', '')),
-        "nguoi_thuc_hien": str(data.get('nguoi_thuc_hien', '')),
-        "so_gio": data.get('so_gio', 0),
-        "so_page": data.get('so_page', 0),
-        "difficulty": data.get('difficulty', ''),
-        "ghi_chu": data.get('ghi_chu', '')
-    }
-    try:
-        res = requests.post(LOGTIME_API_URL, json=payload)
-        return res.status_code == 200
-    except Exception:
-        return False
+    ngay_log = str(data.get('ngay_log', '')).replace('-', '/')
+    
+    def parse_num(val):
+        if val is None or str(val).strip() == '':
+            return ''
+        try:
+            f = float(val)
+            return int(f) if f.is_integer() else f
+        except ValueError:
+            return str(val)
+
+    row_data = [
+        ngay_log,                               # A: 日にち
+        str(data.get('category', '')),          # B: カテゴリ
+        str(data.get('cong_viec', '')),         # C: 作業内容
+        str(data.get('tac_pham', '')),          # D: 作品名
+        parse_num(data.get('chuong')),          # E: 話数
+        parse_num(data.get('tap')),             # F: 巻数
+        parse_num(data.get('so_trang_tong')),   # G: ページ
+        str(data.get('nguoi_thuc_hien', '')),   # H: 作業者
+        parse_num(data.get('so_page')),         # I: 作業ページ数
+        parse_num(data.get('so_gio')),          # J: 作業時間
+        '',                                     # K: VN
+        str(data.get('difficulty', '')),        # L: 難易度
+        '',                                     # M: VN依頼可能
+        str(data.get('ghi_chu', ''))            # N: 備考
+    ]
+    
+    JP_TARGET, NEW_TARGET = _logtime_targets()
+
+    _get_ws = _get_logtime_ws
+
+    def _write_row(target):
+        ws = _get_ws(target)
+        col_a = ws.col_values(1)
+        next_row = len(col_a) + 1
+        for i, val in enumerate(col_a):
+            if i > 0 and not str(val).strip():
+                next_row = i + 1
+                break
+        if next_row > ws.row_count:
+            ws.add_rows(1)
+        ws.update(range_name=f'A{next_row}:N{next_row}', values=[row_data], value_input_option='USER_ENTERED')
+
+    def _write_with_retry(target):
+        try:
+            _write_row(target)
+        except Exception:
+            _logtime_ws_cache.pop(target, None)  # cache có thể cũ/hết hạn -> thử lại 1 lần
+            _write_row(target)
+
+    with logtime_submit_lock:
+        results = {}
+
+        def _runner(name, target):
+            try:
+                _write_with_retry(target)
+                results[name] = None
+            except Exception as ex:
+                results[name] = ex
+
+        t_new = threading.Thread(target=_runner, args=('new', NEW_TARGET))
+        t_new.start()
+        _runner('jp', JP_TARGET)  # chạy sheet JP ngay trên thread hiện tại, song song với sheet mới
+        t_new.join()
+
+        if results.get('new') is not None:
+            print("Lỗi đồng bộ file mới bằng Service Account:", repr(results['new']))
+        if results.get('jp') is not None:
+            print("Lỗi khi lưu logtime vào sheet bằng gspread:", repr(results['jp']))
+            return False
+
+        print(f"==> [Service Account gspread] Đã ghi logtime thành công vào cả 2 sheet cho: {row_data[3]} ({row_data[7]})")
+        return True
+
+
 
 # =====================================================================
 # 6. NGÔN NGỮ
@@ -1088,7 +1287,7 @@ def render_logtime_form_html(row, index, t, users, lang):
             </div>
             <div class="logtime-progress" id="progress-{index}" style="display:none; margin-top: 10px;">
                 <div style="display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 0.8rem; color: var(--text-3);">
-                    <span class="progress-label">{ 'Đang gửi dữ liệu...' if lang == 'vi' else 'データを送信中...' }</span>
+                    <span class="progress-label">{ 'Đang lưu logtime bằng tài khoản: logtime-sa@logtime-app-3366.iam.gserviceaccount.com...' if lang == 'vi' else 'アカウント(logtime-sa@logtime-app-3366.iam.gserviceaccount.com)でLogtimeを保存中...' }</span>
                     <span class="progress-time"></span>
                 </div>
                 <div style="width: 100%; height: 6px; background: var(--border); border-radius: 100px; overflow: hidden;">
@@ -2540,7 +2739,7 @@ def dashboard():
 
 @app.route('/debug-who-am-i')
 def debug_who_am_i():
-    import os, re
+    import os, re, platform, subprocess
     t_path = os.path.abspath(os.path.join(app.template_folder, 'dashboard.html'))
     try:
         with open(t_path, 'r', encoding='utf-8') as f:
@@ -2548,18 +2747,58 @@ def debug_who_am_i():
         ver_match = re.findall(r'v1\.\d+\.\d+', content)
     except Exception as e:
         ver_match = [str(e)]
+    
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    cf_path = os.path.join(base_dir, 'cloudflared')
+    log_path = os.path.join(base_dir, 'cloudflared.log')
+    
+    cf_info = {
+        'exists': os.path.exists(cf_path),
+        'size': os.path.getsize(cf_path) if os.path.exists(cf_path) else 0,
+        'mode': oct(os.stat(cf_path).st_mode) if os.path.exists(cf_path) else None,
+    }
+    
+    if os.path.exists(cf_path):
+        try:
+            os.chmod(cf_path, 0o755)
+            r = subprocess.run([cf_path, '--version'], capture_output=True, text=True, timeout=5)
+            cf_info['version_out'] = (r.stdout or r.stderr or '').strip()
+            cf_info['version_rc'] = r.returncode
+        except Exception as ex:
+            cf_info['version_err'] = str(ex)
+            
+    log_content = ''
+    if os.path.exists(log_path):
+        try:
+            with open(log_path, 'r', encoding='utf-8', errors='ignore') as lf:
+                log_content = lf.read()[-3000:]
+        except Exception as ex:
+            log_content = str(ex)
+            
     return jsonify({
         'pid': os.getpid(),
+        'platform': platform.platform(),
+        'arch': platform.machine(),
         'cwd': os.getcwd(),
+        'dir_files': [f for f in os.listdir(base_dir) if not f.startswith('.')],
         'file': os.path.abspath(__file__),
         'template_path': t_path,
-        'versions_in_file': ver_match[:5]
+        'versions_in_file': ver_match[:5],
+        'cf_info': cf_info,
+        'cf_log': log_content
     })
 
 
 # =====================================================================
 # 10. API ENDPOINTS
 # =====================================================================
+@app.route('/api/logtime/warmup', methods=['POST'])
+def api_logtime_warmup():
+    if not session.get('logged_in'):
+        return jsonify({"status": "error"}), 401
+    warmup_logtime_connections()
+    return jsonify({"status": "ok"})
+
 @app.route('/api/logtime', methods=['POST'])
 def api_logtime():
     if not session.get('logged_in'):
@@ -4391,6 +4630,90 @@ def prepare_psd():
 
 
 
+_cf_started = False
+
+def start_cloudflared():
+    global _cf_started
+    if _cf_started:
+        return
+    _cf_started = True
+    
+    if os.name != 'posix':
+        return
+        
+    token = os.environ.get('CF_TUNNEL_TOKEN', 'eyJhIjoiODZjNGI3OWMxMGJlZTIwYzhlZDVkMDI2ZjIxYzAxN2IiLCJ0IjoiYWU0MWJjYmUtZTcwMi00YmZiLWJlNDYtMTMwMmQyNTY4ZGYwIiwicyI6IlpUSXlPV014TXpjdE0yUmpNQzAwWm1KbExXSTVOVFF0TnpCbVl6VXpZV05pTWpFNSJ9')
+    if not token:
+        return
+        
+    import subprocess, platform
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    cf_path = os.path.join(base_dir, 'cloudflared')
+    log_path = os.path.join(base_dir, 'cloudflared.log')
+
+    m = platform.machine().lower()
+    is_arm = 'arm' in m or 'aarch64' in m
+    dl_url = "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64" if is_arm else "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64"
+
+    # Check if existing binary works or is wrong architecture
+    need_download = False
+    if not os.path.exists(cf_path) or os.path.getsize(cf_path) < 1000000:
+        need_download = True
+    else:
+        try:
+            os.chmod(cf_path, 0o755)
+            r = subprocess.run([cf_path, '--version'], capture_output=True, timeout=5)
+            if r.returncode != 0:
+                need_download = True
+        except Exception as e:
+            print("[Cloudflare Tunnel] Execution test failed, will re-download:", e, flush=True)
+            need_download = True
+
+    if need_download:
+        print(f"[Cloudflare Tunnel] Downloading binary for {m} from {dl_url}...", flush=True)
+        try:
+            import urllib.request
+            urllib.request.urlretrieve(dl_url, cf_path)
+            os.chmod(cf_path, 0o755)
+            print("[Cloudflare Tunnel] Downloaded and chmod 0755 completed.", flush=True)
+        except Exception as e:
+            print("[Cloudflare Tunnel] Download failed:", e, flush=True)
+
+    if os.path.exists(cf_path):
+        try:
+            os.chmod(cf_path, 0o755)
+        except Exception as e:
+            print("[Cloudflare Tunnel] chmod error:", e, flush=True)
+
+        def _runner():
+            time.sleep(2)
+            while True:
+                try:
+                    print("[Cloudflare Tunnel] Starting tunnel with http2 protocol...", flush=True)
+                    with open(log_path, 'a', encoding='utf-8') as lf:
+                        lf.write(f"\n--- Starting cloudflared at {datetime.now().isoformat()} ---\n")
+                        lf.flush()
+                        proc = subprocess.Popen(
+                            [cf_path, 'tunnel', '--protocol', 'http2', 'run', '--token', token],
+                            stdout=lf,
+                            stderr=subprocess.STDOUT
+                        )
+                    proc.wait()
+                    print(f"[Cloudflare Tunnel] Process exited with code {proc.returncode}. Restarting in 3s...", flush=True)
+                    time.sleep(3)
+                except Exception as ex:
+                    print("[Cloudflare Tunnel] Exception:", ex, flush=True)
+                    time.sleep(5)
+
+        threading.Thread(target=_runner, daemon=True, name="CloudflaredRunner").start()
+    else:
+        print(f"[Cloudflare Tunnel] Binary not found at {cf_path}", flush=True)
+
+
+if os.name == 'posix':
+    start_cloudflared()
+
 if __name__ == '__main__':
     threading.Thread(target=preload_data, daemon=True).start()
-    socketio.run(app, debug=True, use_reloader=True, host='0.0.0.0', port=5000, allow_unsafe_werkzeug=True)
+    start_cloudflared()
+    port = int(os.environ.get('PORT', os.environ.get('SERVER_PORT', 5000)))
+    socketio.run(app, debug=False, host='0.0.0.0', port=port, allow_unsafe_werkzeug=True)
