@@ -1476,11 +1476,11 @@ function triggerCelebration() {
         const end = Date.now() + duration;
         (function frame() {
             confetti({
-                particleCount: 5, angle: 60, spread: 55, origin: { x: 0 }, zIndex: 9999,
+                particleCount: 5, angle: 60, spread: 55, origin: { x: 0 }, zIndex: 100005,
                 colors: ['#26ccff', '#a25afd', '#ff5e7e', '#88ff5a', '#fcff42', '#ffa62d', '#ff36ff']
             });
             confetti({
-                particleCount: 5, angle: 120, spread: 55, origin: { x: 1 }, zIndex: 9999,
+                particleCount: 5, angle: 120, spread: 55, origin: { x: 1 }, zIndex: 100005,
                 colors: ['#26ccff', '#a25afd', '#ff5e7e', '#88ff5a', '#fcff42', '#ffa62d', '#ff36ff']
             });
             if (Date.now() < end) { requestAnimationFrame(frame); }
@@ -1585,7 +1585,21 @@ function showConfirmDateModal(logDate, todayDate, onConfirm, onCancel) {
 
 // ===================== LOGTIME FORM =====================
 var logtimeCooldowns = {};
-var logtimeAvgTime = 3000; // Average save time in ms (starts at 3s, adapts over time)
+var logtimeAvgTime = 1000; // Average save time in ms (starts at 1s, adapts over time)
+
+// Mở sẵn kết nối Google Sheets ngay khi user bắt đầu nhập/chọn bất kỳ ô nào trong form logtime
+var logtimeLastWarmup = 0;
+function warmupLogtimeConnection() {
+    const now = Date.now();
+    if (now - logtimeLastWarmup < 10 * 60 * 1000) return;
+    logtimeLastWarmup = now;
+    fetch('/api/logtime/warmup', { method: 'POST' }).catch(function() { logtimeLastWarmup = 0; });
+}
+['input', 'change', 'focusin'].forEach(function(evt) {
+    document.addEventListener(evt, function(e) {
+        if (e.target && e.target.closest && e.target.closest('form[id^="logtime-"]')) warmupLogtimeConnection();
+    }, true);
+});
 
 function handleLogtime(event, formId) {
     event.preventDefault();
@@ -1702,6 +1716,58 @@ function handleLogtime(event, formId) {
     executeLogtimeSubmit(form, formId, data);
 }
 
+// Centered loading / success modal for logtime saving (themed with site CSS variables)
+function showLogtimeSaveModal(state, isVi) {
+    const saEmail = 'logtime-sa@logtime-app-3366.iam.gserviceaccount.com';
+    let overlay = document.getElementById('logtime-save-overlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'logtime-save-overlay';
+        overlay.className = 'modal-overlay';
+        overlay.style.zIndex = '100003';
+        document.body.appendChild(overlay);
+        if (!document.getElementById('logtime-save-style')) {
+            const style = document.createElement('style');
+            style.id = 'logtime-save-style';
+            style.innerHTML = `
+                @keyframes ltPop { 0% { transform: scale(0.85); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+                @keyframes ltSpin { to { transform: rotate(360deg); } }
+                @keyframes ltCheck { to { stroke-dashoffset: 0; } }
+                .lt-spinner { width: 46px; height: 46px; margin: 0 auto 18px; border-radius: 50%; border: 4px solid transparent; border-top-color: var(--primary); border-bottom-color: var(--primary); animation: ltSpin 0.9s linear infinite; }
+                .lt-check-ring { width: 72px; height: 72px; margin: 0 auto 16px; border-radius: 50%; border: 4px solid rgba(34,197,94,0.25); display: flex; align-items: center; justify-content: center; background: rgba(34,197,94,0.1); }
+                .lt-check-ring path { stroke-dasharray: 40; stroke-dashoffset: 40; animation: ltCheck 0.5s ease-out forwards 0.15s; }
+            `;
+            document.head.appendChild(style);
+        }
+    }
+
+    const boxStyle = 'max-width: 400px; text-align: center; padding: 32px 28px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-xl); box-shadow: var(--shadow-lg); animation: ltPop 0.25s ease-out;';
+    if (state === 'loading') {
+        overlay.innerHTML = `
+            <div class="modal-content" style="${boxStyle}">
+                <div class="lt-spinner"></div>
+                <h3 style="font-size: 1.05rem; font-weight: 700; margin-bottom: 8px; color: var(--text);">${isVi ? 'Đang lưu logtime...' : 'Logtimeを保存中...'}</h3>
+                <p style="color: var(--text-3); font-size: 0.85rem; line-height: 1.5; word-break: break-all;">${isVi ? 'Đang lưu logtime bằng tài khoản:' : 'アカウントで保存中:'}<br><strong style="color: var(--primary);">${saEmail}</strong></p>
+            </div>`;
+        overlay.classList.add('open');
+    } else if (state === 'success') {
+        if (typeof triggerCelebration === 'function') triggerCelebration();
+        overlay.innerHTML = `
+            <div class="modal-content" style="${boxStyle}">
+                <div class="lt-check-ring">
+                    <svg viewBox="0 0 40 40" width="40" height="40" fill="none"><path d="M10 21L17 28L30 13" stroke="#22c55e" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </div>
+                <h3 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 8px; color: var(--text);">${isVi ? 'Lưu thành công!' : '保存しました！'}</h3>
+                <p style="color: var(--text-3); font-size: 0.9rem; line-height: 1.5;">${isVi ? 'Đã lưu thành công vào Google Sheets!' : 'Googleスプレッドシートに保存しました！'}</p>
+            </div>`;
+        overlay.classList.add('open');
+        overlay.onclick = function() { overlay.classList.remove('open'); };
+        setTimeout(function() { overlay.classList.remove('open'); }, 2200);
+    } else {
+        overlay.classList.remove('open');
+    }
+}
+
 function executeLogtimeSubmit(form, formId, data) {
     const isVi = typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi';
     const btn = form.querySelector('button[type="submit"]');
@@ -1709,74 +1775,23 @@ function executeLogtimeSubmit(form, formId, data) {
     btn.disabled = true;
     btn.textContent = isVi ? '⏳ ĐANG LƯU...' : '⏳ 保存中...';
 
-    // Show progress bar
-    const formIndex = formId.replace('logtime-', '');
-    const progressEl = document.getElementById('progress-' + formIndex);
-    var progressFill, progressLabel, progressTime, progressInterval, startTime;
-
-    if (progressEl) {
-        progressEl.style.display = 'block';
-        progressFill = progressEl.querySelector('.progress-fill');
-        progressLabel = progressEl.querySelector('.progress-label');
-        progressTime = progressEl.querySelector('.progress-time');
-        startTime = Date.now();
-        var estimatedMs = logtimeAvgTime;
-
-        if (progressFill) progressFill.style.width = '0%';
-        if (progressLabel) progressLabel.textContent = isVi ? 'Đang gửi dữ liệu lên Google Sheet...' : 'Googleスプレッドシートに送信中...';
-        if (progressTime) progressTime.textContent = '~' + Math.ceil(estimatedMs / 1000) + 's';
-
-        // Animate progress: fast at first, slows down as it approaches 90%
-        progressInterval = setInterval(function() {
-            var elapsed = Date.now() - startTime;
-            var ratio = elapsed / estimatedMs;
-            // Ease-out curve: fast start, slow near end. Caps at 92%.
-            var pct = Math.min(92, ratio * 100 * (1 - ratio * 0.3));
-            if (progressFill) progressFill.style.width = pct + '%';
-
-            var remaining = Math.max(0, Math.ceil((estimatedMs - elapsed) / 1000));
-            if (progressTime) progressTime.textContent = remaining > 0 ? '~' + remaining + 's' : '...';
-
-            // Update label based on progress
-            if (pct > 60 && progressLabel) progressLabel.textContent = isVi ? 'Đang lưu vào Google Sheet...' : 'Googleスプレッドシートに保存中...';
-            if (pct > 85 && progressLabel) progressLabel.textContent = isVi ? 'Sắp xong...' : 'もうすぐ完了します...';
-        }, 100);
-    }
+    showLogtimeSaveModal('loading', isVi);
 
     fetch('/api/logtime', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
         .then(r => r.json())
         .then(result => {
-            var actualTime = Date.now() - startTime;
-            // Adapt average: weighted moving average (70% old, 30% new)
-            logtimeAvgTime = Math.round(logtimeAvgTime * 0.7 + actualTime * 0.3);
-
-            if (progressInterval) clearInterval(progressInterval);
-            if (progressFill) progressFill.style.width = '100%';
-            if (progressLabel) progressLabel.textContent = result.status === 'success' ? (isVi ? '✅ Hoàn tất!' : '✅ 完了！') : (isVi ? '❌ Lỗi!' : '❌ エラー！');
-            if (progressTime) progressTime.textContent = (actualTime / 1000).toFixed(1) + 's';
-
             if (result.status === 'success') {
-                if (progressFill) progressFill.style.background = 'linear-gradient(90deg, #22c55e, #4ade80)';
                 logtimeCooldowns[formId] = Date.now();
-                setTimeout(function() {
-                    showSuccessModal();
-                    if (progressEl) progressEl.style.display = 'none';
-                    if (progressFill) { progressFill.style.width = '0%'; progressFill.style.background = 'linear-gradient(90deg, var(--primary), #818cf8)'; }
-                }, 600);
+                showLogtimeSaveModal('success', isVi);
                 if (typeof handlePetXPResponse === 'function') handlePetXPResponse(result);
             } else {
-                if (progressFill) progressFill.style.background = 'linear-gradient(90deg, #ef4444, #f87171)';
+                showLogtimeSaveModal('close', isVi);
                 showToast('❌ ' + (result.message || (isVi ? 'Có lỗi xảy ra.' : 'エラーが発生しました。')), 'error');
-                setTimeout(function() { if (progressEl) progressEl.style.display = 'none'; if (progressFill) { progressFill.style.width = '0%'; progressFill.style.background = 'linear-gradient(90deg, var(--primary), #818cf8)'; } }, 2000);
             }
         })
         .catch(function() {
-            if (progressInterval) clearInterval(progressInterval);
-            if (progressFill) { progressFill.style.width = '100%'; progressFill.style.background = 'linear-gradient(90deg, #ef4444, #f87171)'; }
-            if (progressLabel) progressLabel.textContent = isVi ? '❌ Lỗi kết nối!' : '❌ 接続エラー！';
-            if (progressTime) progressTime.textContent = '';
+            showLogtimeSaveModal('close', isVi);
             showToast(isVi ? '❌ Lỗi kết nối!' : '❌ 接続エラー！', 'error');
-            setTimeout(function() { if (progressEl) progressEl.style.display = 'none'; if (progressFill) { progressFill.style.width = '0%'; progressFill.style.background = 'linear-gradient(90deg, var(--primary), #818cf8)'; } }, 2000);
         })
         .finally(() => { btn.disabled = false; btn.innerHTML = orig; });
 }

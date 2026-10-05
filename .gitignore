@@ -38,6 +38,9 @@ chat_history.json
 *.log
 PSD_New_Rules.docx
 *.bak
+cloudflared*
+credentials.json
+output.txt
 
 # IDE
 .claude/
