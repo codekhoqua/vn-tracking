@@ -47,3 +47,4 @@ output.txt
 .agents/
 .vscode/
 ANIMAL/
+*.zip
