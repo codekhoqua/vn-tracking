@@ -236,15 +236,45 @@
 </div>
 {% endif %}
 
+<!-- ============ MOBILE & TABLET TOPBAR ============ -->
+<header class="mobile-topbar" id="mobile-topbar">
+    <button type="button" class="mobile-menu-btn" onclick="toggleMobileSidebar()" aria-label="Menu">
+        <i class="fas fa-bars"></i>
+    </button>
+    <div class="mobile-brand">
+        <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" width="26" height="26" style="border-radius: var(--radius-sm);">
+        <span>VN-Tracking</span>
+        <sup class="version-tag" style="font-size: 9px; padding: 1px 5px; margin-top: 1px;"><i>v1.7.0</i></sup>
+    </div>
+    <div class="mobile-topbar-right">
+        <button type="button" class="mobile-icon-btn" onclick="toggleNotificationPanel(event)" title="{{ 'Thông báo' if lang == 'vi' else '通知' }}">
+            <i class="far fa-bell"></i>
+            <span class="mobile-unread-dot" id="mobile-unread-dot" style="display: none;"></span>
+        </button>
+        <div class="mobile-avatar-btn" onclick="toggleProfilePanel()" title="{{ 'Cá nhân' if lang == 'vi' else 'プロフィール' }}">
+            {% set p_top = user_profiles.get(user, {}) if user_profiles else {} %}
+            {% if p_top and p_top.avatar %}
+            <img src="{{ p_top.avatar }}" alt="Avatar" referrerpolicy="no-referrer">
+            {% else %}
+            <span>{{ user[0]|upper if user else 'U' }}</span>
+            {% endif %}
+        </div>
+    </div>
+</header>
+<div class="sidebar-backdrop" id="sidebar-backdrop" onclick="closeMobileSidebar()"></div>
+
 <!-- ============ SIDEBAR ============ -->
 <aside class="sidebar">
+    <button type="button" class="sidebar-mobile-close" onclick="closeMobileSidebar()" aria-label="Đóng">
+        <i class="fas fa-times"></i>
+    </button>
     <div class="sidebar-logo">
         <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" width="32" height="32"
             style="border-radius: var(--radius-sm); margin-right: 8px;">
         <div style="display: flex; flex-direction: column; justify-content: center;">
             <span>VN-Tracking</span>
             <sup class="version-tag"
-                style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.6.9</i></sup>
+                style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.7.0</i></sup>
         </div>
     </div>
 

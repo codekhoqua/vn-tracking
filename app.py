@@ -964,9 +964,15 @@ def render_checklist_html(tac_pham_key, index, lang, api_url, checked_ids=None, 
                 <div class="handover-empty">{ "Chưa có ghi chú nào. Hãy để lại lời nhắn cho đồng đội!" if lang == "vi" else "メッセージはまだありません。" }</div>
             </div>
 
-            <div class="handover-input-group">
-                <input type="text" id="handover_input_{index}" class="handover-input" placeholder="{ "Nhập tin nhắn hoặc ghi chú bàn giao..." if lang == "vi" else "引き継ぎメッセージを入力..." }" onkeydown="if(event.key==='Enter') sendTaskComment('{index}', '{volume_key}')">
-                <button type="button" class="btn-handover-send" id="btn_send_comment_{index}" onclick="sendTaskComment('{index}', '{volume_key}')">{ "Gửi" if lang == "vi" else "送信" }</button>
+            <div class="handover-input-container">
+                <div class="handover-count-bar" id="count_bar_{index}" style="display: none;">
+                    <span class="count-badge"><i class="fas fa-layer-group"></i> <strong id="count_num_{index}">0</strong> PSD</span>
+                    <span class="count-hint">{ "Auto chèn dấu phẩy khi gửi" if lang == "vi" else "送信時に自動でカンマ挿入" }</span>
+                </div>
+                <div class="handover-input-group">
+                    <textarea id="handover_input_{index}" class="handover-input" rows="1" placeholder="{ "Nhập tin nhắn, ghi chú hoặc số trang PSD..." if lang == "vi" else "メッセージまたはPSDページ番号を入力..." }" oninput="handleCommentInput(this, '{index}')" onkeydown="handleCommentKeydown(event, '{index}', '{volume_key}')"></textarea>
+                    <button type="button" class="btn-handover-send" id="btn_send_comment_{index}" onclick="sendTaskComment('{index}', '{volume_key}')">{ "Gửi" if lang == "vi" else "送信" }</button>
+                </div>
             </div>
         </div>
     </div>

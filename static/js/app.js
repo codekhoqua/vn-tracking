@@ -374,9 +374,79 @@ function createCommentItemHtml(c, tpKey) {
         ? `<button type="button" class="btn-delete-comment" onclick="event.stopPropagation(); event.preventDefault(); deleteTaskComment('${c.id}', '${tpKey}', this)" title="Xóa"><i class="fas fa-trash-alt" style="pointer-events: none;"></i></button>`
         : '';
 
+// Auto count PSD numbers from comment text
+function countPsdPages(text) {
+    if (!text) return 0;
+    const matches = text.match(/\b\d+\b/g);
+    return matches ? matches.length : 0;
+}
+
+// Auto format numbers by inserting commas between numbers separated by whitespace
+function autoFormatNumberCommas(text) {
+    if (!text) return '';
+    let prev;
+    let formatted = text;
+    do {
+        prev = formatted;
+        formatted = formatted.replace(/(\b\d+)(?:[ \t\r\n]+)(\d+\b)/g, '$1, $2');
+    } while (formatted !== prev);
+    return formatted;
+}
+
+// Handle auto-grow and live counting on comment input
+function handleCommentInput(textarea, index) {
+    if (!textarea) return;
+    // Auto-grow height based on content
+    textarea.style.height = 'auto';
+    textarea.style.height = Math.min(textarea.scrollHeight, 130) + 'px';
+
+    // Live count
+    const count = countPsdPages(textarea.value);
+    const box = textarea.closest('.task-handover-box') || document.getElementById(`handover_${index}`);
+    const countBar = box ? box.querySelector('.handover-count-bar') : document.getElementById(`count_bar_${index}`);
+    const countNum = box ? box.querySelector('.handover-count-bar strong') : document.getElementById(`count_num_${index}`);
+
+    if (countBar && countNum) {
+        if (count > 0) {
+            countNum.textContent = count;
+            countBar.style.display = 'flex';
+        } else {
+            countBar.style.display = 'none';
+        }
+    }
+}
+
+function handleCommentKeydown(event, index, volumeKey) {
+    if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        sendTaskComment(index, volumeKey);
+    }
+}
+
+// Mobile Sidebar Drawer Controller
+function toggleMobileSidebar() {
+    const sidebar = document.querySelector('.sidebar');
+    const backdrop = document.getElementById('sidebar-backdrop');
+    if (!sidebar) return;
+    const isOpen = sidebar.classList.toggle('mobile-open');
+    if (backdrop) backdrop.classList.toggle('active', isOpen);
+    document.body.classList.toggle('sidebar-locked', isOpen);
+}
+
+function closeMobileSidebar() {
+    const sidebar = document.querySelector('.sidebar');
+    const backdrop = document.getElementById('sidebar-backdrop');
+    if (sidebar) sidebar.classList.remove('mobile-open');
+    if (backdrop) backdrop.classList.remove('active');
+    document.body.classList.remove('sidebar-locked');
+}
+
     const avatarHtml = avatar 
         ? `<img src="${avatar}" alt="${c.user}" class="comment-avatar-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><div class="comment-avatar-fallback" style="display:none;">${initial}</div>`
         : `<div class="comment-avatar-fallback">${initial}</div>`;
+
+    const psdCount = countPsdPages(c.message);
+    const psdBadge = psdCount > 0 ? `<span class="comment-psd-badge" title="Đã đếm ${psdCount} trang PSD"><i class="fas fa-layer-group"></i> ${psdCount} PSD</span>` : '';
 
     return `
         <div class="handover-comment-item" id="comment_${c.id || Date.now()}" data-comment-id="${c.id || ''}">
@@ -385,6 +455,7 @@ function createCommentItemHtml(c, tpKey) {
                 <div class="comment-meta">
                     <span class="comment-user">${c.user || 'Thành viên'}</span>
                     ${tagBadge}
+                    ${psdBadge}
                     <span class="comment-time">${c.time || ''}</span>
                     ${deleteBtnHtml}
                 </div>
@@ -420,13 +491,20 @@ async function sendTaskComment(index, tpKey, messageOverride = null, tag = 'chat
     if (isSendingTaskComment) return;
     const box = document.getElementById(`handover_${index}`) || document.querySelector(`.task-handover-box[data-tp-key="${tpKey}"]`);
     const input = box ? box.querySelector('.handover-input') : document.getElementById(`handover_input_${index}`);
-    const message = messageOverride ? messageOverride.trim() : (input ? input.value.trim() : '');
-    if (!message) return;
+    let rawMessage = messageOverride ? messageOverride.trim() : (input ? input.value.trim() : '');
+    if (!rawMessage) return;
+
+    // Auto format numbers with commas (e.g. "1 2 3 4" -> "1, 2, 3, 4")
+    const message = autoFormatNumberCommas(rawMessage);
 
     isSendingTaskComment = true;
     const sendBtn = box ? box.querySelector('.btn-handover-send') : document.getElementById(`btn_send_comment_${index}`);
     if (sendBtn) { sendBtn.disabled = true; sendBtn.style.opacity = '0.5'; }
-    if (input && !messageOverride) { input.value = ''; }
+    if (input && !messageOverride) {
+        input.value = '';
+        input.style.height = 'auto';
+        handleCommentInput(input, index);
+    }
 
     try {
         const res = await fetch('/api/task_comments', {
