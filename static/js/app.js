@@ -355,25 +355,6 @@ function getAvatarForUser(username) {
     return '';
 }
 
-function createCommentItemHtml(c, tpKey) {
-    const avatar = getAvatarForUser(c.user);
-    const initial = (c.user || 'U').charAt(0).toUpperCase();
-    
-    let tagBadge = '';
-    if (c.tag === 'handover') {
-        tagBadge = `<span class="comment-tag handover">Bàn giao</span>`;
-    } else if (c.tag === 'progress') {
-        tagBadge = `<span class="comment-tag progress">Tiến độ</span>`;
-    } else if (c.tag === 'warning') {
-        tagBadge = `<span class="comment-tag warning">Lưu ý</span>`;
-    }
-
-    const currentLoggedUser = typeof CURRENT_USER !== 'undefined' ? CURRENT_USER : '';
-    const canDelete = (c.user === currentLoggedUser || (typeof USER_ROLE !== 'undefined' && ['admin', 'manager', 'leader'].includes(USER_ROLE)));
-    const deleteBtnHtml = canDelete 
-        ? `<button type="button" class="btn-delete-comment" onclick="event.stopPropagation(); event.preventDefault(); deleteTaskComment('${c.id}', '${tpKey}', this)" title="Xóa"><i class="fas fa-trash-alt" style="pointer-events: none;"></i></button>`
-        : '';
-
 // Auto count PSD numbers from comment text
 function countPsdPages(text) {
     if (!text) return 0;
@@ -441,6 +422,37 @@ function closeMobileSidebar() {
     document.body.classList.remove('sidebar-locked');
 }
 
+// Expose handlers to window explicitly
+window.countPsdPages = countPsdPages;
+window.autoFormatNumberCommas = autoFormatNumberCommas;
+window.handleCommentInput = handleCommentInput;
+window.handleCommentKeydown = handleCommentKeydown;
+window.toggleMobileSidebar = toggleMobileSidebar;
+window.closeMobileSidebar = closeMobileSidebar;
+window.sendTaskComment = sendTaskComment;
+window.sendQuickHandover = sendQuickHandover;
+window.deleteTaskComment = deleteTaskComment;
+window.loadTaskComments = loadTaskComments;
+
+function createCommentItemHtml(c, tpKey) {
+    const avatar = getAvatarForUser(c.user);
+    const initial = (c.user || 'U').charAt(0).toUpperCase();
+    
+    let tagBadge = '';
+    if (c.tag === 'handover') {
+        tagBadge = `<span class="comment-tag handover">Bàn giao</span>`;
+    } else if (c.tag === 'progress') {
+        tagBadge = `<span class="comment-tag progress">Tiến độ</span>`;
+    } else if (c.tag === 'warning') {
+        tagBadge = `<span class="comment-tag warning">Lưu ý</span>`;
+    }
+
+    const currentLoggedUser = typeof CURRENT_USER !== 'undefined' ? CURRENT_USER : '';
+    const canDelete = (c.user === currentLoggedUser || (typeof USER_ROLE !== 'undefined' && ['admin', 'manager', 'leader'].includes(USER_ROLE)));
+    const deleteBtnHtml = canDelete 
+        ? `<button type="button" class="btn-delete-comment" onclick="event.stopPropagation(); event.preventDefault(); deleteTaskComment('${c.id}', '${tpKey}', this)" title="Xóa"><i class="fas fa-trash-alt" style="pointer-events: none;"></i></button>`
+        : '';
+
     const avatarHtml = avatar 
         ? `<img src="${avatar}" alt="${c.user}" class="comment-avatar-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><div class="comment-avatar-fallback" style="display:none;">${initial}</div>`
         : `<div class="comment-avatar-fallback">${initial}</div>`;
@@ -489,21 +501,22 @@ async function loadTaskComments(index, tpKey) {
 
 async function sendTaskComment(index, tpKey, messageOverride = null, tag = 'chat') {
     if (isSendingTaskComment) return;
-    const box = document.getElementById(`handover_${index}`) || document.querySelector(`.task-handover-box[data-tp-key="${tpKey}"]`);
-    const input = box ? box.querySelector('.handover-input') : document.getElementById(`handover_input_${index}`);
-    let rawMessage = messageOverride ? messageOverride.trim() : (input ? input.value.trim() : '');
-    if (!rawMessage) return;
+    const box = document.getElementById(`handover_${index}`) || (tpKey ? document.querySelector(`.task-handover-box[data-tp-key="${tpKey}"]`) : null);
+    const input = document.getElementById(`handover_input_${index}`) || (box ? box.querySelector('.handover-input') : null);
+    const targetKey = tpKey || (box ? box.getAttribute('data-tp-key') : '');
+    let rawMessage = messageOverride ? String(messageOverride).trim() : (input ? input.value.trim() : '');
+    if (!rawMessage || !targetKey) return;
 
     // Auto format numbers with commas (e.g. "1 2 3 4" -> "1, 2, 3, 4")
-    const message = autoFormatNumberCommas(rawMessage);
+    const message = (typeof autoFormatNumberCommas === 'function') ? autoFormatNumberCommas(rawMessage) : rawMessage;
 
     isSendingTaskComment = true;
-    const sendBtn = box ? box.querySelector('.btn-handover-send') : document.getElementById(`btn_send_comment_${index}`);
+    const sendBtn = document.getElementById(`btn_send_comment_${index}`) || (box ? box.querySelector('.btn-handover-send') : null);
     if (sendBtn) { sendBtn.disabled = true; sendBtn.style.opacity = '0.5'; }
     if (input && !messageOverride) {
         input.value = '';
         input.style.height = 'auto';
-        handleCommentInput(input, index);
+        if (typeof handleCommentInput === 'function') handleCommentInput(input, index);
     }
 
     try {
@@ -511,7 +524,7 @@ async function sendTaskComment(index, tpKey, messageOverride = null, tag = 'chat
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
-                tp_key: tpKey,
+                tp_key: targetKey,
                 message: message,
                 tag: tag
             })
@@ -521,23 +534,28 @@ async function sendTaskComment(index, tpKey, messageOverride = null, tag = 'chat
             // Append to ALL handover boxes in DOM matching this task/index immediately
             document.querySelectorAll('.task-handover-box').forEach(hBox => {
                 const boxKey = hBox.getAttribute('data-tp-key');
-                if (boxKey === tpKey || (boxKey && tpKey && (boxKey.includes(tpKey) || tpKey.includes(boxKey))) || hBox.id === `handover_${index}`) {
+                if (boxKey === targetKey || (boxKey && targetKey && (boxKey.includes(targetKey) || targetKey.includes(boxKey))) || hBox.id === `handover_${index}`) {
                     const list = hBox.querySelector('.handover-comments-list');
                     if (list) {
                         const empty = list.querySelector('.handover-empty');
                         if (empty) empty.remove();
                         if (!list.querySelector(`[data-comment-id="${data.comment.id}"]`) && !list.querySelector(`[id="comment_${data.comment.id}"]`)) {
-                            list.insertAdjacentHTML('beforeend', createCommentItemHtml(data.comment, tpKey));
+                            list.insertAdjacentHTML('beforeend', createCommentItemHtml(data.comment, targetKey));
                             list.scrollTop = list.scrollHeight;
                         }
                     }
                 }
             });
         } else {
-            showToast(data.message || 'Lỗi gửi tin nhắn', 'error');
+            if (typeof showToast !== 'undefined') {
+                showToast(data.message || 'Lỗi gửi tin nhắn', 'error');
+            }
         }
     } catch (e) {
         console.error('Error sending task comment:', e);
+        if (typeof showToast !== 'undefined') {
+            showToast('Lỗi gửi comment: ' + (e.message || e), 'error');
+        }
     } finally {
         isSendingTaskComment = false;
         if (sendBtn) { sendBtn.disabled = false; sendBtn.style.opacity = '1'; }
