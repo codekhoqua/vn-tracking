@@ -772,29 +772,25 @@ def save_logtime(data):
             _logtime_ws_cache.pop(target, None)  # cache có thể cũ/hết hạn -> thử lại 1 lần
             _write_row(target)
 
+    # 1. Ghi ngay vào sheet chính đang dùng (NEW_TARGET)
     with logtime_submit_lock:
-        results = {}
-
-        def _runner(name, target):
-            try:
-                _write_with_retry(target)
-                results[name] = None
-            except Exception as ex:
-                results[name] = ex
-
-        t_new = threading.Thread(target=_runner, args=('new', NEW_TARGET))
-        t_new.start()
-        _runner('jp', JP_TARGET)  # chạy sheet JP ngay trên thread hiện tại, song song với sheet mới
-        t_new.join()
-
-        if results.get('new') is not None:
-            print("Lỗi đồng bộ file mới bằng Service Account:", repr(results['new']))
-        if results.get('jp') is not None:
-            print("Lỗi khi lưu logtime vào sheet bằng gspread:", repr(results['jp']))
+        try:
+            _write_with_retry(NEW_TARGET)
+            print(f"==> [Service Account gspread] Đã ghi logtime thành công vào sheet chính cho: {row_data[3]} ({row_data[7]})", flush=True)
+        except Exception as ex:
+            print("Lỗi khi lưu logtime vào sheet chính:", repr(ex), flush=True)
             return False
 
-        print(f"==> [Service Account gspread] Đã ghi logtime thành công vào cả 2 sheet cho: {row_data[3]} ({row_data[7]})")
-        return True
+    # 2. Đồng bộ ngầm sang sheet phụ (JP_TARGET) trên thread riêng, không bắt user chờ 10-12s
+    def _sync_backup():
+        try:
+            _write_with_retry(JP_TARGET)
+            print(f"==> [Service Account gspread] Đã đồng bộ sang sheet JP phụ cho: {row_data[3]} ({row_data[7]})", flush=True)
+        except Exception as ex:
+            print("Lỗi đồng bộ sheet JP phụ:", repr(ex), flush=True)
+
+    threading.Thread(target=_sync_backup, daemon=True).start()
+    return True
 
 
 
@@ -2830,13 +2826,11 @@ def api_logtime():
         return jsonify({"status": "error", "message": "Giờ làm hôm nay không hợp lệ!"}), 400
 
     if save_logtime(data):
-        # Pet XP: +0 khi submit logtime (Pet reward)
+        # Pet reward: chạy ngầm trên background thread để response gửi về client ngay lập tức
         username = session.get('user', '')
-        pet_result = pet_add_xp(username, 0, 'logtime')
-        resp = {"status": "success"}
-        if pet_result:
-            resp['pet'] = pet_result
-        return jsonify(resp)
+        if username:
+            threading.Thread(target=pet_add_xp, args=(username, 0, 'logtime'), daemon=True).start()
+        return jsonify({"status": "success"})
     else:
         return jsonify({"status": "error", "message": "Lỗi khi lưu logtime"}), 500
 
