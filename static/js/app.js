@@ -1820,7 +1820,7 @@ function showLogtimeSaveModal(state, isVi) {
                         renderer: 'svg',
                         loop: true,
                         autoplay: true,
-                        path: '/static/duolingo_animation.json'
+                        path: '/static/duolingo_animation.json?v=' + Date.now()
                     });
                 } catch (e) {
                     console.warn('Lottie loading error:', e);
