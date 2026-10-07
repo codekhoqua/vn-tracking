@@ -739,10 +739,10 @@ def save_logtime(data):
         str(data.get('tac_pham', '')),          # D: 作品名
         parse_num(data.get('chuong')),          # E: 話数
         parse_num(data.get('tap')),             # F: 巻数
-        parse_num(data.get('so_trang_tong')),   # G: ページ
+        parse_num(data.get('so_trang_tong')),   # G: 総ページ数
         str(data.get('nguoi_thuc_hien', '')),   # H: 作業者
-        parse_num(data.get('so_page')),         # I: 作業ページ数
-        parse_num(data.get('so_gio')),          # J: 作業時間
+        parse_num(data.get('so_page')),         # I: 作業ページ数 (Số trang làm được)
+        parse_num(data.get('so_gio')),          # J: 合計時間 (Giờ làm)
         '',                                     # K: VN
         str(data.get('difficulty', '')),        # L: 難易度
         '',                                     # M: VN依頼可能
@@ -1266,16 +1266,16 @@ def render_logtime_form_html(row, index, t, users, lang):
             </div>
             <div class="form-row cols-4" style="margin-top: 16px;">
                 <div class="form-group">
-                    <label>{t['f_hours']} <span style="color: #f43f5e; font-weight: bold; margin-left: 2px;">*</span></label>
-                    <input type="number" name="so_gio" min="0.1" step="0.5" required placeholder="0.5, 1, 2...">
+                    <label>{t['f_pages']} <span style="color: #f43f5e; font-weight: bold; margin-left: 2px;">*</span></label>
+                    <input type="number" name="so_page" min="0" step="1" required placeholder="Số page hoàn thành...">
                 </div>
                 <div class="form-group">
                     <label>{t['f_total_pages']} <span style="color: #f43f5e; font-weight: bold; margin-left: 2px;">*</span></label>
                     <input type="number" name="so_trang_tong" value="{so_trang if so_trang else ''}" min="0" step="1" required placeholder="Ví dụ: 200">
                 </div>
                 <div class="form-group">
-                    <label>{t['f_pages']} <span style="color: #f43f5e; font-weight: bold; margin-left: 2px;">*</span></label>
-                    <input type="number" name="so_page" min="0" step="1" required placeholder="Số page hoàn thành...">
+                    <label>{t['f_hours']} <span style="color: #f43f5e; font-weight: bold; margin-left: 2px;">*</span></label>
+                    <input type="number" name="so_gio" min="0.1" step="0.5" required placeholder="0.5, 1, 2...">
                 </div>
                 <div class="form-group">
                     <label>{t['f_note']}</label>
