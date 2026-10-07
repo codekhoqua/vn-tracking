@@ -1717,6 +1717,7 @@ function handleLogtime(event, formId) {
 }
 
 // Centered loading / success modal for logtime saving (themed with site CSS variables)
+// Centered loading / success modal for logtime saving with Duolingo animation
 function showLogtimeSaveModal(state, isVi) {
     const saEmail = 'logtime-sa@logtime-app-3366.iam.gserviceaccount.com';
     let overlay = document.getElementById('logtime-save-overlay');
@@ -1732,10 +1733,52 @@ function showLogtimeSaveModal(state, isVi) {
             style.innerHTML = `
                 @keyframes ltPop { 0% { transform: scale(0.85); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
                 @keyframes ltSpin { to { transform: rotate(360deg); } }
-                @keyframes ltCheck { to { stroke-dashoffset: 0; } }
                 .lt-spinner { width: 46px; height: 46px; margin: 0 auto 18px; border-radius: 50%; border: 4px solid transparent; border-top-color: var(--primary); border-bottom-color: var(--primary); animation: ltSpin 0.9s linear infinite; }
-                .lt-check-ring { width: 72px; height: 72px; margin: 0 auto 16px; border-radius: 50%; border: 4px solid rgba(34,197,94,0.25); display: flex; align-items: center; justify-content: center; background: rgba(34,197,94,0.1); }
-                .lt-check-ring path { stroke-dasharray: 40; stroke-dashoffset: 40; animation: ltCheck 0.5s ease-out forwards 0.15s; }
+                .duo-card {
+                    background: var(--surface, #ffffff);
+                    border: 2px solid #58cc02;
+                    border-bottom: 6px solid #46a302;
+                    border-radius: 28px;
+                    padding: 24px 28px 24px;
+                    max-width: 420px;
+                    width: 90%;
+                    text-align: center;
+                    box-shadow: 0 16px 36px rgba(0,0,0,0.22);
+                    animation: ltPop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                    position: relative;
+                }
+                .duo-title {
+                    font-family: 'Nunito', 'Plus Jakarta Sans', sans-serif;
+                    font-size: 1.5rem;
+                    font-weight: 900;
+                    color: #58cc02;
+                    text-shadow: 0 2px 0 rgba(70, 163, 2, 0.25);
+                    letter-spacing: -0.3px;
+                    margin: 6px 0 6px;
+                }
+                .duo-btn {
+                    font-family: 'Nunito', sans-serif;
+                    font-size: 1rem;
+                    font-weight: 900;
+                    text-transform: uppercase;
+                    background: #58cc02;
+                    color: #ffffff;
+                    border: none;
+                    border-bottom: 4px solid #46a302;
+                    border-radius: 16px;
+                    padding: 10px 32px;
+                    cursor: pointer;
+                    margin-top: 14px;
+                    transition: all 0.1s ease;
+                    box-shadow: 0 4px 14px rgba(88, 204, 2, 0.3);
+                }
+                .duo-btn:hover {
+                    filter: brightness(1.05);
+                }
+                .duo-btn:active {
+                    transform: translateY(2px);
+                    border-bottom-width: 2px;
+                }
             `;
             document.head.appendChild(style);
         }
@@ -1743,6 +1786,7 @@ function showLogtimeSaveModal(state, isVi) {
 
     const boxStyle = 'max-width: 400px; text-align: center; padding: 32px 28px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-xl); box-shadow: var(--shadow-lg); animation: ltPop 0.25s ease-out;';
     if (state === 'loading') {
+        overlay.onclick = null;
         overlay.innerHTML = `
             <div class="modal-content" style="${boxStyle}">
                 <div class="lt-spinner"></div>
@@ -1753,18 +1797,67 @@ function showLogtimeSaveModal(state, isVi) {
     } else if (state === 'success') {
         if (typeof triggerCelebration === 'function') triggerCelebration();
         overlay.innerHTML = `
-            <div class="modal-content" style="${boxStyle}">
-                <div class="lt-check-ring">
-                    <svg viewBox="0 0 40 40" width="40" height="40" fill="none"><path d="M10 21L17 28L30 13" stroke="#22c55e" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <div class="modal-content duo-card">
+                <div id="duolingo-lottie-anim" style="width: 210px; height: 210px; margin: 0 auto; overflow: hidden;"></div>
+                <div class="duo-title">Đã Logtime thành công !!!</div>
+                <div style="font-family: 'Nunito', sans-serif; font-weight: 700; color: var(--text-3); font-size: 0.9rem;">
+                    ${isVi ? 'Dữ liệu đã được lưu thành công vào Google Sheets!' : 'Googleスプレッドシートに保存しました！'}
                 </div>
-                <h3 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 8px; color: var(--text);">${isVi ? 'Lưu thành công!' : '保存しました！'}</h3>
-                <p style="color: var(--text-3); font-size: 0.9rem; line-height: 1.5;">${isVi ? 'Đã lưu thành công vào Google Sheets!' : 'Googleスプレッドシートに保存しました！'}</p>
+                <button type="button" class="duo-btn">${isVi ? 'TIẾP TỤC' : '続ける'}</button>
             </div>`;
         overlay.classList.add('open');
-        overlay.onclick = function() { overlay.classList.remove('open'); };
-        setTimeout(function() { overlay.classList.remove('open'); }, 2200);
+
+        const runAnim = function() {
+            const container = document.getElementById('duolingo-lottie-anim');
+            if (!container) return;
+            if (window.lottie) {
+                try {
+                    if (window._duoAnim) {
+                        window._duoAnim.destroy();
+                    }
+                    window._duoAnim = window.lottie.loadAnimation({
+                        container: container,
+                        renderer: 'svg',
+                        loop: true,
+                        autoplay: true,
+                        path: '/static/duolingo_animation.json'
+                    });
+                } catch (e) {
+                    console.warn('Lottie loading error:', e);
+                }
+            }
+        };
+
+        if (window.lottie) {
+            runAnim();
+        } else {
+            const s = document.createElement('script');
+            s.src = 'https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js';
+            s.onload = runAnim;
+            document.head.appendChild(s);
+        }
+
+        const closeDuo = function() {
+            overlay.classList.remove('open');
+            if (window._duoAnim) {
+                try { window._duoAnim.destroy(); } catch (e) {}
+                window._duoAnim = null;
+            }
+        };
+
+        overlay.onclick = function(e) {
+            if (e.target === overlay || (e.target && e.target.classList && e.target.classList.contains('duo-btn'))) {
+                closeDuo();
+            }
+        };
+        clearTimeout(overlay._closeTimer);
+        overlay._closeTimer = setTimeout(closeDuo, 3800);
     } else {
         overlay.classList.remove('open');
+        if (window._duoAnim) {
+            try { window._duoAnim.destroy(); } catch (e) {}
+            window._duoAnim = null;
+        }
     }
 }
 
