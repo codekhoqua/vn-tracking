@@ -4697,4 +4697,5 @@ if __name__ == '__main__':
     threading.Thread(target=preload_data, daemon=True).start()
     start_cloudflared()
     port = int(os.environ.get('PORT', os.environ.get('SERVER_PORT', 5000)))
-    socketio.run(app, debug=False, host='0.0.0.0', port=port, allow_unsafe_werkzeug=True)
+    is_local = os.name == 'nt' or os.environ.get('DEBUG_RELOAD') == '1'
+    socketio.run(app, debug=is_local, use_reloader=is_local, host='0.0.0.0', port=port, allow_unsafe_werkzeug=True)
