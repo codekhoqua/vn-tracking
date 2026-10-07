@@ -942,8 +942,9 @@ def render_checklist_html(tac_pham_key, index, lang, api_url, checked_ids=None, 
     else:
         badge_html = f'<span class="handover-partner-badge" style="opacity: 0.85;">💬 { "Ghi chú & Thảo luận" if lang == "vi" else "メモ・連絡" }</span>'
 
+    safe_volume_key = str(volume_key).replace('\\', '\\\\').replace("'", "\\'").replace('"', '&quot;')
     handover_html = f'''
-    <div class="task-handover-box" id="handover_{index}" data-tp-key="{volume_key}" style="margin-top: 0; height: 100%;">
+    <div class="task-handover-box" id="handover_{index}" data-tp-key="{safe_volume_key}" style="margin-top: 0; height: 100%;">
         <div class="handover-header">
             <div class="handover-title-row">
                 <span class="handover-title"><i class="far fa-comments" style="margin-right: 6px; color: #818cf8;"></i>{ "Comment:" if lang == "vi" else "コメント:" } <span class="handover-volume-name">{volume_key}</span></span>
@@ -953,11 +954,11 @@ def render_checklist_html(tac_pham_key, index, lang, api_url, checked_ids=None, 
         <div class="handover-body" id="handover_body_{index}">
             <div class="quick-handover-actions">
                 <span class="quick-handover-label">{ "Mẫu nhanh:" if lang == "vi" else "定型文:" }</span>
-                <button type="button" class="btn-quick-tag done-retouch" onclick="sendQuickHandover('{index}', '{volume_key}', '{ "✓ Đã xong Retouch ➔ Chuyển giao Lettering" if lang == "vi" else "✓ レタッチ完了 ➔ 写植へ引き継ぎ" }', 'handover')">{ "✓ Xong Retouch ➔ Lettering" if lang == "vi" else "✓ レタッチ完了 ➔ 写植へ" }</button>
-                <button type="button" class="btn-quick-tag in-progress" onclick="sendQuickHandover('{index}', '{volume_key}', '{ "Đang xử lý khâu Retouch..." if lang == "vi" else "レタッチ作業中..." }', 'progress')">{ "Đang làm Retouch" if lang == "vi" else "レタッチ作業中" }</button>
-                <button type="button" class="btn-quick-tag in-progress" onclick="sendQuickHandover('{index}', '{volume_key}', '{ "Đang xử lý khâu Lettering..." if lang == "vi" else "写植作業中..." }', 'progress')">{ "Đang làm Lettering" if lang == "vi" else "写植作業中" }</button>
-                <button type="button" class="btn-quick-tag in-progress" onclick="sendQuickHandover('{index}', '{volume_key}', '{ "Đang làm dở trang..." if lang == "vi" else "作業中..." }', 'progress')">{ "Đang làm dở" if lang == "vi" else "作業中" }</button>
-                <button type="button" class="btn-quick-tag note" onclick="sendQuickHandover('{index}', '{volume_key}', '{ "Lưu ý font / style đặc biệt" if lang == "vi" else "フォント・スタイルの注意事項あり" }', 'warning')">{ "Lưu ý font/style" if lang == "vi" else "注意事項" }</button>
+                <button type="button" class="btn-quick-tag done-retouch" onclick="sendQuickHandover('{index}', '{safe_volume_key}', '{ "✓ Đã xong Retouch ➔ Chuyển giao Lettering" if lang == "vi" else "✓ レタッチ完了 ➔ 写植へ引き継ぎ" }', 'handover')">{ "✓ Xong Retouch ➔ Lettering" if lang == "vi" else "✓ レタッチ完了 ➔ 写植へ" }</button>
+                <button type="button" class="btn-quick-tag in-progress" onclick="sendQuickHandover('{index}', '{safe_volume_key}', '{ "Đang xử lý khâu Retouch..." if lang == "vi" else "レタッチ作業中..." }', 'progress')">{ "Đang làm Retouch" if lang == "vi" else "レタッチ作業中" }</button>
+                <button type="button" class="btn-quick-tag in-progress" onclick="sendQuickHandover('{index}', '{safe_volume_key}', '{ "Đang xử lý khâu Lettering..." if lang == "vi" else "写植作業中..." }', 'progress')">{ "Đang làm Lettering" if lang == "vi" else "写植作業中" }</button>
+                <button type="button" class="btn-quick-tag in-progress" onclick="sendQuickHandover('{index}', '{safe_volume_key}', '{ "Đang làm dở trang..." if lang == "vi" else "作業中..." }', 'progress')">{ "Đang làm dở" if lang == "vi" else "作業中" }</button>
+                <button type="button" class="btn-quick-tag note" onclick="sendQuickHandover('{index}', '{safe_volume_key}', '{ "Lưu ý font / style đặc biệt" if lang == "vi" else "フォント・スタイルの注意事項あり" }', 'warning')">{ "Lưu ý font/style" if lang == "vi" else "注意事項" }</button>
             </div>
 
             <div class="handover-comments-list" id="comments_list_{index}">
@@ -970,8 +971,8 @@ def render_checklist_html(tac_pham_key, index, lang, api_url, checked_ids=None, 
                     <span class="count-hint">{ "Auto chèn dấu phẩy khi gửi" if lang == "vi" else "送信時に自動でカンマ挿入" }</span>
                 </div>
                 <div class="handover-input-group">
-                    <textarea id="handover_input_{index}" class="handover-input" rows="1" placeholder="{ "Nhập tin nhắn, ghi chú hoặc số trang PSD..." if lang == "vi" else "メッセージまたはPSDページ番号を入力..." }" oninput="handleCommentInput(this, '{index}')" onkeydown="handleCommentKeydown(event, '{index}', '{volume_key}')"></textarea>
-                    <button type="button" class="btn-handover-send" id="btn_send_comment_{index}" onclick="sendTaskComment('{index}', '{volume_key}')">{ "Gửi" if lang == "vi" else "送信" }</button>
+                    <textarea id="handover_input_{index}" class="handover-input" rows="1" placeholder="{ "Nhập tin nhắn, ghi chú hoặc số trang PSD..." if lang == "vi" else "メッセージまたはPSDページ番号を入力..." }" oninput="handleCommentInput(this, '{index}')" onkeydown="handleCommentKeydown(event, '{index}', '{safe_volume_key}')"></textarea>
+                    <button type="button" class="btn-handover-send" id="btn_send_comment_{index}" onclick="sendTaskComment('{index}', '{safe_volume_key}')">{ "Gửi" if lang == "vi" else "送信" }</button>
                 </div>
             </div>
         </div>
