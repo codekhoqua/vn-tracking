@@ -1445,29 +1445,18 @@ function updateTaskProgressLocally(tpKey, modalBody) {
 
 // ===================== CELEBRATION EFFECTS =====================
 function triggerCelebration() {
-    // 1. Play "Ting" sound using Web Audio API
+    // 1. Play Duolingo Success sound effect
     try {
-        const AudioContext = window.AudioContext || window.webkitAudioContext;
-        if (AudioContext) {
-            const ctx = new AudioContext();
-            const playNote = (freq, startTime, duration) => {
-                const osc = ctx.createOscillator();
-                const gain = ctx.createGain();
-                osc.connect(gain);
-                gain.connect(ctx.destination);
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(freq, ctx.currentTime + startTime);
-                gain.gain.setValueAtTime(0, ctx.currentTime + startTime);
-                gain.gain.linearRampToValueAtTime(0.3, ctx.currentTime + startTime + 0.05);
-                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + startTime + duration);
-                osc.start(ctx.currentTime + startTime);
-                osc.stop(ctx.currentTime + startTime + duration);
-            };
-            playNote(880, 0, 0.4);      // A5 note
-            playNote(1108.73, 0.1, 0.6); // C#6 note
+        const duoAudio = new Audio('/static/audio/duolingo_success.mp3?v=' + Date.now());
+        duoAudio.volume = 0.9;
+        const playPromise = duoAudio.play();
+        if (playPromise !== undefined) {
+            playPromise.catch(function(err) {
+                console.warn("Audio autoplay blocked or failed:", err);
+            });
         }
     } catch (e) {
-        console.log("Audio not supported or blocked");
+        console.warn("Audio not supported or blocked:", e);
     }
 
     // 2. Fire Confetti
