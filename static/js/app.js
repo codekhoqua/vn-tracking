@@ -1739,8 +1739,8 @@ function showLogtimeSaveModal(state, isVi) {
                     border: 2px solid #58cc02;
                     border-bottom: 6px solid #46a302;
                     border-radius: 28px;
-                    padding: 24px 28px 24px;
-                    max-width: 420px;
+                    padding: 20px 24px 24px;
+                    max-width: 460px;
                     width: 90%;
                     text-align: center;
                     box-shadow: 0 16px 36px rgba(0,0,0,0.22);
@@ -1749,12 +1749,12 @@ function showLogtimeSaveModal(state, isVi) {
                 }
                 .duo-title {
                     font-family: 'Nunito', 'Plus Jakarta Sans', sans-serif;
-                    font-size: 1.5rem;
+                    font-size: 1.55rem;
                     font-weight: 900;
                     color: #58cc02;
                     text-shadow: 0 2px 0 rgba(70, 163, 2, 0.25);
                     letter-spacing: -0.3px;
-                    margin: 6px 0 6px;
+                    margin: 4px 0 6px;
                 }
                 .duo-btn {
                     font-family: 'Nunito', sans-serif;
@@ -1798,7 +1798,7 @@ function showLogtimeSaveModal(state, isVi) {
         if (typeof triggerCelebration === 'function') triggerCelebration();
         overlay.innerHTML = `
             <div class="modal-content duo-card">
-                <div id="duolingo-lottie-anim" style="width: 210px; height: 210px; margin: 0 auto; overflow: hidden;"></div>
+                <div id="duolingo-lottie-anim" style="width: 290px; height: 290px; margin: -10px auto 4px; overflow: hidden;"></div>
                 <div class="duo-title">Đã Logtime thành công !!!</div>
                 <div style="font-family: 'Nunito', sans-serif; font-weight: 700; color: var(--text-3); font-size: 0.9rem;">
                     ${isVi ? 'Dữ liệu đã được lưu thành công vào Google Sheets!' : 'Googleスプレッドシートに保存しました！'}
