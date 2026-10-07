@@ -68,6 +68,31 @@ app.secret_key = os.environ.get('SECRET_KEY', 'vn-tracking-secret-' + hashlib.md
 # đặt SOCKETIO_ASYNC_MODE=eventlet để WebSocket hoạt động chuẩn.
 _SOCKETIO_ASYNC_MODE = os.environ.get('SOCKETIO_ASYNC_MODE', 'threading')
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode=_SOCKETIO_ASYNC_MODE, manage_session=False)
+
+# ==================== PHIÊN BẢN VÀ BUILD AUTO-RELOAD ====================
+SERVER_START_TIME = int(time.time())
+
+def get_current_app_version():
+    """Lấy phiên bản hiện tại từ templates/dashboard.html"""
+    try:
+        t_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'templates', 'dashboard.html')
+        if os.path.exists(t_path):
+            with open(t_path, 'r', encoding='utf-8', errors='ignore') as f:
+                content = f.read(50000)
+            m = re.search(r'class="version-tag"[^>]*><i>([^<]+)</i>', content)
+            if m:
+                return m.group(1).strip()
+            m2 = re.search(r'v1\.\d+\.\d+', content)
+            if m2:
+                return m2.group(0).strip()
+    except Exception:
+        pass
+    return "v1.7.3"
+
+def get_current_build_id():
+    cur_ver = get_current_app_version()
+    return f"{cur_ver}_{SERVER_START_TIME}"
+
 # 2. CƠ SỞ DỮ LIỆU TÀI KHOẢN VÀ LINK DỮ LIỆU
 # =====================================================================
 USER_SHEET_URL = "https://docs.google.com/spreadsheets/d/1VLlDF5XoXt0Rz0ACZ3EZRKcKWFnIRXptMPbQthimNE0/export?format=csv&gid=0"
@@ -1300,7 +1325,12 @@ def utility_processor():
         return Markup(render_checklist_html(tp_key, idx, lang, api_url, ids, row_data=row_data, task_links_dict=links_db))
     def render_logtime_form(row, idx, t, users, lang):
         return Markup(render_logtime_form_html(row, idx, t, users, lang))
-    return dict(render_checklist=render_checklist, render_logtime_form=render_logtime_form)
+    return dict(
+        render_checklist=render_checklist,
+        render_logtime_form=render_logtime_form,
+        app_version=get_current_app_version(),
+        app_build_id=get_current_build_id()
+    )
 
 # =====================================================================
 # 8. HÀM XỬ LÝ DỮ LIỆU DASHBOARD
@@ -1745,9 +1775,23 @@ def process_dashboard_data():
 # =====================================================================
 weather_cache = {}
 
+@app.route('/api/app_version', methods=['GET'])
+def api_app_version():
+    cur_ver = get_current_app_version()
+    return jsonify({
+        "status": "success",
+        "version": cur_ver,
+        "build_id": get_current_build_id(),
+        "server_time": int(time.time())
+    })
+
 @app.route('/api/checklist_version', methods=['GET'])
 def api_checklist_version():
-    return jsonify({"v": checklist_version})
+    return jsonify({
+        "v": checklist_version,
+        "app_version": get_current_app_version(),
+        "build_id": get_current_build_id()
+    })
 
 @app.route('/api/checklist_sync_get', methods=['GET'])
 def api_checklist_sync_get():
@@ -4217,6 +4261,10 @@ def get_radio_listener_profiles():
 
 @socketio.on('connect')
 def handle_connect():
+    emit('app_version_info', {
+        'version': get_current_app_version(),
+        'build_id': get_current_build_id()
+    })
     username = session.get('user')
     if username:
         try:
