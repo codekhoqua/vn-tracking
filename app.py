@@ -76,8 +76,8 @@ CHANGE_PASS_API = "https://script.google.com/macros/s/AKfycbzf59j11q0IfvgjRkhvUx
 LOGTIME_API_URL = "https://script.google.com/macros/s/AKfycbzZ--vv1xsR8u5pFKFqK7N_PCYwGnpl-yvyOVt15rXSoI99hJTwQV5WBXXMXiGMApljig/exec"
 
 # ==================== CẤU HÌNH LOGTIME GSPREAD ====================
-LOGTIME_SPREADSHEET_ID = '1EvTrNJx7dBO5pK58sc25WXkKPMTCJogzpMRz_e-Tr0k'
-LOGTIME_SHEET_NAME = 'JP 日報'
+LOGTIME_SPREADSHEET_ID = '1dkCu_HUs12DTas--yZlDTB9M17DKnUGBvWJ6vdVuIGU'
+LOGTIME_SHEET_NAME = '日報'
 logtime_submit_lock = threading.Lock()
 _logtime_ws_cache = {}  # (spreadsheet_id, tab) -> gspread Worksheet đã xác thực, tái sử dụng để lưu nhanh hơn
 creds_path = 'credentials.json'
@@ -691,11 +691,12 @@ _logtime_ws_build_locks = {}
 def _logtime_targets():
     return [
         (LOGTIME_SPREADSHEET_ID, LOGTIME_SHEET_NAME),
-        ("1dkCu_HUs12DTas--yZlDTB9M17DKnUGBvWJ6vdVuIGU", "日報"),
     ]
 
-def _get_logtime_ws(target):
-    """Lấy worksheet đã xác thực từ cache; nếu chưa có thì kết nối (mỗi sheet 1 client riêng, an toàn khi chạy song song)."""
+def _get_logtime_ws(target=None):
+    """Lấy worksheet đã xác thực từ cache; nếu chưa có thì kết nối."""
+    if target is None:
+        target = (LOGTIME_SPREADSHEET_ID, LOGTIME_SHEET_NAME)
     ws = _logtime_ws_cache.get(target)
     if ws is not None:
         return ws
@@ -711,14 +712,13 @@ def _get_logtime_ws(target):
         return ws
 
 def warmup_logtime_connections():
-    """Chạy nền: mở sẵn kết nối tới 2 sheet để lần bấm Lưu Logtime không phải chờ đăng nhập/mở file."""
-    def _warm(target):
+    """Chạy nền: mở sẵn kết nối tới sheet 日報 để lần bấm Lưu Logtime không phải chờ đăng nhập/mở file."""
+    def _warm():
         try:
-            _get_logtime_ws(target)
+            _get_logtime_ws()
         except Exception as ex:
             print("Warmup logtime lỗi:", repr(ex))
-    for tg in _logtime_targets():
-        threading.Thread(target=_warm, args=(tg,), daemon=True).start()
+    threading.Thread(target=_warm, daemon=True).start()
 
 def save_logtime(data):
     ngay_log = str(data.get('ngay_log', '')).replace('-', '/')
@@ -749,12 +749,10 @@ def save_logtime(data):
         str(data.get('ghi_chu', ''))            # N: 備考
     ]
     
-    JP_TARGET, NEW_TARGET = _logtime_targets()
+    MAIN_TARGET = (LOGTIME_SPREADSHEET_ID, LOGTIME_SHEET_NAME)
 
-    _get_ws = _get_logtime_ws
-
-    def _write_row(target):
-        ws = _get_ws(target)
+    def _write_row():
+        ws = _get_logtime_ws(MAIN_TARGET)
         col_a = ws.col_values(1)
         next_row = len(col_a) + 1
         for i, val in enumerate(col_a):
@@ -765,32 +763,21 @@ def save_logtime(data):
             ws.add_rows(1)
         ws.update(range_name=f'A{next_row}:N{next_row}', values=[row_data], value_input_option='USER_ENTERED')
 
-    def _write_with_retry(target):
+    def _write_with_retry():
         try:
-            _write_row(target)
+            _write_row()
         except Exception:
-            _logtime_ws_cache.pop(target, None)  # cache có thể cũ/hết hạn -> thử lại 1 lần
-            _write_row(target)
+            _logtime_ws_cache.pop(MAIN_TARGET, None)  # cache có thể cũ/hết hạn -> thử lại 1 lần
+            _write_row()
 
-    # 1. Ghi ngay vào sheet chính đang dùng (NEW_TARGET)
     with logtime_submit_lock:
         try:
-            _write_with_retry(NEW_TARGET)
-            print(f"==> [Service Account gspread] Đã ghi logtime thành công vào sheet chính cho: {row_data[3]} ({row_data[7]})", flush=True)
+            _write_with_retry()
+            print(f"==> [Service Account gspread] Đã ghi logtime thành công vào sheet 日報 cho: {row_data[3]} ({row_data[7]})", flush=True)
+            return True
         except Exception as ex:
-            print("Lỗi khi lưu logtime vào sheet chính:", repr(ex), flush=True)
+            print("Lỗi khi lưu logtime vào sheet 日報:", repr(ex), flush=True)
             return False
-
-    # 2. Đồng bộ ngầm sang sheet phụ (JP_TARGET) trên thread riêng, không bắt user chờ 10-12s
-    def _sync_backup():
-        try:
-            _write_with_retry(JP_TARGET)
-            print(f"==> [Service Account gspread] Đã đồng bộ sang sheet JP phụ cho: {row_data[3]} ({row_data[7]})", flush=True)
-        except Exception as ex:
-            print("Lỗi đồng bộ sheet JP phụ:", repr(ex), flush=True)
-
-    threading.Thread(target=_sync_backup, daemon=True).start()
-    return True
 
 
 
