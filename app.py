@@ -753,15 +753,18 @@ def save_logtime(data):
 
     def _write_row():
         ws = _get_logtime_ws(MAIN_TARGET)
-        col_a = ws.col_values(1)
-        next_row = len(col_a) + 1
-        for i, val in enumerate(col_a):
-            if i > 0 and not str(val).strip():
-                next_row = i + 1
-                break
-        if next_row > ws.row_count:
-            ws.add_rows(1)
-        ws.update(range_name=f'A{next_row}:N{next_row}', values=[row_data], value_input_option='USER_ENTERED')
+        try:
+            ws.append_row(row_data, value_input_option='USER_ENTERED', table_range='A:N')
+        except Exception:
+            col_a = ws.col_values(1)
+            next_row = len(col_a) + 1
+            for i, val in enumerate(col_a):
+                if i > 0 and not str(val).strip():
+                    next_row = i + 1
+                    break
+            if next_row > ws.row_count:
+                ws.add_rows(1)
+            ws.update(range_name=f'A{next_row}:N{next_row}', values=[row_data], value_input_option='USER_ENTERED')
 
     def _write_with_retry():
         try:
