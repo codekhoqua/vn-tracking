@@ -225,6 +225,18 @@ window.Pet3DEngine = (function () {
             rotOffsetY: 0.45,
             camY: 0.58,
             camPosY: 1.15
+        },
+        goose: {
+            modelUrl: '/static/models/goose.glb',
+            name_vi: 'Ngỗng Goose',
+            name_ja: 'ガチョウ',
+            emoji: '🪿',
+            sound: 'Honk honk! Cạp cạp! 🕵️',
+            food_name: 'Bánh mì 🍞',
+            targetHeight: 1.25,
+            rotOffsetY: 0.45,
+            camY: 0.55,
+            camPosY: 1.10
         }
     };
 
@@ -237,6 +249,7 @@ window.Pet3DEngine = (function () {
     SPECIES_CONFIG.horse = SPECIES_CONFIG.panda;
     SPECIES_CONFIG.deer = SPECIES_CONFIG.dragon;
     SPECIES_CONFIG.duckling = SPECIES_CONFIG.duck;
+    SPECIES_CONFIG.goose_duck = SPECIES_CONFIG.goose;
 
     function init(data) {
         petData = data || {};
