@@ -45,6 +45,9 @@ output.txt
 # IDE
 .claude/
 .agents/
+.agent/
+.cursor/
+.gemini/
 .vscode/
 ANIMAL/
 *.zip
