@@ -3162,6 +3162,7 @@ PET_TYPES = {
     'deer_forest':    {'name_vi': 'Hươu Rừng',              'name_ja': '森のシカ',    'emoji': '🦌', 'sound': 'Ngơ ngác~ 🌲',         'food_name': 'Cỏ tươi 🌿',   'desc': 'Dáng vẻ oai phong, bước đi uyển chuyển giữa rừng xanh'},
     'horse_stallion': {'name_vi': 'Chiến Mã',               'name_ja': '駿馬',        'emoji': '🐎', 'sound': 'Hí hí~ Phi nhanh! ⚔️', 'food_name': 'Táo đỏ 🍎',   'desc': 'Dũng mãnh, phi nước đại bứt phá mọi chỉ tiêu công việc'},
     'shiba_inu':      {'name_vi': 'Shiba Inu',              'name_ja': '柴犬',        'emoji': '🐕', 'sound': 'Gâu gâu! Wan! 🐾',     'food_name': 'Thịt nướng 🍖', 'desc': 'Chó Shiba chuẩn Nhật Bản, thông minh và trung thành'},
+    'goose':          {'name_vi': 'Ngỗng Goose',             'name_ja': 'ガチョウ',    'emoji': '🪿', 'sound': 'Honk honk! Cạp cạp! 🕵️', 'food_name': 'Bánh mì 🍞',   'desc': 'Thám tử ngỗng Goose Goose Duck thông thái, dí dỏm, truy lùng deadline cực chuẩn'},
 }
 
 # Aliases for multi-key compatibility
@@ -3173,6 +3174,7 @@ PET_TYPES['pinguin'] = PET_TYPES['bunny']
 PET_TYPES['horse'] = PET_TYPES['panda']
 PET_TYPES['deer'] = PET_TYPES['dragon']
 PET_TYPES['duckling'] = PET_TYPES['duck']
+PET_TYPES['goose_duck'] = PET_TYPES['goose']
 
 # XP thresholds per level range
 def _pet_xp_for_level(level):
