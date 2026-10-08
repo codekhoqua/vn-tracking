@@ -353,45 +353,69 @@ def load_users_from_sheet(url):
         return {}
 
 _checklist_cache = None
+_checklist_cache_time = 0
 checklist_lock = threading.Lock()
 checklist_version = 0
 
 
-def get_supabase_checklists():
-    global _checklist_cache
-    if _checklist_cache is not None:
+def get_supabase_checklists(force_refresh=False):
+    global _checklist_cache, _checklist_cache_time
+    now = time.time()
+    if not force_refresh and _checklist_cache is not None and (now - _checklist_cache_time < 5):
         return _checklist_cache
     try:
         data = sb_download_bytes('_system/checklists.json')
         if data:
             _checklist_cache = json.loads(data.decode('utf-8'))
         else:
+            if _checklist_cache is None:
+                _checklist_cache = {}
+        _checklist_cache_time = now
+    except Exception as e:
+        print("Error downloading checklists from Supabase:", e)
+        if _checklist_cache is None:
             _checklist_cache = {}
-    except Exception:
-        _checklist_cache = {}
     return _checklist_cache
 
+def save_supabase_checklists(data):
+    global _checklist_cache, _checklist_cache_time
+    with checklist_lock:
+        _checklist_cache = data
+        _checklist_cache_time = time.time()
+        try:
+            json_bytes = json.dumps(data, ensure_ascii=False).encode('utf-8')
+            sb_upload('_system/checklists.json', json_bytes, content_type='application/json')
+        except Exception as e:
+            print("Error uploading checklists to Supabase:", e)
+
 _task_comments_cache = None
+_task_comments_cache_time = 0
 task_comments_lock = threading.Lock()
 
-def get_supabase_task_comments():
-    global _task_comments_cache
-    if _task_comments_cache is not None:
+def get_supabase_task_comments(force_refresh=False):
+    global _task_comments_cache, _task_comments_cache_time
+    now = time.time()
+    if not force_refresh and _task_comments_cache is not None and (now - _task_comments_cache_time < 5):
         return _task_comments_cache
     try:
         data = sb_download_bytes('_system/task_comments.json')
         if data:
             _task_comments_cache = json.loads(data.decode('utf-8'))
         else:
+            if _task_comments_cache is None:
+                _task_comments_cache = {}
+        _task_comments_cache_time = now
+    except Exception as e:
+        print("Error downloading task comments from Supabase:", e)
+        if _task_comments_cache is None:
             _task_comments_cache = {}
-    except Exception:
-        _task_comments_cache = {}
     return _task_comments_cache
 
 def save_supabase_task_comments(data):
-    global _task_comments_cache
+    global _task_comments_cache, _task_comments_cache_time
     with task_comments_lock:
         _task_comments_cache = data
+        _task_comments_cache_time = time.time()
         try:
             json_bytes = json.dumps(data, ensure_ascii=False).encode('utf-8')
             sb_upload('_system/task_comments.json', json_bytes, content_type='application/json')
@@ -399,26 +423,33 @@ def save_supabase_task_comments(data):
             print("Error uploading task comments to Supabase:", e)
 
 _task_links_cache = None
+_task_links_cache_time = 0
 task_links_lock = threading.Lock()
 
-def get_supabase_task_links():
-    global _task_links_cache
-    if _task_links_cache is not None:
+def get_supabase_task_links(force_refresh=False):
+    global _task_links_cache, _task_links_cache_time
+    now = time.time()
+    if not force_refresh and _task_links_cache is not None and (now - _task_links_cache_time < 5):
         return _task_links_cache
     try:
         data = sb_download_bytes('_system/task_links.json')
         if data:
             _task_links_cache = json.loads(data.decode('utf-8'))
         else:
+            if _task_links_cache is None:
+                _task_links_cache = {}
+        _task_links_cache_time = now
+    except Exception as e:
+        print("Error downloading task links from Supabase:", e)
+        if _task_links_cache is None:
             _task_links_cache = {}
-    except Exception:
-        _task_links_cache = {}
     return _task_links_cache
 
 def save_supabase_task_links(data):
-    global _task_links_cache
+    global _task_links_cache, _task_links_cache_time
     with task_links_lock:
         _task_links_cache = data
+        _task_links_cache_time = time.time()
         try:
             json_bytes = json.dumps(data, ensure_ascii=False).encode('utf-8')
             sb_upload('_system/task_links.json', json_bytes, content_type='application/json')
@@ -1716,24 +1747,6 @@ def process_dashboard_data():
     dash_sau = build_dashboard(df_tuan_sau, target_week_sau)
     ai_insights = generate_ai_insights(dash_nay, dash_truoc, lang)
 
-    # Garbage Collect Checklists
-    if role != "member":
-        active_keys = set()
-        for row in dash_nay + dash_truoc + dash_sau:
-            active_keys.add(row['key'])
-
-        try:
-            with checklist_lock:
-                chk_data = get_supabase_checklists()
-                if chk_data:
-                    keys_to_delete = [k for k in chk_data.keys() if k not in active_keys]
-                    if keys_to_delete:
-                        for k in keys_to_delete:
-                            del chk_data[k]
-                        json_data = json.dumps(chk_data, ensure_ascii=False).encode('utf-8')
-                        sb_upload('_system/checklists.json', json_data, content_type='application/json')
-        except Exception as e:
-            print("Cleanup checklist error:", e)
 
     return {
         'user': user,
@@ -1787,24 +1800,34 @@ def api_app_version():
 
 @app.route('/api/checklist_version', methods=['GET'])
 def api_checklist_version():
+    data = get_supabase_checklists()
+    h = 0
+    if data:
+        h = len(data)
+        for cbs in data.values():
+            if isinstance(cbs, dict):
+                h += sum(1 for k, v in cbs.items() if v is True and not k.startswith('_'))
     return jsonify({
-        "v": checklist_version,
+        "v": f"{checklist_version}_{h}",
         "app_version": get_current_app_version(),
         "build_id": get_current_build_id()
     })
 
 @app.route('/api/checklist_sync_get', methods=['GET'])
 def api_checklist_sync_get():
-    data = get_supabase_checklists()
+    data = get_supabase_checklists(force_refresh=True)
     rows = []
     for tp_key, cbs in data.items():
-        for cb_id, status in cbs.items():
-            rows.append({
-                'Tên Tác Phẩm': tp_key,
-                'Checkbox ID': cb_id,
-                'Trạng Thái': status,
-                'Thời Gian': ''
-            })
+        if isinstance(cbs, dict):
+            for cb_id, status in cbs.items():
+                if cb_id.startswith('_'):
+                    continue
+                rows.append({
+                    'Tên Tác Phẩm': tp_key,
+                    'Checkbox ID': cb_id,
+                    'Trạng Thái': status,
+                    'Thời Gian': ''
+                })
     return jsonify(rows)
 
 @app.route('/api/checklist_sync', methods=['POST'])
@@ -1823,7 +1846,7 @@ def api_checklist_sync():
         
         if tp_key and cb_id:
             with checklist_lock:
-                data = get_supabase_checklists()
+                data = get_supabase_checklists(force_refresh=True)
                 if tp_key not in data:
                     data[tp_key] = {}
                 was_checked = data[tp_key].get(cb_id, False)
@@ -1837,10 +1860,12 @@ def api_checklist_sync():
                         data[tp_key]['_rewarded'] = True
                         reward_granted = True
                 
-                # Upload to Supabase
+                # Upload to Supabase and update cache
                 json_data = json.dumps(data, ensure_ascii=False).encode('utf-8')
                 sb_upload('_system/checklists.json', json_data, content_type='application/json')
-                global checklist_version
+                global _checklist_cache, _checklist_cache_time, checklist_version
+                _checklist_cache = data
+                _checklist_cache_time = time.time()
                 checklist_version += 1
         
         pet_result = None
