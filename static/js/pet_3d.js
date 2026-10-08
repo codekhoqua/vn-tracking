@@ -227,16 +227,16 @@ window.Pet3DEngine = (function () {
             camPosY: 1.15
         },
         goose: {
-            modelUrl: '/static/models/goose.glb',
+            modelUrl: '/static/models/goose.fbx',
             name_vi: 'Ngỗng Goose',
             name_ja: 'ガチョウ',
             emoji: '🪿',
             sound: 'Honk honk! Cạp cạp! 🕵️',
             food_name: 'Bánh mì 🍞',
-            targetHeight: 1.25,
+            targetHeight: 1.30,
             rotOffsetY: 0.45,
             camY: 0.55,
-            camPosY: 1.10
+            camPosY: 1.15
         }
     };
 
@@ -540,7 +540,7 @@ window.Pet3DEngine = (function () {
 
         // 3. Texture and Material Setup
         if (isFbx) {
-            const tex = sharedTexture || (textureLoader ? textureLoader.load(cfg.textureUrl) : null);
+            const tex = cfg.textureUrl ? (textureLoader ? textureLoader.load(cfg.textureUrl) : sharedTexture) : null;
             if (tex) {
                 tex.encoding = THREE.sRGBEncoding;
                 tex.flipY = true;
@@ -552,18 +552,28 @@ window.Pet3DEngine = (function () {
                     child.castShadow = true;
                     child.receiveShadow = true;
 
-                    // Always ensure proper map and skinning parameters
-                    const mat = new THREE.MeshStandardMaterial({
-                        map: tex || (child.material && child.material.map ? child.material.map : null),
-                        roughness: 0.5,
-                        metalness: 0.02,
-                        skinning: (child.isSkinnedMesh === true)
-                    });
-                    if (mat.map) {
-                        mat.map.encoding = THREE.sRGBEncoding;
+                    if (tex) {
+                        const mat = new THREE.MeshStandardMaterial({
+                            map: tex,
+                            roughness: 0.5,
+                            metalness: 0.02,
+                            skinning: (child.isSkinnedMesh === true)
+                        });
+                        if (mat.map) {
+                            mat.map.encoding = THREE.sRGBEncoding;
+                        }
+                        child.material = mat;
+                    } else if (child.material) {
+                        // Preserves original materials from FBX (embedded colors & shaders)
+                        const mats = Array.isArray(child.material) ? child.material : [child.material];
+                        mats.forEach(m => {
+                            if (child.isSkinnedMesh) m.skinning = true;
+                            if (m.roughness === undefined) m.roughness = 0.5;
+                            if (m.metalness === undefined) m.metalness = 0.05;
+                            m.needsUpdate = true;
+                        });
                     }
-                    child.material = mat;
-                    child.material.needsUpdate = true;
+                    if (child.material) child.material.needsUpdate = true;
                 }
             });
         } else {
