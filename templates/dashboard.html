@@ -244,7 +244,7 @@
     <div class="mobile-brand">
         <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" width="26" height="26" style="border-radius: var(--radius-sm);">
         <span>VN-Tracking</span>
-        <sup class="version-tag" style="font-size: 9px; padding: 1px 5px; margin-top: 1px;"><i>v1.7.9</i></sup>
+        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.8.0</i></sup>
     </div>
     <div class="mobile-topbar-right">
         <button type="button" class="mobile-icon-btn" onclick="toggleNotificationPanel(event)" title="{{ 'Thông báo' if lang == 'vi' else '通知' }}">
@@ -274,7 +274,7 @@
         <div style="display: flex; flex-direction: column; justify-content: center;">
             <span>VN-Tracking</span>
             <sup class="version-tag"
-                style="color: var(--text-3); font-size: 10px; margin-top: 2px;"><i>v1.7.9</i></sup>
+                style="color: var(--text-3); font-size: 11px; margin-top: 2px;"><i>v1.8.0</i></sup>
         </div>
     </div>
 
@@ -494,7 +494,7 @@
                 </div>
                 <div style="font-size: 12px; font-weight: 700; color: #f1f5f9; margin-bottom: 3px;">{{ 'Chưa có thú cưng
                     3D' if lang == 'vi' else 'ペットがいません' }}</div>
-                <div style="font-size: 10.5px; color: #94a3b8; margin-bottom: 10px; line-height: 1.35;">{{ 'Nuôi một bạn
+                <div style="font-size: 11.5px; color: #94a3b8; margin-bottom: 10px; line-height: 1.35;">{{ 'Nuôi một bạn
                     nhỏ bầu bạn và nghe nhạc cùng bạn!' if lang == 'vi' else '3Dペットと一緒に音楽を楽しみましょう！' }}</div>
                 <button onclick="openPetAdoptModal()"
                     style="background: linear-gradient(135deg, #8b5cf6, #ec4899); border: none; color: #fff; padding: 6px 14px; border-radius: 9px; font-size: 11px; font-weight: 800; cursor: pointer; box-shadow: 0 4px 14px rgba(139, 92, 246, 0.4); transition: transform 0.2s;">
@@ -577,7 +577,7 @@
                 <!-- Header: Title & DJ Toggle -->
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <div
-                        style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: rgba(255,255,255,0.7); display: flex; align-items: center; gap: 4px;">
+                        style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: rgba(255,255,255,0.7); display: flex; align-items: center; gap: 4px;">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2">
                             <path d="M9 18V5l12-2v13"></path>
@@ -589,7 +589,7 @@
                     </div>
                     <!-- DJ Toggle (Apple iOS Style) -->
                     <label style="position: relative; display: flex; align-items: center; gap: 6px; cursor: pointer;">
-                        <span style="font-size: 10px; color: rgba(255,255,255,0.6); font-weight: 500;">DJ</span>
+                        <span style="font-size: 11px; color: rgba(255,255,255,0.6); font-weight: 500;">DJ</span>
                         <div class="switch" style="position: relative; width: 32px; height: 18px;">
                             <input type="checkbox" id="radio-dj-toggle" onchange="toggleDJMode()"
                                 style="opacity: 0; width: 0; height: 0;">
@@ -637,7 +637,7 @@
                             style="font-size: 11px; color: rgba(255,255,255,0.7); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 2px rgba(0,0,0,0.2);">
                             {{ 'Chưa tham gia' if lang == 'vi' else '未参加' }}</div>
                         <div id="radio-next-track"
-                            style="font-size: 10px; color: rgba(255,255,255,0.5); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: none;">
+                            style="font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: none;">
                         </div>
                     </div>
                 </div>
@@ -689,7 +689,7 @@
                 <div
                     style="display: flex; align-items: center; gap: 8px; font-variant-numeric: tabular-nums; position: relative;">
                     <span id="radio-time-current"
-                        style="font-size: 9px; font-weight: 600; color: rgba(255,255,255,0.6); min-width: 26px; text-align: left;">0:00</span>
+                        style="font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.6); min-width: 26px; text-align: left;">0:00</span>
                     <div style="flex-grow: 1; display: flex; align-items: center; position: relative;">
                         <input type="range" id="radio-progress" min="0" max="100" value="0" disabled
                             style="width: 100%;">
@@ -702,13 +702,13 @@
                         </div>
                     </div>
                     <span id="radio-time-total"
-                        style="font-size: 9px; font-weight: 600; color: rgba(255,255,255,0.6); min-width: 26px; text-align: right;">0:00</span>
+                        style="font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.6); min-width: 26px; text-align: right;">0:00</span>
                 </div>
                 <!-- Mixing Label -->
                 <div id="radio-mixing-label"
                     style="display: none; text-align: center; margin-top: -2px; margin-bottom: 2px;">
                     <span
-                        style="font-size: 10px; font-weight: 600; color: rgba(255,180,180,0.9); letter-spacing: 0.5px; text-transform: uppercase;">Mixing</span>
+                        style="font-size: 11px; font-weight: 600; color: rgba(255,180,180,0.9); letter-spacing: 0.5px; text-transform: uppercase;">Mixing</span>
                 </div>
                 <style>
                     @keyframes mixingGradient {
@@ -874,13 +874,13 @@
                 position: fixed !important;
                 z-index: 100000 !important;
                 border-radius: 16px !important;
-                box-shadow: 0 24px 60px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(99, 102, 241, 0.4) !important;
+                box-shadow: 0 16px 36px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(99, 102, 241, 0.4) !important;
                 display: flex !important;
                 flex-direction: column !important;
                 aspect-ratio: unset !important;
                 background: #0f172a !important;
                 overflow: hidden !important;
-                animation: popoutZoom 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+                animation: popoutZoom 0.3s cubic-bezier(0.16, 1, 0.3, 1);
             }
 
             @keyframes popoutZoom {
@@ -942,7 +942,7 @@
                 border-radius: 50%;
                 cursor: pointer;
                 box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4), 0 0 6px rgba(99, 102, 241, 0.6);
-                transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+                transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1);
                 margin-top: -4px;
             }
 
@@ -963,7 +963,7 @@
             #radio-play-btn {
                 background: linear-gradient(135deg, #6366f1, #818cf8) !important;
                 box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4) !important;
-                transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease, filter 0.2s ease !important;
+                transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, filter 0.2s ease !important;
             }
 
             #radio-play-btn:hover {
@@ -1506,7 +1506,7 @@
             <span class="deadline-badge" id="deadline-nay-badge" style="cursor: pointer;"
                 onclick="toggleCalendarPopup('{{ weeks.nay.info.deadline }}')">{{ weeks.nay.info.deadline }}</span>
             <div id="calendar-popup"
-                style="display: none; position: absolute; top: 100%; right: 0; z-index: 999; margin-top: 10px; background: var(--surface); border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); border: 1px solid var(--border); overflow: hidden; width: max-content; backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); background-color: color-mix(in srgb, var(--surface) 60%, transparent);">
+                style="display: none; position: absolute; top: 100%; right: 0; z-index: 999; margin-top: 10px; background: var(--surface); border-radius: 20px; box-shadow: 0 12px 28px -4px rgba(0,0,0,0.45); border: 1px solid var(--border); overflow: hidden; width: max-content; backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); background-color: color-mix(in srgb, var(--surface) 60%, transparent);">
                 <div style="display: flex; min-width: 460px;">
                     <div
                         style="padding: 20px; width: 140px; border-right: 1px solid var(--border); display: flex; flex-direction: column;">
@@ -1729,13 +1729,13 @@
                         {% endfor %}
                         {% endif %}
                         <div class="card-partner-box"
-                            style="margin-top: 6px; padding: 4px 8px; background: {{ partner_bg }}; border: 1px solid {{ partner_border }}; border-radius: 6px; display: flex; align-items: center; justify-content: space-between; font-size: 0.73rem;">
+                            style="margin-top: 6px; padding: 4px 8px; background: {{ partner_bg }}; border: 1px solid {{ partner_border }}; border-radius: 6px; display: flex; align-items: center; justify-content: space-between; font-size: 0.82rem;">
                             <div style="display: flex; align-items: center; gap: 6px;">
                                 <span style="color: {{ partner_color }}; font-weight: 600; font-size: 0.72rem;">{{
                                     card.partner_cv }}:</span>
                                 <div style="display: flex; align-items: center; gap: 5px;">
                                     <span class="partner-mini-avatar"
-                                        style="width: 18px; height: 18px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; background: {{ partner_avatar_bg }}; color: #fff; font-size: 0.58rem; font-weight: 700; flex-shrink: 0; border: 1px solid rgba(255,255,255,0.2);">
+                                        style="width: 18px; height: 18px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; background: {{ partner_avatar_bg }}; color: #fff; font-size: 11px; font-weight: 700; flex-shrink: 0; border: 1px solid rgba(255,255,255,0.2);">
                                         {% if ns_p.found_avatar %}
                                         <img src="{{ ns_p.found_avatar }}" alt="{{ p_worker }}"
                                             style="width: 100%; height: 100%; object-fit: cover;"
@@ -1748,12 +1748,12 @@
                                         {{ p_worker[0]|upper }}
                                         {% endif %}
                                     </span>
-                                    <span style="color: #f1f5f9; font-weight: 600; font-size: 0.73rem;">{{ p_worker
+                                    <span style="color: #f1f5f9; font-weight: 600; font-size: 0.82rem;">{{ p_worker
                                         }}</span>
                                 </div>
                             </div>
                             <span class="partner-progress-text" data-partner-key="{{ card.partner_key }}"
-                                style="font-size: 0.7rem; color: {% if card.partner_progress >= 100 %}#34d399{% elif card.partner_progress > 0 %}#fbbf24{% else %}var(--text-4){% endif %}; font-weight: 700;">
+                                style="font-size: 0.8rem; color: {% if card.partner_progress >= 100 %}#34d399{% elif card.partner_progress > 0 %}#fbbf24{% else %}var(--text-4){% endif %}; font-weight: 700;">
                                 {{ card.partner_progress }}%
                             </span>
                         </div>
@@ -1765,7 +1765,7 @@
                                 style="font-size: 0.75rem; color: {% if is_started %}var(--primary){% else %}var(--text-3){% endif %}; background: {% if is_started %}rgba(16, 185, 129, 0.1){% else %}var(--bg-page){% endif %}; border: 1px solid {% if is_started %}rgba(16, 185, 129, 0.3){% else %}var(--border){% endif %}; padding: 4px 8px; border-radius: 4px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; transition: all 0.2s;"
                                 title="Đánh dấu Bắt đầu">
                                 <span class="platform-badge sheet"
-                                    style="font-size: 0.65rem; padding: 2px 4px; line-height: 1; border-radius: 2px; background: #10b981; color: white;">SHEET</span>
+                                    style="font-size: 11px; font-weight: 700; padding: 2px 6px; line-height: 1; border-radius: 4px; background: #059669; color: white;">SHEET</span>
                                 <input type="checkbox"
                                     style="pointer-events: none; margin:0; width: 14px; height: 14px;" {% if is_started
                                     %}checked{% endif %}>
@@ -1901,13 +1901,13 @@
                         {% endfor %}
                         {% endif %}
                         <div class="card-partner-box"
-                            style="margin-top: 6px; padding: 4px 8px; background: {{ partner_bg }}; border: 1px solid {{ partner_border }}; border-radius: 6px; display: flex; align-items: center; justify-content: space-between; font-size: 0.73rem;">
+                            style="margin-top: 6px; padding: 4px 8px; background: {{ partner_bg }}; border: 1px solid {{ partner_border }}; border-radius: 6px; display: flex; align-items: center; justify-content: space-between; font-size: 0.82rem;">
                             <div style="display: flex; align-items: center; gap: 6px;">
                                 <span style="color: {{ partner_color }}; font-weight: 600; font-size: 0.72rem;">{{
                                     card.partner_cv }}:</span>
                                 <div style="display: flex; align-items: center; gap: 5px;">
                                     <span class="partner-mini-avatar"
-                                        style="width: 18px; height: 18px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; background: {{ partner_avatar_bg }}; color: #fff; font-size: 0.58rem; font-weight: 700; flex-shrink: 0; border: 1px solid rgba(255,255,255,0.2);">
+                                        style="width: 18px; height: 18px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; background: {{ partner_avatar_bg }}; color: #fff; font-size: 11px; font-weight: 700; flex-shrink: 0; border: 1px solid rgba(255,255,255,0.2);">
                                         {% if ns_p.found_avatar %}
                                         <img src="{{ ns_p.found_avatar }}" alt="{{ p_worker }}"
                                             style="width: 100%; height: 100%; object-fit: cover;"
@@ -1920,12 +1920,12 @@
                                         {{ p_worker[0]|upper }}
                                         {% endif %}
                                     </span>
-                                    <span style="color: #f1f5f9; font-weight: 600; font-size: 0.73rem;">{{ p_worker
+                                    <span style="color: #f1f5f9; font-weight: 600; font-size: 0.82rem;">{{ p_worker
                                         }}</span>
                                 </div>
                             </div>
                             <span
-                                style="font-size: 0.7rem; color: {% if card.partner_progress >= 100 %}#34d399{% elif card.partner_progress > 0 %}#fbbf24{% else %}var(--text-4){% endif %}; font-weight: 700;">
+                                style="font-size: 0.8rem; color: {% if card.partner_progress >= 100 %}#34d399{% elif card.partner_progress > 0 %}#fbbf24{% else %}var(--text-4){% endif %}; font-weight: 700;">
                                 {{ card.partner_progress }}%
                             </span>
                         </div>
@@ -1937,7 +1937,7 @@
                                 style="font-size: 0.75rem; color: {% if is_started %}var(--primary){% else %}var(--text-3){% endif %}; background: {% if is_started %}rgba(16, 185, 129, 0.1){% else %}var(--bg-page){% endif %}; border: 1px solid {% if is_started %}rgba(16, 185, 129, 0.3){% else %}var(--border){% endif %}; padding: 4px 8px; border-radius: 4px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; transition: all 0.2s;"
                                 title="Đánh dấu Bắt đầu">
                                 <span class="platform-badge sheet"
-                                    style="font-size: 0.65rem; padding: 2px 4px; line-height: 1; border-radius: 2px; background: #10b981; color: white;">SHEET</span>
+                                    style="font-size: 11px; font-weight: 700; padding: 2px 6px; line-height: 1; border-radius: 4px; background: #059669; color: white;">SHEET</span>
                                 <input type="checkbox"
                                     style="pointer-events: none; margin:0; width: 14px; height: 14px;" {% if is_started
                                     %}checked{% endif %}>
@@ -2164,13 +2164,13 @@
                         {% endfor %}
                         {% endif %}
                         <div class="card-partner-box"
-                            style="margin-top: 6px; padding: 4px 8px; background: {{ partner_bg }}; border: 1px solid {{ partner_border }}; border-radius: 6px; display: flex; align-items: center; justify-content: space-between; font-size: 0.73rem;">
+                            style="margin-top: 6px; padding: 4px 8px; background: {{ partner_bg }}; border: 1px solid {{ partner_border }}; border-radius: 6px; display: flex; align-items: center; justify-content: space-between; font-size: 0.82rem;">
                             <div style="display: flex; align-items: center; gap: 6px;">
                                 <span style="color: {{ partner_color }}; font-weight: 600; font-size: 0.72rem;">{{
                                     card.partner_cv }}:</span>
                                 <div style="display: flex; align-items: center; gap: 5px;">
                                     <span class="partner-mini-avatar"
-                                        style="width: 18px; height: 18px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; background: {{ partner_avatar_bg }}; color: #fff; font-size: 0.58rem; font-weight: 700; flex-shrink: 0; border: 1px solid rgba(255,255,255,0.2);">
+                                        style="width: 18px; height: 18px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; background: {{ partner_avatar_bg }}; color: #fff; font-size: 11px; font-weight: 700; flex-shrink: 0; border: 1px solid rgba(255,255,255,0.2);">
                                         {% if ns_p.found_avatar %}
                                         <img src="{{ ns_p.found_avatar }}" alt="{{ p_worker }}"
                                             style="width: 100%; height: 100%; object-fit: cover;"
@@ -2183,12 +2183,12 @@
                                         {{ p_worker[0]|upper }}
                                         {% endif %}
                                     </span>
-                                    <span style="color: #f1f5f9; font-weight: 600; font-size: 0.73rem;">{{ p_worker
+                                    <span style="color: #f1f5f9; font-weight: 600; font-size: 0.82rem;">{{ p_worker
                                         }}</span>
                                 </div>
                             </div>
                             <span
-                                style="font-size: 0.7rem; color: {% if card.partner_progress >= 100 %}#34d399{% elif card.partner_progress > 0 %}#fbbf24{% else %}var(--text-4){% endif %}; font-weight: 700;">
+                                style="font-size: 0.8rem; color: {% if card.partner_progress >= 100 %}#34d399{% elif card.partner_progress > 0 %}#fbbf24{% else %}var(--text-4){% endif %}; font-weight: 700;">
                                 {{ card.partner_progress }}%
                             </span>
                         </div>
@@ -2200,7 +2200,7 @@
                                 style="font-size: 0.75rem; color: {% if is_started %}var(--primary){% else %}var(--text-3){% endif %}; background: {% if is_started %}rgba(16, 185, 129, 0.1){% else %}var(--bg-page){% endif %}; border: 1px solid {% if is_started %}rgba(16, 185, 129, 0.3){% else %}var(--border){% endif %}; padding: 4px 8px; border-radius: 4px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; transition: all 0.2s;"
                                 title="Đánh dấu Bắt đầu">
                                 <span class="platform-badge sheet"
-                                    style="font-size: 0.65rem; padding: 2px 4px; line-height: 1; border-radius: 2px; background: #10b981; color: white;">SHEET</span>
+                                    style="font-size: 11px; font-weight: 700; padding: 2px 6px; line-height: 1; border-radius: 4px; background: #059669; color: white;">SHEET</span>
                                 <input type="checkbox"
                                     style="pointer-events: none; margin:0; width: 14px; height: 14px;" {% if is_started
                                     %}checked{% endif %}>
@@ -2336,13 +2336,13 @@
                         {% endfor %}
                         {% endif %}
                         <div class="card-partner-box"
-                            style="margin-top: 6px; padding: 4px 8px; background: {{ partner_bg }}; border: 1px solid {{ partner_border }}; border-radius: 6px; display: flex; align-items: center; justify-content: space-between; font-size: 0.73rem;">
+                            style="margin-top: 6px; padding: 4px 8px; background: {{ partner_bg }}; border: 1px solid {{ partner_border }}; border-radius: 6px; display: flex; align-items: center; justify-content: space-between; font-size: 0.82rem;">
                             <div style="display: flex; align-items: center; gap: 6px;">
                                 <span style="color: {{ partner_color }}; font-weight: 600; font-size: 0.72rem;">{{
                                     card.partner_cv }}:</span>
                                 <div style="display: flex; align-items: center; gap: 5px;">
                                     <span class="partner-mini-avatar"
-                                        style="width: 18px; height: 18px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; background: {{ partner_avatar_bg }}; color: #fff; font-size: 0.58rem; font-weight: 700; flex-shrink: 0; border: 1px solid rgba(255,255,255,0.2);">
+                                        style="width: 18px; height: 18px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; background: {{ partner_avatar_bg }}; color: #fff; font-size: 11px; font-weight: 700; flex-shrink: 0; border: 1px solid rgba(255,255,255,0.2);">
                                         {% if ns_p.found_avatar %}
                                         <img src="{{ ns_p.found_avatar }}" alt="{{ p_worker }}"
                                             style="width: 100%; height: 100%; object-fit: cover;"
@@ -2355,12 +2355,12 @@
                                         {{ p_worker[0]|upper }}
                                         {% endif %}
                                     </span>
-                                    <span style="color: #f1f5f9; font-weight: 600; font-size: 0.73rem;">{{ p_worker
+                                    <span style="color: #f1f5f9; font-weight: 600; font-size: 0.82rem;">{{ p_worker
                                         }}</span>
                                 </div>
                             </div>
                             <span
-                                style="font-size: 0.7rem; color: {% if card.partner_progress >= 100 %}#34d399{% elif card.partner_progress > 0 %}#fbbf24{% else %}var(--text-4){% endif %}; font-weight: 700;">
+                                style="font-size: 0.8rem; color: {% if card.partner_progress >= 100 %}#34d399{% elif card.partner_progress > 0 %}#fbbf24{% else %}var(--text-4){% endif %}; font-weight: 700;">
                                 {{ card.partner_progress }}%
                             </span>
                         </div>
@@ -2372,7 +2372,7 @@
                                 style="font-size: 0.75rem; color: {% if is_started %}var(--primary){% else %}var(--text-3){% endif %}; background: {% if is_started %}rgba(16, 185, 129, 0.1){% else %}var(--bg-page){% endif %}; border: 1px solid {% if is_started %}rgba(16, 185, 129, 0.3){% else %}var(--border){% endif %}; padding: 4px 8px; border-radius: 4px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; transition: all 0.2s;"
                                 title="Đánh dấu Bắt đầu">
                                 <span class="platform-badge sheet"
-                                    style="font-size: 0.65rem; padding: 2px 4px; line-height: 1; border-radius: 2px; background: #10b981; color: white;">SHEET</span>
+                                    style="font-size: 11px; font-weight: 700; padding: 2px 6px; line-height: 1; border-radius: 4px; background: #059669; color: white;">SHEET</span>
                                 <input type="checkbox"
                                     style="pointer-events: none; margin:0; width: 14px; height: 14px;" {% if is_started
                                     %}checked{% endif %}>
@@ -2599,13 +2599,13 @@
                         {% endfor %}
                         {% endif %}
                         <div class="card-partner-box"
-                            style="margin-top: 6px; padding: 4px 8px; background: {{ partner_bg }}; border: 1px solid {{ partner_border }}; border-radius: 6px; display: flex; align-items: center; justify-content: space-between; font-size: 0.73rem;">
+                            style="margin-top: 6px; padding: 4px 8px; background: {{ partner_bg }}; border: 1px solid {{ partner_border }}; border-radius: 6px; display: flex; align-items: center; justify-content: space-between; font-size: 0.82rem;">
                             <div style="display: flex; align-items: center; gap: 6px;">
                                 <span style="color: {{ partner_color }}; font-weight: 600; font-size: 0.72rem;">{{
                                     card.partner_cv }}:</span>
                                 <div style="display: flex; align-items: center; gap: 5px;">
                                     <span class="partner-mini-avatar"
-                                        style="width: 18px; height: 18px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; background: {{ partner_avatar_bg }}; color: #fff; font-size: 0.58rem; font-weight: 700; flex-shrink: 0; border: 1px solid rgba(255,255,255,0.2);">
+                                        style="width: 18px; height: 18px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; background: {{ partner_avatar_bg }}; color: #fff; font-size: 11px; font-weight: 700; flex-shrink: 0; border: 1px solid rgba(255,255,255,0.2);">
                                         {% if ns_p.found_avatar %}
                                         <img src="{{ ns_p.found_avatar }}" alt="{{ p_worker }}"
                                             style="width: 100%; height: 100%; object-fit: cover;"
@@ -2618,12 +2618,12 @@
                                         {{ p_worker[0]|upper }}
                                         {% endif %}
                                     </span>
-                                    <span style="color: #f1f5f9; font-weight: 600; font-size: 0.73rem;">{{ p_worker
+                                    <span style="color: #f1f5f9; font-weight: 600; font-size: 0.82rem;">{{ p_worker
                                         }}</span>
                                 </div>
                             </div>
                             <span
-                                style="font-size: 0.7rem; color: {% if card.partner_progress >= 100 %}#34d399{% elif card.partner_progress > 0 %}#fbbf24{% else %}var(--text-4){% endif %}; font-weight: 700;">
+                                style="font-size: 0.8rem; color: {% if card.partner_progress >= 100 %}#34d399{% elif card.partner_progress > 0 %}#fbbf24{% else %}var(--text-4){% endif %}; font-weight: 700;">
                                 {{ card.partner_progress }}%
                             </span>
                         </div>
@@ -2635,7 +2635,7 @@
                                 style="font-size: 0.75rem; color: {% if is_started %}var(--primary){% else %}var(--text-3){% endif %}; background: {% if is_started %}rgba(16, 185, 129, 0.1){% else %}var(--bg-page){% endif %}; border: 1px solid {% if is_started %}rgba(16, 185, 129, 0.3){% else %}var(--border){% endif %}; padding: 4px 8px; border-radius: 4px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; transition: all 0.2s;"
                                 title="Đánh dấu Bắt đầu">
                                 <span class="platform-badge sheet"
-                                    style="font-size: 0.65rem; padding: 2px 4px; line-height: 1; border-radius: 2px; background: #10b981; color: white;">SHEET</span>
+                                    style="font-size: 11px; font-weight: 700; padding: 2px 6px; line-height: 1; border-radius: 4px; background: #059669; color: white;">SHEET</span>
                                 <input type="checkbox"
                                     style="pointer-events: none; margin:0; width: 14px; height: 14px;" {% if is_started
                                     %}checked{% endif %}>
@@ -2771,13 +2771,13 @@
                         {% endfor %}
                         {% endif %}
                         <div class="card-partner-box"
-                            style="margin-top: 6px; padding: 4px 8px; background: {{ partner_bg }}; border: 1px solid {{ partner_border }}; border-radius: 6px; display: flex; align-items: center; justify-content: space-between; font-size: 0.73rem;">
+                            style="margin-top: 6px; padding: 4px 8px; background: {{ partner_bg }}; border: 1px solid {{ partner_border }}; border-radius: 6px; display: flex; align-items: center; justify-content: space-between; font-size: 0.82rem;">
                             <div style="display: flex; align-items: center; gap: 6px;">
                                 <span style="color: {{ partner_color }}; font-weight: 600; font-size: 0.72rem;">{{
                                     card.partner_cv }}:</span>
                                 <div style="display: flex; align-items: center; gap: 5px;">
                                     <span class="partner-mini-avatar"
-                                        style="width: 18px; height: 18px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; background: {{ partner_avatar_bg }}; color: #fff; font-size: 0.58rem; font-weight: 700; flex-shrink: 0; border: 1px solid rgba(255,255,255,0.2);">
+                                        style="width: 18px; height: 18px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; background: {{ partner_avatar_bg }}; color: #fff; font-size: 11px; font-weight: 700; flex-shrink: 0; border: 1px solid rgba(255,255,255,0.2);">
                                         {% if ns_p.found_avatar %}
                                         <img src="{{ ns_p.found_avatar }}" alt="{{ p_worker }}"
                                             style="width: 100%; height: 100%; object-fit: cover;"
@@ -2790,12 +2790,12 @@
                                         {{ p_worker[0]|upper }}
                                         {% endif %}
                                     </span>
-                                    <span style="color: #f1f5f9; font-weight: 600; font-size: 0.73rem;">{{ p_worker
+                                    <span style="color: #f1f5f9; font-weight: 600; font-size: 0.82rem;">{{ p_worker
                                         }}</span>
                                 </div>
                             </div>
                             <span
-                                style="font-size: 0.7rem; color: {% if card.partner_progress >= 100 %}#34d399{% elif card.partner_progress > 0 %}#fbbf24{% else %}var(--text-4){% endif %}; font-weight: 700;">
+                                style="font-size: 0.8rem; color: {% if card.partner_progress >= 100 %}#34d399{% elif card.partner_progress > 0 %}#fbbf24{% else %}var(--text-4){% endif %}; font-weight: 700;">
                                 {{ card.partner_progress }}%
                             </span>
                         </div>
@@ -2807,7 +2807,7 @@
                                 style="font-size: 0.75rem; color: {% if is_started %}var(--primary){% else %}var(--text-3){% endif %}; background: {% if is_started %}rgba(16, 185, 129, 0.1){% else %}var(--bg-page){% endif %}; border: 1px solid {% if is_started %}rgba(16, 185, 129, 0.3){% else %}var(--border){% endif %}; padding: 4px 8px; border-radius: 4px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; transition: all 0.2s;"
                                 title="Đánh dấu Bắt đầu">
                                 <span class="platform-badge sheet"
-                                    style="font-size: 0.65rem; padding: 2px 4px; line-height: 1; border-radius: 2px; background: #10b981; color: white;">SHEET</span>
+                                    style="font-size: 11px; font-weight: 700; padding: 2px 6px; line-height: 1; border-radius: 4px; background: #059669; color: white;">SHEET</span>
                                 <input type="checkbox"
                                     style="pointer-events: none; margin:0; width: 14px; height: 14px;" {% if is_started
                                     %}checked{% endif %}>
@@ -3524,7 +3524,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s;
+        transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s;
         overflow: visible;
     }
 
@@ -3544,7 +3544,7 @@
         right: -4px;
         background: linear-gradient(135deg, #f59e0b, #ef4444);
         color: #fff;
-        font-size: 10px;
+        font-size: 11px;
         font-weight: 800;
         width: 22px;
         height: 22px;
@@ -3774,7 +3774,7 @@
         background: linear-gradient(135deg, rgba(139, 92, 246, 0.35), rgba(99, 102, 241, 0.35));
         border: 1px solid rgba(168, 85, 247, 0.45);
         color: #e2e8f0;
-        font-size: 10px;
+        font-size: 11px;
         font-weight: 800;
         letter-spacing: 0.6px;
         padding: 3px 10px;
@@ -3787,7 +3787,7 @@
         border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 9999px;
         color: #cbd5e1;
-        font-size: 10.5px;
+        font-size: 11px;
         font-weight: 600;
         padding: 3px 9px;
         display: inline-flex;
@@ -3880,7 +3880,7 @@
     .pet-level-badge {
         background: linear-gradient(135deg, #6366f1, #8b5cf6);
         color: #fff;
-        font-size: 10.5px;
+        font-size: 11px;
         font-weight: 800;
         padding: 2px 7px;
         border-radius: 6px;
@@ -3888,7 +3888,7 @@
     }
 
     .pet-xp-counter {
-        font-size: 10.5px;
+        font-size: 11px;
         font-weight: 600;
         color: #94a3b8;
         font-variant-numeric: tabular-nums;
@@ -3951,7 +3951,7 @@
     }
 
     .pet-metric-card .metric-label {
-        font-size: 9.5px;
+        font-size: 11px;
         font-weight: 600;
         color: #94a3b8;
         text-transform: uppercase;
@@ -4062,14 +4062,14 @@
 
     .pet-lb-rank {
         font-weight: 800;
-        font-size: 10px;
+        font-size: 11px;
         width: 16px;
     }
 
     .pet-lb-level {
         color: #a78bfa;
         font-weight: 700;
-        font-size: 10.5px;
+        font-size: 11px;
     }
 
     .pet-lb-track {
@@ -4153,7 +4153,7 @@
     }
 
     .sidebar-pet-level {
-        font-size: 9px;
+        font-size: 11px;
         font-weight: 800;
         background: linear-gradient(135deg, #a855f7, #6366f1);
         padding: 1.5px 5.5px;
@@ -4237,7 +4237,7 @@
         font-size: 11.5px !important;
         line-height: 1.45 !important;
         color: #f1f5f9 !important;
-        box-shadow: 0 12px 35px rgba(0, 0, 0, 0.75), 0 0 25px rgba(168, 85, 247, 0.3) !important;
+        box-shadow: 0 12px 28px rgba(0, 0, 0, 0.65) !important;
         z-index: 99999 !important;
         opacity: 0;
         pointer-events: none;
@@ -4343,7 +4343,7 @@
         border: none !important;
         border-radius: 8px !important;
         padding: 3px 10px !important;
-        font-size: 10px !important;
+        font-size: 11px !important;
         font-weight: 700 !important;
         cursor: pointer !important;
         display: inline-flex !important;
@@ -4369,7 +4369,7 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        font-size: 9.5px;
+        font-size: 11px;
         color: #94a3b8;
         margin-top: 3px;
     }
@@ -4462,7 +4462,7 @@
         color: #f87171;
         border-radius: 6px;
         padding: 2px 6px;
-        font-size: 9.5px;
+        font-size: 11px;
         font-weight: 700;
         cursor: pointer;
         transition: all 0.2s;
@@ -4490,7 +4490,7 @@
         border: 2px solid rgba(255, 255, 255, 0.08);
         background: rgba(255, 255, 255, 0.03);
         cursor: pointer;
-        transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+        transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
     .pet-select-card:hover {
@@ -4502,7 +4502,7 @@
     .pet-select-card.selected {
         border-color: #8b5cf6;
         background: rgba(139, 92, 246, 0.2);
-        box-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
+        box-shadow: 0 4px 16px rgba(139, 92, 246, 0.25);
         transform: scale(1.05);
     }
 
@@ -4754,8 +4754,8 @@
         color: #fff;
         text-align: center;
         z-index: 10003;
-        animation: petLevelUpToast 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
-        box-shadow: 0 8px 40px rgba(139, 92, 246, 0.4);
+        animation: petLevelUpToast 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+        box-shadow: 0 8px 24px rgba(139, 92, 246, 0.3);
     }
 
     @keyframes petLevelUpToast {
@@ -4805,7 +4805,7 @@
         border-radius: 16px;
         color: white;
         padding: 3px 10px;
-        font-size: 10px;
+        font-size: 11px;
         font-weight: 600;
         cursor: pointer;
         display: flex;
@@ -4822,7 +4822,7 @@
 
     .pet-speech-tag {
         display: inline-block;
-        font-size: 9px;
+        font-size: 11px;
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.5px;
@@ -4839,7 +4839,7 @@
         background: radial-gradient(circle at 50% 0%, rgba(99, 102, 241, 0.15), rgba(15, 23, 42, 0.96) 70%), #0b0f19 !important;
         border: 1px solid rgba(139, 92, 246, 0.35) !important;
         border-radius: 24px !important;
-        box-shadow: 0 25px 60px -12px rgba(0, 0, 0, 0.75), 0 0 40px rgba(99, 102, 241, 0.25) !important;
+        box-shadow: 0 16px 36px -8px rgba(0, 0, 0, 0.65), 0 4px 12px rgba(0, 0, 0, 0.4) !important;
         backdrop-filter: blur(28px) !important;
         overflow: hidden;
     }
@@ -4858,7 +4858,7 @@
         padding: 16px 8px 12px 8px;
         text-align: center;
         cursor: pointer;
-        transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
         user-select: none;
         position: relative;
         overflow: hidden;
@@ -4888,7 +4888,7 @@
     .pet-species-card.selected {
         background: linear-gradient(160deg, rgba(99, 102, 241, 0.38), rgba(139, 92, 246, 0.22));
         border-color: #a855f7;
-        box-shadow: 0 0 25px rgba(168, 85, 247, 0.55), inset 0 0 16px rgba(168, 85, 247, 0.25);
+        box-shadow: 0 6px 20px rgba(168, 85, 247, 0.35), inset 0 0 14px rgba(168, 85, 247, 0.15);
         transform: translateY(-5px) scale(1.05);
     }
 
@@ -4913,7 +4913,7 @@
     .pet-species-emoji {
         font-size: 36px;
         margin-bottom: 8px;
-        transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
         filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.45));
     }
 
@@ -4925,7 +4925,7 @@
     }
 
     .pet-species-sound {
-        font-size: 10px;
+        font-size: 11px;
         color: #cbd5e1;
         margin-top: 4px;
         font-weight: 500;
@@ -4938,14 +4938,14 @@
         width: 94% !important;
         background: linear-gradient(165deg, rgba(17, 24, 39, 0.96), rgba(15, 23, 42, 0.98)) !important;
         border: 1.5px solid rgba(56, 189, 248, 0.3) !important;
-        box-shadow: 0 24px 60px -10px rgba(0, 0, 0, 0.8), 0 0 50px rgba(56, 189, 248, 0.15) !important;
+        box-shadow: 0 16px 36px -8px rgba(0, 0, 0, 0.65), 0 4px 12px rgba(0, 0, 0, 0.4) !important;
         border-radius: 24px !important;
     }
 
     .pet-adopt-modal-v2 {
         background: #0f172a !important;
         border: 1px solid rgba(168, 85, 247, 0.3) !important;
-        box-shadow: 0 24px 60px -10px rgba(0, 0, 0, 0.8), 0 0 50px rgba(168, 85, 247, 0.2) !important;
+        box-shadow: 0 16px 36px -8px rgba(0, 0, 0, 0.65), 0 4px 12px rgba(0, 0, 0, 0.4) !important;
         border-radius: 24px !important;
     }
 
@@ -5048,7 +5048,7 @@
         border: 1px solid rgba(56, 189, 248, 0.35);
         border-radius: 12px;
         padding: 2px 8px;
-        font-size: 9px;
+        font-size: 11px;
         font-weight: 800;
         color: #38bdf8;
         letter-spacing: 0.8px;
@@ -5087,7 +5087,7 @@
 
     .stage-species-badge {
         align-self: flex-start;
-        font-size: 9px;
+        font-size: 11px;
         font-weight: 800;
         color: #38bdf8;
         background: rgba(56, 189, 248, 0.15);
@@ -5154,7 +5154,7 @@
         gap: 4px;
         position: relative;
         cursor: pointer;
-        transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+        transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
     .pet-species-grid-no-emoji .pet-species-card:hover {
@@ -5167,12 +5167,12 @@
     .pet-species-grid-no-emoji .pet-species-card.selected {
         background: linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(139, 92, 246, 0.2));
         border-color: #38bdf8;
-        box-shadow: 0 0 20px rgba(56, 189, 248, 0.35), inset 0 0 12px rgba(56, 189, 248, 0.15);
+        box-shadow: 0 4px 16px rgba(56, 189, 248, 0.25), inset 0 0 12px rgba(56, 189, 248, 0.1);
         transform: scale(1.02);
     }
 
     .species-card-tag {
-        font-size: 8.5px;
+        font-size: 11px;
         font-weight: 800;
         color: #38bdf8;
         letter-spacing: 0.6px;
@@ -5186,7 +5186,7 @@
     }
 
     .pet-species-grid-no-emoji .pet-species-sound {
-        font-size: 10.5px;
+        font-size: 11px;
         color: #94a3b8;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -5664,7 +5664,7 @@
                     <div class="pet-lb-row">
                         <span class="pet-lb-user">
                             <span class="pet-lb-rank" style="color:${rankColor};">#${index + 1}</span>
-                            <span>${p.username} <span style="opacity:0.6; font-size:10px;">(${p.name})</span></span>
+                            <span>${p.username} <span style="opacity:0.6; font-size:11px;">(${p.name})</span></span>
                         </span>
                         <span class="pet-lb-level">Lv.${p.level}</span>
                     </div>
