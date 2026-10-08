@@ -227,7 +227,7 @@ window.Pet3DEngine = (function () {
             camPosY: 1.15
         },
         goose: {
-            modelUrl: '/static/models/goose.fbx',
+            modelUrl: '/static/models/goose.glb',
             name_vi: 'Ngỗng Goose',
             name_ja: 'ガチョウ',
             emoji: '🪿',
