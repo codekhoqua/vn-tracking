@@ -244,7 +244,7 @@
     <div class="mobile-brand">
         <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" width="26" height="26" style="border-radius: var(--radius-sm);">
         <span>VN-Tracking</span>
-        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.13</i></sup>
+        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.14</i></sup>
     </div>
     <div class="mobile-topbar-right">
         <button type="button" class="mobile-icon-btn" onclick="toggleNotificationPanel(event)" title="{{ 'Thông báo' if lang == 'vi' else '通知' }}">
@@ -274,7 +274,7 @@
         <div style="display: flex; flex-direction: column; justify-content: center;">
             <span>VN-Tracking</span>
             <sup class="version-tag"
-                style="color: var(--text-3); font-size: 11px; margin-top: 2px;"><i>v1.9.13</i></sup>
+                style="color: var(--text-3); font-size: 11px; margin-top: 2px;"><i>v1.9.14</i></sup>
         </div>
     </div>
 
@@ -805,7 +805,7 @@
                 <!-- Volume Control -->
                 <div class="radio-volume-row"
                     style="display: flex; align-items: center; gap: 8px; padding: 4px 6px 6px; margin-top: 2px;">
-                    <button id="radio-volume-btn" onclick="toggleRadioMute()" type="button"
+                    <button id="radio-volume-btn" onclick="window.toggleRadioMute ? window.toggleRadioMute() : null" type="button"
                         style="background: none; border: none; color: rgba(255,255,255,0.85); cursor: pointer; padding: 2px; display: flex; align-items: center; justify-content: center; transition: color 0.2s, transform 0.1s;"
                         title="{{ 'Tắt/Bật tiếng' if lang == 'vi' else 'ミュート切替' }}">
                         <svg id="radio-vol-icon-high" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -824,13 +824,92 @@
                     </button>
                     <div style="flex-grow: 1; display: flex; align-items: center; position: relative;">
                         <input type="range" id="radio-volume-slider" min="0" max="100" value="80"
-                            oninput="setRadioVolume(this.value)"
+                            oninput="window.setRadioVolume ? window.setRadioVolume(this.value) : null"
+                            onchange="window.setRadioVolume ? window.setRadioVolume(this.value) : null"
                             style="width: 100%; cursor: pointer;"
                             title="{{ 'Âm lượng LSA Music' if lang == 'vi' else '音量' }}">
                     </div>
                     <span id="radio-volume-label"
                         style="font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.65); min-width: 28px; text-align: right; font-variant-numeric: tabular-nums;">80%</span>
                 </div>
+                <script>
+                    (function initRadioVolumeComponent() {
+                        const slider = document.getElementById('radio-volume-slider');
+                        const label = document.getElementById('radio-volume-label');
+                        const btn = document.getElementById('radio-volume-btn');
+                        if (!slider) return;
+
+                        let currentVol = 80;
+                        let isMuted = false;
+
+                        try {
+                            const sv = localStorage.getItem('lsa_music_volume');
+                            if (sv !== null && !isNaN(parseInt(sv, 10))) currentVol = Math.max(0, Math.min(100, parseInt(sv, 10)));
+                            const sm = localStorage.getItem('lsa_music_muted');
+                            if (sm !== null) isMuted = (sm === 'true');
+                        } catch (e) {}
+
+                        function updateUI(v, m) {
+                            slider.value = v;
+                            const mutedState = m || v === 0;
+                            const pct = mutedState ? 0 : v;
+                            slider.style.background = 'linear-gradient(to right, rgba(99, 102, 241, 0.9) 0%, rgba(129, 140, 248, 0.9) ' + pct + '%, rgba(255, 255, 255, 0.2) ' + pct + '%, rgba(255, 255, 255, 0.2) 100%)';
+                            if (label) {
+                                label.textContent = mutedState ? (m ? 'Mute' : '0%') : v + '%';
+                                label.style.color = mutedState ? 'rgba(239, 68, 68, 0.85)' : 'rgba(255, 255, 255, 0.65)';
+                            }
+                            const hi = document.getElementById('radio-vol-icon-high');
+                            const lo = document.getElementById('radio-vol-icon-low');
+                            const mu = document.getElementById('radio-vol-icon-mute');
+                            if (hi) hi.style.display = (!mutedState && v > 50) ? 'inline-block' : 'none';
+                            if (lo) lo.style.display = (!mutedState && v <= 50) ? 'inline-block' : 'none';
+                            if (mu) mu.style.display = mutedState ? 'inline-block' : 'none';
+                            if (btn) btn.style.color = mutedState ? '#ef4444' : 'rgba(255, 255, 255, 0.85)';
+                        }
+
+                        function applyAudio(v, m) {
+                            const p = window.ytPlayer;
+                            if (p) {
+                                try {
+                                    if (m) {
+                                        if (typeof p.mute === 'function') p.mute();
+                                    } else {
+                                        if (typeof p.unMute === 'function') p.unMute();
+                                        if (typeof p.setVolume === 'function') p.setVolume(v);
+                                    }
+                                } catch (e) {}
+                            }
+                        }
+
+                        window.setRadioVolume = function (val) {
+                            val = Math.max(0, Math.min(100, parseInt(val, 10) || 0));
+                            currentVol = val;
+                            if (isMuted && val > 0) {
+                                isMuted = false;
+                                try { localStorage.setItem('lsa_music_muted', 'false'); } catch (e) {}
+                            }
+                            try { localStorage.setItem('lsa_music_volume', String(currentVol)); } catch (e) {}
+                            updateUI(currentVol, isMuted);
+                            applyAudio(currentVol, isMuted);
+                        };
+
+                        window.toggleRadioMute = function () {
+                            isMuted = !isMuted;
+                            try { localStorage.setItem('lsa_music_muted', String(isMuted)); } catch (e) {}
+                            updateUI(currentVol, isMuted);
+                            applyAudio(currentVol, isMuted);
+                        };
+
+                        slider.addEventListener('input', function (e) {
+                            window.setRadioVolume(e.target.value);
+                        });
+                        slider.addEventListener('change', function (e) {
+                            window.setRadioVolume(e.target.value);
+                        });
+
+                        updateUI(currentVol, isMuted);
+                    })();
+                </script>
                 <!-- Radio Queue Section -->
                 <div id="radio-queue-section"
                     style="margin-top: 12px; display: flex; flex-direction: column; gap: 8px;">
@@ -1009,7 +1088,7 @@
                 background: linear-gradient(to right, rgba(99, 102, 241, 0.9) 0%, rgba(129, 140, 248, 0.9) 80%, rgba(255, 255, 255, 0.2) 80%, rgba(255, 255, 255, 0.2) 100%);
                 border-radius: 999px;
                 outline: none;
-                transition: background 0.15s ease;
+                transition: none;
             }
 
             #radio-volume-slider::-webkit-slider-runnable-track {
