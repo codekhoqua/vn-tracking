@@ -204,100 +204,204 @@ function scrollToTable() {
     }
 }
 
-// ===================== WEATHER & TIME =====================
+// ===================== WEATHER & TIME REALTIME =====================
+let weatherPollingInterval = null;
+let userWeatherOverride = null;
+let lastWeatherPayload = null;
+
 function initWeatherTime() {
     const el = document.getElementById('main-hero-banner');
     if (!el) return;
+
+    // Fetch immediately
+    fetchRealtimeWeather(false);
+
+    // Setup polling every 60s for immediate detection of real-time weather changes
+    if (weatherPollingInterval) clearInterval(weatherPollingInterval);
+    weatherPollingInterval = setInterval(() => {
+        fetchRealtimeWeather(false);
+    }, 60000);
+
+    // Re-check weather when user switches back to this tab
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+            fetchRealtimeWeather(false);
+        }
+    });
+}
+
+function fetchRealtimeWeather(force = false) {
     const isVN = (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi');
-    const locQuery = isVN ? "Ho+Chi+Minh" : "Gifu";
+    const locQuery = isVN ? "Ho Chi Minh" : "Gifu";
     const locName = isVN ? "TP.HCM" : "Gifu";
 
-    fetch(`/api/weather?loc=${locQuery}`)
+    // Build URL
+    let url = `/api/weather?loc=${encodeURIComponent(locQuery)}&force=${force ? 1 : 0}`;
+
+    // If geolocation is cached in sessionStorage, use precise coordinates
+    try {
+        const cachedLat = sessionStorage.getItem('user_geo_lat');
+        const cachedLon = sessionStorage.getItem('user_geo_lon');
+        if (cachedLat && cachedLon) {
+            url += `&lat=${cachedLat}&lon=${cachedLon}`;
+        } else if (navigator.geolocation && !sessionStorage.getItem('user_geo_asked')) {
+            sessionStorage.setItem('user_geo_asked', '1');
+            navigator.geolocation.getCurrentPosition((pos) => {
+                sessionStorage.setItem('user_geo_lat', pos.coords.latitude.toFixed(4));
+                sessionStorage.setItem('user_geo_lon', pos.coords.longitude.toFixed(4));
+                fetchRealtimeWeather(true);
+            }, () => {}, { timeout: 4000 });
+        }
+    } catch (e) {}
+
+    fetch(url)
         .then(r => r.json())
         .then(data => {
-            const cc = data.current_condition[0];
-            const weather = data.weather[0];
-            const temp = cc.temp_C;
-            const feelsLike = cc.FeelsLikeC;
-            const maxTemp = weather.maxtempC;
-            const minTemp = weather.mintempC;
-            const wCode = parseInt(cc.weatherCode);
-
-            let desc = isVN ? "Nhiều mây" : "曇り";
-            let bgUrl = "https://images.unsplash.com/photo-1501630834273-4b5604d2ee31?q=80&w=1200";
-            let iconSvg = `<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.5 19A4.5 4.5 0 0 0 18 10c-1-5-8.5-5-10-1.5A5 5 0 1 0 8 19h9.5z"></path></svg>`; // Cloud
-            let iconColor = "#94a3b8";
-
-            if (wCode === 113) {
-                desc = isVN ? "Nắng đẹp" : "晴れ";
-                bgUrl = "https://images.unsplash.com/photo-1601297183305-6df142704ea2?q=80&w=1200";
-                iconSvg = `<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`;
-                iconColor = "#fbbf24";
-            } else if ([116, 119, 122].includes(wCode)) {
-                desc = isVN ? "Nhiều mây" : "曇り";
-                bgUrl = "https://images.unsplash.com/photo-1501630834273-4b5604d2ee31?q=80&w=1200";
-                iconSvg = `<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.5 19A4.5 4.5 0 0 0 18 10c-1-5-8.5-5-10-1.5A5 5 0 1 0 8 19h9.5z"></path></svg>`;
-                iconColor = "#94a3b8";
-            } else if ([143, 248, 260].includes(wCode)) {
-                desc = isVN ? "Sương mù" : "霧";
-                bgUrl = "https://images.unsplash.com/photo-1487621167305-5d248087c724?q=80&w=1200";
-                iconSvg = `<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.5 19A4.5 4.5 0 0 0 18 10c-1-5-8.5-5-10-1.5A5 5 0 1 0 8 19h9.5z"></path></svg>`;
-                iconColor = "#cbd5e1";
-            } else if ([227, 230, 323, 326, 329, 332, 335, 338, 350, 371].includes(wCode)) {
-                desc = isVN ? "Tuyết rơi" : "雪";
-                bgUrl = "https://images.unsplash.com/photo-1542601098-3adb3baeb1ec?q=80&w=1200";
-                iconSvg = `<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 17.58A5 5 0 0 0 18 8h-1.26A8 8 0 1 0 4 16.25"></path><line x1="8" y1="16" x2="8.01" y2="16"></line><line x1="8" y1="20" x2="8.01" y2="20"></line><line x1="12" y1="18" x2="12.01" y2="18"></line><line x1="12" y1="22" x2="12.01" y2="22"></line><line x1="16" y1="16" x2="16.01" y2="16"></line><line x1="16" y1="20" x2="16.01" y2="20"></line></svg>`;
-                iconColor = "#e0f2fe";
-            } else if ((wCode >= 263 && wCode <= 314) || [353, 356, 359].includes(wCode)) {
-                desc = isVN ? "Có mưa" : "雨";
-                bgUrl = "https://images.unsplash.com/photo-1515694346937-94d85e41e6f0?q=80&w=1200";
-                iconSvg = `<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="16" y1="13" x2="16" y2="21"></line><line x1="8" y1="13" x2="8" y2="21"></line><line x1="12" y1="15" x2="12" y2="23"></line><path d="M20 16.58A5 5 0 0 0 18 7h-1.26A8 8 0 1 0 4 15.25"></path></svg>`;
-                iconColor = "#60a5fa";
-            } else if ([200, 386, 389, 392, 395].includes(wCode)) {
-                desc = isVN ? "Giông bão" : "雷雨";
-                bgUrl = "https://images.unsplash.com/photo-1534274988757-a28bf1a57c17?q=80&w=1200";
-                iconSvg = `<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 16.9A5 5 0 0 0 18 7h-1.26a8 8 0 1 0-11.62 9"></path><polyline points="13 11 9 17 15 17 11 23"></polyline></svg>`;
-                iconColor = "#fcd34d";
-            }
-            
-            // Realtime Rain Effect
-            const isRainy = ((wCode >= 263 && wCode <= 314) || [353, 356, 359, 200, 386, 389, 392, 395].includes(wCode));
-            if (isRainy) {
-                if (window.startRainEffect) window.startRainEffect();
-            } else {
-                if (window.stopRainEffect) window.stopRainEffect();
-            }
-
-            const bgEl = document.getElementById('hero-weather-bg');
-            if (bgEl) {
-                bgEl.style.backgroundImage = `url('${bgUrl}')`;
-            }
-
-            const inlineContainer = document.getElementById('inline-weather-container');
-            if (inlineContainer) {
-                inlineContainer.innerHTML = `
-                    <div style="color: ${iconColor}; display: flex; align-items: center; justify-content: center; margin-right: 4px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));">
-                        ${iconSvg}
-                    </div>
-                    <div style="font-size: 3.2rem; font-weight: 300; color: #fff; line-height: 1; text-shadow: 0 2px 8px rgba(0,0,0,0.4); margin-right: 12px; font-variant-numeric: tabular-nums;">
-                        ${temp}<span style="font-size: 1.2rem; vertical-align: super; font-weight: 500; opacity: 0.9;">°c</span>
-                    </div>
-                    <div style="display: flex; flex-direction: column; justify-content: center;">
-                        <div style="font-size: 1rem; font-weight: 700; color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,0.4); margin-bottom: 2px;">${locName}</div>
-                        <div style="font-size: 0.85rem; color: rgba(255,255,255,0.8); font-weight: 500; text-shadow: 0 1px 4px rgba(0,0,0,0.4); margin-bottom: 2px;">${desc}</div>
-                        <div style="font-size: 0.75rem; color: rgba(255,255,255,0.6); font-weight: 500; text-shadow: 0 1px 4px rgba(0,0,0,0.4);">H: ${maxTemp}° L: ${minTemp}°</div>
-                    </div>
-                `;
-            }
-        }).catch(err => {
-            console.error("Weather err:", err);
-            const inlineContainer = document.getElementById('inline-weather-container');
-            if (inlineContainer) {
-                inlineContainer.innerHTML = '';
-                inlineContainer.style.display = 'none';
-            }
+            lastWeatherPayload = data;
+            renderWeatherUI(data, isVN, locName);
+        })
+        .catch(err => {
+            console.error("Weather fetch err:", err);
         });
 }
+
+function renderWeatherUI(data, isVN, defaultLocName) {
+    if (!data || !data.current_condition || !data.current_condition[0]) return;
+    const cc = data.current_condition[0];
+    const weather = data.weather ? data.weather[0] : {};
+    const temp = cc.temp_C || '27';
+    const feelsLike = cc.FeelsLikeC || temp;
+    const maxTemp = weather.maxtempC || temp;
+    const minTemp = weather.mintempC || temp;
+    const wCode = parseInt(cc.weatherCode || 113);
+    const category = cc.category || 'sun';
+    const isDay = cc.is_day !== undefined ? cc.is_day : 1;
+    const locName = data.location || defaultLocName;
+
+    let desc = isVN ? "Nhiều mây" : "曇り";
+    let bgUrl = "https://images.unsplash.com/photo-1501630834273-4b5604d2ee31?q=80&w=1200";
+    let iconSvg = `<svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.5 19A4.5 4.5 0 0 0 18 10c-1-5-8.5-5-10-1.5A5 5 0 1 0 8 19h9.5z"></path></svg>`;
+    let iconColor = "#94a3b8";
+    let effectiveEffect = category;
+
+    if (category === 'snow' || [227, 230, 323, 326, 329, 332, 335, 338, 350, 371].includes(wCode)) {
+        desc = isVN ? "Tuyết rơi" : "雪";
+        bgUrl = "https://images.unsplash.com/photo-1542601098-3adb3baeb1ec?q=80&w=1200";
+        iconSvg = `<svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 17.58A5 5 0 0 0 18 8h-1.26A8 8 0 1 0 4 16.25"></path><line x1="8" y1="16" x2="8.01" y2="16"></line><line x1="8" y1="20" x2="8.01" y2="20"></line><line x1="12" y1="18" x2="12.01" y2="18"></line><line x1="12" y1="22" x2="12.01" y2="22"></line><line x1="16" y1="16" x2="16.01" y2="16"></line><line x1="16" y1="20" x2="16.01" y2="20"></line></svg>`;
+        iconColor = "#e0f2fe";
+        effectiveEffect = 'snow';
+    } else if (category === 'thunder' || [200, 386, 389, 392, 395].includes(wCode)) {
+        desc = isVN ? "Giông bão" : "雷雨";
+        bgUrl = "https://images.unsplash.com/photo-1534274988757-a28bf1a57c17?q=80&w=1200";
+        iconSvg = `<svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 16.9A5 5 0 0 0 18 7h-1.26a8 8 0 1 0-11.62 9"></path><polyline points="13 11 9 17 15 17 11 23"></polyline></svg>`;
+        iconColor = "#fcd34d";
+        effectiveEffect = 'thunder';
+    } else if (category === 'rain' || (wCode >= 263 && wCode <= 314) || [353, 356, 359].includes(wCode)) {
+        desc = isVN ? (wCode === 266 ? "Mưa phùn" : "Có mưa") : "雨";
+        bgUrl = "https://images.unsplash.com/photo-1515694346937-94d85e41e6f0?q=80&w=1200";
+        iconSvg = `<svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="16" y1="13" x2="16" y2="21"></line><line x1="8" y1="13" x2="8" y2="21"></line><line x1="12" y1="15" x2="12" y2="23"></line><path d="M20 16.58A5 5 0 0 0 18 7h-1.26A8 8 0 1 0 4 15.25"></path></svg>`;
+        iconColor = "#60a5fa";
+        effectiveEffect = 'rain';
+    } else if (category === 'fog' || [143, 248, 260].includes(wCode)) {
+        desc = isVN ? "Sương mù" : "霧";
+        bgUrl = "https://images.unsplash.com/photo-1487621167305-5d248087c724?q=80&w=1200";
+        iconSvg = `<svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.5 19A4.5 4.5 0 0 0 18 10c-1-5-8.5-5-10-1.5A5 5 0 1 0 8 19h9.5z"></path></svg>`;
+        iconColor = "#cbd5e1";
+        effectiveEffect = 'clear';
+    } else if (category === 'clouds' || [116, 119, 122].includes(wCode)) {
+        desc = isVN ? "Nhiều mây" : "曇り";
+        bgUrl = "https://images.unsplash.com/photo-1501630834273-4b5604d2ee31?q=80&w=1200";
+        iconSvg = `<svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.5 19A4.5 4.5 0 0 0 18 10c-1-5-8.5-5-10-1.5A5 5 0 1 0 8 19h9.5z"></path></svg>`;
+        iconColor = "#94a3b8";
+        effectiveEffect = 'clear';
+    } else if (!isDay) {
+        desc = isVN ? "Trời quang (Đêm)" : "快晴 (夜)";
+        bgUrl = "https://images.unsplash.com/photo-1509773896068-7fd415d91e2e?q=80&w=1200";
+        iconSvg = `<svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>`;
+        iconColor = "#e2e8f0";
+        effectiveEffect = 'clear';
+    } else {
+        desc = isVN ? "Nắng đẹp" : "晴れ";
+        bgUrl = "https://images.unsplash.com/photo-1601297183305-6df142704ea2?q=80&w=1200";
+        iconSvg = `<svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`;
+        iconColor = "#fbbf24";
+        effectiveEffect = 'sun';
+    }
+
+    // Apply manual user simulation override if active
+    if (userWeatherOverride) {
+        effectiveEffect = userWeatherOverride;
+    }
+
+    // Apply the active atmospheric effect (rain, snow, sun, thunder)
+    if (window.applyWeatherEffect) {
+        window.applyWeatherEffect(effectiveEffect);
+    }
+
+    // Update Hero background
+    const bgEl = document.getElementById('hero-weather-bg');
+    if (bgEl) {
+        bgEl.style.backgroundImage = `url('${bgUrl}')`;
+    }
+
+    // Update Inline Container
+    const inlineContainer = document.getElementById('inline-weather-container');
+    if (inlineContainer) {
+        inlineContainer.style.display = 'flex';
+        inlineContainer.innerHTML = `
+            <div style="color: ${iconColor}; display: flex; align-items: center; justify-content: center; margin-right: 6px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); transition: transform 0.3s ease;">
+                ${iconSvg}
+            </div>
+            <div style="font-size: 3.2rem; font-weight: 300; color: #fff; line-height: 1; text-shadow: 0 2px 8px rgba(0,0,0,0.4); margin-right: 12px; font-variant-numeric: tabular-nums;">
+                ${temp}<span style="font-size: 1.2rem; vertical-align: super; font-weight: 500; opacity: 0.9;">°c</span>
+            </div>
+            <div style="display: flex; flex-direction: column; justify-content: center;">
+                <div style="font-size: 0.95rem; font-weight: 700; color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,0.4); display: flex; align-items: center; gap: 4px; margin-bottom: 2px;">
+                    <span class="weather-live-dot" title="Live update: 60s"></span>
+                    <span>${locName}</span>
+                    <i class="fas fa-sync-alt" id="weather-sync-icon" style="font-size: 0.72rem; color: rgba(255,255,255,0.45); margin-left: 4px; cursor: pointer;" title="${isVN ? 'Cập nhật thời tiết ngay' : '今すぐ更新'}"></i>
+                </div>
+                <div style="font-size: 0.85rem; color: rgba(255,255,255,0.85); font-weight: 500; text-shadow: 0 1px 4px rgba(0,0,0,0.4); margin-bottom: 2px;">${desc}</div>
+                <div style="font-size: 0.74rem; color: rgba(255,255,255,0.65); font-weight: 500; text-shadow: 0 1px 4px rgba(0,0,0,0.4);">H: ${maxTemp}° | L: ${minTemp}°</div>
+            </div>
+        `;
+    }
+}
+
+window.refreshWeatherNow = function(e) {
+    if (e) e.stopPropagation();
+    const syncIcon = document.getElementById('weather-sync-icon');
+    if (syncIcon) syncIcon.classList.add('fa-spin');
+    
+    // Clear user override if any, return to real-time
+    userWeatherOverride = null;
+    
+    fetchRealtimeWeather(true);
+    if (window.showToast) {
+        const isVN = (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi');
+        showToast(isVN ? "🌤️ Đang cập nhật thời tiết thực tế..." : "🌤️ リアルタイム天気を更新中...", "info");
+    }
+    setTimeout(() => {
+        const syncIcon = document.getElementById('weather-sync-icon');
+        if (syncIcon) syncIcon.classList.remove('fa-spin');
+    }, 1200);
+};
+
+window.simulateWeatherEffect = function(mode) {
+    userWeatherOverride = (mode === 'auto') ? null : mode;
+    if (window.applyWeatherEffect) {
+        if (mode === 'auto') {
+            if (lastWeatherPayload) {
+                const isVN = (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi');
+                renderWeatherUI(lastWeatherPayload, isVN, isVN ? "TP.HCM" : "Gifu");
+            } else {
+                fetchRealtimeWeather(true);
+            }
+        } else {
+            window.applyWeatherEffect(mode);
+        }
+    }
+};
 
 // ==================== AI INSIGHTS REALTIME ====================
 async function fetchAiInsights() {
@@ -5262,14 +5366,24 @@ function setInputStatus(id, state) {
     }
     
     // =========================================================================
-    // Realtime Cinematic Rain Effect with Chart Collision & Splash (Tách Nước)
+    // Realtime Cinematic Dynamic Weather Effects (Mưa, Tuyết, Nắng, Giông Bão)
     // =========================================================================
-    let rainCanvas = null;
-    let rainCtx = null;
-    let rainAnimId = null;
+    let weatherCanvas = null;
+    let weatherCtx = null;
+    let weatherAnimId = null;
+    let currentWeatherMode = null; // 'rain', 'thunder', 'snow', 'sun', null
+
+    // Rain state
     let rainDrops = [];
     let rainSplashes = [];
-    let rainActive = false;
+    let thunderTimer = null;
+
+    // Snow state
+    let snowFlakes = [];
+
+    // Sun state
+    let sunMotes = [];
+
     let cachedChartRect = null;
     let lastRectUpdate = 0;
 
@@ -5299,7 +5413,6 @@ function setInputStatus(id, state) {
         return cachedChartRect;
     }
 
-    // Tính tọa độ Y của mép viền trên ôm sát từng pixel kể cả góc cong bo tròn (border-radius: 24px)
     function getChartRimSurfaceY(x, rect) {
         if (!rect) return 0;
         const radius = 24;
@@ -5313,57 +5426,54 @@ function setInputStatus(id, state) {
         return rect.top;
     }
 
-    function initRainCanvas() {
-        if (!rainCanvas) {
-            rainCanvas = document.getElementById('rain-canvas');
-            if (!rainCanvas) {
-                rainCanvas = document.createElement('canvas');
-                rainCanvas.id = 'rain-canvas';
+    function initWeatherCanvas() {
+        if (!weatherCanvas) {
+            weatherCanvas = document.getElementById('rain-canvas') || document.getElementById('weather-canvas');
+            if (!weatherCanvas) {
+                weatherCanvas = document.createElement('canvas');
+                weatherCanvas.id = 'weather-canvas';
             }
-            // Gắn trực tiếp vào documentElement để không bị ảnh hưởng bởi CSS zoom: 0.92 trên body
-            if (rainCanvas.parentElement !== document.documentElement) {
-                document.documentElement.appendChild(rainCanvas);
+            if (weatherCanvas.parentElement !== document.documentElement) {
+                document.documentElement.appendChild(weatherCanvas);
             }
-            rainCanvas.style.position = 'fixed';
-            rainCanvas.style.top = '0';
-            rainCanvas.style.left = '0';
-            rainCanvas.style.width = '100vw';
-            rainCanvas.style.height = '100vh';
-            rainCanvas.style.pointerEvents = 'none';
-            rainCanvas.style.zIndex = '9999';
+            weatherCanvas.style.position = 'fixed';
+            weatherCanvas.style.top = '0';
+            weatherCanvas.style.left = '0';
+            weatherCanvas.style.width = '100vw';
+            weatherCanvas.style.height = '100vh';
+            weatherCanvas.style.pointerEvents = 'none';
+            weatherCanvas.style.zIndex = '9999';
 
-            rainCtx = rainCanvas.getContext('2d');
-            window.addEventListener('resize', handleRainResize);
+            weatherCtx = weatherCanvas.getContext('2d');
+            window.addEventListener('resize', handleWeatherResize);
             window.addEventListener('scroll', () => { lastRectUpdate = 0; }, { passive: true });
             document.addEventListener('scroll', () => { lastRectUpdate = 0; }, { passive: true });
-        } else if (rainCanvas.parentElement !== document.documentElement) {
-            document.documentElement.appendChild(rainCanvas);
+        } else if (weatherCanvas.parentElement !== document.documentElement) {
+            document.documentElement.appendChild(weatherCanvas);
         }
-        handleRainResize();
+        handleWeatherResize();
     }
 
-    function handleRainResize() {
-        if (!rainCanvas) return;
+    function handleWeatherResize() {
+        if (!weatherCanvas) return;
         const dpr = Math.min(window.devicePixelRatio || 1, 2);
-        rainCanvas.width = window.innerWidth * dpr;
-        rainCanvas.height = window.innerHeight * dpr;
-        if (rainCtx) {
-            rainCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        weatherCanvas.width = window.innerWidth * dpr;
+        weatherCanvas.height = window.innerHeight * dpr;
+        if (weatherCtx) {
+            weatherCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
         }
         lastRectUpdate = 0;
     }
 
+    // --- RAIN LOGIC ---
     function createRainDrop(isInitial = false) {
         const rect = getChartCollisionRect();
         let x;
-        // 70% số giọt mưa tập trung rơi ngay phía trên khung biểu đồ để tạo hiệu ứng tách nước liên tục
         if (rect && rect.width > 0 && Math.random() < 0.70) {
             x = rect.left + Math.random() * rect.width;
         } else {
             x = Math.random() * window.innerWidth;
         }
-
-        // Tốc độ mưa rơi chậm lại, êm dịu và thanh thoát theo yêu cầu
         const speed = 5.5 + Math.random() * 3.5;
         return {
             x: x,
@@ -5376,7 +5486,6 @@ function setInputStatus(id, state) {
     }
 
     function triggerSplash(x, y, speed) {
-        // 1. Giọt nước văng tóe tách ra 2 bên ("Tách nước / hạt nước nảy lên nhẹ nhàng")
         const count = 3 + Math.floor(Math.random() * 3);
         for (let i = 0; i < count; i++) {
             const spread = (Math.random() - 0.5) * 3.4;
@@ -5393,8 +5502,6 @@ function setInputStatus(id, state) {
                 decay: 0.038 + Math.random() * 0.02
             });
         }
-
-        // 2. Vòng sóng / gợn nước loang sát mép thành khung biểu đồ
         rainSplashes.push({
             type: 'ripple',
             x: x,
@@ -5405,8 +5512,6 @@ function setInputStatus(id, state) {
             alpha: 0.8,
             decay: 0.04
         });
-
-        // 3. Giọt nước đọng trượt nhẹ trên thành viền
         if (Math.random() < 0.18) {
             rainSplashes.push({
                 type: 'drip',
@@ -5421,163 +5526,269 @@ function setInputStatus(id, state) {
         }
     }
 
-    function updateRain() {
-        if (!rainActive || !rainCtx) return;
+    // --- SNOW LOGIC ---
+    function createSnowFlake(isInitial = false) {
+        return {
+            x: Math.random() * window.innerWidth,
+            y: isInitial ? Math.random() * window.innerHeight : -10 - Math.random() * 40,
+            radius: 1.4 + Math.random() * 2.8,
+            speed: 0.9 + Math.random() * 1.4,
+            wind: 0.2 + Math.random() * 0.35,
+            swingAngle: Math.random() * Math.PI * 2,
+            swingSpeed: 0.015 + Math.random() * 0.025,
+            swingAmp: 0.8 + Math.random() * 1.5,
+            alpha: 0.35 + Math.random() * 0.55
+        };
+    }
+
+    // --- SUN LOGIC ---
+    function createSunMote(isInitial = false) {
+        return {
+            x: Math.random() * window.innerWidth,
+            y: isInitial ? Math.random() * (window.innerHeight * 0.75) : window.innerHeight * 0.75 + Math.random() * 50,
+            radius: 1.0 + Math.random() * 2.2,
+            vx: (Math.random() - 0.5) * 0.35 + 0.15,
+            vy: -(0.3 + Math.random() * 0.45),
+            alpha: 0.2 + Math.random() * 0.45,
+            pulse: Math.random() * Math.PI * 2,
+            pulseSpeed: 0.025 + Math.random() * 0.03
+        };
+    }
+
+    // MAIN ANIMATION LOOP
+    function updateWeatherParticles() {
+        if (!currentWeatherMode || !weatherCtx) return;
 
         const w = window.innerWidth;
         const h = window.innerHeight;
-        rainCtx.clearRect(0, 0, w, h);
+        weatherCtx.clearRect(0, 0, w, h);
 
         const rect = getChartCollisionRect();
         const hasChart = rect && rect.top > 0 && rect.top < h && rect.width > 0;
-
-        // Thêm class ánh sáng thành viền ướt mưa
         const chartEl = document.getElementById('main-chart-section') || document.querySelector('.chart-section');
-        if (chartEl && !chartEl.classList.contains('rain-wet-rim')) {
-            chartEl.classList.add('rain-wet-rim');
-        }
 
-        // 1. Vẽ và cập nhật các giọt mưa rơi
-        for (let i = 0; i < rainDrops.length; i++) {
-            const drop = rainDrops[i];
-            const prevY = drop.y;
+        // 1. RAIN / THUNDER
+        if (currentWeatherMode === 'rain' || currentWeatherMode === 'thunder') {
+            if (chartEl && !chartEl.classList.contains('rain-wet-rim')) {
+                chartEl.classList.remove('snow-frost-rim', 'sun-warm-rim');
+                chartEl.classList.add('rain-wet-rim');
+            }
 
-            drop.x += drop.wind;
-            drop.y += drop.speed;
+            for (let i = 0; i < rainDrops.length; i++) {
+                const drop = rainDrops[i];
+                const prevY = drop.y;
+                drop.x += drop.wind;
+                drop.y += drop.speed;
 
-            // Kiểm tra va chạm SÁT VIỀN THÀNH của khung biểu đồ (đụng cái thành)
-            if (hasChart && drop.x >= rect.left && drop.x <= rect.right) {
-                const surfaceY = getChartRimSurfaceY(drop.x, rect) + 1;
-                if (prevY <= surfaceY && drop.y >= surfaceY) {
-                    // ĐỤNG THÀNH KHUNG BIỂU ĐỒ -> TÁCH NƯỚC / TÓE NƯỚC SÁT VIỀN
-                    triggerSplash(drop.x, surfaceY, drop.speed);
+                if (hasChart && drop.x >= rect.left && drop.x <= rect.right) {
+                    const surfaceY = getChartRimSurfaceY(drop.x, rect) + 1;
+                    if (prevY <= surfaceY && drop.y >= surfaceY) {
+                        triggerSplash(drop.x, surfaceY, drop.speed);
+                        rainDrops[i] = createRainDrop(false);
+                        continue;
+                    }
+                }
+
+                if (drop.y > h + 20 || drop.x > w + 40) {
+                    if (drop.y > h && Math.random() < 0.10) {
+                        triggerSplash(drop.x, h - 2, drop.speed);
+                    }
                     rainDrops[i] = createRainDrop(false);
                     continue;
                 }
+
+                const tailX = drop.x - drop.wind * (drop.length / drop.speed);
+                const tailY = drop.y - drop.length;
+                weatherCtx.strokeStyle = `rgba(186, 230, 253, ${drop.alpha})`;
+                weatherCtx.lineWidth = 1.15;
+                weatherCtx.lineCap = 'round';
+                weatherCtx.beginPath();
+                weatherCtx.moveTo(drop.x, drop.y);
+                weatherCtx.lineTo(tailX, tailY);
+                weatherCtx.stroke();
             }
 
-            // Kiểm tra chạm đáy màn hình
-            if (drop.y > h + 20 || drop.x > w + 40) {
-                if (drop.y > h && Math.random() < 0.10) {
-                    triggerSplash(drop.x, h - 2, drop.speed);
+            for (let i = rainSplashes.length - 1; i >= 0; i--) {
+                const sp = rainSplashes[i];
+                if (sp.type === 'bead') {
+                    sp.x += sp.vx;
+                    sp.vy += sp.gravity;
+                    sp.y += sp.vy;
+                    sp.alpha -= sp.decay;
+                    if (sp.alpha <= 0) { rainSplashes.splice(i, 1); continue; }
+                    weatherCtx.fillStyle = `rgba(186, 230, 253, ${sp.alpha})`;
+                    weatherCtx.beginPath();
+                    weatherCtx.arc(sp.x, sp.y, sp.radius, 0, Math.PI * 2);
+                    weatherCtx.fill();
+                } else if (sp.type === 'ripple') {
+                    sp.rx += 0.38;
+                    sp.ry += 0.12;
+                    sp.alpha -= sp.decay;
+                    if (sp.alpha <= 0 || sp.rx >= sp.maxRx) { rainSplashes.splice(i, 1); continue; }
+                    weatherCtx.strokeStyle = `rgba(147, 197, 253, ${sp.alpha})`;
+                    weatherCtx.lineWidth = 1.0;
+                    weatherCtx.beginPath();
+                    weatherCtx.ellipse(sp.x, sp.y, sp.rx, sp.ry, 0, 0, Math.PI * 2);
+                    weatherCtx.stroke();
+                } else if (sp.type === 'drip') {
+                    sp.y += sp.speed;
+                    sp.distance += sp.speed;
+                    if (sp.distance >= sp.maxDistance) sp.alpha -= 0.04;
+                    if (sp.alpha <= 0) { rainSplashes.splice(i, 1); continue; }
+                    weatherCtx.fillStyle = `rgba(186, 230, 253, ${sp.alpha})`;
+                    weatherCtx.beginPath();
+                    weatherCtx.arc(sp.x, sp.y, sp.radius, 0, Math.PI * 2);
+                    weatherCtx.fill();
                 }
-                rainDrops[i] = createRainDrop(false);
-                continue;
-            }
-
-            // Vẽ vệt mưa bóng mượt
-            const tailX = drop.x - drop.wind * (drop.length / drop.speed);
-            const tailY = drop.y - drop.length;
-
-            rainCtx.strokeStyle = `rgba(186, 230, 253, ${drop.alpha})`;
-            rainCtx.lineWidth = 1.15;
-            rainCtx.lineCap = 'round';
-            rainCtx.beginPath();
-            rainCtx.moveTo(drop.x, drop.y);
-            rainCtx.lineTo(tailX, tailY);
-            rainCtx.stroke();
-        }
-
-        // 2. Vẽ và cập nhật các hiệu ứng tách nước / văng tóe
-        for (let i = rainSplashes.length - 1; i >= 0; i--) {
-            const sp = rainSplashes[i];
-
-            if (sp.type === 'bead') {
-                sp.x += sp.vx;
-                sp.vy += sp.gravity;
-                sp.y += sp.vy;
-                sp.alpha -= sp.decay;
-
-                if (sp.alpha <= 0) {
-                    rainSplashes.splice(i, 1);
-                    continue;
-                }
-
-                rainCtx.fillStyle = `rgba(186, 230, 253, ${sp.alpha})`;
-                rainCtx.beginPath();
-                rainCtx.arc(sp.x, sp.y, sp.radius, 0, Math.PI * 2);
-                rainCtx.fill();
-            } else if (sp.type === 'ripple') {
-                sp.rx += 0.38;
-                sp.ry += 0.12;
-                sp.alpha -= sp.decay;
-
-                if (sp.alpha <= 0 || sp.rx >= sp.maxRx) {
-                    rainSplashes.splice(i, 1);
-                    continue;
-                }
-
-                rainCtx.strokeStyle = `rgba(147, 197, 253, ${sp.alpha})`;
-                rainCtx.lineWidth = 1.0;
-                rainCtx.beginPath();
-                rainCtx.ellipse(sp.x, sp.y, sp.rx, sp.ry, 0, 0, Math.PI * 2);
-                rainCtx.stroke();
-            } else if (sp.type === 'drip') {
-                sp.y += sp.speed;
-                sp.distance += sp.speed;
-                if (sp.distance >= sp.maxDistance) {
-                    sp.alpha -= 0.04;
-                }
-                if (sp.alpha <= 0) {
-                    rainSplashes.splice(i, 1);
-                    continue;
-                }
-
-                rainCtx.fillStyle = `rgba(186, 230, 253, ${sp.alpha})`;
-                rainCtx.beginPath();
-                rainCtx.arc(sp.x, sp.y, sp.radius, 0, Math.PI * 2);
-                rainCtx.fill();
             }
         }
 
-        rainAnimId = requestAnimationFrame(updateRain);
+        // 2. SNOW
+        else if (currentWeatherMode === 'snow') {
+            if (chartEl && !chartEl.classList.contains('snow-frost-rim')) {
+                chartEl.classList.remove('rain-wet-rim', 'sun-warm-rim');
+                chartEl.classList.add('snow-frost-rim');
+            }
+
+            for (let i = 0; i < snowFlakes.length; i++) {
+                const flake = snowFlakes[i];
+                flake.y += flake.speed;
+                flake.x += Math.sin(flake.swingAngle) * flake.swingAmp + flake.wind;
+                flake.swingAngle += flake.swingSpeed;
+
+                if (flake.y > h + 15 || flake.x > w + 20 || flake.x < -20) {
+                    snowFlakes[i] = createSnowFlake(false);
+                    continue;
+                }
+
+                const grad = weatherCtx.createRadialGradient(flake.x, flake.y, 0, flake.x, flake.y, flake.radius);
+                grad.addColorStop(0, `rgba(255, 255, 255, ${flake.alpha})`);
+                grad.addColorStop(0.65, `rgba(224, 242, 254, ${flake.alpha * 0.75})`);
+                grad.addColorStop(1, 'rgba(224, 242, 254, 0)');
+                weatherCtx.fillStyle = grad;
+                weatherCtx.beginPath();
+                weatherCtx.arc(flake.x, flake.y, flake.radius, 0, Math.PI * 2);
+                weatherCtx.fill();
+            }
+        }
+
+        // 3. SUN
+        else if (currentWeatherMode === 'sun') {
+            if (chartEl && !chartEl.classList.contains('sun-warm-rim')) {
+                chartEl.classList.remove('rain-wet-rim', 'snow-frost-rim');
+                chartEl.classList.add('sun-warm-rim');
+            }
+
+            for (let i = 0; i < sunMotes.length; i++) {
+                const mote = sunMotes[i];
+                mote.x += mote.vx;
+                mote.y += mote.vy;
+                mote.pulse += mote.pulseSpeed;
+                const dynamicAlpha = Math.max(0.08, mote.alpha * (0.7 + 0.3 * Math.sin(mote.pulse)));
+
+                if (mote.y < -10 || mote.x > w + 20 || mote.x < -20) {
+                    sunMotes[i] = createSunMote(false);
+                    continue;
+                }
+
+                const grad = weatherCtx.createRadialGradient(mote.x, mote.y, 0, mote.x, mote.y, mote.radius);
+                grad.addColorStop(0, `rgba(254, 240, 138, ${dynamicAlpha})`);
+                grad.addColorStop(0.6, `rgba(251, 191, 36, ${dynamicAlpha * 0.7})`);
+                grad.addColorStop(1, 'rgba(245, 158, 11, 0)');
+                weatherCtx.fillStyle = grad;
+                weatherCtx.beginPath();
+                weatherCtx.arc(mote.x, mote.y, mote.radius, 0, Math.PI * 2);
+                weatherCtx.fill();
+            }
+        }
+
+        weatherAnimId = requestAnimationFrame(updateWeatherParticles);
     }
 
-    window.startRainEffect = function() {
-        initRainCanvas();
-        if (rainActive) return;
-        rainActive = true;
+    window.applyWeatherEffect = function(mode) {
+        initWeatherCanvas();
+        const fxLayer = document.getElementById('hero-weather-fx-layer');
+        const chartEl = document.getElementById('main-chart-section') || document.querySelector('.chart-section');
 
-        if (rainCanvas) {
-            rainCanvas.style.display = 'block';
+        // Clear existing thunder timer
+        if (thunderTimer) {
+            clearInterval(thunderTimer);
+            thunderTimer = null;
         }
 
-        // Dọn dẹp overlay cũ nếu có
-        const oldOverlay = document.getElementById('rain-overlay');
-        if (oldOverlay) oldOverlay.remove();
-        if (typeof rainInterval !== 'undefined' && rainInterval) {
-            clearInterval(rainInterval);
-            rainInterval = null;
+        // Clean FX layer
+        if (fxLayer) {
+            fxLayer.className = '';
         }
 
-        // Khởi tạo các giọt mưa tối ưu
-        const totalDrops = Math.min(50, Math.floor(window.innerWidth / 24));
-        rainDrops = [];
-        rainSplashes = [];
-        for (let i = 0; i < totalDrops; i++) {
-            rainDrops.push(createRainDrop(true));
+        if (mode === 'clear' || !mode) {
+            currentWeatherMode = null;
+            if (weatherAnimId) {
+                cancelAnimationFrame(weatherAnimId);
+                weatherAnimId = null;
+            }
+            if (weatherCtx && weatherCanvas) {
+                weatherCtx.clearRect(0, 0, weatherCanvas.width, weatherCanvas.height);
+                weatherCanvas.style.display = 'none';
+            }
+            if (chartEl) {
+                chartEl.classList.remove('rain-wet-rim', 'snow-frost-rim', 'sun-warm-rim');
+            }
+            return;
+        }
+
+        currentWeatherMode = mode;
+        if (weatherCanvas) weatherCanvas.style.display = 'block';
+
+        if (mode === 'rain' || mode === 'thunder') {
+            const totalDrops = Math.min(50, Math.floor(window.innerWidth / 24));
+            rainDrops = [];
+            rainSplashes = [];
+            for (let i = 0; i < totalDrops; i++) {
+                rainDrops.push(createRainDrop(true));
+            }
+            if (mode === 'thunder') {
+                if (fxLayer) fxLayer.className = 'weather-fx-thunder';
+                thunderTimer = setInterval(() => {
+                    if (fxLayer && Math.random() < 0.6) {
+                        fxLayer.classList.add('flash');
+                        setTimeout(() => fxLayer.classList.remove('flash'), 70);
+                        if (Math.random() < 0.4) {
+                            setTimeout(() => {
+                                fxLayer.classList.add('flash');
+                                setTimeout(() => fxLayer.classList.remove('flash'), 50);
+                            }, 120);
+                        }
+                    }
+                }, 8000);
+            }
+        } else if (mode === 'snow') {
+            const totalFlakes = Math.min(48, Math.floor(window.innerWidth / 26));
+            snowFlakes = [];
+            for (let i = 0; i < totalFlakes; i++) {
+                snowFlakes.push(createSnowFlake(true));
+            }
+        } else if (mode === 'sun') {
+            if (fxLayer) fxLayer.className = 'weather-fx-sun';
+            const totalMotes = Math.min(28, Math.floor(window.innerWidth / 40));
+            sunMotes = [];
+            for (let i = 0; i < totalMotes; i++) {
+                sunMotes.push(createSunMote(true));
+            }
         }
 
         lastRectUpdate = 0;
-        if (rainAnimId) cancelAnimationFrame(rainAnimId);
-        rainAnimId = requestAnimationFrame(updateRain);
+        if (weatherAnimId) cancelAnimationFrame(weatherAnimId);
+        weatherAnimId = requestAnimationFrame(updateWeatherParticles);
     };
 
-    window.stopRainEffect = function() {
-        rainActive = false;
-        if (rainAnimId) {
-            cancelAnimationFrame(rainAnimId);
-            rainAnimId = null;
-        }
-        if (rainCtx && rainCanvas) {
-            rainCtx.clearRect(0, 0, rainCanvas.width, rainCanvas.height);
-            rainCanvas.style.display = 'none';
-        }
-        const chartEl = document.getElementById('main-chart-section') || document.querySelector('.chart-section');
-        if (chartEl) chartEl.classList.remove('rain-wet-rim');
-        rainDrops = [];
-        rainSplashes = [];
-    };
+    // Backward compatibility aliases
+    window.startRainEffect = function() { window.applyWeatherEffect('rain'); };
+    window.stopRainEffect = function() { window.applyWeatherEffect('clear'); };
+    window.startSnowEffect = function() { window.applyWeatherEffect('snow'); };
+    window.stopSnowEffect = function() { window.applyWeatherEffect('clear'); };
+    window.startSunEffect = function() { window.applyWeatherEffect('sun'); };
+    window.stopSunEffect = function() { window.applyWeatherEffect('clear'); };
 
 async function submitPreparePsd() {
     setInputStatus('psd-path', 'none');
