@@ -540,14 +540,7 @@ window.Pet3DEngine = (function () {
         rimLight.position.set(0, 2.5, -2.8);
         scene.add(rimLight);
 
-        // Ground Contact Shadow Disk
-        const shadowGeo = new THREE.CircleGeometry(0.55, 24);
-        shadowGeo.scale(1.0, 1.4, 1.0);
-        const shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.24 });
-        const shadowMesh = new THREE.Mesh(shadowGeo, shadowMat);
-        shadowMesh.rotation.x = -Math.PI / 2;
-        shadowMesh.position.set(0, 0.015, 0);
-        scene.add(shadowMesh);
+
 
         // Dedicated Pet Container (Single Source of Truth for models)
         const petContainer = new THREE.Group();
