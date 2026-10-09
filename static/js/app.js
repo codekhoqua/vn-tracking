@@ -3713,18 +3713,32 @@ function initRadioVolume() {
 }
 
 function getUserRadioVolume() {
-    if (radioMuted) return 0;
-    return radioVolume;
+    try {
+        var sm = localStorage.getItem('lsa_music_muted');
+        if (sm === 'true') return 0;
+        var sv = localStorage.getItem('lsa_music_volume');
+        if (sv !== null && !isNaN(parseInt(sv, 10))) return Math.max(0, Math.min(100, parseInt(sv, 10)));
+    } catch (e) {}
+    return typeof radioVolume !== 'undefined' ? radioVolume : 80;
 }
 
 function applyUserRadioVolume(player) {
     if (!player) return;
     try {
-        if (radioMuted) {
-            if (player.mute) player.mute();
+        var v = 80;
+        var m = false;
+        try {
+            var sv = localStorage.getItem('lsa_music_volume');
+            if (sv !== null && !isNaN(parseInt(sv, 10))) v = Math.max(0, Math.min(100, parseInt(sv, 10)));
+            var sm = localStorage.getItem('lsa_music_muted');
+            if (sm !== null) m = (sm === 'true');
+        } catch (e) {}
+
+        if (m) {
+            if (typeof player.mute === 'function') player.mute();
         } else {
-            if (player.unMute) player.unMute();
-            if (player.setVolume) player.setVolume(radioVolume);
+            if (typeof player.unMute === 'function') player.unMute();
+            if (typeof player.setVolume === 'function') player.setVolume(v);
         }
     } catch (e) {}
 }
@@ -3814,6 +3828,7 @@ window.onYouTubeIframeAPIReady = function () {
         playerVars: pVars,
         events: {
             'onReady': function(event) {
+                window.ytPlayer = ytPlayer;
                 if(event.target.getIframe) {
                     event.target.getIframe().style.opacity = '1';
                     event.target.getIframe().style.zIndex = '2';
@@ -3828,12 +3843,14 @@ window.onYouTubeIframeAPIReady = function () {
             }
         }
     });
+    window.ytPlayer = ytPlayer;
     ytPlayer2 = new YT.Player('lofi-youtube-player-2', {
         height: '0',
         width: '0',
         playerVars: pVars,
         events: {
             'onReady': function(event) { 
+                window.ytPlayer2 = ytPlayer2;
                 if(event.target.getIframe) {
                     event.target.getIframe().style.opacity = '0';
                     event.target.getIframe().style.zIndex = '1';
@@ -3846,6 +3863,7 @@ window.onYouTubeIframeAPIReady = function () {
             }
         }
     });
+    window.ytPlayer2 = ytPlayer2;
 };
 
 // ---- Crossfade (Auto-Mix) ----
@@ -3979,6 +3997,8 @@ window.crossfadeTo = function(newVideoId, startTime, callback) {
             var temp = ytPlayer;
             ytPlayer = ytPlayer2;
             ytPlayer2 = temp;
+            window.ytPlayer = ytPlayer;
+            window.ytPlayer2 = ytPlayer2;
             applyUserRadioVolume(ytPlayer);
             isCrossfading = false;
             targetCrossfadeVideoId = null;
