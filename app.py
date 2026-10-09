@@ -2101,8 +2101,9 @@ def api_weather():
     try:
         url = (
             f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}"
-            f"&current=temperature_2m,apparent_temperature,weather_code,is_day,precipitation,rain,showers,snowfall"
-            f"&daily=temperature_2m_max,temperature_2m_min&timezone={tz}"
+            f"&current=temperature_2m,apparent_temperature,weather_code,is_day,precipitation,rain,showers,snowfall,"
+            f"relative_humidity_2m,wind_speed_10m,wind_direction_10m,uv_index,surface_pressure,cloud_cover"
+            f"&daily=temperature_2m_max,temperature_2m_min,uv_index_max&timezone={tz}"
         )
         r = requests.get(url, timeout=5)
         om_data = r.json()
@@ -2112,6 +2113,11 @@ def api_weather():
         is_day = current.get('is_day', 1)
         rain_val = float(current.get('rain', 0.0) or 0.0) + float(current.get('showers', 0.0) or 0.0)
         snow_val = float(current.get('snowfall', 0.0) or 0.0)
+        humidity = int(round(current.get('relative_humidity_2m', 0)))
+        wind_speed = round(float(current.get('wind_speed_10m', 0.0)), 1)
+        uv_idx = round(float(current.get('uv_index', 0.0)), 1)
+        pressure = int(round(current.get('surface_pressure', 1013)))
+        cloud_pct = int(round(current.get('cloud_cover', 0)))
         
         # WWO compatibility mapping
         if wmo_code == 0: wwo = "113"
@@ -2154,7 +2160,12 @@ def api_weather():
                 "category": category,
                 "is_day": is_day,
                 "rain_mm": rain_val,
-                "snow_cm": snow_val
+                "snow_cm": snow_val,
+                "humidity": humidity,
+                "wind_kmh": wind_speed,
+                "uv_index": uv_idx,
+                "pressure_hpa": pressure,
+                "cloud_pct": cloud_pct
             }],
             "weather": [{
                 "maxtempC": max_temp,
