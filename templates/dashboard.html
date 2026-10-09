@@ -244,7 +244,7 @@
     <div class="mobile-brand">
         <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" width="26" height="26" style="border-radius: var(--radius-sm);">
         <span>VN-Tracking</span>
-        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.8.8</i></sup>
+        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.8.9</i></sup>
     </div>
     <div class="mobile-topbar-right">
         <button type="button" class="mobile-icon-btn" onclick="toggleNotificationPanel(event)" title="{{ 'Thông báo' if lang == 'vi' else '通知' }}">
@@ -274,7 +274,7 @@
         <div style="display: flex; flex-direction: column; justify-content: center;">
             <span>VN-Tracking</span>
             <sup class="version-tag"
-                style="color: var(--text-3); font-size: 11px; margin-top: 2px;"><i>v1.8.8</i></sup>
+                style="color: var(--text-3); font-size: 11px; margin-top: 2px;"><i>v1.8.9</i></sup>
         </div>
     </div>
 
@@ -482,6 +482,16 @@
                         ⚠️ {{ 'Reset' if lang == 'vi' else 'リセット' }}
                     </button>
                 </div>
+
+                <!-- Goose Color Customizer Bar -->
+                <div id="goose-color-picker-wrap" class="goose-color-picker-wrap" style="display: none;">
+                    <div class="goose-color-header">
+                        <span>🎨 {{ 'Màu lông Ngỗng:' if lang == 'vi' else 'ガチョウの毛色:' }}</span>
+                        <span id="goose-color-name" class="goose-color-active-label">Trắng Tuyết</span>
+                    </div>
+                    <div class="goose-swatch-list" id="sidebar-goose-swatches"></div>
+                </div>
+
                 <div class="pet-lb-header">
                     <span>🏆 {{ 'Bảng Xếp Hạng' if lang == 'vi' else 'ランキング' }}</span>
                 </div>
@@ -3219,6 +3229,13 @@
                             }}</span>
                     </div>
                 </div>
+                <div id="adopt-goose-color-wrap" class="goose-color-picker-wrap" style="display: none; margin-top: 10px;">
+                    <div class="goose-color-header">
+                        <span>🎨 {{ 'Chọn màu lông:' if lang == 'vi' else 'カラー選択:' }}</span>
+                        <span id="adopt-goose-color-name" class="goose-color-active-label">Trắng Tuyết</span>
+                    </div>
+                    <div class="goose-swatch-list" id="adopt-goose-swatches"></div>
+                </div>
             </div>
         </div>
 
@@ -3368,6 +3385,13 @@
                         <span class="meta-val">{{ 'Xoay 360° • Khung xương động' if lang == 'vi' else '360°ターン • スケルトン'
                             }}</span>
                     </div>
+                </div>
+                <div id="switch-goose-color-wrap" class="goose-color-picker-wrap" style="display: none; margin-top: 10px;">
+                    <div class="goose-color-header">
+                        <span>🎨 {{ 'Chọn màu lông:' if lang == 'vi' else 'カラー選択:' }}</span>
+                        <span id="switch-goose-color-name" class="goose-color-active-label">Trắng Tuyết</span>
+                    </div>
+                    <div class="goose-swatch-list" id="switch-goose-swatches"></div>
                 </div>
             </div>
         </div>
@@ -5219,6 +5243,64 @@
             grid-template-columns: repeat(2, 1fr);
         }
     }
+
+    /* 🪿 Goose Color Picker Styling */
+    .goose-color-picker-wrap {
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 12px;
+        padding: 8px 10px;
+        margin: 8px 0;
+        transition: all 0.25s ease;
+    }
+    .goose-color-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 11px;
+        font-weight: 600;
+        color: #94a3b8;
+        margin-bottom: 7px;
+    }
+    .goose-color-active-label {
+        color: #f8fafc;
+        font-weight: 700;
+        font-size: 11px;
+        background: rgba(139, 92, 246, 0.2);
+        border: 1px solid rgba(139, 92, 246, 0.35);
+        padding: 1px 7px;
+        border-radius: 999px;
+    }
+    .goose-swatch-list {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+    .goose-swatch-btn {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        border: 1.5px solid rgba(255, 255, 255, 0.25);
+        cursor: pointer;
+        transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+        position: relative;
+        padding: 0;
+        outline: none;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.25);
+    }
+    .goose-swatch-btn:hover {
+        transform: scale(1.18);
+        border-color: rgba(255, 255, 255, 0.7);
+    }
+    .goose-swatch-btn.active {
+        transform: scale(1.22);
+        box-shadow: 0 0 0 2px #0f172a, 0 0 0 4px #8b5cf6;
+        border-color: #ffffff;
+    }
+    .goose-swatch-custom {
+        position: relative;
+    }
 </style>
 
 <script>
@@ -5594,7 +5676,63 @@
             display.className = 'pet-interaction-ring pet-anim-' + mood;
         }
 
+        const isGoose = (type === 'goose' || type === 'goose_duck');
+        const gooseWrap = document.getElementById('goose-color-picker-wrap');
+        if (gooseWrap) {
+            gooseWrap.style.display = isGoose ? 'block' : 'none';
+            if (isGoose) renderGooseColorSwatches();
+        }
+
         loadInlineLeaderboard();
+    }
+
+    function renderGooseColorSwatches() {
+        if (!window.Pet3DEngine || !window.Pet3DEngine.GOOSE_COLOR_THEMES) return;
+        const themes = window.Pet3DEngine.GOOSE_COLOR_THEMES;
+        const activeKey = window.Pet3DEngine.getGooseColor();
+        const activeTheme = themes[activeKey] || themes['white'];
+        const lang = typeof CURRENT_LANG !== 'undefined' ? CURRENT_LANG : 'vi';
+
+        const targets = [
+            { listId: 'sidebar-goose-swatches', labelId: 'goose-color-name' },
+            { listId: 'switch-goose-swatches', labelId: 'switch-goose-color-name' },
+            { listId: 'adopt-goose-swatches', labelId: 'adopt-goose-color-name' }
+        ];
+
+        targets.forEach(tgt => {
+            const listEl = document.getElementById(tgt.listId);
+            const labelEl = document.getElementById(tgt.labelId);
+            if (!listEl) return;
+
+            if (labelEl) {
+                if (activeKey.startsWith('#')) {
+                    labelEl.textContent = (lang === 'ja' ? 'カスタム' : 'Tùy chọn') + ' (' + activeKey + ')';
+                } else {
+                    labelEl.textContent = lang === 'ja' ? (activeTheme.name_ja || activeTheme.name_vi) : activeTheme.name_vi;
+                }
+            }
+
+            let html = '';
+            Object.keys(themes).forEach(key => {
+                const item = themes[key];
+                const isActive = (key === activeKey);
+                const title = lang === 'ja' ? (item.name_ja || item.name_vi) : item.name_vi;
+                html += `<button type="button" class="goose-swatch-btn ${isActive ? 'active' : ''}" onclick="selectGooseColorTheme('${item.id}')" title="${title}" style="background: ${item.colorHex}; border-color: ${item.borderHex};"></button>`;
+            });
+
+            const isCustom = activeKey.startsWith('#');
+            const customVal = isCustom ? activeKey : '#ffffff';
+            html += `<label class="goose-swatch-btn goose-swatch-custom ${isCustom ? 'active' : ''}" title="${lang === 'ja' ? 'カラーピッカー' : 'Bảng chọn màu tự do'}" style="background: conic-gradient(red, yellow, lime, aqua, blue, magenta, red); display: inline-flex; align-items: center; justify-content: center; overflow: hidden; cursor: pointer;"><input type="color" value="${customVal}" onchange="selectGooseColorTheme(this.value)" style="opacity: 0; width: 100%; height: 100%; cursor: pointer;"></label>`;
+
+            listEl.innerHTML = html;
+        });
+    }
+
+    function selectGooseColorTheme(themeKeyOrHex) {
+        if (window.Pet3DEngine && window.Pet3DEngine.setGooseColor) {
+            window.Pet3DEngine.setGooseColor(themeKeyOrHex);
+        }
+        renderGooseColorSwatches();
     }
 
     function toggleSidebarPetDetails() {
@@ -5834,6 +5972,14 @@
             if (foodEl) foodEl.textContent = cfg.food_name || 'Thức ăn 🍖';
             if (badgeEl) badgeEl.textContent = (cfg.modelUrl && cfg.modelUrl.endsWith('.glb')) ? 'ORIGINAL GLB 3D' : 'RIGGED 3D MODEL';
         }
+
+        const isGoose = (type === 'goose' || type === 'goose_duck');
+        const adoptGooseWrap = document.getElementById('adopt-goose-color-wrap');
+        if (adoptGooseWrap) {
+            adoptGooseWrap.style.display = isGoose ? 'block' : 'none';
+            if (isGoose) renderGooseColorSwatches();
+        }
+
         if (window.Pet3DEngine && window.Pet3DEngine.previewSpecies) {
             window.Pet3DEngine.previewSpecies(type, 'adopt');
         }
@@ -5887,6 +6033,14 @@
             if (foodEl) foodEl.textContent = cfg.food_name || 'Thức ăn 🍖';
             if (badgeEl) badgeEl.textContent = (cfg.modelUrl && cfg.modelUrl.endsWith('.glb')) ? 'ORIGINAL GLB 3D' : 'RIGGED 3D MODEL';
         }
+
+        const isGoose = (type === 'goose' || type === 'goose_duck');
+        const switchGooseWrap = document.getElementById('switch-goose-color-wrap');
+        if (switchGooseWrap) {
+            switchGooseWrap.style.display = isGoose ? 'block' : 'none';
+            if (isGoose) renderGooseColorSwatches();
+        }
+
         if (window.Pet3DEngine && window.Pet3DEngine.previewSpecies) {
             window.Pet3DEngine.previewSpecies(type);
         }

@@ -255,6 +255,152 @@ window.Pet3DEngine = (function () {
     SPECIES_CONFIG.duckling = SPECIES_CONFIG.duck;
     SPECIES_CONFIG.goose_duck = SPECIES_CONFIG.goose;
 
+    // ==========================================
+    // 🪿 GOOSE COLOR CUSTOMIZATION THEMES
+    // ==========================================
+    const GOOSE_COLOR_THEMES = {
+        white: {
+            id: 'white',
+            name_vi: 'Trắng Tuyết',
+            name_ja: 'スノーホワイト',
+            icon: '⚪',
+            body: 0xf4f4f5,
+            head: 0xffffff,
+            beak: 0xf97316,
+            colorHex: '#ffffff',
+            borderHex: '#cbd5e1'
+        },
+        yellow: {
+            id: 'yellow',
+            name_vi: 'Vịt Vàng Cute',
+            name_ja: 'ひよこイエロー',
+            icon: '🟡',
+            body: 0xfbbf24,
+            head: 0xfde047,
+            beak: 0xea580c,
+            colorHex: '#facc15',
+            borderHex: '#eab308'
+        },
+        pink: {
+            id: 'pink',
+            name_vi: 'Hồng Pastel',
+            name_ja: 'パステルピンク',
+            icon: '🌸',
+            body: 0xf472b6,
+            head: 0xfbcfe8,
+            beak: 0xf97316,
+            colorHex: '#f472b6',
+            borderHex: '#ec4899'
+        },
+        blue: {
+            id: 'blue',
+            name_vi: 'Xanh Lam',
+            name_ja: 'スカイブルー',
+            icon: '🔵',
+            body: 0x38bdf8,
+            head: 0xbae6fd,
+            beak: 0xf97316,
+            colorHex: '#38bdf8',
+            borderHex: '#0284c7'
+        },
+        black: {
+            id: 'black',
+            name_vi: 'Hắc Ám (Ninja)',
+            name_ja: 'シャドウブラック',
+            icon: '⚫',
+            body: 0x18181b,
+            head: 0x27272a,
+            beak: 0xf59e0b,
+            colorHex: '#18181b',
+            borderHex: '#3f3f46'
+        },
+        green: {
+            id: 'green',
+            name_vi: 'Áo Len Xanh',
+            name_ja: 'グリーンベスト',
+            icon: '🟢',
+            body: 0x10b981,
+            head: 0xd1d5db,
+            beak: 0xea580c,
+            colorHex: '#10b981',
+            borderHex: '#059669'
+        }
+    };
+
+    function getGooseColor() {
+        try {
+            const saved = localStorage.getItem('pet_goose_color_theme');
+            if (saved && (GOOSE_COLOR_THEMES[saved] || saved.startsWith('#'))) return saved;
+        } catch (e) {}
+        return 'white';
+    }
+
+    function setGooseColor(colorKeyOrHex) {
+        if (!colorKeyOrHex) return;
+        try {
+            localStorage.setItem('pet_goose_color_theme', colorKeyOrHex);
+        } catch (e) {}
+
+        const viewports = [roaming, switchPreview, adoptPreview];
+        viewports.forEach(vp => {
+            if (vp && vp.modelGroup) {
+                applyGooseColorToRoot(vp.modelGroup, colorKeyOrHex);
+            }
+        });
+        return colorKeyOrHex;
+    }
+
+    function applyGooseColorToRoot(root, colorConfig) {
+        if (!root) return;
+        let headColor = 0xffffff;
+        let bodyColor = 0xf4f4f5;
+        let beakColor = 0xf97316;
+
+        if (typeof colorConfig === 'string') {
+            if (GOOSE_COLOR_THEMES[colorConfig]) {
+                const t = GOOSE_COLOR_THEMES[colorConfig];
+                headColor = t.head;
+                bodyColor = t.body;
+                beakColor = t.beak;
+            } else if (colorConfig.startsWith('#')) {
+                bodyColor = colorConfig;
+                headColor = colorConfig;
+                beakColor = 0xf97316;
+            }
+        } else if (colorConfig && typeof colorConfig === 'object') {
+            headColor = colorConfig.head || headColor;
+            bodyColor = colorConfig.body || bodyColor;
+            beakColor = colorConfig.beak || beakColor;
+        }
+
+        root.traverse(child => {
+            if (child.isMesh && child.material) {
+                const mats = Array.isArray(child.material) ? child.material : [child.material];
+                mats.forEach(mat => {
+                    const matName = (mat.name || '').toLowerCase();
+                    const meshName = (child.name || '').toLowerCase();
+
+                    if (matName === 'body' || meshName.includes('body')) {
+                        mat.color.set(bodyColor);
+                        mat.needsUpdate = true;
+                    } else if (matName.includes('.001') || meshName.includes('.001')) {
+                        // Head & neck
+                        mat.color.set(headColor);
+                        mat.needsUpdate = true;
+                    } else if ((matName === 'material' || meshName === 'leg_material_0') && !matName.includes('.') && !meshName.includes('.')) {
+                        // Beak & feet
+                        mat.color.set(beakColor);
+                        mat.needsUpdate = true;
+                    } else if (matName.includes('.002') || matName.includes('.003') || meshName.includes('.002') || meshName.includes('.003')) {
+                        // Eyes
+                        mat.color.set(0x0a0a0a);
+                        mat.needsUpdate = true;
+                    }
+                });
+            }
+        });
+    }
+
     function init(data) {
         petData = data || {};
         const newSpecies = petData.type && SPECIES_CONFIG[petData.type] ? petData.type : 'shiba';
@@ -615,6 +761,11 @@ window.Pet3DEngine = (function () {
                     }
                 }
             });
+        }
+
+        // Apply species-specific dynamic customization (e.g. Goose color theme)
+        if (cfg === SPECIES_CONFIG.goose || (cfg.modelUrl && cfg.modelUrl.includes('goose.glb'))) {
+            applyGooseColorToRoot(root, getGooseColor());
         }
 
         // 4. Auto-Fit Bounding Box Normalization
@@ -1406,6 +1557,9 @@ window.Pet3DEngine = (function () {
         syncPet,
         resetPosition,
         onPanelShow,
-        SPECIES_CONFIG
+        SPECIES_CONFIG,
+        setGooseColor,
+        getGooseColor,
+        GOOSE_COLOR_THEMES
     };
 })();
