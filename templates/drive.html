@@ -420,6 +420,36 @@
                         </svg>
                     </button>
                 </div>
+
+                <!-- Volume Control -->
+                <div class="radio-volume-row"
+                    style="display: flex; align-items: center; gap: 8px; padding: 4px 6px 6px; margin-top: 2px;">
+                    <button id="radio-volume-btn" onclick="toggleRadioMute()" type="button"
+                        style="background: none; border: none; color: rgba(255,255,255,0.85); cursor: pointer; padding: 2px; display: flex; align-items: center; justify-content: center; transition: color 0.2s, transform 0.1s;"
+                        title="{{ 'Tắt/Bật tiếng' if lang == 'vi' else 'ミュート切替' }}">
+                        <svg id="radio-vol-icon-high" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                            <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                        </svg>
+                        <svg id="radio-vol-icon-low" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
+                            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                            <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                        </svg>
+                        <svg id="radio-vol-icon-mute" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
+                            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                            <line x1="23" y1="9" x2="17" y2="15"></line>
+                            <line x1="17" y1="9" x2="23" y2="15"></line>
+                        </svg>
+                    </button>
+                    <div style="flex-grow: 1; display: flex; align-items: center; position: relative;">
+                        <input type="range" id="radio-volume-slider" min="0" max="100" value="80"
+                            oninput="setRadioVolume(this.value)"
+                            style="width: 100%; cursor: pointer;"
+                            title="{{ 'Âm lượng LSA Music' if lang == 'vi' else '音量' }}">
+                    </div>
+                    <span id="radio-volume-label"
+                        style="font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.65); min-width: 28px; text-align: right; font-variant-numeric: tabular-nums;">80%</span>
+                </div>
             </div>
 
             <!-- Hidden YouTube Player -->
@@ -485,6 +515,61 @@
             }
 
             #radio-play-btn:active {
+                transform: scale(0.92);
+            }
+
+            #radio-volume-slider {
+                -webkit-appearance: none;
+                appearance: none;
+                height: 4px;
+                background: linear-gradient(to right, rgba(99, 102, 241, 0.9) 0%, rgba(129, 140, 248, 0.9) 80%, rgba(255, 255, 255, 0.2) 80%, rgba(255, 255, 255, 0.2) 100%);
+                border-radius: 999px;
+                outline: none;
+                transition: background 0.15s ease;
+            }
+
+            #radio-volume-slider::-webkit-slider-runnable-track {
+                height: 4px;
+                border-radius: 999px;
+            }
+
+            #radio-volume-slider::-webkit-slider-thumb {
+                -webkit-appearance: none;
+                appearance: none;
+                width: 11px;
+                height: 11px;
+                background: #ffffff;
+                border-radius: 50%;
+                cursor: pointer;
+                box-shadow: 0 1px 5px rgba(0, 0, 0, 0.4), 0 0 4px rgba(99, 102, 241, 0.5);
+                transition: transform 0.15s ease, box-shadow 0.15s ease;
+                margin-top: -3.5px;
+            }
+
+            #radio-volume-slider:hover::-webkit-slider-thumb {
+                transform: scale(1.25);
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5), 0 0 8px rgba(99, 102, 241, 0.8);
+            }
+
+            #radio-volume-slider:active::-webkit-slider-thumb {
+                transform: scale(1.1);
+            }
+
+            #radio-volume-slider::-moz-range-thumb {
+                width: 11px;
+                height: 11px;
+                background: #ffffff;
+                border-radius: 50%;
+                border: none;
+                cursor: pointer;
+            }
+
+            #radio-volume-btn:hover {
+                transform: scale(1.1);
+                color: #ffffff !important;
+            }
+
+            #radio-volume-btn:active {
                 transform: scale(0.92);
             }
 
