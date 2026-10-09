@@ -162,9 +162,11 @@ window.Pet3DEngine = (function () {
             sound: 'Cạp cạp! Quack! 🌊',
             food_name: 'Bánh mì 🍞',
             targetHeight: 1.30,
-            rotOffsetY: 0.45,
-            camY: 0.55,
-            camPosY: 1.15
+            rotOffsetY: -0.68,
+            camPosX: 0.0,
+            camY: 0.52,
+            camPosY: 1.08,
+            camPosZ: 2.38
         },
         redfox: {
             modelUrl: '/static/models/fox.glb',
@@ -234,9 +236,11 @@ window.Pet3DEngine = (function () {
             sound: 'Honk honk! Cạp cạp! 🕵️',
             food_name: 'Bánh mì 🍞',
             targetHeight: 1.30,
-            rotOffsetY: 0.45,
-            camY: 0.55,
-            camPosY: 1.15,
+            rotOffsetY: -0.68,
+            camPosX: 0.0,
+            camY: 0.52,
+            camPosY: 1.08,
+            camPosZ: 2.38,
             customScale: 2.45,
             customPosX: 0.0,
             customPosY: 0.0,
@@ -805,7 +809,7 @@ window.Pet3DEngine = (function () {
         const modelWrapper = new THREE.Group();
         modelWrapper.name = 'petModelWrapper';
         modelWrapper.position.set(0, 0, 0);
-        modelWrapper.rotation.y = cfg.rotOffsetY || 0.45;
+        modelWrapper.rotation.y = cfg.rotOffsetY !== undefined ? cfg.rotOffsetY : 0.45;
         modelWrapper.add(root);
         const musicAura = createMusicAuraMesh();
         musicAura.position.set(0, headY, 0);
@@ -840,15 +844,18 @@ window.Pet3DEngine = (function () {
         }
 
         if (vp === roaming) {
-            vp.camera.position.z = 2.65;
+            vp.camera.position.x = (cfg.camPosX !== undefined ? cfg.camPosX : 1.15);
+            vp.camera.position.z = (cfg.camPosZ !== undefined ? cfg.camPosZ + 0.15 : 2.65);
             vp.camera.position.y = (cfg.camPosY ? cfg.camPosY + 0.05 : 1.14);
             vp.camera.lookAt(0, (cfg.camY ? cfg.camY + 0.02 : 0.50), 0);
         } else if (vp === switchPreview || vp === adoptPreview) {
-            vp.camera.position.z = 2.45;
+            vp.camera.position.x = (cfg.camPosX !== undefined ? cfg.camPosX : 1.15);
+            vp.camera.position.z = (cfg.camPosZ !== undefined ? cfg.camPosZ : 2.45);
             vp.camera.position.y = (cfg.camPosY || 1.05);
             vp.camera.lookAt(0, (cfg.camY || 0.46), 0);
         } else {
-            vp.camera.position.z = 2.35;
+            vp.camera.position.x = (cfg.camPosX !== undefined ? cfg.camPosX : 1.0);
+            vp.camera.position.z = (cfg.camPosZ !== undefined ? cfg.camPosZ : 2.35);
             vp.camera.position.y = (cfg.camPosY || 0.98);
             vp.camera.lookAt(0, (cfg.camY || 0.44), 0);
         }
@@ -890,7 +897,7 @@ window.Pet3DEngine = (function () {
         const startTime = performance.now();
         const duration = 1100;
         const cfg = SPECIES_CONFIG[currentSpecies] || SPECIES_CONFIG['shiba'];
-        const baseRotY = cfg.rotOffsetY || 0.45;
+        const baseRotY = cfg.rotOffsetY !== undefined ? cfg.rotOffsetY : 0.45;
 
         const spinAnim = () => {
             const elapsed = performance.now() - startTime;
@@ -1267,7 +1274,7 @@ window.Pet3DEngine = (function () {
             }
         } else {
             const cfg = SPECIES_CONFIG[currentSpecies] || SPECIES_CONFIG['shiba'];
-            const baseRotY = cfg.rotOffsetY || 0.45;
+            const baseRotY = cfg.rotOffsetY !== undefined ? cfg.rotOffsetY : 0.45;
             const targetRotY = baseRotY + (mousePos.x / window.innerWidth - 0.5) * 0.65;
             const targetRotX = (mousePos.y / window.innerHeight - 0.5) * 0.22;
 
