@@ -581,7 +581,7 @@ window.Pet3DEngine = (function () {
                 if (child.isMesh) {
                     child.castShadow = true;
                     child.receiveShadow = true;
-                    if (child.geometry) {
+                    if (child.geometry && !child.isSkinnedMesh) {
                         child.geometry.computeVertexNormals();
                     }
                     if (child.material) {
@@ -693,11 +693,13 @@ window.Pet3DEngine = (function () {
         }
         if (pose === 'walk') {
             return anims.find(a => norm(a.name).includes('walk')) ||
+                   anims.find(a => norm(a.name).includes('mixamo')) ||
                    anims.find(a => norm(a.name).includes('run')) || anims[0];
         }
         if (pose === 'run' || pose === 'dance') {
             return anims.find(a => norm(a.name).includes('run') || norm(a.name).includes('gallop')) ||
-                   anims.find(a => norm(a.name).includes('walk')) || anims[0];
+                   anims.find(a => norm(a.name).includes('walk')) ||
+                   anims.find(a => norm(a.name).includes('mixamo')) || anims[0];
         }
         if (pose === 'eat') {
             return anims.find(a => norm(a.name).includes('eat') || norm(a.name).includes('eating')) ||
@@ -823,7 +825,8 @@ window.Pet3DEngine = (function () {
 
         newAction.reset();
         newAction.fadeIn(0.2);
-        const speed = animType === 'eat' ? 1.25 : (animType === 'run' ? 1.35 : 1.0);
+        const isMixamoWalk = targetClip.name && targetClip.name.toLowerCase().includes('mixamo');
+        const speed = animType === 'eat' ? 1.25 : (animType === 'run' ? 1.45 : (animType === 'idle' && isMixamoWalk ? 0.35 : 1.0));
         newAction.setEffectiveTimeScale(speed);
         newAction.setEffectiveWeight(1.0);
         newAction.setLoop(THREE.LoopRepeat);
