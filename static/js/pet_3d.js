@@ -161,10 +161,10 @@ window.Pet3DEngine = (function () {
             emoji: '🦆',
             sound: 'Cạp cạp! Quack! 🌊',
             food_name: 'Bánh mì 🍞',
-            targetHeight: 1.15,
+            targetHeight: 1.30,
             rotOffsetY: 0.45,
-            camY: 0.50,
-            camPosY: 1.05
+            camY: 0.55,
+            camPosY: 1.15
         },
         redfox: {
             modelUrl: '/static/models/fox.glb',
@@ -581,17 +581,33 @@ window.Pet3DEngine = (function () {
                 if (child.isMesh) {
                     child.castShadow = true;
                     child.receiveShadow = true;
+                    if (child.geometry) {
+                        child.geometry.computeVertexNormals();
+                    }
                     if (child.material) {
-                        child.material.roughness = Math.min(child.material.roughness !== undefined ? child.material.roughness : 0.5, 0.65);
-                        child.material.metalness = Math.min(child.material.metalness !== undefined ? child.material.metalness : 0.05, 0.15);
-                        if (child.material.map) {
-                            child.material.map.encoding = THREE.sRGBEncoding;
-                            child.material.map.needsUpdate = true;
-                        }
-                        if (child.isSkinnedMesh) {
-                            child.material.skinning = true;
-                        }
-                        child.material.needsUpdate = true;
+                        const mats = Array.isArray(child.material) ? child.material : [child.material];
+                        mats.forEach(mat => {
+                            if (!mat.map) {
+                                mat.metalness = 0.0;
+                                const mName = (mat.name || '').toLowerCase();
+                                if (mName.includes('eye')) {
+                                    mat.roughness = 0.1;
+                                } else if (mName.includes('beak')) {
+                                    mat.roughness = 0.4;
+                                } else {
+                                    mat.roughness = 0.78;
+                                }
+                            } else {
+                                mat.roughness = Math.min(mat.roughness !== undefined ? mat.roughness : 0.5, 0.65);
+                                mat.metalness = Math.min(mat.metalness !== undefined ? mat.metalness : 0.02, 0.08);
+                                mat.map.encoding = THREE.sRGBEncoding;
+                                mat.map.needsUpdate = true;
+                            }
+                            if (child.isSkinnedMesh) {
+                                mat.skinning = true;
+                            }
+                            mat.needsUpdate = true;
+                        });
                     }
                 }
             });
