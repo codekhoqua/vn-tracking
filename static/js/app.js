@@ -328,6 +328,12 @@ function renderWeatherUI(data, isVN, defaultLocName) {
         effectiveEffect = 'sun';
     }
 
+    // Extract extra weather indicators
+    const humidity = (cc.humidity !== undefined && cc.humidity !== null) ? cc.humidity : 80;
+    const windKmh = (cc.wind_kmh !== undefined && cc.wind_kmh !== null) ? cc.wind_kmh : 8;
+    const uvIdx = (cc.uv_index !== undefined && cc.uv_index !== null) ? cc.uv_index : 0;
+    const rainMm = (cc.rain_mm !== undefined && cc.rain_mm !== null) ? cc.rain_mm : 0;
+
     // Apply manual user simulation override if active
     if (userWeatherOverride) {
         effectiveEffect = userWeatherOverride;
@@ -344,25 +350,58 @@ function renderWeatherUI(data, isVN, defaultLocName) {
         bgEl.style.backgroundImage = `url('${bgUrl}')`;
     }
 
-    // Update Inline Container
+    // Update Inline Container with extra weather indicators
     const inlineContainer = document.getElementById('inline-weather-container');
     if (inlineContainer) {
         inlineContainer.style.display = 'flex';
+        inlineContainer.style.alignItems = 'center';
         inlineContainer.innerHTML = `
-            <div style="color: ${iconColor}; display: flex; align-items: center; justify-content: center; margin-right: 6px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); transition: transform 0.3s ease;">
-                ${iconSvg}
-            </div>
-            <div style="font-size: 3.2rem; font-weight: 300; color: #fff; line-height: 1; text-shadow: 0 2px 8px rgba(0,0,0,0.4); margin-right: 12px; font-variant-numeric: tabular-nums;">
-                ${temp}<span style="font-size: 1.2rem; vertical-align: super; font-weight: 500; opacity: 0.9;">°c</span>
-            </div>
-            <div style="display: flex; flex-direction: column; justify-content: center;">
-                <div style="font-size: 0.95rem; font-weight: 700; color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,0.4); display: flex; align-items: center; gap: 4px; margin-bottom: 2px;">
-                    <span class="weather-live-dot" title="Live update: 60s"></span>
-                    <span>${locName}</span>
-                    <i class="fas fa-sync-alt" id="weather-sync-icon" style="font-size: 0.72rem; color: rgba(255,255,255,0.45); margin-left: 4px; cursor: pointer;" title="${isVN ? 'Cập nhật thời tiết ngay' : '今すぐ更新'}"></i>
+            <div style="display: flex; align-items: center;">
+                <div style="color: ${iconColor}; display: flex; align-items: center; justify-content: center; margin-right: 4px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); transition: transform 0.3s ease;">
+                    ${iconSvg}
                 </div>
-                <div style="font-size: 0.85rem; color: rgba(255,255,255,0.85); font-weight: 500; text-shadow: 0 1px 4px rgba(0,0,0,0.4); margin-bottom: 2px;">${desc}</div>
-                <div style="font-size: 0.74rem; color: rgba(255,255,255,0.65); font-weight: 500; text-shadow: 0 1px 4px rgba(0,0,0,0.4);">H: ${maxTemp}° | L: ${minTemp}°</div>
+                <div style="font-size: 3rem; font-weight: 300; color: #fff; line-height: 1; text-shadow: 0 2px 8px rgba(0,0,0,0.4); margin-right: 10px; font-variant-numeric: tabular-nums;">
+                    ${temp}<span style="font-size: 1.2rem; vertical-align: super; font-weight: 500; opacity: 0.9;">°c</span>
+                </div>
+                <div style="display: flex; flex-direction: column; justify-content: center; min-width: 105px;">
+                    <div style="font-size: 0.95rem; font-weight: 700; color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,0.4); display: flex; align-items: center; gap: 4px; margin-bottom: 2px;">
+                        <span class="weather-live-dot" title="Live update: 60s"></span>
+                        <span>${locName}</span>
+                        <i class="fas fa-sync-alt" id="weather-sync-icon" style="font-size: 0.72rem; color: rgba(255,255,255,0.45); margin-left: 2px; cursor: pointer;" title="${isVN ? 'Cập nhật thời tiết ngay' : '今すぐ更新'}"></i>
+                    </div>
+                    <div style="font-size: 0.85rem; color: rgba(255,255,255,0.85); font-weight: 500; text-shadow: 0 1px 4px rgba(0,0,0,0.4); margin-bottom: 2px;">${desc}</div>
+                    <div style="font-size: 0.74rem; color: rgba(255,255,255,0.65); font-weight: 500; text-shadow: 0 1px 4px rgba(0,0,0,0.4);">H: ${maxTemp}° | L: ${minTemp}°</div>
+                </div>
+            </div>
+
+            <!-- Extra Realtime Weather Metrics Badges -->
+            <div class="weather-metrics-cluster" style="display: flex; flex-wrap: wrap; gap: 5px; margin-left: 14px; background: rgba(255,255,255,0.06); padding: 5px 8px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);">
+                <!-- Cảm giác như -->
+                <div class="weather-metric-pill" title="${isVN ? 'Nhiệt độ cảm nhận thực tế' : '体感温度'}" style="display: flex; align-items: center; gap: 4px; font-size: 0.73rem; color: #fed7aa; padding: 2px 6px; border-radius: 6px; background: rgba(251, 146, 60, 0.14);">
+                    <i class="fas fa-temperature-high" style="color: #fb923c; font-size: 0.72rem;"></i>
+                    <span style="font-weight: 600;">~${feelsLike}°</span>
+                </div>
+                <!-- Độ ẩm -->
+                <div class="weather-metric-pill" title="${isVN ? 'Độ ẩm không khí' : '湿度'}" style="display: flex; align-items: center; gap: 4px; font-size: 0.73rem; color: #bae6fd; padding: 2px 6px; border-radius: 6px; background: rgba(56, 189, 248, 0.14);">
+                    <i class="fas fa-tint" style="color: #38bdf8; font-size: 0.72rem;"></i>
+                    <span style="font-weight: 600;">${humidity}%</span>
+                </div>
+                <!-- Gió -->
+                <div class="weather-metric-pill" title="${isVN ? 'Tốc độ gió' : '風速'}" style="display: flex; align-items: center; gap: 4px; font-size: 0.73rem; color: #e2e8f0; padding: 2px 6px; border-radius: 6px; background: rgba(148, 163, 184, 0.14);">
+                    <i class="fas fa-wind" style="color: #cbd5e1; font-size: 0.72rem;"></i>
+                    <span style="font-weight: 600;">${windKmh}km/h</span>
+                </div>
+                <!-- UV -->
+                <div class="weather-metric-pill" title="${isVN ? 'Chỉ số tia UV' : 'UVインデックス'}" style="display: flex; align-items: center; gap: 4px; font-size: 0.73rem; color: #fef08a; padding: 2px 6px; border-radius: 6px; background: rgba(250, 204, 21, 0.14);">
+                    <i class="fas fa-sun" style="color: #facc15; font-size: 0.72rem;"></i>
+                    <span style="font-weight: 600;">UV ${uvIdx}</span>
+                </div>
+                ${rainMm > 0 ? `
+                <!-- Lượng mưa -->
+                <div class="weather-metric-pill" title="${isVN ? 'Lượng mưa hiện tại' : '降水量'}" style="display: flex; align-items: center; gap: 4px; font-size: 0.73rem; color: #bfdbfe; padding: 2px 6px; border-radius: 6px; background: rgba(96, 165, 250, 0.14);">
+                    <i class="fas fa-cloud-showers-heavy" style="color: #60a5fa; font-size: 0.72rem;"></i>
+                    <span style="font-weight: 600;">${rainMm}mm</span>
+                </div>` : ''}
             </div>
         `;
     }
