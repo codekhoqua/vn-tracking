@@ -253,10 +253,10 @@ window.Pet3DEngine = (function () {
     SPECIES_CONFIG.kitty = SPECIES_CONFIG.neko;
     SPECIES_CONFIG.tiger = SPECIES_CONFIG.fox;
     SPECIES_CONFIG.penguin = SPECIES_CONFIG.bunny;
-    SPECIES_CONFIG.pinguin = SPECIES_CONFIG.bunny;
     SPECIES_CONFIG.horse = SPECIES_CONFIG.panda;
     SPECIES_CONFIG.deer = SPECIES_CONFIG.dragon;
-    SPECIES_CONFIG.duckling = SPECIES_CONFIG.duck;
+    SPECIES_CONFIG.duck = SPECIES_CONFIG.goose;
+    SPECIES_CONFIG.duckling = SPECIES_CONFIG.goose;
     SPECIES_CONFIG.goose_duck = SPECIES_CONFIG.goose;
 
     // ==========================================

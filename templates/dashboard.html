@@ -244,7 +244,7 @@
     <div class="mobile-brand">
         <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" width="26" height="26" style="border-radius: var(--radius-sm);">
         <span>VN-Tracking</span>
-        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.9</i></sup>
+        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.10</i></sup>
     </div>
     <div class="mobile-topbar-right">
         <button type="button" class="mobile-icon-btn" onclick="toggleNotificationPanel(event)" title="{{ 'Thông báo' if lang == 'vi' else '通知' }}">
@@ -274,7 +274,7 @@
         <div style="display: flex; flex-direction: column; justify-content: center;">
             <span>VN-Tracking</span>
             <sup class="version-tag"
-                style="color: var(--text-3); font-size: 11px; margin-top: 2px;"><i>v1.9.9</i></sup>
+                style="color: var(--text-3); font-size: 11px; margin-top: 2px;"><i>v1.9.10</i></sup>
         </div>
     </div>
 
@@ -3288,11 +3288,6 @@
                 <div class="pet-species-name">Lạc Đà Alpaca</div>
                 <div class="pet-species-sound">Hummm~ 🌸</div>
             </div>
-            <div class="pet-species-card" onclick="selectAdoptSpecies('duck')" data-type="duck">
-                <div class="species-card-tag">WATERFOWL</div>
-                <div class="pet-species-name">Vịt Vàng</div>
-                <div class="pet-species-sound">Cạp cạp! 🌊</div>
-            </div>
             <div class="pet-species-card" onclick="selectAdoptSpecies('goose')" data-type="goose">
                 <div class="species-card-tag">GOOSE DUCK</div>
                 <div class="pet-species-name">Ngỗng Goose</div>
@@ -3444,11 +3439,6 @@
                 <div class="species-card-tag">HIGHLAND</div>
                 <div class="pet-species-name">Lạc Đà Alpaca</div>
                 <div class="pet-species-sound">Hummm~ 🌸</div>
-            </div>
-            <div class="pet-species-card" onclick="pickSwitchSpecies('duck')" data-type="duck">
-                <div class="species-card-tag">WATERFOWL</div>
-                <div class="pet-species-name">Vịt Vàng</div>
-                <div class="pet-species-sound">Cạp cạp! 🌊</div>
             </div>
             <div class="pet-species-card" onclick="pickSwitchSpecies('goose')" data-type="goose">
                 <div class="species-card-tag">GOOSE DUCK</div>
@@ -6115,7 +6105,7 @@
 
     function openPetSwitchModal() {
         if (!petData) return;
-        selectedSwitchSpeciesType = petData.type || 'shiba';
+        selectedSwitchSpeciesType = (petData.type === 'duck' ? 'goose' : (petData.type || 'shiba'));
         document.querySelectorAll('#switch-species-grid .pet-species-card').forEach(el => {
             el.classList.toggle('selected', el.dataset.type === selectedSwitchSpeciesType);
         });
