@@ -549,6 +549,8 @@ select option { background: var(--surface); color: var(--text); }
     display: flex; gap: 24px;
     overflow-x: auto; padding-bottom: 28px;
     align-items: flex-start;
+    position: relative;
+    z-index: 1;
 }
 
 .kanban-column {
@@ -2633,6 +2635,12 @@ body:has(.login-page) {
     margin-bottom: 24px;
     border-bottom: 1px solid var(--border);
     flex-wrap: wrap;
+    position: relative;
+    z-index: 100;
+}
+.kanban-sort-btn {
+    position: relative;
+    z-index: 101;
 }
 .notion-icon-btn {
     color: var(--text-3);
@@ -2706,7 +2714,7 @@ body:has(.login-page) {
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-xl);
-    z-index: 50;
+    z-index: 9999;
     min-width: 200px;
     padding: 8px 0;
     font-family: var(--font);
