@@ -236,7 +236,11 @@ window.Pet3DEngine = (function () {
             targetHeight: 1.30,
             rotOffsetY: 0.45,
             camY: 0.55,
-            camPosY: 1.15
+            camPosY: 1.15,
+            customScale: 2.45,
+            customPosX: 0.0,
+            customPosY: 0.0,
+            customPosZ: -0.09
         }
     };
 
@@ -613,40 +617,45 @@ window.Pet3DEngine = (function () {
             });
         }
 
-        // 4. Auto-Fit Bounding Box Normalization (Strictly Mesh-based, ignores cameras/lights)
-        const box = new THREE.Box3();
-        root.traverse(child => {
-            if (child.isMesh) {
-                if (child.geometry) {
-                    child.geometry.computeBoundingBox();
+        // 4. Auto-Fit Bounding Box Normalization
+        let scale;
+        let headY;
+        if (cfg.customScale !== undefined) {
+            scale = cfg.customScale;
+            root.scale.setScalar(scale);
+            root.position.set(cfg.customPosX || 0, cfg.customPosY !== undefined ? cfg.customPosY : 0, cfg.customPosZ || 0);
+            headY = (cfg.targetHeight || 1.30) * 1.08 + (cfg.haloExtraY || 0);
+        } else {
+            root.updateMatrixWorld(true);
+            const box = new THREE.Box3();
+            root.traverse(child => {
+                if (child.isMesh) {
+                    child.updateMatrixWorld(true);
+                    box.expandByObject(child);
                 }
-                box.expandByObject(child);
+            });
+            if (box.isEmpty()) {
+                box.setFromObject(root);
             }
-        });
-        if (box.isEmpty()) {
-            box.setFromObject(root);
-        }
-        const size = box.getSize(new THREE.Vector3());
-        const center = box.getCenter(new THREE.Vector3());
-        const maxDim = Math.max(size.x, size.y, size.z) || 1;
+            const size = box.getSize(new THREE.Vector3());
+            const center = box.getCenter(new THREE.Vector3());
+            const maxDim = Math.max(size.x, size.y, size.z) || 1;
 
-        const targetHeight = cfg.targetHeight || 1.35;
-        const scale = targetHeight / maxDim;
+            const targetHeight = cfg.targetHeight || 1.35;
+            scale = targetHeight / maxDim;
+
+            root.scale.setScalar(scale);
+            root.position.x = -center.x * scale;
+            root.position.y = -box.min.y * scale; // Feet on ground at y = 0
+            root.position.z = -center.z * scale;
+            headY = (box.max.y - box.min.y) * scale * 1.08 + (cfg.haloExtraY || 0);
+        }
 
         const modelWrapper = new THREE.Group();
         modelWrapper.name = 'petModelWrapper';
         modelWrapper.position.set(0, 0, 0);
         modelWrapper.rotation.y = cfg.rotOffsetY || 0.45;
-
-        root.scale.setScalar(scale);
-        root.position.x = -center.x * scale;
-        root.position.y = -box.min.y * scale; // Feet on ground at y = 0
-        root.position.z = -center.z * scale;
-
         modelWrapper.add(root);
-
-        // 5. Floating Music DJ Halo (Safely floating above head, NO clipping or covering pet)
-        const headY = (box.max.y - box.min.y) * scale * 1.08 + (cfg.haloExtraY || 0);
         const musicAura = createMusicAuraMesh();
         musicAura.position.set(0, headY, 0);
         musicAura.visible = isDancing;
