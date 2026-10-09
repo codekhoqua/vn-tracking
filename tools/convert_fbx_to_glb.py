@@ -3,6 +3,15 @@ import struct
 import json
 import math
 
+def euler_to_quat(rx, ry, rz):
+    cx = math.cos(rx * 0.5); sx = math.sin(rx * 0.5)
+    cy = math.cos(ry * 0.5); sy = math.sin(ry * 0.5)
+    cz = math.cos(rz * 0.5); sz = math.sin(rz * 0.5)
+    return [round(sx * cy * cz - cx * sy * sz, 6),
+            round(cx * sy * cz + sx * cy * sz, 6),
+            round(cx * cy * sz - sx * sy * cz, 6),
+            round(cx * cy * cz + sx * sy * sz, 6)]
+
 def convert(variant='goose'):
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     fbx_path = os.path.join(base_dir, 'static', 'models', 'goose.fbx')
@@ -77,7 +86,7 @@ def convert(variant='goose'):
         ry = (-z - min_z)
         transformed_pts.append((rx * scale, ry * scale, rz * scale))
 
-    # 5. Compute mathematically smooth vertex normals for silky soft shading (NO crumpled tin-foil noise)
+    # 5. Compute mathematically smooth vertex normals for silky soft shading
     vert_normals = [[0.0, 0.0, 0.0] for _ in range(len(transformed_pts))]
     for poly in polygons:
         tris = []
@@ -113,7 +122,7 @@ def convert(variant='goose'):
         else:
             smooth_norms.append((0.0, 1.0, 0.0))
 
-    # 6. Materials definition (Vibrant, cute, soft velvety colors)
+    # 6. Materials definition
     if variant == 'duck':
         # Vịt Vàng: Sunny warm pastel yellow feathers, bright orange beak & feet, glossy black eyes
         materials_def = [
@@ -286,6 +295,108 @@ def convert(variant='goose'):
     model_title = 'CuteDuck_Model' if variant == 'duck' else 'GooseDuck_Model'
     mesh_title = 'CuteDuck_Mesh' if variant == 'duck' else 'GooseDuck_Mesh'
 
+    # 7. Authentic Duck/Goose Skeletal-like Motion Clips (Walk Waddle, Run, Idle, Eat, Trick)
+    animations_gltf = []
+
+    def create_clip(name, keyframes):
+        # keyframes: list of (time, [rx, ry, rz], [tx, ty, tz])
+        times = [k[0] for k in keyframes]
+        rots = [euler_to_quat(*k[1]) for k in keyframes]
+        trans = [k[2] for k in keyframes]
+
+        t_bytes = struct.pack(f'<{len(times)}f', *times)
+        while len(t_bytes) % 4 != 0: t_bytes += b'\x00'
+        t_bv = len(buffer_views)
+        buffer_views.append({'buffer': 0, 'byteOffset': len(bin_buffer), 'byteLength': len(t_bytes)})
+        bin_buffer.extend(t_bytes)
+        t_acc = len(accessors)
+        accessors.append({'bufferView': t_bv, 'byteOffset': 0, 'componentType': 5126, 'count': len(times), 'type': 'SCALAR', 'min': [min(times)], 'max': [max(times)]})
+
+        r_flat = [val for q in rots for val in q]
+        r_bytes = struct.pack(f'<{len(r_flat)}f', *r_flat)
+        while len(r_bytes) % 4 != 0: r_bytes += b'\x00'
+        r_bv = len(buffer_views)
+        buffer_views.append({'buffer': 0, 'byteOffset': len(bin_buffer), 'byteLength': len(r_bytes)})
+        bin_buffer.extend(r_bytes)
+        r_acc = len(accessors)
+        accessors.append({'bufferView': r_bv, 'byteOffset': 0, 'componentType': 5126, 'count': len(rots), 'type': 'VEC4'})
+
+        tr_flat = [val for t in trans for val in t]
+        tr_bytes = struct.pack(f'<{len(tr_flat)}f', *tr_flat)
+        while len(tr_bytes) % 4 != 0: tr_bytes += b'\x00'
+        tr_bv = len(buffer_views)
+        buffer_views.append({'buffer': 0, 'byteOffset': len(bin_buffer), 'byteLength': len(tr_bytes)})
+        bin_buffer.extend(tr_bytes)
+        tr_acc = len(accessors)
+        accessors.append({'bufferView': tr_bv, 'byteOffset': 0, 'componentType': 5126, 'count': len(trans), 'type': 'VEC3'})
+
+        animations_gltf.append({
+            'name': name,
+            'samplers': [
+                {'input': t_acc, 'interpolation': 'LINEAR', 'output': r_acc},
+                {'input': t_acc, 'interpolation': 'LINEAR', 'output': tr_acc}
+            ],
+            'channels': [
+                {'sampler': 0, 'target': {'node': 0, 'path': 'rotation'}},
+                {'sampler': 1, 'target': {'node': 0, 'path': 'translation'}}
+            ]
+        })
+
+    prefix = 'Duck' if variant == 'duck' else 'Goose'
+
+    # A. Walk Waddle (Dáng đi lạch bạch đặc trưng, nghiêng hông lắc lư theo nhịp bước)
+    walk_frames = [
+        (0.00, [0.00,  0.00,  0.00], [0.00, 0.000, 0.00]),
+        (0.20, [0.06,  0.05,  0.15], [0.00, 0.045, 0.00]),
+        (0.40, [0.00,  0.00,  0.00], [0.00, 0.000, 0.00]),
+        (0.60, [0.06, -0.05, -0.15], [0.00, 0.045, 0.00]),
+        (0.80, [0.00,  0.00,  0.00], [0.00, 0.000, 0.00]),
+    ]
+    create_clip(f'{prefix}_walk', walk_frames)
+
+    # B. Idle Breathing & Curious Look (Thở nhẹ nhàng, đầu lắc ngơ ngác đáng yêu)
+    idle_frames = [
+        (0.00, [ 0.00,  0.00,  0.00], [0.00, 0.000, 0.00]),
+        (0.60, [ 0.03,  0.04,  0.03], [0.00, 0.018, 0.00]),
+        (1.20, [ 0.00,  0.00,  0.00], [0.00, 0.000, 0.00]),
+        (1.80, [-0.02, -0.04, -0.03], [0.00, 0.015, 0.00]),
+        (2.40, [ 0.00,  0.00,  0.00], [0.00, 0.000, 0.00]),
+    ]
+    create_clip(f'{prefix}_idle', idle_frames)
+
+    # C. Run Sprint (Chạy lạch bạch nhanh thoăn thoắt)
+    run_frames = [
+        (0.00, [0.10,  0.00,  0.00], [0.00, 0.000, 0.00]),
+        (0.11, [0.14,  0.07,  0.20], [0.00, 0.065, 0.00]),
+        (0.22, [0.10,  0.00,  0.00], [0.00, 0.000, 0.00]),
+        (0.33, [0.14, -0.07, -0.20], [0.00, 0.065, 0.00]),
+        (0.44, [0.10,  0.00,  0.00], [0.00, 0.000, 0.00]),
+    ]
+    create_clip(f'{prefix}_run', run_frames)
+
+    # D. Eat / Pecking (Mổ thức ăn / bánh mì)
+    eat_frames = [
+        (0.00, [0.00,  0.00,  0.00], [0.00,  0.000, 0.00]),
+        (0.20, [0.45,  0.00,  0.00], [0.00, -0.040, 0.02]),
+        (0.35, [0.55,  0.00,  0.00], [0.00, -0.055, 0.03]),
+        (0.50, [0.42,  0.00,  0.00], [0.00, -0.035, 0.02]),
+        (0.65, [0.55,  0.00,  0.00], [0.00, -0.055, 0.03]),
+        (0.80, [0.30,  0.00,  0.00], [0.00, -0.020, 0.01]),
+        (1.00, [0.00,  0.00,  0.00], [0.00,  0.000, 0.00]),
+    ]
+    create_clip(f'{prefix}_eat', eat_frames)
+
+    # E. Trick / Jump (Nhảy mừng chiến thắng)
+    trick_frames = [
+        (0.00, [ 0.00,  0.00,  0.00], [0.00,  0.000, 0.00]),
+        (0.20, [-0.08,  0.00,  0.00], [0.00, -0.040, 0.00]),
+        (0.50, [ 0.12,  0.15,  0.15], [0.00,  0.250, 0.00]),
+        (0.80, [-0.05, -0.10, -0.10], [0.00,  0.120, 0.00]),
+        (1.00, [-0.06,  0.00,  0.00], [0.00, -0.020, 0.00]),
+        (1.20, [ 0.00,  0.00,  0.00], [0.00,  0.000, 0.00]),
+    ]
+    create_clip(f'{prefix}_trick', trick_frames)
+
     gltf = {
         'asset': {'version': '2.0', 'generator': f'{variant.capitalize()}_FBX_to_GLB'},
         'scene': 0,
@@ -293,6 +404,7 @@ def convert(variant='goose'):
         'nodes': [{'mesh': 0, 'name': model_title}],
         'meshes': [{'name': mesh_title, 'primitives': primitives}],
         'materials': materials_gltf,
+        'animations': animations_gltf,
         'accessors': accessors,
         'bufferViews': buffer_views,
         'buffers': [{'byteLength': len(bin_buffer)}]
@@ -317,7 +429,7 @@ def convert(variant='goose'):
         f.write(bin_chunk_hdr)
         f.write(bin_buffer)
 
-    print(f'Successfully generated {glb_path} ({os.path.getsize(glb_path)} bytes)!')
+    print(f'Successfully generated {glb_path} ({os.path.getsize(glb_path)} bytes) with {len(animations_gltf)} animation clips!')
 
 if __name__ == '__main__':
     convert('goose')
