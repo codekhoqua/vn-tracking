@@ -657,7 +657,8 @@ window.Pet3DEngine = (function () {
             animations.forEach(clip => {
                 vp.actions[clip.name] = vp.mixer.clipAction(clip);
             });
-            playAnimation(vp, isDancing ? 'dance' : currentPose);
+            const defaultAnim = (vp === switchPreview || vp === adoptPreview) ? 'walk' : (isDancing ? 'dance' : currentPose);
+            playAnimation(vp, defaultAnim);
         }
 
         vp.modelGroup = modelWrapper;
@@ -703,7 +704,7 @@ window.Pet3DEngine = (function () {
                    anims.find(a => norm(a.name).includes('idle')) || anims[0];
         }
         if (pose === 'trick' || pose === 'jump') {
-            return anims.find(a => norm(a.name).includes('rare') || norm(a.name).includes('jump') || norm(a.name).includes('attack') || norm(a.name).includes('bark') || norm(a.name).includes('headbutt')) ||
+            return anims.find(a => norm(a.name).includes('trick') || norm(a.name).includes('rare') || norm(a.name).includes('jump') || norm(a.name).includes('attack') || norm(a.name).includes('bark') || norm(a.name).includes('headbutt')) ||
                    anims.find(a => norm(a.name).includes('run')) || anims[0];
         }
         return anims[0];
