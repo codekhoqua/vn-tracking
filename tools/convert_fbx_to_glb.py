@@ -3,9 +3,10 @@ import struct
 import json
 import math
 
-def convert():
-    fbx_path = os.path.join('static', 'models', 'goose.fbx')
-    glb_path = os.path.join('static', 'models', 'goose.glb')
+def convert(variant='goose'):
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    fbx_path = os.path.join(base_dir, 'static', 'models', 'goose.fbx')
+    glb_path = os.path.join(base_dir, 'static', 'models', f'{variant}.glb')
 
     with open(fbx_path, 'rb') as f:
         data = f.read()
@@ -19,24 +20,9 @@ def convert():
         v_pos += 9
 
     pts = [(vertices[i], vertices[i+1], vertices[i+2]) for i in range(0, len(vertices), 3)]
-    print(f'Extracted {len(pts)} vertices.')
+    print(f'[{variant}] Extracted {len(pts)} vertices.')
 
-    # 2. Parse Normals
-    norm_pos = data.find(b'LayerElementNormal')
-    normals = []
-    if norm_pos != -1:
-        n_arr_pos = data.find(b'Normals', norm_pos)
-        if n_arr_pos != -1:
-            n_pos = n_arr_pos + 7
-            while n_pos < len(data) and data[n_pos:n_pos+1] == b'D':
-                val = struct.unpack('<d', data[n_pos+1:n_pos+9])[0]
-                normals.append(val)
-                n_pos += 9
-
-    norms = [(normals[i], normals[i+1], normals[i+2]) for i in range(0, len(normals), 3)] if normals else []
-    print(f'Extracted {len(norms)} normals.')
-
-    # 3. Parse PolygonVertexIndex
+    # 2. Parse PolygonVertexIndex
     p_pos = data.find(b'PolygonVertexIndex') + 18
     poly_indices = []
     while p_pos < len(data) and data[p_pos:p_pos+1] == b'I':
@@ -54,9 +40,9 @@ def convert():
         else:
             current_poly.append(idx)
 
-    print(f'Extracted {len(polygons)} polygons.')
+    print(f'[{variant}] Extracted {len(polygons)} polygons.')
 
-    # 4. Parse Material indices
+    # 3. Parse Material indices
     m_pos = data.find(b'LayerElementMaterial')
     sub_pos = data.find(b'Materials', m_pos)
     mat_indices = []
@@ -66,67 +52,86 @@ def convert():
         mat_indices.append(val)
         idx_pos += 5
 
-    # 5. Transform coordinates:
-    # In FBX: Z is vertical inverted (ground is ~0, head is ~-50, hat ~-65).
-    # So Y_up = -fbx_Z.
-    # Horizontal center of X, Y:
+    # 4. Transform coordinates:
     cx = (min(p[0] for p in pts) + max(p[0] for p in pts)) / 2.0
     cy = (min(p[1] for p in pts) + max(p[1] for p in pts)) / 2.0
     min_z = min(-p[2] for p in pts)
     max_z = max(-p[2] for p in pts)
     height = max_z - min_z
 
-    # Beak angle in (X, Y):
-    # Beak center is ~ (9.3, 9.6)
     beak_dx = 9.30 - cx
     beak_dy = 9.58 - cy
     beak_angle = math.atan2(beak_dy, beak_dx)
-    # We want beak to point towards +Z (forward in Three.js):
-    # Target angle is 0 (or +Z)
     rot = -beak_angle + (math.pi / 2.0)
 
-    # Scale model to 1.3 units height
     scale = 1.30 / height if height > 0 else 1.0
 
     transformed_pts = []
     for (x, y, z) in pts:
-        # 1. Center in X, Y
         tx = x - cx
         ty = y - cy
-        # 2. Rotate so forward is +Z
         cos_r = math.cos(rot)
         sin_r = math.sin(rot)
         rx = tx * cos_r - ty * sin_r
         rz = tx * sin_r + ty * cos_r
-        # 3. Upright vertical is -z (ground at 0)
         ry = (-z - min_z)
         transformed_pts.append((rx * scale, ry * scale, rz * scale))
 
-    transformed_norms = []
-    if len(norms) == len(pts):
-        for (nx, ny, nz) in norms:
-            cos_r = math.cos(rot)
-            sin_r = math.sin(rot)
-            rnx = nx * cos_r - ny * sin_r
-            rnz = nx * sin_r + ny * cos_r
-            rny = -nz
-            transformed_norms.append((rnx, rny, rnz))
-    else:
-        transformed_norms = None
+    # 5. Compute mathematically smooth vertex normals for silky soft shading (NO crumpled tin-foil noise)
+    vert_normals = [[0.0, 0.0, 0.0] for _ in range(len(transformed_pts))]
+    for poly in polygons:
+        tris = []
+        if len(poly) == 3:
+            tris.append((poly[0], poly[1], poly[2]))
+        elif len(poly) == 4:
+            tris.append((poly[0], poly[1], poly[2]))
+            tris.append((poly[0], poly[2], poly[3]))
+        else:
+            for k in range(1, len(poly) - 1):
+                tris.append((poly[0], poly[k], poly[k + 1]))
 
-    # Materials definition:
-    # Mat 0: Beak & Feet (Leg) -> Vibrant orange
-    # Mat 1: White goose feathers (Body)
-    # Mat 2: Head feathers (White)
-    # Mat 3: Eye / Pupil Sclera (White)
-    # Mat 4: Black pupils
-    materials_def = [
-        {'name': 'BeakAndFeet', 'color': [0.98, 0.45, 0.05, 1.0], 'roughness': 0.35, 'metal': 0.0},
-        {'name': 'BodyFeathers', 'color': [0.96, 0.97, 0.99, 1.0], 'roughness': 0.50, 'metal': 0.0},
-        {'name': 'HeadFeathers', 'color': [0.98, 0.98, 0.99, 1.0], 'roughness': 0.50, 'metal': 0.0},
-        {'name': 'EyeSclera',    'color': [1.0, 1.0, 1.0, 1.0],     'roughness': 0.15, 'metal': 0.0},
-        {'name': 'EyePupil',     'color': [0.10, 0.12, 0.15, 1.0], 'roughness': 0.20, 'metal': 0.0},
-    ]
+        for (v0, v1, v2) in tris:
+            p0, p1, p2 = transformed_pts[v0], transformed_pts[v1], transformed_pts[v2]
+            ax, ay, az = p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]
+            bx, by, bz = p2[0] - p0[0], p2[1] - p0[1], p2[2] - p0[2]
+            nx = ay * bz - az * by
+            ny = az * bx - ax * bz
+            nz = ax * by - ay * bx
+            l = math.sqrt(nx * nx + ny * ny + nz * nz)
+            if l > 1e-9:
+                nx, ny, nz = nx / l, ny / l, nz / l
+                for v in (v0, v1, v2):
+                    vert_normals[v][0] += nx
+                    vert_normals[v][1] += ny
+                    vert_normals[v][2] += nz
+
+    smooth_norms = []
+    for n in vert_normals:
+        l = math.sqrt(n[0] * n[0] + n[1] * n[1] + n[2] * n[2])
+        if l > 1e-9:
+            smooth_norms.append((n[0] / l, n[1] / l, n[2] / l))
+        else:
+            smooth_norms.append((0.0, 1.0, 0.0))
+
+    # 6. Materials definition (Vibrant, cute, soft velvety colors)
+    if variant == 'duck':
+        # Vịt Vàng: Sunny warm pastel yellow feathers, bright orange beak & feet, glossy black eyes
+        materials_def = [
+            {'name': 'BeakAndFeet',  'color': [1.00, 0.50, 0.06, 1.0], 'roughness': 0.40, 'metal': 0.0},
+            {'name': 'BodyFeathers', 'color': [1.00, 0.83, 0.20, 1.0], 'roughness': 0.78, 'metal': 0.0},
+            {'name': 'HeadFeathers', 'color': [1.00, 0.85, 0.22, 1.0], 'roughness': 0.78, 'metal': 0.0},
+            {'name': 'LeftEye',      'color': [0.08, 0.08, 0.10, 1.0], 'roughness': 0.10, 'metal': 0.0},
+            {'name': 'RightEye',     'color': [0.08, 0.08, 0.10, 1.0], 'roughness': 0.10, 'metal': 0.0},
+        ]
+    else:
+        # Ngỗng Goose: Silky snowy porcelain white feathers, bright orange beak & feet, glossy black eyes
+        materials_def = [
+            {'name': 'BeakAndFeet',  'color': [1.00, 0.48, 0.06, 1.0], 'roughness': 0.40, 'metal': 0.0},
+            {'name': 'BodyFeathers', 'color': [0.98, 0.98, 0.99, 1.0], 'roughness': 0.78, 'metal': 0.0},
+            {'name': 'HeadFeathers', 'color': [0.99, 0.99, 1.00, 1.0], 'roughness': 0.78, 'metal': 0.0},
+            {'name': 'LeftEye',      'color': [0.08, 0.08, 0.10, 1.0], 'roughness': 0.10, 'metal': 0.0},
+            {'name': 'RightEye',     'color': [0.08, 0.08, 0.10, 1.0], 'roughness': 0.10, 'metal': 0.0},
+        ]
 
     # Group triangles by material
     mat_parts = [{'positions': [], 'normals': [], 'indices': []} for _ in materials_def]
@@ -138,7 +143,6 @@ def convert():
 
         part = mat_parts[mat_id]
 
-        # Triangulate polygon:
         tris = []
         if len(poly) == 3:
             tris.append((poly[0], poly[1], poly[2]))
@@ -154,26 +158,16 @@ def convert():
             p1 = transformed_pts[v1]
             p2 = transformed_pts[v2]
 
-            if transformed_norms:
-                n0 = transformed_norms[v0]
-                n1 = transformed_norms[v1]
-                n2 = transformed_norms[v2]
-            else:
-                # Calculate face normal
-                ax, ay, az = p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]
-                bx, by, bz = p2[0] - p0[0], p2[1] - p0[1], p2[2] - p0[2]
-                nx = ay * bz - az * by
-                ny = az * bx - ax * bz
-                nz = ax * by - ay * bx
-                l = math.sqrt(nx*nx + ny*ny + nz*nz) or 1.0
-                n0 = n1 = n2 = (nx/l, ny/l, nz/l)
+            n0 = smooth_norms[v0]
+            n1 = smooth_norms[v1]
+            n2 = smooth_norms[v2]
 
             base_idx = len(part['positions'])
             part['positions'].extend([p0, p1, p2])
             part['normals'].extend([n0, n1, n2])
             part['indices'].extend([base_idx, base_idx + 1, base_idx + 2])
 
-    # Build GLB
+    # Build GLB binary buffers
     bin_buffer = bytearray()
     buffer_views = []
     accessors = []
@@ -184,7 +178,6 @@ def convert():
             continue
 
         idx_list = part['indices']
-        # If index count > 65535, use UNSIGNED_INT
         use_uint32 = max(idx_list) >= 65535
 
         if use_uint32:
@@ -290,12 +283,15 @@ def convert():
             }
         })
 
+    model_title = 'CuteDuck_Model' if variant == 'duck' else 'GooseDuck_Model'
+    mesh_title = 'CuteDuck_Mesh' if variant == 'duck' else 'GooseDuck_Mesh'
+
     gltf = {
-        'asset': {'version': '2.0', 'generator': 'GooseDuck_FBX_to_GLB'},
+        'asset': {'version': '2.0', 'generator': f'{variant.capitalize()}_FBX_to_GLB'},
         'scene': 0,
         'scenes': [{'nodes': [0]}],
-        'nodes': [{'mesh': 0, 'name': 'GooseDuck_Model'}],
-        'meshes': [{'name': 'GooseDuck_Mesh', 'primitives': primitives}],
+        'nodes': [{'mesh': 0, 'name': model_title}],
+        'meshes': [{'name': mesh_title, 'primitives': primitives}],
         'materials': materials_gltf,
         'accessors': accessors,
         'bufferViews': buffer_views,
@@ -324,4 +320,5 @@ def convert():
     print(f'Successfully generated {glb_path} ({os.path.getsize(glb_path)} bytes)!')
 
 if __name__ == '__main__':
-    convert()
+    convert('goose')
+    convert('duck')
