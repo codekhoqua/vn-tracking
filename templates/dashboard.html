@@ -244,7 +244,7 @@
     <div class="mobile-brand">
         <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" width="26" height="26" style="border-radius: var(--radius-sm);">
         <span>VN-Tracking</span>
-        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.2</i></sup>
+        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.5</i></sup>
     </div>
     <div class="mobile-topbar-right">
         <button type="button" class="mobile-icon-btn" onclick="toggleNotificationPanel(event)" title="{{ 'Thông báo' if lang == 'vi' else '通知' }}">
@@ -274,7 +274,7 @@
         <div style="display: flex; flex-direction: column; justify-content: center;">
             <span>VN-Tracking</span>
             <sup class="version-tag"
-                style="color: var(--text-3); font-size: 11px; margin-top: 2px;"><i>v1.9.2</i></sup>
+                style="color: var(--text-3); font-size: 11px; margin-top: 2px;"><i>v1.9.5</i></sup>
         </div>
     </div>
 
@@ -492,29 +492,7 @@
                     <div class="goose-swatch-list" id="sidebar-goose-swatches"></div>
                 </div>
 
-                <!-- Goose Accessories Customizer Bar -->
-                <div id="goose-accessory-picker-wrap" class="goose-accessory-picker-wrap" style="display: none;">
-                    <div class="goose-accessory-header">
-                        <span>✨ {{ 'Phụ kiện HIEUTHUHAI:' if lang == 'vi' else 'アクセサリー:' }}</span>
-                        <button type="button" class="accessory-toggle-all-btn" onclick="toggleAllGooseAccessories()" title="Bật/Tắt trọn bộ">
-                            Full Set 🔥
-                        </button>
-                    </div>
-                    <div class="goose-accessory-chip-grid">
-                        <button type="button" id="acc-btn-hair" class="goose-acc-chip" onclick="toggleGooseAccessory('hair')" title="Mái tóc vuốt Idol">
-                            <span>💈 Tóc vuốt</span>
-                        </button>
-                        <button type="button" id="acc-btn-tanktop" class="goose-acc-chip" onclick="toggleGooseAccessory('tanktop')" title="Áo ba lỗ trắng">
-                            <span>🎽 Áo ba lỗ</span>
-                        </button>
-                        <button type="button" id="acc-btn-mole" class="goose-acc-chip" onclick="toggleGooseAccessory('mole')" title="Nốt ruồi duyên">
-                            <span>✨ Nốt ruồi</span>
-                        </button>
-                        <button type="button" id="acc-btn-glasses" class="goose-acc-chip" onclick="toggleGooseAccessory('glasses')" title="Kính râm ngầu">
-                            <span>🕶️ Kính râm</span>
-                        </button>
-                    </div>
-                </div>
+
 
                 <div class="pet-lb-header">
                     <span>🏆 {{ 'Bảng Xếp Hạng' if lang == 'vi' else 'ランキング' }}</span>
@@ -5771,11 +5749,6 @@
             gooseWrap.style.display = isGoose ? 'block' : 'none';
             if (isGoose) renderGooseColorSwatches();
         }
-        const accWrap = document.getElementById('goose-accessory-picker-wrap');
-        if (accWrap) {
-            accWrap.style.display = isGoose ? 'block' : 'none';
-            if (isGoose) renderGooseAccessoryUI();
-        }
 
         loadInlineLeaderboard();
     }
@@ -5827,39 +5800,6 @@
             window.Pet3DEngine.setGooseColor(themeKeyOrHex);
         }
         renderGooseColorSwatches();
-    }
-
-    function renderGooseAccessoryUI() {
-        if (!window.Pet3DEngine || !window.Pet3DEngine.getGooseAccessories) return;
-        const active = window.Pet3DEngine.getGooseAccessories() || [];
-        ['hair', 'tanktop', 'mole', 'glasses'].forEach(id => {
-            const btn = document.getElementById('acc-btn-' + id);
-            if (btn) {
-                btn.classList.toggle('active', active.includes(id));
-            }
-        });
-    }
-
-    function toggleGooseAccessory(id) {
-        if (!window.Pet3DEngine || !window.Pet3DEngine.getGooseAccessories) return;
-        let active = [...(window.Pet3DEngine.getGooseAccessories() || [])];
-        if (active.includes(id)) {
-            active = active.filter(x => x !== id);
-        } else {
-            active.push(id);
-        }
-        window.Pet3DEngine.setGooseAccessories(active);
-        renderGooseAccessoryUI();
-    }
-
-    function toggleAllGooseAccessories() {
-        if (!window.Pet3DEngine || !window.Pet3DEngine.getGooseAccessories) return;
-        const active = window.Pet3DEngine.getGooseAccessories() || [];
-        const full = ['hair', 'tanktop', 'mole'];
-        const hasAll = full.every(x => active.includes(x));
-        const newSet = hasAll ? [] : ['hair', 'tanktop', 'mole', 'glasses'];
-        window.Pet3DEngine.setGooseAccessories(newSet);
-        renderGooseAccessoryUI();
     }
 
     function toggleSidebarPetDetails() {
