@@ -613,8 +613,19 @@ window.Pet3DEngine = (function () {
             });
         }
 
-        // 4. Auto-Fit Bounding Box Normalization
-        const box = new THREE.Box3().setFromObject(root);
+        // 4. Auto-Fit Bounding Box Normalization (Strictly Mesh-based, ignores cameras/lights)
+        const box = new THREE.Box3();
+        root.traverse(child => {
+            if (child.isMesh) {
+                if (child.geometry) {
+                    child.geometry.computeBoundingBox();
+                }
+                box.expandByObject(child);
+            }
+        });
+        if (box.isEmpty()) {
+            box.setFromObject(root);
+        }
         const size = box.getSize(new THREE.Vector3());
         const center = box.getCenter(new THREE.Vector3());
         const maxDim = Math.max(size.x, size.y, size.z) || 1;
