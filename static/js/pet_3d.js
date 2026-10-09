@@ -268,7 +268,7 @@ window.Pet3DEngine = (function () {
             name_vi: 'Trắng Tuyết',
             name_ja: 'スノーホワイト',
             icon: '⚪',
-            body: 0xf4f4f5,
+            body: 0xffffff,
             head: 0xffffff,
             beak: 0xf97316,
             colorHex: '#ffffff',
@@ -276,58 +276,69 @@ window.Pet3DEngine = (function () {
         },
         yellow: {
             id: 'yellow',
-            name_vi: 'Vịt Vàng Cute',
-            name_ja: 'ひよこイエロー',
+            name_vi: 'Vàng Đậm',
+            name_ja: 'マスタードイエロー',
             icon: '🟡',
-            body: 0xfbbf24,
-            head: 0xfde047,
+            body: 0xeab308,
+            head: 0xeab308,
             beak: 0xea580c,
-            colorHex: '#facc15',
-            borderHex: '#eab308'
+            colorHex: '#eab308',
+            borderHex: '#ca8a04'
         },
         pink: {
             id: 'pink',
-            name_vi: 'Hồng Pastel',
-            name_ja: 'パステルピンク',
+            name_vi: 'Hồng Đậm',
+            name_ja: 'ビビッドピンク',
             icon: '🌸',
-            body: 0xf472b6,
-            head: 0xfbcfe8,
+            body: 0xbe185d,
+            head: 0xbe185d,
             beak: 0xf97316,
-            colorHex: '#f472b6',
-            borderHex: '#ec4899'
+            colorHex: '#be185d',
+            borderHex: '#9d174d'
         },
         blue: {
             id: 'blue',
-            name_vi: 'Xanh Lam',
-            name_ja: 'スカイブルー',
+            name_vi: 'Xanh Dương',
+            name_ja: 'コバルトブルー',
             icon: '🔵',
-            body: 0x38bdf8,
-            head: 0xbae6fd,
+            body: 0x1d4ed8,
+            head: 0x1d4ed8,
             beak: 0xf97316,
-            colorHex: '#38bdf8',
-            borderHex: '#0284c7'
+            colorHex: '#1d4ed8',
+            borderHex: '#1e40af'
+        },
+        red: {
+            id: 'red',
+            name_vi: 'Đỏ Rực',
+            name_ja: 'クリムゾンレッド',
+            icon: '🔴',
+            body: 0xb91c1c,
+            head: 0xb91c1c,
+            beak: 0xf59e0b,
+            colorHex: '#b91c1c',
+            borderHex: '#991b1b'
+        },
+        purple: {
+            id: 'purple',
+            name_vi: 'Tím Thẫm',
+            name_ja: 'ディープパープル',
+            icon: '🟣',
+            body: 0x6d28d9,
+            head: 0x6d28d9,
+            beak: 0xf59e0b,
+            colorHex: '#6d28d9',
+            borderHex: '#5b21b6'
         },
         black: {
             id: 'black',
-            name_vi: 'Hắc Ám (Ninja)',
+            name_vi: 'Hắc Ám',
             name_ja: 'シャドウブラック',
             icon: '⚫',
             body: 0x18181b,
-            head: 0x27272a,
+            head: 0x18181b,
             beak: 0xf59e0b,
             colorHex: '#18181b',
             borderHex: '#3f3f46'
-        },
-        green: {
-            id: 'green',
-            name_vi: 'Áo Len Xanh',
-            name_ja: 'グリーンベスト',
-            icon: '🟢',
-            body: 0x10b981,
-            head: 0xd1d5db,
-            beak: 0xea580c,
-            colorHex: '#10b981',
-            borderHex: '#059669'
         }
     };
 
@@ -335,6 +346,7 @@ window.Pet3DEngine = (function () {
         try {
             const saved = localStorage.getItem('pet_goose_color_theme');
             if (saved && (GOOSE_COLOR_THEMES[saved] || saved.startsWith('#'))) return saved;
+            if (saved) localStorage.setItem('pet_goose_color_theme', 'white');
         } catch (e) {}
         return 'white';
     }
