@@ -244,7 +244,7 @@
     <div class="mobile-brand">
         <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" width="26" height="26" style="border-radius: var(--radius-sm);">
         <span>VN-Tracking</span>
-        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.14</i></sup>
+        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.15</i></sup>
     </div>
     <div class="mobile-topbar-right">
         <button type="button" class="mobile-icon-btn" onclick="toggleNotificationPanel(event)" title="{{ 'Thông báo' if lang == 'vi' else '通知' }}">
@@ -274,7 +274,7 @@
         <div style="display: flex; flex-direction: column; justify-content: center;">
             <span>VN-Tracking</span>
             <sup class="version-tag"
-                style="color: var(--text-3); font-size: 11px; margin-top: 2px;"><i>v1.9.14</i></sup>
+                style="color: var(--text-3); font-size: 11px; margin-top: 2px;"><i>v1.9.15</i></sup>
         </div>
     </div>
 
@@ -1731,7 +1731,7 @@
             </div>
         </div>
 
-        <div class="kanban-controls notion-controls" style="display: flex; align-items: center;">
+        <div class="kanban-controls notion-controls" style="display: flex; align-items: center; position: relative; z-index: 100;">
             <!-- Search Box -->
             <div class="notion-search-wrapper"
                 style="margin-left: auto; gap: 8px; position: relative; max-width: 200px;">
@@ -1746,10 +1746,10 @@
 
             <!-- Sort (with custom dropdown) -->
             <div class="notion-icon-btn kanban-sort-btn"
-                style="color: #9ca3af; position: relative; display: flex; align-items: center; gap: 6px; margin-left: 12px; border-radius: var(--radius-md);"
+                style="color: #9ca3af; position: relative; z-index: 101; display: flex; align-items: center; gap: 6px; margin-left: 12px; border-radius: var(--radius-md);"
                 title="Sort" onclick="toggleNotionDropdown(event, this)">
                 <i class="fas fa-sort-amount-down"></i> <span style="font-size: 0.85rem; font-weight: 500;">Sort</span>
-                <div class="notion-dropdown-menu">
+                <div class="notion-dropdown-menu" style="z-index: 9999;">
                     <div class="notion-dropdown-item active" data-type="group" data-value="job"
                         onclick="handleSortOptionClick(event, this)">
                         <span>{{ 'Group by Job Type' if lang == 'vi' else '作業内容でグループ化' }}</span>
@@ -2167,7 +2167,7 @@
             </div>
         </div>
 
-        <div class="kanban-controls notion-controls" style="display: flex; align-items: center;">
+        <div class="kanban-controls notion-controls" style="display: flex; align-items: center; position: relative; z-index: 100;">
             <!-- Search Box -->
             <div class="notion-search-wrapper"
                 style="margin-left: auto; gap: 8px; position: relative; max-width: 200px;">
@@ -2182,10 +2182,10 @@
 
             <!-- Sort (with custom dropdown) -->
             <div class="notion-icon-btn kanban-sort-btn"
-                style="color: #9ca3af; position: relative; display: flex; align-items: center; gap: 6px; margin-left: 12px; border-radius: var(--radius-md);"
+                style="color: #9ca3af; position: relative; z-index: 101; display: flex; align-items: center; gap: 6px; margin-left: 12px; border-radius: var(--radius-md);"
                 title="Sort" onclick="toggleNotionDropdown(event, this)">
                 <i class="fas fa-sort-amount-down"></i> <span style="font-size: 0.85rem; font-weight: 500;">Sort</span>
-                <div class="notion-dropdown-menu">
+                <div class="notion-dropdown-menu" style="z-index: 9999;">
                     <div class="notion-dropdown-item active" data-type="group" data-value="job"
                         onclick="handleSortOptionClick(event, this)">
                         <span>{{ 'Group by Job Type' if lang == 'vi' else '作業内容でグループ化' }}</span>
@@ -2602,7 +2602,7 @@
             </div>
         </div>
 
-        <div class="kanban-controls notion-controls" style="display: flex; align-items: center;">
+        <div class="kanban-controls notion-controls" style="display: flex; align-items: center; position: relative; z-index: 100;">
             <!-- Search Box -->
             <div class="notion-search-wrapper"
                 style="margin-left: auto; gap: 8px; position: relative; max-width: 200px;">
@@ -2617,10 +2617,10 @@
 
             <!-- Sort (with custom dropdown) -->
             <div class="notion-icon-btn kanban-sort-btn"
-                style="color: #9ca3af; position: relative; display: flex; align-items: center; gap: 6px; margin-left: 12px; border-radius: var(--radius-md);"
+                style="color: #9ca3af; position: relative; z-index: 101; display: flex; align-items: center; gap: 6px; margin-left: 12px; border-radius: var(--radius-md);"
                 title="Sort" onclick="toggleNotionDropdown(event, this)">
                 <i class="fas fa-sort-amount-down"></i> <span style="font-size: 0.85rem; font-weight: 500;">Sort</span>
-                <div class="notion-dropdown-menu">
+                <div class="notion-dropdown-menu" style="z-index: 9999;">
                     <div class="notion-dropdown-item active" data-type="group" data-value="job"
                         onclick="handleSortOptionClick(event, this)">
                         <span>{{ 'Group by Job Type' if lang == 'vi' else '作業内容でグループ化' }}</span>
