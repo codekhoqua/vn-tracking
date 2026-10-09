@@ -236,11 +236,11 @@ window.Pet3DEngine = (function () {
             sound: 'Honk honk! Cạp cạp! 🕵️',
             food_name: 'Bánh mì 🍞',
             targetHeight: 1.30,
-            rotOffsetY: -0.68,
+            rotOffsetY: -0.38,
             camPosX: 0.0,
-            camY: 0.52,
-            camPosY: 1.08,
-            camPosZ: 2.38,
+            camY: 0.62,
+            camPosY: 0.68,
+            camPosZ: 2.28,
             customScale: 2.45,
             customPosX: 0.0,
             customPosY: 0.0,
@@ -1301,8 +1301,9 @@ window.Pet3DEngine = (function () {
         } else {
             const cfg = SPECIES_CONFIG[currentSpecies] || SPECIES_CONFIG['shiba'];
             const baseRotY = cfg.rotOffsetY !== undefined ? cfg.rotOffsetY : 0.45;
-            const targetRotY = baseRotY + (mousePos.x / window.innerWidth - 0.5) * 0.65;
-            const targetRotX = (mousePos.y / window.innerHeight - 0.5) * 0.22;
+            const isGoose = (currentSpecies === 'goose' || currentSpecies === 'goose_duck');
+            const targetRotY = baseRotY + (mousePos.x / window.innerWidth - 0.5) * (isGoose ? 0.35 : 0.65);
+            const targetRotX = (mousePos.y / window.innerHeight - 0.5) * (isGoose ? 0.08 : 0.22);
 
             if (vp.modelGroup) {
                 vp.modelGroup.rotation.y += (targetRotY - vp.modelGroup.rotation.y) * 0.08;
