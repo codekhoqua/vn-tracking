@@ -236,7 +236,7 @@ window.Pet3DEngine = (function () {
             sound: 'Honk honk! Cạp cạp! 🕵️',
             food_name: 'Bánh mì 🍞',
             targetHeight: 1.30,
-            rotOffsetY: -0.38,
+            rotOffsetY: -0.95,
             camPosX: 0.0,
             camY: 0.62,
             camPosY: 0.68,
