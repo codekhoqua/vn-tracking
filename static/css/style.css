@@ -1289,6 +1289,86 @@ select option { background: var(--surface); color: var(--text); }
     100% { opacity: 1; }
 }
 
+.chart-section.snow-frost-rim::before {
+    content: '';
+    position: absolute;
+    top: -1px;
+    left: 15px;
+    right: 15px;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(224, 242, 254, 0.5) 15%, rgba(255, 255, 255, 0.95) 50%, rgba(224, 242, 254, 0.5) 85%, transparent);
+    border-radius: 999px;
+    pointer-events: none;
+    box-shadow: 0 0 16px rgba(224, 242, 254, 0.8), 0 0 4px #ffffff;
+    z-index: 2;
+    animation: frostRimPulse 4s ease-in-out infinite alternate;
+}
+@keyframes frostRimPulse {
+    0% { opacity: 0.65; }
+    100% { opacity: 1; }
+}
+
+.chart-section.sun-warm-rim::before {
+    content: '';
+    position: absolute;
+    top: -1px;
+    left: 20px;
+    right: 20px;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(251, 191, 36, 0.4) 20%, rgba(253, 224, 71, 0.9) 50%, rgba(251, 191, 36, 0.4) 80%, transparent);
+    border-radius: 999px;
+    pointer-events: none;
+    box-shadow: 0 0 14px rgba(245, 158, 11, 0.5);
+    z-index: 2;
+    animation: sunRimPulse 3.5s ease-in-out infinite alternate;
+}
+@keyframes sunRimPulse {
+    0% { opacity: 0.5; }
+    100% { opacity: 0.95; }
+}
+
+/* Weather Hero FX Layer */
+.weather-fx-sun {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(circle at 82% 28%, rgba(253, 224, 71, 0.22) 0%, rgba(245, 158, 11, 0.12) 32%, transparent 68%);
+    animation: sunAtmospherePulse 7s ease-in-out infinite alternate;
+}
+@keyframes sunAtmospherePulse {
+    0% { opacity: 0.7; transform: scale(0.98); }
+    100% { opacity: 1; transform: scale(1.02); }
+}
+
+.weather-fx-thunder {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: rgba(224, 242, 254, 0.28);
+    opacity: 0;
+    z-index: 3;
+    transition: opacity 0.05s ease-out;
+}
+.weather-fx-thunder.flash {
+    opacity: 1;
+}
+
+.weather-live-dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #10b981;
+    box-shadow: 0 0 8px #10b981;
+    animation: livePulse 2s infinite;
+    margin-right: 4px;
+}
+@keyframes livePulse {
+    0% { transform: scale(0.9); opacity: 0.6; }
+    50% { transform: scale(1.3); opacity: 1; }
+    100% { transform: scale(0.9); opacity: 0.6; }
+}
+
 .chart-header {
     display: flex;
     justify-content: space-between;

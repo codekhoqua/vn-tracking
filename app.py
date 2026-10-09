@@ -2046,47 +2046,140 @@ def api_task_links():
 
 @app.route('/api/weather')
 def api_weather():
-    loc = request.args.get('loc', 'Ho+Chi+Minh')
+    raw_loc = request.args.get('loc', 'Ho Chi Minh')
+    loc = raw_loc.replace('+', ' ').strip()
+    force = request.args.get('force', '0') in ['1', 'true', 'True']
+    lat_arg = request.args.get('lat')
+    lon_arg = request.args.get('lon')
     now = time.time()
     
-    if loc in weather_cache and now - weather_cache[loc]['time'] < 1800:
-        return jsonify(weather_cache[loc]['data'])
+    # 1. Resolve coordinates & timezone
+    if lat_arg and lon_arg:
+        try:
+            lat = float(lat_arg)
+            lon = float(lon_arg)
+            tz = "Asia%2FBangkok"
+            cache_key = f"coord_{round(lat, 2)}_{round(lon, 2)}"
+            resolved_city = request.args.get('city', 'Vị trí của bạn')
+        except ValueError:
+            lat, lon = 10.823, 106.6296
+            tz = "Asia%2FBangkok"
+            cache_key = "Ho Chi Minh"
+            resolved_city = "TP.HCM"
+    else:
+        loc_lower = loc.lower()
+        if any(c in loc_lower for c in ['ho chi minh', 'hcm', 'saigon', 'tp.hcm', 'vietnam', 'vn']):
+            lat, lon = 10.823, 106.6296
+            tz = "Asia%2FBangkok"
+            cache_key = "Ho Chi Minh"
+            resolved_city = "TP.HCM"
+        elif any(c in loc_lower for c in ['hanoi', 'ha noi']):
+            lat, lon = 21.0285, 105.8542
+            tz = "Asia%2FBangkok"
+            cache_key = "Ha Noi"
+            resolved_city = "Hà Nội"
+        elif any(c in loc_lower for c in ['da nang', 'danang']):
+            lat, lon = 16.0544, 108.2022
+            tz = "Asia%2FBangkok"
+            cache_key = "Da Nang"
+            resolved_city = "Đà Nẵng"
+        elif any(c in loc_lower for c in ['tokyo']):
+            lat, lon = 35.6762, 139.6503
+            tz = "Asia%2FTokyo"
+            cache_key = "Tokyo"
+            resolved_city = "Tokyo"
+        else:
+            lat, lon = 35.4233, 136.7607
+            tz = "Asia%2FTokyo"
+            cache_key = "Gifu"
+            resolved_city = "Gifu"
+
+    # Cache check (60s cache for high real-time freshness, bypassed when force=1)
+    if not force and cache_key in weather_cache and now - weather_cache[cache_key]['time'] < 60:
+        return jsonify(weather_cache[cache_key]['data'])
         
     try:
-        lat, lon = (10.823, 106.6296) if loc == 'Ho+Chi+Minh' else (35.4233, 136.7607)
-        url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=temperature_2m,apparent_temperature,weather_code&daily=temperature_2m_max,temperature_2m_min&timezone=Asia%2FBangkok"
+        url = (
+            f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}"
+            f"&current=temperature_2m,apparent_temperature,weather_code,is_day,precipitation,rain,showers,snowfall"
+            f"&daily=temperature_2m_max,temperature_2m_min&timezone={tz}"
+        )
         r = requests.get(url, timeout=5)
         om_data = r.json()
         
-        wmo_code = om_data['current']['weather_code']
+        current = om_data.get('current', {})
+        wmo_code = current.get('weather_code', 0)
+        is_day = current.get('is_day', 1)
+        rain_val = float(current.get('rain', 0.0) or 0.0) + float(current.get('showers', 0.0) or 0.0)
+        snow_val = float(current.get('snowfall', 0.0) or 0.0)
+        
+        # WWO compatibility mapping
         if wmo_code == 0: wwo = "113"
         elif wmo_code in [1, 2]: wwo = "116"
         elif wmo_code == 3: wwo = "122"
         elif wmo_code in [45, 48]: wwo = "143"
-        elif wmo_code in [51, 53, 55, 56, 57]: wwo = "266"
-        elif wmo_code in [61, 63, 65, 66, 67, 80, 81, 82]: wwo = "302"
-        elif wmo_code in [95, 96, 99]: wwo = "386"
+        elif wmo_code in [51, 53, 55, 56, 57]: wwo = "266" # Drizzle / Mưa phùn
+        elif wmo_code in [61, 63, 65, 66, 67, 80, 81, 82]: wwo = "302" # Rain / Mưa rào
+        elif wmo_code in [71, 73, 75, 77, 85, 86]: wwo = "338" # Snow / Tuyết rơi
+        elif wmo_code in [95, 96, 99]: wwo = "386" # Thunderstorm / Giông sét
         else: wwo = "113"
         
+        # Semantic weather category for instant UI animations
+        if wmo_code in [71, 73, 75, 77, 85, 86] or snow_val > 0:
+            category = "snow"
+        elif wmo_code in [95, 96, 99]:
+            category = "thunder"
+        elif (wmo_code in [51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82]) or rain_val > 0:
+            category = "rain"
+        elif wmo_code in [45, 48]:
+            category = "fog"
+        elif wmo_code in [2, 3]:
+            category = "clouds"
+        elif wmo_code in [0, 1]:
+            category = "sun" if is_day else "clear_night"
+        else:
+            category = "sun" if is_day else "clear_night"
+            
+        temp_c = str(int(round(current.get('temperature_2m', 28))))
+        feels_like = str(int(round(current.get('apparent_temperature', 30))))
+        max_temp = str(int(round(om_data['daily']['temperature_2m_max'][0]))) if 'daily' in om_data and om_data['daily'].get('temperature_2m_max') else temp_c
+        min_temp = str(int(round(om_data['daily']['temperature_2m_min'][0]))) if 'daily' in om_data and om_data['daily'].get('temperature_2m_min') else temp_c
+
         data = {
-            "current_condition": [{"temp_C": str(int(om_data['current']['temperature_2m'])), 
-                                   "FeelsLikeC": str(int(om_data['current']['apparent_temperature'])), 
-                                   "weatherCode": wwo}],
-            "weather": [{"maxtempC": str(int(om_data['daily']['temperature_2m_max'][0])), 
-                         "mintempC": str(int(om_data['daily']['temperature_2m_min'][0]))}]
+            "current_condition": [{
+                "temp_C": temp_c,
+                "FeelsLikeC": feels_like,
+                "weatherCode": wwo,
+                "wmoCode": wmo_code,
+                "category": category,
+                "is_day": is_day,
+                "rain_mm": rain_val,
+                "snow_cm": snow_val
+            }],
+            "weather": [{
+                "maxtempC": max_temp,
+                "mintempC": min_temp
+            }],
+            "location": resolved_city,
+            "latitude": lat,
+            "longitude": lon,
+            "updated_at": now
         }
         
-        weather_cache[loc] = {'time': now, 'data': data}
+        weather_cache[cache_key] = {'time': now, 'data': data}
         return jsonify(data)
     except Exception as e:
-        print(f"Weather error for {loc}: {e}")
-        # Return empty or fallback
-        if loc in weather_cache:
-            return jsonify(weather_cache[loc]['data'])
-        # Fallback dummy data if Open-Meteo fails completely
+        print(f"Weather error for {cache_key}: {e}")
+        if cache_key in weather_cache:
+            return jsonify(weather_cache[cache_key]['data'])
         dummy_data = {
-            "current_condition": [{"temp_C": "28", "FeelsLikeC": "30", "weatherCode": "113"}],
-            "weather": [{"maxtempC": "32", "mintempC": "25"}]
+            "current_condition": [{
+                "temp_C": "28", "FeelsLikeC": "30", "weatherCode": "113",
+                "wmoCode": 0, "category": "sun", "is_day": 1, "rain_mm": 0, "snow_cm": 0
+            }],
+            "weather": [{"maxtempC": "32", "mintempC": "25"}],
+            "location": resolved_city,
+            "updated_at": now
         }
         return jsonify(dummy_data)
 
