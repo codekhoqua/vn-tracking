@@ -385,19 +385,20 @@ window.Pet3DEngine = (function () {
                     const meshName = (child.name || '').toLowerCase();
 
                     if (matName === 'body' || meshName.includes('body')) {
+                        // Body & Head plumage
                         mat.color.set(bodyColor);
                         mat.needsUpdate = true;
                     } else if (matName.includes('.001') || meshName.includes('.001')) {
-                        // Head & neck
-                        mat.color.set(headColor);
+                        // 👁️ Eyeball Sclera (con mắt) - LUÔN LUÔN LÀ MÀU TRẮNG
+                        mat.color.set(0xffffff);
+                        mat.needsUpdate = true;
+                    } else if (matName.includes('.002') || matName.includes('.003') || meshName.includes('.002') || meshName.includes('.003') || matName.includes('eye')) {
+                        // 👁️ Con ngươi mắt - LUÔN LUÔN LÀ MÀU ĐEN
+                        mat.color.set(0x111111);
                         mat.needsUpdate = true;
                     } else if ((matName === 'material' || meshName === 'leg_material_0') && !matName.includes('.') && !meshName.includes('.')) {
                         // Beak & feet
                         mat.color.set(beakColor);
-                        mat.needsUpdate = true;
-                    } else if (matName.includes('.002') || matName.includes('.003') || meshName.includes('.002') || meshName.includes('.003')) {
-                        // Eyes
-                        mat.color.set(0x0a0a0a);
                         mat.needsUpdate = true;
                     }
                 });
@@ -744,9 +745,9 @@ window.Pet3DEngine = (function () {
                             if (!mat.map) {
                                 mat.metalness = 0.0;
                                 const mName = (mat.name || '').toLowerCase();
-                                if (mName.includes('eye')) {
-                                    mat.roughness = 0.1;
-                                } else if (mName.includes('beak')) {
+                                if (mName.includes('eye') || mName.includes('.001') || mName.includes('.002') || mName.includes('.003')) {
+                                    mat.roughness = 0.12;
+                                } else if (mName.includes('beak') || mName === 'material') {
                                     mat.roughness = 0.4;
                                 } else {
                                     mat.roughness = 0.78;
