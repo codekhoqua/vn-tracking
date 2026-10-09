@@ -406,6 +406,251 @@ window.Pet3DEngine = (function () {
         });
     }
 
+    // ==========================================
+    // 🪿 GOOSE 3D ACCESSORY SYSTEM (HIEUTHUHAI STYLE)
+    // ==========================================
+    function createPompadourHairMesh() {
+        const hairGroup = new THREE.Group();
+        hairGroup.name = 'accessory_hair';
+
+        const hairMat = new THREE.MeshStandardMaterial({
+            color: 0x111116,
+            roughness: 0.38,
+            metalness: 0.12
+        });
+
+        // 1. Main Quiff Volume (Mái bồng vuốt ngược ra sau)
+        const quiffGeo = new THREE.SphereGeometry(0.125, 20, 20);
+        quiffGeo.scale(1.02, 0.76, 1.52);
+        const quiffMesh = new THREE.Mesh(quiffGeo, hairMat);
+        quiffMesh.rotation.x = -0.20;
+        quiffMesh.position.set(0, 0.045, -0.02);
+        hairGroup.add(quiffMesh);
+
+        // 2. Front Crest / Wave (Lọn tóc mái bồng vuốt cao về trước)
+        const crestGeo = new THREE.CylinderGeometry(0.05, 0.11, 0.13, 16);
+        const crestMesh = new THREE.Mesh(crestGeo, hairMat);
+        crestMesh.rotation.x = 0.42;
+        crestMesh.position.set(0, 0.075, 0.08);
+        hairGroup.add(crestMesh);
+
+        // 3. Front Hairline Fringe (Mũi lọn tóc vuốt nhọn nghệ thuật)
+        const tuftGeo = new THREE.ConeGeometry(0.04, 0.085, 12);
+        const tuftMesh = new THREE.Mesh(tuftGeo, hairMat);
+        tuftMesh.rotation.x = -0.55;
+        tuftMesh.position.set(0.015, 0.04, 0.14);
+        hairGroup.add(tuftMesh);
+
+        // 4. Left Undercut Fade (Tỉa gọn thái dương trái)
+        const leftSideGeo = new THREE.BoxGeometry(0.035, 0.12, 0.16);
+        const leftSide = new THREE.Mesh(leftSideGeo, hairMat);
+        leftSide.position.set(-0.11, -0.005, -0.01);
+        leftSide.rotation.z = -0.14;
+        hairGroup.add(leftSide);
+
+        // 5. Right Undercut Fade (Tỉa gọn thái dương phải)
+        const rightSideGeo = new THREE.BoxGeometry(0.035, 0.12, 0.16);
+        const rightSide = new THREE.Mesh(rightSideGeo, hairMat);
+        rightSide.position.set(0.11, -0.005, -0.01);
+        rightSide.rotation.z = 0.14;
+        hairGroup.add(rightSide);
+
+        // 6. Back Taper (Gáy tóc ôm sát sọ đầu)
+        const backGeo = new THREE.SphereGeometry(0.095, 16, 16);
+        backGeo.scale(1.0, 0.58, 0.88);
+        const backMesh = new THREE.Mesh(backGeo, hairMat);
+        backMesh.position.set(0, -0.02, -0.11);
+        hairGroup.add(backMesh);
+
+        return hairGroup;
+    }
+
+    function createTankTopMesh() {
+        const tankGroup = new THREE.Group();
+        tankGroup.name = 'accessory_tanktop';
+
+        const fabricMat = new THREE.MeshStandardMaterial({
+            color: 0xf8fafc,
+            roughness: 0.74,
+            metalness: 0.01,
+            side: THREE.DoubleSide
+        });
+
+        // 1. Torso Vest (Thân áo thun ba lỗ)
+        const vestGeo = new THREE.CylinderGeometry(0.235, 0.275, 0.38, 28, 1, true);
+        vestGeo.scale(1.0, 1.0, 0.95);
+        const vestMesh = new THREE.Mesh(vestGeo, fabricMat);
+        vestMesh.position.set(0, 0.52, 0.01);
+        tankGroup.add(vestMesh);
+
+        // 2. Bottom Hem Border (Viền gấu quần/áo màu đen tương phản)
+        const hemGeo = new THREE.TorusGeometry(0.275, 0.012, 10, 28);
+        const hemMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.8 });
+        const hemMesh = new THREE.Mesh(hemGeo, hemMat);
+        hemMesh.rotation.x = Math.PI / 2;
+        hemMesh.position.set(0, 0.33, 0.01);
+        tankGroup.add(hemMesh);
+
+        // 3. Left & Right Shoulder Straps (Quai áo ba lỗ 2 bên vai)
+        const leftStrapGeo = new THREE.BoxGeometry(0.045, 0.18, 0.025);
+        const leftStrap = new THREE.Mesh(leftStrapGeo, fabricMat);
+        leftStrap.position.set(-0.13, 0.74, 0.02);
+        leftStrap.rotation.z = -0.22;
+        tankGroup.add(leftStrap);
+
+        const rightStrapGeo = new THREE.BoxGeometry(0.045, 0.18, 0.025);
+        const rightStrap = new THREE.Mesh(rightStrapGeo, fabricMat);
+        rightStrap.position.set(0.13, 0.74, 0.02);
+        rightStrap.rotation.z = 0.22;
+        tankGroup.add(rightStrap);
+
+        // 4. Chest Cartoon Logo (Mặt cười in trước ngực)
+        try {
+            const cvs = document.createElement('canvas');
+            cvs.width = 128;
+            cvs.height = 128;
+            const ctx = cvs.getContext('2d');
+            ctx.clearRect(0, 0, 128, 128);
+            // Hair
+            ctx.fillStyle = '#1e293b';
+            ctx.beginPath();
+            ctx.arc(64, 46, 26, Math.PI, 0, false);
+            ctx.fill();
+            // Face
+            ctx.strokeStyle = '#1e293b';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.arc(64, 64, 26, 0, Math.PI * 2);
+            ctx.stroke();
+            // Big smile
+            ctx.beginPath();
+            ctx.arc(64, 66, 15, 0.15 * Math.PI, 0.85 * Math.PI);
+            ctx.stroke();
+            // Eyes
+            ctx.fillStyle = '#1e293b';
+            ctx.beginPath();
+            ctx.arc(54, 59, 3.5, 0, Math.PI * 2);
+            ctx.arc(74, 59, 3.5, 0, Math.PI * 2);
+            ctx.fill();
+            // Mole
+            ctx.beginPath();
+            ctx.arc(76, 78, 2, 0, Math.PI * 2);
+            ctx.fill();
+
+            const logoTex = new THREE.CanvasTexture(cvs);
+            if (THREE.sRGBEncoding) logoTex.encoding = THREE.sRGBEncoding;
+            const logoMat = new THREE.MeshBasicMaterial({ map: logoTex, transparent: true });
+            const logoGeo = new THREE.PlaneGeometry(0.15, 0.15);
+            const logoMesh = new THREE.Mesh(logoGeo, logoMat);
+            logoMesh.position.set(0, 0.53, 0.262);
+            tankGroup.add(logoMesh);
+        } catch (e) {}
+
+        return tankGroup;
+    }
+
+    function createBeautyMarkMesh() {
+        const moleGeo = new THREE.SphereGeometry(0.016, 12, 12);
+        moleGeo.scale(1.0, 1.0, 0.4);
+        const moleMat = new THREE.MeshBasicMaterial({ color: 0x111116 });
+        const moleMesh = new THREE.Mesh(moleGeo, moleMat);
+        moleMesh.name = 'accessory_mole';
+        moleMesh.position.set(-0.042, 0.96, 0.138);
+        return moleMesh;
+    }
+
+    function createCoolSunglassesMesh() {
+        const glassGroup = new THREE.Group();
+        glassGroup.name = 'accessory_glasses';
+
+        const frameMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.2, metalness: 0.8 });
+        const lensMat = new THREE.MeshStandardMaterial({ color: 0x09090b, roughness: 0.08, metalness: 0.95 });
+
+        // Left lens
+        const leftLensGeo = new THREE.CylinderGeometry(0.065, 0.065, 0.015, 16);
+        const leftLens = new THREE.Mesh(leftLensGeo, lensMat);
+        leftLens.rotation.x = Math.PI / 2;
+        leftLens.position.set(-0.09, 1.13, 0.085);
+        glassGroup.add(leftLens);
+
+        // Right lens
+        const rightLensGeo = new THREE.CylinderGeometry(0.065, 0.065, 0.015, 16);
+        const rightLens = new THREE.Mesh(rightLensGeo, lensMat);
+        rightLens.rotation.x = Math.PI / 2;
+        rightLens.position.set(0.09, 1.13, 0.085);
+        glassGroup.add(rightLens);
+
+        // Bridge
+        const bridgeGeo = new THREE.BoxGeometry(0.08, 0.015, 0.015);
+        const bridge = new THREE.Mesh(bridgeGeo, frameMat);
+        bridge.position.set(0, 1.13, 0.085);
+        glassGroup.add(bridge);
+
+        return glassGroup;
+    }
+
+    function getGooseAccessories() {
+        try {
+            const saved = localStorage.getItem('pet_goose_accessories');
+            if (saved !== null) {
+                return JSON.parse(saved);
+            }
+        } catch (e) {}
+        // Default: Full set from photo
+        return ['hair', 'tanktop', 'mole'];
+    }
+
+    function setGooseAccessories(list) {
+        try {
+            localStorage.setItem('pet_goose_accessories', JSON.stringify(list));
+        } catch (e) {}
+
+        [roaming, panel, switchPreview, adoptPreview].forEach(vp => {
+            if (vp) applyGooseAccessories(vp);
+        });
+        return list;
+    }
+
+    function applyGooseAccessories(vp) {
+        if (!vp || !vp.modelGroup) return;
+
+        const old = vp.modelGroup.getObjectByName('gooseAccessoriesGroup');
+        if (old) {
+            vp.modelGroup.remove(old);
+            disposeHierarchy(old);
+        }
+
+        const cfg = SPECIES_CONFIG[currentSpecies] || SPECIES_CONFIG['shiba'];
+        const isGoose = (cfg === SPECIES_CONFIG.goose || (cfg.modelUrl && cfg.modelUrl.includes('goose.glb')));
+        if (!isGoose) return;
+
+        const activeAccs = getGooseAccessories() || [];
+        if (!activeAccs || activeAccs.length === 0) return;
+
+        const accGroup = new THREE.Group();
+        accGroup.name = 'gooseAccessoriesGroup';
+
+        if (activeAccs.includes('hair')) {
+            const hair = createPompadourHairMesh();
+            hair.position.set(0, 1.25, -0.03);
+            accGroup.add(hair);
+        }
+        if (activeAccs.includes('tanktop')) {
+            const tank = createTankTopMesh();
+            accGroup.add(tank);
+        }
+        if (activeAccs.includes('mole')) {
+            const mole = createBeautyMarkMesh();
+            accGroup.add(mole);
+        }
+        if (activeAccs.includes('glasses')) {
+            const glasses = createCoolSunglassesMesh();
+            accGroup.add(glasses);
+        }
+
+        vp.modelGroup.add(accGroup);
+    }
+
     function init(data) {
         petData = data || {};
         const newSpecies = petData.type && SPECIES_CONFIG[petData.type] ? petData.type : 'shiba';
@@ -838,6 +1083,7 @@ window.Pet3DEngine = (function () {
         }
 
         vp.modelGroup = modelWrapper;
+        applyGooseAccessories(vp);
         if (vp.petContainer) {
             vp.petContainer.add(modelWrapper);
         } else {
@@ -1568,6 +1814,9 @@ window.Pet3DEngine = (function () {
         SPECIES_CONFIG,
         setGooseColor,
         getGooseColor,
-        GOOSE_COLOR_THEMES
+        GOOSE_COLOR_THEMES,
+        getGooseAccessories,
+        setGooseAccessories,
+        applyGooseAccessories
     };
 })();
