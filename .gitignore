@@ -50,4 +50,5 @@ output.txt
 .gemini/
 .vscode/
 ANIMAL/
+model/
 *.zip

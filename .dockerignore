@@ -17,3 +17,13 @@ drive_data/
 Thumbs.db
 *.log
 templates/dashboard_cleaned.html
+model/
+tools/
+cloudflared*
+*.zip
+.agents/
+.agent/
+.cursor/
+.gemini/
+.vscode/
+backup_local/
