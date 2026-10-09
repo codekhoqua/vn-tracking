@@ -3173,7 +3173,8 @@ PET_TYPES['penguin'] = PET_TYPES['bunny']
 PET_TYPES['pinguin'] = PET_TYPES['bunny']
 PET_TYPES['horse'] = PET_TYPES['panda']
 PET_TYPES['deer'] = PET_TYPES['dragon']
-PET_TYPES['duckling'] = PET_TYPES['duck']
+PET_TYPES['duck'] = PET_TYPES['goose']
+PET_TYPES['duckling'] = PET_TYPES['goose']
 PET_TYPES['goose_duck'] = PET_TYPES['goose']
 
 # XP thresholds per level range
