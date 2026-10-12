@@ -1344,13 +1344,137 @@ select option { background: var(--surface); color: var(--text); }
     position: absolute;
     inset: 0;
     pointer-events: none;
-    background: rgba(224, 242, 254, 0.28);
+    background: rgba(224, 242, 254, 0.32);
     opacity: 0;
     z-index: 3;
     transition: opacity 0.05s ease-out;
 }
 .weather-fx-thunder.flash {
     opacity: 1;
+}
+
+/* ================== HONOR PHONE STYLE ATMOSPHERIC CLOUDS & WEATHER ================== */
+.honor-clouds-container {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 1;
+    transition: opacity 1s ease;
+}
+
+/* Individual Volumetric Cloud Formations */
+.honor-cloud-band {
+    position: absolute;
+    top: -20px;
+    left: 0;
+    width: 200%;
+    height: 140%;
+    pointer-events: none;
+    will-change: transform;
+}
+
+.honor-cloud-band.band-back {
+    animation: honorDriftBack 55s linear infinite;
+    opacity: 0.55;
+    filter: blur(22px);
+    z-index: 1;
+}
+
+.honor-cloud-band.band-mid {
+    animation: honorDriftMid 38s linear infinite;
+    opacity: 0.70;
+    filter: blur(14px);
+    z-index: 2;
+}
+
+.honor-cloud-band.band-front {
+    animation: honorDriftFront 26s linear infinite;
+    opacity: 0.85;
+    filter: blur(8px);
+    z-index: 3;
+}
+
+@keyframes honorDriftBack {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+}
+
+@keyframes honorDriftMid {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+}
+
+@keyframes honorDriftFront {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+}
+
+.honor-cloud-puff {
+    position: absolute;
+    border-radius: 50%;
+    background: radial-gradient(ellipse at center, rgba(71, 85, 105, 0.85) 0%, rgba(30, 41, 59, 0.65) 60%, transparent 100%);
+    transition: background 1s ease, filter 0.2s ease;
+}
+
+/* Weather theme colorings for clouds */
+/* Rain / Drizzle: Deep charcoal slate storm clouds */
+.honor-clouds-theme-rain .honor-cloud-puff {
+    background: radial-gradient(ellipse at center, rgba(51, 65, 85, 0.88) 0%, rgba(30, 41, 59, 0.70) 60%, transparent 100%);
+}
+/* Thunder / Heavy Storm: Very dark turbulent thunderclouds */
+.honor-clouds-theme-thunder .honor-cloud-puff {
+    background: radial-gradient(ellipse at center, rgba(30, 41, 59, 0.95) 0%, rgba(15, 23, 42, 0.85) 60%, transparent 100%);
+}
+/* Clouds / Overcast: Silver billowing puffy clouds */
+.honor-clouds-theme-clouds .honor-cloud-puff {
+    background: radial-gradient(ellipse at center, rgba(226, 232, 240, 0.75) 0%, rgba(148, 163, 184, 0.55) 60%, transparent 100%);
+}
+/* Sun: Warm glowing golden-rimmed clouds */
+.honor-clouds-theme-sun .honor-cloud-puff {
+    background: radial-gradient(ellipse at center, rgba(254, 240, 138, 0.50) 0%, rgba(251, 191, 36, 0.25) 55%, transparent 100%);
+}
+/* Clear Night: Ethereal midnight violet mist */
+.honor-clouds-theme-clear_night .honor-cloud-puff {
+    background: radial-gradient(ellipse at center, rgba(67, 56, 202, 0.40) 0%, rgba(30, 27, 75, 0.30) 60%, transparent 100%);
+}
+
+/* Lightning flash on storm clouds (Honor style) */
+.honor-clouds-theme-thunder.flash .honor-cloud-puff {
+    background: radial-gradient(ellipse at center, rgba(254, 240, 138, 0.95) 0%, rgba(224, 242, 254, 0.85) 60%, transparent 100%) !important;
+    filter: brightness(2.2);
+}
+
+/* Sun Godrays (Honor Phone Sunlight) */
+.weather-fx-sun-godrays {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: repeating-linear-gradient(
+        -32deg,
+        rgba(253, 224, 71, 0.09) 0px,
+        rgba(253, 224, 71, 0.09) 45px,
+        transparent 45px,
+        transparent 95px
+    );
+    opacity: 0.8;
+    animation: godraysWave 10s ease-in-out infinite alternate;
+    mask-image: radial-gradient(circle at 75% 25%, black 30%, transparent 80%);
+    -webkit-mask-image: radial-gradient(circle at 75% 25%, black 30%, transparent 80%);
+}
+@keyframes godraysWave {
+    0% { transform: rotate(0deg) scale(1); opacity: 0.55; }
+    100% { transform: rotate(3deg) scale(1.04); opacity: 0.9; }
+}
+
+/* Glass Rain Streaks (Honor Phone wet glass effect) */
+.honor-rain-glass {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(circle at 25% 35%, rgba(186, 230, 253, 0.12) 0%, transparent 40%),
+                radial-gradient(circle at 70% 65%, rgba(186, 230, 253, 0.10) 0%, transparent 45%);
+    backdrop-filter: contrast(1.05);
 }
 
 .weather-live-dot {

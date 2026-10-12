@@ -244,7 +244,7 @@
     <div class="mobile-brand">
         <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" width="26" height="26" style="border-radius: var(--radius-sm);">
         <span>VN-Tracking</span>
-        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.23</i></sup>
+        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.24</i></sup>
     </div>
     <div class="mobile-topbar-right">
         <button type="button" class="mobile-icon-btn" onclick="toggleNotificationPanel(event)" title="{{ 'Thông báo' if lang == 'vi' else '通知' }}">
@@ -274,7 +274,7 @@
         <div style="display: flex; flex-direction: column; justify-content: center;">
             <span>VN-Tracking</span>
             <sup class="version-tag"
-                style="color: var(--text-3); font-size: 11px; margin-top: 2px;"><i>v1.9.23</i></sup>
+                style="color: var(--text-3); font-size: 11px; margin-top: 2px;"><i>v1.9.24</i></sup>
         </div>
     </div>
 
@@ -1358,9 +1358,11 @@
             <div id="hero-weather-bg"
                 style="position: absolute; inset: 0; background-size: cover; background-position: center; transition: background-image 1s ease; background-color: #0f172a;">
             </div>
+            <!-- Dynamic Honor-Style Volumetric Cloud Atmosphere Layers -->
+            <div id="hero-weather-clouds-layer" class="honor-clouds-container"></div>
             <!-- Gradient Overlay to ensure readability and match the sleek dark look -->
             <div
-                style="position: absolute; inset: 0; background: linear-gradient(90deg, rgba(8,12,20,0.94) 0%, rgba(15,23,42,0.65) 50%, rgba(8,12,20,0.88) 100%);">
+                style="position: absolute; inset: 0; background: linear-gradient(90deg, rgba(8,12,20,0.92) 0%, rgba(15,23,42,0.60) 50%, rgba(8,12,20,0.85) 100%);">
             </div>
             <!-- Dynamic Weather FX Atmosphere Layer (Sun rays, Lightning flash) -->
             <div id="hero-weather-fx-layer" style="position: absolute; inset: 0; pointer-events: none; z-index: 2;"></div>
