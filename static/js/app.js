@@ -841,6 +841,7 @@ window.renderHeroFilmstripTrack = function() {
         displayList.forEach(p => {
             html += `
                 <div class="hero-film-item">
+                    <div class="film-sprocket-backlight"></div>
                     <img src="${p.src}" alt="${p.caption || ''}" class="hero-film-photo" loading="lazy">
                     <div class="hero-film-overlay-frame"></div>
                     <div class="hero-film-caption">${p.caption || ''}</div>
@@ -893,6 +894,7 @@ window.renderFilmstripModalContent = function() {
 
     grid.innerHTML = photos.map(p => `
         <div class="filmstrip-thumb-item">
+            <div class="film-sprocket-backlight"></div>
             <img src="${p.src}" alt="${p.caption || ''}" class="filmstrip-thumb-photo" loading="lazy">
             <div class="filmstrip-thumb-frame"></div>
             <button type="button" class="filmstrip-thumb-delete" onclick="deleteFilmstripPhoto('${p.id}')" title="Xóa ảnh này">
@@ -6303,167 +6305,46 @@ function setInputStatus(id, state) {
         weatherAnimId = requestAnimationFrame(updateWeatherParticles);
     }
 
-    // Render Honor phone style realistic volumetric drifting clouds across header
+    // Clouds disabled per user request to highlight film album
     function renderHonorAtmosphericClouds(mode) {
         const cloudsLayer = document.getElementById('hero-weather-clouds-layer');
-        if (!cloudsLayer) return;
-
-        // On sunny or clear skies, the sky is sunny and radiant - hide storm clouds!
-        if (!mode || mode === 'sun' || mode === 'clear' || mode === 'clear_night') {
-            cloudsLayer.style.opacity = '0';
-            return;
+        if (cloudsLayer) {
+            cloudsLayer.style.display = 'none';
+            cloudsLayer.innerHTML = '';
         }
-
-        cloudsLayer.className = `honor-clouds-container honor-clouds-theme-${mode}`;
-        cloudsLayer.style.opacity = '1';
-
-        // Check if already populated to prevent unnecessary DOM reconstruction
-        if (cloudsLayer.dataset.rendered === 'true') {
-            return;
-        }
-        cloudsLayer.dataset.rendered = 'true';
-
-        // Photorealistic cloud assets
-        const cloud1Src = '/static/images/honor_cloud_1.webp';
-        const cloud2Src = '/static/images/honor_cloud_2.webp';
-
-        function buildBandHTML(clouds) {
-            let html = '';
-            // Render original (0% to 100%) and seamless duplicate (100% to 200%)
-            for (let copy = 0; copy < 2; copy++) {
-                const offset = copy * 100;
-                clouds.forEach((c) => {
-                    const src = c.type === 1 ? cloud1Src : cloud2Src;
-                    html += `
-                        <div class="honor-cloud-item ${c.anim}" style="left: ${c.left + offset}%; top: ${c.top}px; width: ${c.width}px; animation-delay: ${c.delay}s; transform: scale(${c.scale || 1});">
-                            <img src="${src}" alt="Atmospheric Cloud" class="honor-cloud-img" loading="lazy">
-                        </div>`;
-                });
-            }
-            return html;
-        }
-
-        // Layer 1: Back (Far distant haze, extremely slow majestic drift)
-        const backClouds = [
-            { type: 2, left: 10, top: -22, width: 560, anim: 'float-slow', delay: 0, scale: 1.05 }
-        ];
-
-        // Layer 2: Mid (Atmospheric cumulus body, leisurely floating)
-        const midClouds = [
-            { type: 1, left: 58, top: -14, width: 450, anim: 'float-med', delay: -7.5, scale: 0.95 }
-        ];
-
-        // Layer 3: Front (Soft ethereal foreground vapor)
-        const frontClouds = [
-            { type: 2, left: 26, top: 4, width: 380, anim: 'float-fast', delay: -13.5, scale: 0.88 }
-        ];
-
-        cloudsLayer.innerHTML = `
-            <div class="honor-cloud-band band-back">${buildBandHTML(backClouds)}</div>
-            <div class="honor-cloud-band band-mid">${buildBandHTML(midClouds)}</div>
-            <div class="honor-cloud-band band-front">${buildBandHTML(frontClouds)}</div>
-        `;
     }
 
+    // Weather atmospheric overlays disabled per user request to highlight film album only
     window.applyWeatherEffect = function(mode) {
         initWeatherCanvas();
         const fxLayer = document.getElementById('hero-weather-fx-layer');
         const chartEl = document.getElementById('main-chart-section') || document.querySelector('.chart-section');
 
-        // Clear existing thunder timer
         if (thunderTimer) {
             clearInterval(thunderTimer);
             thunderTimer = null;
         }
 
-        // Clean FX layer
         if (fxLayer) {
             fxLayer.className = '';
             fxLayer.innerHTML = '';
+            fxLayer.style.display = 'none';
         }
 
-        // Render Honor atmospheric cloud layers
         renderHonorAtmosphericClouds(mode);
 
-        if (mode === 'clear' || !mode) {
-            currentWeatherMode = null;
-            if (weatherAnimId) {
-                cancelAnimationFrame(weatherAnimId);
-                weatherAnimId = null;
-            }
-            if (weatherCtx && weatherCanvas) {
-                weatherCtx.clearRect(0, 0, weatherCanvas.width, weatherCanvas.height);
-                weatherCanvas.style.display = 'none';
-            }
-            if (chartEl) {
-                chartEl.classList.remove('rain-wet-rim', 'snow-frost-rim', 'sun-warm-rim');
-            }
-            return;
+        if (weatherAnimId) {
+            cancelAnimationFrame(weatherAnimId);
+            weatherAnimId = null;
         }
-
-        currentWeatherMode = mode;
-        if (weatherCanvas) weatherCanvas.style.display = 'block';
-
-        if (mode === 'rain' || mode === 'thunder') {
-            if (fxLayer) {
-                const glass = document.createElement('div');
-                glass.className = 'honor-rain-glass';
-                fxLayer.appendChild(glass);
-            }
-
-            const totalDrops = Math.min(50, Math.floor(window.innerWidth / 24));
-            rainDrops = [];
-            rainSplashes = [];
-            for (let i = 0; i < totalDrops; i++) {
-                rainDrops.push(createRainDrop(true));
-            }
-            if (mode === 'thunder') {
-                if (fxLayer) fxLayer.className = 'weather-fx-thunder';
-                thunderTimer = setInterval(() => {
-                    const cloudsLayer = document.getElementById('hero-weather-clouds-layer');
-                    if (fxLayer && Math.random() < 0.6) {
-                        fxLayer.classList.add('flash');
-                        if (cloudsLayer) cloudsLayer.classList.add('flash');
-                        setTimeout(() => {
-                            fxLayer.classList.remove('flash');
-                            if (cloudsLayer) cloudsLayer.classList.remove('flash');
-                        }, 70);
-                        if (Math.random() < 0.4) {
-                            setTimeout(() => {
-                                fxLayer.classList.add('flash');
-                                if (cloudsLayer) cloudsLayer.classList.add('flash');
-                                setTimeout(() => {
-                                    fxLayer.classList.remove('flash');
-                                    if (cloudsLayer) cloudsLayer.classList.remove('flash');
-                                }, 50);
-                            }, 120);
-                        }
-                    }
-                }, 8000);
-            }
-        } else if (mode === 'snow') {
-            const totalFlakes = Math.min(48, Math.floor(window.innerWidth / 26));
-            snowFlakes = [];
-            for (let i = 0; i < totalFlakes; i++) {
-                snowFlakes.push(createSnowFlake(true));
-            }
-        } else if (mode === 'sun') {
-            if (fxLayer) {
-                fxLayer.className = 'weather-fx-sun';
-                const godrays = document.createElement('div');
-                godrays.className = 'weather-fx-sun-godrays';
-                fxLayer.appendChild(godrays);
-            }
-            const totalMotes = Math.min(28, Math.floor(window.innerWidth / 40));
-            sunMotes = [];
-            for (let i = 0; i < totalMotes; i++) {
-                sunMotes.push(createSunMote(true));
-            }
+        if (weatherCtx && weatherCanvas) {
+            weatherCtx.clearRect(0, 0, weatherCanvas.width, weatherCanvas.height);
+            weatherCanvas.style.display = 'none';
         }
-
-        lastRectUpdate = 0;
-        if (weatherAnimId) cancelAnimationFrame(weatherAnimId);
-        weatherAnimId = requestAnimationFrame(updateWeatherParticles);
+        if (chartEl) {
+            chartEl.classList.remove('rain-wet-rim', 'snow-frost-rim', 'sun-warm-rim');
+        }
+        currentWeatherMode = null;
     };
 
     // Backward compatibility aliases

@@ -4780,12 +4780,30 @@ body:has(.login-page) {
     overflow: hidden;
     user-select: none;
     transition: transform 0.25s ease, filter 0.25s ease;
+    background: #0f172a;
 }
 
 .hero-film-item:hover {
-    transform: scale(1.03);
+    transform: scale(1.02);
     z-index: 5;
-    filter: brightness(1.1);
+    filter: brightness(1.08);
+}
+
+/* Authentic White Sprocket Holes Backlight - Makes the 35mm Filmstrip POP */
+.film-sprocket-backlight {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background: linear-gradient(
+        to bottom,
+        #f8fafc 0%,
+        #f8fafc 15.2%,
+        transparent 15.2%,
+        transparent 84.8%,
+        #f8fafc 84.8%,
+        #f8fafc 100%
+    );
 }
 
 .hero-film-photo {
@@ -4796,8 +4814,9 @@ body:has(.login-page) {
     height: 70.2%;
     object-fit: cover;
     border-radius: 2px;
-    background: #111827;
-    filter: brightness(1.10) contrast(1.02);
+    background: #0f172a;
+    filter: brightness(1.08) contrast(1.04);
+    z-index: 1;
     transition: transform 0.3s ease;
 }
 
@@ -4818,7 +4837,7 @@ body:has(.login-page) {
     bottom: 18%;
     left: 10%;
     right: 10%;
-    background: rgba(0, 0, 0, 0.65);
+    background: rgba(0, 0, 0, 0.75);
     backdrop-filter: blur(4px);
     color: #f8fafc;
     font-size: 9px;
@@ -4841,14 +4860,17 @@ body:has(.login-page) {
     transform: translateY(0);
 }
 
-/* Cinematic Vignette for Hero Banner */
+/* Hide dark vignette overlay to keep album 100% prominent & bright */
 .hero-filmstrip-vignette {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    z-index: 2;
-    background: radial-gradient(ellipse at 50% 50%, rgba(10, 18, 38, 0.12) 0%, rgba(10, 18, 38, 0.50) 100%),
-                linear-gradient(90deg, rgba(10, 18, 38, 0.65) 0%, rgba(10, 18, 38, 0.04) 18%, rgba(10, 18, 38, 0.04) 82%, rgba(10, 18, 38, 0.65) 100%);
+    display: none !important;
+}
+
+/* Hide cloud layers and weather FX overlays to highlight album only */
+.honor-clouds-container {
+    display: none !important;
+}
+.weather-fx-sun, .weather-fx-sun-godrays, .weather-fx-thunder {
+    display: none !important;
 }
 
 /* Button to trigger Album Modal */
