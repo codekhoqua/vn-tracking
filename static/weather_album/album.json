@@ -31,12 +31,6 @@
       "name": "20260808_120236.jpg"
     },
     {
-      "id": "user_1791793545_51551d.jpg",
-      "src": "/static/weather_album/user_1791793545_51551d.jpg",
-      "caption": "20260808 124434(0)",
-      "name": "20260808_124434(0).jpg"
-    },
-    {
       "id": "user_1791793547_8ef9f4.jpg",
       "src": "/static/weather_album/user_1791793547_8ef9f4.jpg",
       "caption": "20260808 124434",
@@ -71,6 +65,30 @@
       "src": "/static/weather_album/user_1791793552_778890.jpg",
       "caption": "IMG20260808104117",
       "name": "IMG20260808104117.jpg"
+    },
+    {
+      "id": "user_1791794222_f12cf3.jpg",
+      "src": "/static/weather_album/user_1791794222_f12cf3.jpg",
+      "caption": "20261012 132229",
+      "name": "20261012_132229.jpg"
+    },
+    {
+      "id": "user_1791794226_15b481.jpg",
+      "src": "/static/weather_album/user_1791794226_15b481.jpg",
+      "caption": "20261005 104804",
+      "name": "20261005_104804.jpg"
+    },
+    {
+      "id": "user_1791794227_2b1c71.jpg",
+      "src": "/static/weather_album/user_1791794227_2b1c71.jpg",
+      "caption": "20261005 103404",
+      "name": "20261005_103404.jpg"
+    },
+    {
+      "id": "user_1791794338_75377a.jpg",
+      "src": "/static/weather_album/user_1791794338_75377a.jpg",
+      "caption": "1791794307596 268312170337647983 g4587811714124256125 71f8754e4afb9b890226ccd5f57f1089",
+      "name": "1791794307596_268312170337647983_g4587811714124256125_71f8754e4afb9b890226ccd5f57f1089.jpg"
     }
   ],
   "settings": {
