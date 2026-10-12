@@ -6083,76 +6083,21 @@ function setInputStatus(id, state) {
         }
         cloudsLayer.dataset.rendered = 'true';
 
-        // High quality organic volumetric cloud SVG shapes
-        const cloudSVG1 = (id) => `
-            <svg viewBox="0 0 500 180" class="honor-cloud-svg" xmlns="http://www.w3.org/2000/svg">
-              <defs>
-                <linearGradient id="honorGrad1_${id}" x1="0" y1="0" x2="0" y2="100%">
-                  <stop offset="0%" stop-color="var(--cloud-top)" stop-opacity="var(--cloud-top-op)" />
-                  <stop offset="55%" stop-color="var(--cloud-mid)" stop-opacity="var(--cloud-mid-op)" />
-                  <stop offset="100%" stop-color="var(--cloud-bot)" stop-opacity="var(--cloud-bot-op)" />
-                </linearGradient>
-                <filter id="honorBlur1_${id}" x="-20%" y="-20%" width="140%" height="140%">
-                  <feGaussianBlur stdDeviation="8" />
-                </filter>
-              </defs>
-              <path d="M 60,160 C 25,160 0,135 0,105 C 0,78 20,55 48,50 C 55,20 84,0 120,0 C 152,0 180,18 192,44 C 206,32 226,24 248,24 C 285,24 316,50 322,85 C 336,78 354,74 372,74 C 412,74 445,102 450,140 C 466,142 480,154 480,165 C 480,175 464,175 446,175 L 60,175 Z" fill="url(#honorGrad1_${id})" />
-              <ellipse cx="120" cy="45" rx="55" ry="28" fill="var(--cloud-highlight)" filter="url(#honorBlur1_${id})" />
-              <ellipse cx="248" cy="60" rx="65" ry="32" fill="var(--cloud-highlight)" filter="url(#honorBlur1_${id})" />
-              <ellipse cx="372" cy="95" rx="55" ry="28" fill="var(--cloud-highlight)" filter="url(#honorBlur1_${id})" />
-            </svg>
-        `;
-
-        const cloudSVG2 = (id) => `
-            <svg viewBox="0 0 540 160" class="honor-cloud-svg" xmlns="http://www.w3.org/2000/svg">
-              <defs>
-                <linearGradient id="honorGrad2_${id}" x1="0" y1="0" x2="0" y2="100%">
-                  <stop offset="0%" stop-color="var(--cloud-top)" stop-opacity="var(--cloud-top-op)" />
-                  <stop offset="55%" stop-color="var(--cloud-mid)" stop-opacity="var(--cloud-mid-op)" />
-                  <stop offset="100%" stop-color="var(--cloud-bot)" stop-opacity="var(--cloud-bot-op)" />
-                </linearGradient>
-                <filter id="honorBlur2_${id}" x="-20%" y="-20%" width="140%" height="140%">
-                  <feGaussianBlur stdDeviation="8" />
-                </filter>
-              </defs>
-              <path d="M 50,140 C 20,140 0,120 0,94 C 0,68 18,48 44,45 C 54,18 84,0 122,0 C 156,0 184,16 198,40 C 214,26 236,18 260,18 C 294,18 322,38 332,68 C 348,58 368,52 390,52 C 430,52 464,80 470,116 C 486,118 502,130 502,145 C 502,155 484,155 466,155 L 50,155 Z" fill="url(#honorGrad2_${id})" />
-              <ellipse cx="122" cy="40" rx="55" ry="26" fill="var(--cloud-highlight)" filter="url(#honorBlur2_${id})" />
-              <ellipse cx="260" cy="55" rx="60" ry="28" fill="var(--cloud-highlight)" filter="url(#honorBlur2_${id})" />
-              <ellipse cx="390" cy="75" rx="55" ry="25" fill="var(--cloud-highlight)" filter="url(#honorBlur2_${id})" />
-            </svg>
-        `;
-
-        const cloudSVG3 = (id) => `
-            <svg viewBox="0 0 460 150" class="honor-cloud-svg" xmlns="http://www.w3.org/2000/svg">
-              <defs>
-                <linearGradient id="honorGrad3_${id}" x1="0" y1="0" x2="0" y2="100%">
-                  <stop offset="0%" stop-color="var(--cloud-top)" stop-opacity="var(--cloud-top-op)" />
-                  <stop offset="55%" stop-color="var(--cloud-mid)" stop-opacity="var(--cloud-mid-op)" />
-                  <stop offset="100%" stop-color="var(--cloud-bot)" stop-opacity="var(--cloud-bot-op)" />
-                </linearGradient>
-                <filter id="honorBlur3_${id}" x="-20%" y="-20%" width="140%" height="140%">
-                  <feGaussianBlur stdDeviation="8" />
-                </filter>
-              </defs>
-              <path d="M 45,130 C 18,130 0,112 0,88 C 0,64 18,45 42,42 C 50,16 78,0 112,0 C 142,0 168,15 180,38 C 194,26 212,20 234,20 C 264,20 288,38 296,65 C 310,56 328,50 348,50 C 382,50 412,74 418,105 C 432,108 444,118 444,130 C 444,140 430,140 414,140 L 45,140 Z" fill="url(#honorGrad3_${id})" />
-              <ellipse cx="112" cy="38" rx="48" ry="24" fill="var(--cloud-highlight)" filter="url(#honorBlur3_${id})" />
-              <ellipse cx="234" cy="52" rx="52" ry="26" fill="var(--cloud-highlight)" filter="url(#honorBlur3_${id})" />
-            </svg>
-        `;
+        // Photorealistic cloud assets
+        const cloud1Src = '/static/images/honor_cloud_1.webp';
+        const cloud2Src = '/static/images/honor_cloud_2.webp';
 
         function buildBandHTML(clouds) {
             let html = '';
             // Render original (0% to 100%) and seamless duplicate (100% to 200%)
             for (let copy = 0; copy < 2; copy++) {
                 const offset = copy * 100;
-                clouds.forEach((c, idx) => {
-                    const id = `${c.type}_c${copy}_${idx}`;
-                    let svgContent = '';
-                    if (c.type === 1) svgContent = cloudSVG1(id);
-                    else if (c.type === 2) svgContent = cloudSVG2(id);
-                    else svgContent = cloudSVG3(id);
-
-                    html += `<div class="honor-cloud-item ${c.anim}" style="left: ${c.left + offset}%; top: ${c.top}px; width: ${c.width}px; animation-delay: ${c.delay}s;">${svgContent}</div>`;
+                clouds.forEach((c) => {
+                    const src = c.type === 1 ? cloud1Src : cloud2Src;
+                    html += `
+                        <div class="honor-cloud-item ${c.anim}" style="left: ${c.left + offset}%; top: ${c.top}px; width: ${c.width}px; animation-delay: ${c.delay}s; transform: scale(${c.scale || 1});">
+                            <img src="${src}" alt="Atmospheric Cloud" class="honor-cloud-img" loading="lazy">
+                        </div>`;
                 });
             }
             return html;
@@ -6160,22 +6105,22 @@ function setInputStatus(id, state) {
 
         // Layer 1: Back (Far distant haze, slow serene drift)
         const backClouds = [
-            { type: 2, left: 3, top: -18, width: 440, anim: 'float-slow', delay: 0 },
-            { type: 1, left: 38, top: -24, width: 480, anim: 'float-slow', delay: -3 },
-            { type: 3, left: 74, top: -14, width: 420, anim: 'float-slow', delay: -6 }
+            { type: 2, left: -2, top: -20, width: 520, anim: 'float-slow', delay: 0, scale: 1.1 },
+            { type: 1, left: 34, top: -26, width: 480, anim: 'float-slow', delay: -3.5, scale: 1.05 },
+            { type: 2, left: 68, top: -16, width: 500, anim: 'float-slow', delay: -6.2, scale: 1.1 }
         ];
 
         // Layer 2: Mid (Atmospheric cumulus body, medium pace)
         const midClouds = [
-            { type: 1, left: 10, top: -6, width: 380, anim: 'float-med', delay: -1 },
-            { type: 3, left: 45, top: 4, width: 360, anim: 'float-med', delay: -4.5 },
-            { type: 2, left: 78, top: -2, width: 400, anim: 'float-med', delay: -2.5 }
+            { type: 1, left: 8, top: -10, width: 420, anim: 'float-med', delay: -1.2, scale: 1.0 },
+            { type: 2, left: 42, top: -2, width: 440, anim: 'float-med', delay: -4.8, scale: 1.0 },
+            { type: 1, left: 76, top: -8, width: 400, anim: 'float-med', delay: -2.8, scale: 0.95 }
         ];
 
-        // Layer 3: Front (Close billows, dynamic foreground)
+        // Layer 3: Front (Close billowing vapor, dynamic foreground)
         const frontClouds = [
-            { type: 3, left: 16, top: 12, width: 330, anim: 'float-fast', delay: -1.2 },
-            { type: 1, left: 58, top: 18, width: 350, anim: 'float-fast', delay: -3.8 }
+            { type: 2, left: 14, top: 8, width: 380, anim: 'float-fast', delay: -1.5, scale: 0.9 },
+            { type: 1, left: 56, top: 14, width: 360, anim: 'float-fast', delay: -4.0, scale: 0.88 }
         ];
 
         cloudsLayer.innerHTML = `
