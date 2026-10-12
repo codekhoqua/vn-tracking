@@ -1332,12 +1332,6 @@ select option { background: var(--surface); color: var(--text); }
     position: absolute;
     inset: 0;
     pointer-events: none;
-    background: radial-gradient(circle at 82% 28%, rgba(253, 224, 71, 0.22) 0%, rgba(245, 158, 11, 0.12) 32%, transparent 68%);
-    animation: sunAtmospherePulse 7s ease-in-out infinite alternate;
-}
-@keyframes sunAtmospherePulse {
-    0% { opacity: 0.7; transform: scale(0.98); }
-    100% { opacity: 1; transform: scale(1.02); }
 }
 
 .weather-fx-thunder {
@@ -1537,13 +1531,13 @@ select option { background: var(--surface); color: var(--text); }
     position: absolute;
     inset: 0;
     pointer-events: none;
-    background: radial-gradient(circle at 74% 28%, rgba(254, 240, 138, 0.40) 0%, rgba(245, 158, 11, 0.20) 32%, rgba(217, 119, 6, 0.06) 55%, transparent 72%);
-    opacity: 0.9;
-    animation: sunAuraGlow 6s ease-in-out infinite alternate;
+    background: radial-gradient(circle at 78% 25%, rgba(251, 191, 36, 0.14) 0%, rgba(245, 158, 11, 0.06) 35%, transparent 65%);
+    opacity: 0.85;
+    animation: sunAuraGlow 7s ease-in-out infinite alternate;
 }
 @keyframes sunAuraGlow {
-    0%   { transform: scale(1); opacity: 0.75; }
-    100% { transform: scale(1.08); opacity: 1; }
+    0%   { transform: scale(1); opacity: 0.65; }
+    100% { transform: scale(1.06); opacity: 0.95; }
 }
 
 /* Glass Rain Streaks (Honor Phone wet glass effect) */
