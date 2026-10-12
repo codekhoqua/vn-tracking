@@ -2233,15 +2233,40 @@ def api_weather():
 # ---------------- WEATHER FILMSTRIP ALBUM APIS ----------------
 WEATHER_ALBUM_DIR = os.path.join(os.path.dirname(__file__), 'static', 'weather_album')
 WEATHER_ALBUM_JSON = os.path.join(WEATHER_ALBUM_DIR, 'album.json')
+WEATHER_ALBUM_SB_PREFIX = 'weather_album'
+WEATHER_ALBUM_SB_JSON = '_system/weather_album.json'
 
 def _load_weather_album():
     os.makedirs(WEATHER_ALBUM_DIR, exist_ok=True)
+    # 1. Thử đọc từ Supabase Storage nếu đang bật
+    if USE_SUPABASE:
+        try:
+            raw = sb_download_bytes(WEATHER_ALBUM_SB_JSON)
+            if raw:
+                data = json.loads(raw.decode('utf-8'))
+                try:
+                    with open(WEATHER_ALBUM_JSON, 'w', encoding='utf-8') as f:
+                        json.dump(data, f, ensure_ascii=False, indent=2)
+                except Exception:
+                    pass
+                return data
+        except Exception:
+            pass
+
+    # 2. Fallback đọc từ file album.json local
     if os.path.exists(WEATHER_ALBUM_JSON):
         try:
             with open(WEATHER_ALBUM_JSON, 'r', encoding='utf-8') as f:
-                return json.load(f)
+                data = json.load(f)
+                if USE_SUPABASE:
+                    try:
+                        sb_upload(WEATHER_ALBUM_SB_JSON, json.dumps(data, ensure_ascii=False).encode('utf-8'), content_type='application/json')
+                    except Exception:
+                        pass
+                return data
         except Exception as e:
             print("Error loading album.json:", e)
+
     defaults = [
         {"id": "photo_1.jpg", "src": "/static/weather_album/photo_1.jpg", "caption": "Hạ Long Bay, Vietnam"},
         {"id": "photo_2.jpg", "src": "/static/weather_album/photo_2.jpg", "caption": "Tokyo Tower, Japan"},
@@ -2251,17 +2276,22 @@ def _load_weather_album():
         {"id": "photo_6.jpg", "src": "/static/weather_album/photo_6.jpg", "caption": "Majestic Mountain Peaks"}
     ]
     data = {"photos": defaults, "settings": {"speed": "normal", "enabled": True}}
-    try:
-        with open(WEATHER_ALBUM_JSON, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-    except Exception as e:
-        print("Error saving default album.json:", e)
+    _save_weather_album(data)
     return data
 
 def _save_weather_album(data):
     os.makedirs(WEATHER_ALBUM_DIR, exist_ok=True)
-    with open(WEATHER_ALBUM_JSON, 'w', encoding='utf-8') as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+    try:
+        with open(WEATHER_ALBUM_JSON, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print("Error saving local album.json:", e)
+
+    if USE_SUPABASE:
+        try:
+            sb_upload(WEATHER_ALBUM_SB_JSON, json.dumps(data, ensure_ascii=False).encode('utf-8'), content_type='application/json')
+        except Exception as e:
+            print("Error saving weather_album.json to Supabase:", e)
 
 @app.route('/api/weather/album', methods=['GET'])
 def get_weather_album():
@@ -2284,19 +2314,37 @@ def upload_weather_album():
             continue
         unique_name = f"user_{int(time.time())}_{uuid.uuid4().hex[:6]}.jpg"
         target_path = os.path.join(WEATHER_ALBUM_DIR, unique_name)
+        compressed_bytes = None
+        
         try:
             from PIL import Image, ImageOps
             img = Image.open(f)
             img = ImageOps.exif_transpose(img)
-            if img.mode in ('RGBA', 'P'):
+            if img.mode != 'RGB':
                 img = img.convert('RGB')
-            elif img.mode != 'RGB':
-                img = img.convert('RGB')
-            img.thumbnail((1000, 1000), Image.Resampling.LANCZOS)
-            img.save(target_path, 'JPEG', quality=82, optimize=True)
+            # Nén và giới hạn kích thước tối đa 700x700 để tiết kiệm dung lượng Supabase (chỉ ~35KB-55KB/ảnh)
+            img.thumbnail((700, 700), Image.Resampling.LANCZOS)
+            buf = io.BytesIO()
+            img.save(buf, format='JPEG', quality=75, optimize=True, progressive=True)
+            compressed_bytes = buf.getvalue()
         except Exception as e:
             f.seek(0)
-            f.save(target_path)
+            compressed_bytes = f.read()
+
+        # Lưu local cache
+        try:
+            with open(target_path, 'wb') as out_f:
+                out_f.write(compressed_bytes)
+        except Exception as e:
+            print(f"Error saving local photo {unique_name}:", e)
+
+        # Upload lên Supabase Storage
+        if USE_SUPABASE and compressed_bytes:
+            try:
+                sb_upload(f"{WEATHER_ALBUM_SB_PREFIX}/{unique_name}", compressed_bytes, content_type='image/jpeg')
+            except Exception as e:
+                print(f"Error uploading photo {unique_name} to Supabase:", e)
+
         caption = os.path.splitext(f.filename)[0].replace('_', ' ').replace('-', ' ').strip()
         item = {
             "id": unique_name,
@@ -2319,12 +2367,21 @@ def delete_weather_album_photo():
     album['photos'] = [p for p in album.get('photos', []) if p.get('id') != photo_id]
     _save_weather_album(album)
     
+    # 1. Xóa file local nếu có
     try:
         file_path = os.path.join(WEATHER_ALBUM_DIR, photo_id)
         if os.path.exists(file_path):
             os.remove(file_path)
     except Exception as e:
-        print("Error deleting album photo file:", e)
+        print("Error deleting local album photo file:", e)
+
+    # 2. Xóa triệt để trên Supabase Storage
+    if USE_SUPABASE:
+        try:
+            sb_delete([f"{WEATHER_ALBUM_SB_PREFIX}/{photo_id}"])
+        except Exception as e:
+            print(f"Error deleting photo {photo_id} on Supabase:", e)
+            
     return jsonify({'success': True, 'album': album})
 
 @app.route('/api/weather/album/settings', methods=['POST'])
@@ -2334,6 +2391,26 @@ def update_weather_album_settings():
     album['settings'] = {**album.get('settings', {}), **data}
     _save_weather_album(album)
     return jsonify({'success': True, 'settings': album['settings']})
+
+@app.route('/static/weather_album/<path:filename>')
+def serve_weather_album_photo(filename):
+    target_path = os.path.join(WEATHER_ALBUM_DIR, filename)
+    if os.path.exists(target_path):
+        return send_from_directory(WEATHER_ALBUM_DIR, filename, max_age=604800)
+    
+    # Nếu chưa có ở local cache, tải từ Supabase về cache và phục vụ
+    if USE_SUPABASE:
+        try:
+            photo_bytes = sb_download_bytes(f"{WEATHER_ALBUM_SB_PREFIX}/{filename}")
+            if photo_bytes:
+                os.makedirs(WEATHER_ALBUM_DIR, exist_ok=True)
+                with open(target_path, 'wb') as f:
+                    f.write(photo_bytes)
+                return send_from_directory(WEATHER_ALBUM_DIR, filename, max_age=604800)
+        except Exception as e:
+            print(f"Error downloading photo {filename} from Supabase:", e)
+            
+    return "", 404
 
 @app.route('/api/weather/album/reset', methods=['POST'])
 def reset_weather_album():
