@@ -2282,9 +2282,21 @@ def upload_weather_album():
         ext = os.path.splitext(f.filename)[1].lower()
         if ext not in allowed_exts:
             continue
-        unique_name = f"user_{int(time.time())}_{uuid.uuid4().hex[:6]}{ext}"
+        unique_name = f"user_{int(time.time())}_{uuid.uuid4().hex[:6]}.jpg"
         target_path = os.path.join(WEATHER_ALBUM_DIR, unique_name)
-        f.save(target_path)
+        try:
+            from PIL import Image, ImageOps
+            img = Image.open(f)
+            img = ImageOps.exif_transpose(img)
+            if img.mode in ('RGBA', 'P'):
+                img = img.convert('RGB')
+            elif img.mode != 'RGB':
+                img = img.convert('RGB')
+            img.thumbnail((1000, 1000), Image.Resampling.LANCZOS)
+            img.save(target_path, 'JPEG', quality=82, optimize=True)
+        except Exception as e:
+            f.seek(0)
+            f.save(target_path)
         caption = os.path.splitext(f.filename)[0].replace('_', ' ').replace('-', ' ').strip()
         item = {
             "id": unique_name,
