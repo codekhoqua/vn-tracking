@@ -1,63 +1,80 @@
 {
   "photos": [
     {
-      "id": "user_1791792933_7e51a4.jpg",
-      "src": "/static/weather_album/user_1791792933_7e51a4.jpg",
-      "caption": "20260808 101951"
+      "id": "user_1791793540_56e5f3.jpg",
+      "src": "/static/weather_album/user_1791793540_56e5f3.jpg",
+      "caption": "20260307 120328",
+      "name": "20260307_120328.jpg"
     },
     {
-      "id": "user_1791792934_af3592.jpg",
-      "src": "/static/weather_album/user_1791792934_af3592.jpg",
-      "caption": "20260808 113045"
+      "id": "user_1791793541_8a3faf.jpg",
+      "src": "/static/weather_album/user_1791793541_8a3faf.jpg",
+      "caption": "20260808 101951",
+      "name": "20260808_101951.jpg"
     },
     {
-      "id": "user_1791792949_a443bb.jpg",
-      "src": "/static/weather_album/user_1791792949_a443bb.jpg",
-      "caption": "20260808 114653"
+      "id": "user_1791793542_f39330.jpg",
+      "src": "/static/weather_album/user_1791793542_f39330.jpg",
+      "caption": "20260808 113045",
+      "name": "20260808_113045.jpg"
     },
     {
-      "id": "user_1791792951_6c1463.jpg",
-      "src": "/static/weather_album/user_1791792951_6c1463.jpg",
-      "caption": "20260808 120236"
+      "id": "user_1791793543_e17de0.jpg",
+      "src": "/static/weather_album/user_1791793543_e17de0.jpg",
+      "caption": "20260808 114653",
+      "name": "20260808_114653.jpg"
     },
     {
-      "id": "user_1791792952_4d0745.jpg",
-      "src": "/static/weather_album/user_1791792952_4d0745.jpg",
-      "caption": "20260808 124434(0)"
+      "id": "user_1791793544_ab8319.jpg",
+      "src": "/static/weather_album/user_1791793544_ab8319.jpg",
+      "caption": "20260808 120236",
+      "name": "20260808_120236.jpg"
     },
     {
-      "id": "user_1791792954_a81df2.jpg",
-      "src": "/static/weather_album/user_1791792954_a81df2.jpg",
-      "caption": "20260808 124434"
+      "id": "user_1791793545_51551d.jpg",
+      "src": "/static/weather_album/user_1791793545_51551d.jpg",
+      "caption": "20260808 124434(0)",
+      "name": "20260808_124434(0).jpg"
     },
     {
-      "id": "user_1791792955_8f449e.jpg",
-      "src": "/static/weather_album/user_1791792955_8f449e.jpg",
-      "caption": "20260808 141558"
+      "id": "user_1791793547_8ef9f4.jpg",
+      "src": "/static/weather_album/user_1791793547_8ef9f4.jpg",
+      "caption": "20260808 124434",
+      "name": "20260808_124434.jpg"
     },
     {
-      "id": "user_1791792956_f1704e.jpg",
-      "src": "/static/weather_album/user_1791792956_f1704e.jpg",
-      "caption": "20260808 164211"
+      "id": "user_1791793549_b64044.jpg",
+      "src": "/static/weather_album/user_1791793549_b64044.jpg",
+      "caption": "20260808 141558",
+      "name": "20260808_141558.jpg"
     },
     {
-      "id": "user_1791792957_34cfb3.jpg",
-      "src": "/static/weather_album/user_1791792957_34cfb3.jpg",
-      "caption": "20260808 165435"
+      "id": "user_1791793549_08ea4a.jpg",
+      "src": "/static/weather_album/user_1791793549_08ea4a.jpg",
+      "caption": "20260808 164211",
+      "name": "20260808_164211.jpg"
     },
     {
-      "id": "user_1791792958_dad1af.jpg",
-      "src": "/static/weather_album/user_1791792958_dad1af.jpg",
-      "caption": "20260808 165606"
+      "id": "user_1791793550_01c343.jpg",
+      "src": "/static/weather_album/user_1791793550_01c343.jpg",
+      "caption": "20260808 165435",
+      "name": "20260808_165435.jpg"
     },
     {
-      "id": "user_1791792959_897864.jpg",
-      "src": "/static/weather_album/user_1791792959_897864.jpg",
-      "caption": "IMG20260808104117"
+      "id": "user_1791793552_e6cd69.jpg",
+      "src": "/static/weather_album/user_1791793552_e6cd69.jpg",
+      "caption": "20260808 165606",
+      "name": "20260808_165606.jpg"
+    },
+    {
+      "id": "user_1791793552_778890.jpg",
+      "src": "/static/weather_album/user_1791793552_778890.jpg",
+      "caption": "IMG20260808104117",
+      "name": "IMG20260808104117.jpg"
     }
   ],
   "settings": {
-    "speed": "normal",
+    "speed": "slow",
     "enabled": true
   }
 }
