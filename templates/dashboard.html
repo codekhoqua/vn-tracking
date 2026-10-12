@@ -244,7 +244,7 @@
     <div class="mobile-brand">
         <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" width="26" height="26" style="border-radius: var(--radius-sm);">
         <span>VN-Tracking</span>
-        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.44</i></sup>
+        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.45</i></sup>
     </div>
     <div class="mobile-topbar-right">
         <button type="button" class="mobile-icon-btn" onclick="toggleNotificationPanel(event)" title="{{ 'Thông báo' if lang == 'vi' else '通知' }}">
@@ -274,7 +274,7 @@
         <div style="display: flex; flex-direction: column; justify-content: center;">
             <span>VN-Tracking</span>
             <sup class="version-tag"
-                style="color: var(--text-3); font-size: 11px; margin-top: 2px;"><i>v1.9.44</i></sup>
+                style="color: var(--text-3); font-size: 11px; margin-top: 2px;"><i>v1.9.45</i></sup>
         </div>
     </div>
 
@@ -1369,7 +1369,7 @@
 
         <!-- Content Wrapper (Mockup format: Welcome & Title on Top, Weather & Controls on Bottom) -->
         <div class="hero-content-wrapper"
-            style="position: relative; z-index: 50; display: flex; flex-direction: column; justify-content: space-between; width: 100%; padding: 22px 30px; min-height: 145px; gap: 14px;">
+            style="position: relative; z-index: 50; display: flex; flex-direction: column; justify-content: space-between; width: 100%; padding: 18px 28px; min-height: 145px; gap: 10px;">
 
             <!-- Top Row: Welcome & Title -->
             <div class="hero-identity-section">
@@ -1382,7 +1382,7 @@
             </div>
 
             <!-- Bottom Row: Weather Row on Left, Action Controls on Right -->
-            <div class="hero-action-bar" style="display: flex; justify-content: space-between; align-items: center; width: 100%; gap: 16px; flex-wrap: wrap;">
+            <div class="hero-action-bar" style="display: flex; justify-content: space-between; align-items: flex-end; width: 100%; gap: 16px; flex-wrap: wrap;">
 
                 <!-- Left: Inline Weather Bar -->
                 <div id="inline-weather-container" class="hero-weather-inline-bar"
