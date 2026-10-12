@@ -818,18 +818,120 @@ window.renderHeroFilmstripTrack = function() {
     let html = '';
     for (let set = 0; set < 2; set++) {
         displayList.forEach(p => {
+            const displayName = p.name || p.caption || p.id || '';
             html += `
-                <div class="hero-film-item">
+                <div class="hero-film-item" onclick="openFilmstripLightbox('${p.id}', event)" title="${displayName} (Click để xem ảnh lớn)">
                     <div class="film-sprocket-backlight"></div>
-                    <img src="${p.src}" alt="${p.caption || ''}" class="hero-film-photo" loading="lazy">
+                    <img src="${p.src}" alt="${displayName}" class="hero-film-photo" loading="lazy">
                     <div class="hero-film-overlay-frame"></div>
-                    <div class="hero-film-caption">${p.name || p.caption || ''}</div>
+                    <div class="hero-film-caption">${displayName}</div>
                 </div>
             `;
         });
     }
     track.innerHTML = html;
 };
+
+// ================== FILMSTRIP LIGHTBOX (Xem ảnh kích thước lớn) ==================
+let currentLightboxIndex = 0;
+
+window.openFilmstripLightbox = function(photoId, e) {
+    if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    const data = window.weatherAlbumData || { photos: [] };
+    const photos = data.photos || [];
+    if (photos.length === 0) return;
+
+    let idx = photos.findIndex(p => p.id === photoId);
+    if (idx === -1) idx = 0;
+    currentLightboxIndex = idx;
+
+    updateLightboxView();
+
+    const backdrop = document.getElementById('filmstrip-lightbox-backdrop');
+    if (backdrop) {
+        backdrop.style.display = 'flex';
+        requestAnimationFrame(() => {
+            backdrop.classList.add('active');
+        });
+    }
+
+    window.removeEventListener('keydown', handleLightboxKeydown);
+    window.addEventListener('keydown', handleLightboxKeydown);
+};
+
+window.closeFilmstripLightbox = function(e) {
+    if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    const backdrop = document.getElementById('filmstrip-lightbox-backdrop');
+    if (backdrop) {
+        backdrop.classList.remove('active');
+        setTimeout(() => {
+            backdrop.style.display = 'none';
+        }, 220);
+    }
+    window.removeEventListener('keydown', handleLightboxKeydown);
+};
+
+function handleLightboxKeydown(e) {
+    if (e.key === 'Escape') {
+        closeFilmstripLightbox(e);
+    } else if (e.key === 'ArrowLeft') {
+        navigateFilmstripLightbox(-1, e);
+    } else if (e.key === 'ArrowRight') {
+        navigateFilmstripLightbox(1, e);
+    }
+}
+
+window.navigateFilmstripLightbox = function(dir, e) {
+    if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    const data = window.weatherAlbumData || { photos: [] };
+    const photos = data.photos || [];
+    if (photos.length === 0) return;
+
+    currentLightboxIndex = (currentLightboxIndex + dir + photos.length) % photos.length;
+    updateLightboxView();
+};
+
+function updateLightboxView() {
+    const data = window.weatherAlbumData || { photos: [] };
+    const photos = data.photos || [];
+    if (photos.length === 0) return;
+
+    const photo = photos[currentLightboxIndex];
+    if (!photo) return;
+
+    const img = document.getElementById('filmstrip-lightbox-img');
+    const title = document.getElementById('filmstrip-lightbox-title');
+    const counter = document.getElementById('filmstrip-lightbox-counter');
+    const caption = document.getElementById('filmstrip-lightbox-caption');
+    const download = document.getElementById('filmstrip-lightbox-download');
+    const newtab = document.getElementById('filmstrip-lightbox-newtab');
+
+    const displayName = photo.name || photo.caption || photo.id || '';
+
+    if (img) {
+        img.src = photo.src;
+        img.alt = displayName;
+    }
+    if (title) title.textContent = displayName;
+    if (counter) counter.textContent = `${currentLightboxIndex + 1} / ${photos.length}`;
+    if (caption) caption.textContent = displayName;
+    if (download) {
+        download.href = photo.src;
+        download.setAttribute('download', displayName);
+    }
+    if (newtab) {
+        newtab.href = photo.src;
+    }
+}
 
 window.openFilmstripAlbumModal = function(e) {
     if (e) e.stopPropagation();
@@ -874,7 +976,7 @@ window.renderFilmstripModalContent = function() {
     grid.innerHTML = photos.map(p => {
         const displayName = p.name || p.caption || p.id || '';
         return `
-            <div class="filmstrip-thumb-item" id="filmstrip-thumb-${p.id}">
+            <div class="filmstrip-thumb-item" id="filmstrip-thumb-${p.id}" onclick="openFilmstripLightbox('${p.id}', event)" title="${displayName} (Click để xem ảnh lớn)" style="cursor: pointer;">
                 <div class="film-sprocket-backlight"></div>
                 <img src="${p.src}" alt="${displayName}" class="filmstrip-thumb-photo" loading="lazy" decoding="async">
                 <div class="filmstrip-thumb-frame"></div>

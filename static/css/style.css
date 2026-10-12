@@ -4975,14 +4975,17 @@ body:has(.login-page) {
     margin: 0;
     overflow: hidden;
     user-select: none;
-    transition: transform 0.25s ease, filter 0.25s ease;
+    transition: transform 0.25s ease, filter 0.25s ease, box-shadow 0.25s ease;
     background: #0f172a;
+    cursor: pointer;
+    pointer-events: auto;
 }
 
 .hero-film-item:hover {
-    transform: scale(1.02);
-    z-index: 5;
-    filter: brightness(1.08);
+    transform: scale(1.035);
+    z-index: 10;
+    filter: brightness(1.12);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
 }
 
 /* Authentic White Sprocket Holes Backlight - Makes the 35mm Filmstrip POP */
@@ -5385,3 +5388,220 @@ body:has(.login-page) {
     overflow: hidden;
     text-overflow: ellipsis;
 }
+
+/* ================== FILMSTRIP LIGHTBOX (Xem ảnh kích thước lớn) ================== */
+.filmstrip-lightbox-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(8, 12, 22, 0.9);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    z-index: 10005;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+}
+
+.filmstrip-lightbox-backdrop.active {
+    opacity: 1;
+}
+
+.filmstrip-lightbox-dialog {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    max-width: 95vw;
+    max-height: 94vh;
+    width: fit-content;
+    background: rgba(15, 23, 42, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 18px;
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.7), 0 0 35px rgba(245, 158, 11, 0.12);
+    overflow: hidden;
+    transform: scale(0.94);
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.filmstrip-lightbox-backdrop.active .filmstrip-lightbox-dialog {
+    transform: scale(1);
+}
+
+/* Topbar */
+.filmstrip-lightbox-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 18px;
+    background: rgba(15, 23, 42, 0.95);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    gap: 16px;
+    z-index: 2;
+}
+
+.filmstrip-lightbox-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.filmstrip-lightbox-badge {
+    background: rgba(245, 158, 11, 0.2);
+    color: #fbbf24;
+    border: 1px solid rgba(245, 158, 11, 0.35);
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.filmstrip-lightbox-title {
+    color: #f8fafc;
+    font-size: 0.95rem;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 450px;
+}
+
+.filmstrip-lightbox-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.filmstrip-lightbox-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #cbd5e1;
+    cursor: pointer;
+    text-decoration: none;
+    font-size: 0.85rem;
+    transition: all 0.2s ease;
+}
+
+.filmstrip-lightbox-btn:hover {
+    background: rgba(255, 255, 255, 0.16);
+    color: #fff;
+    transform: translateY(-1px);
+}
+
+.filmstrip-lightbox-btn.close-btn:hover {
+    background: rgba(239, 68, 68, 0.85);
+    border-color: rgba(239, 68, 68, 0.9);
+    color: #fff;
+}
+
+/* Stage Area */
+.filmstrip-lightbox-stage {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 14px 64px;
+    min-height: 280px;
+    max-height: calc(82vh - 80px);
+    background: radial-gradient(circle at center, rgba(30, 41, 59, 0.5) 0%, rgba(10, 15, 29, 0.9) 100%);
+}
+
+.filmstrip-lightbox-media-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    max-height: calc(82vh - 80px);
+    max-width: calc(90vw - 128px);
+}
+
+.filmstrip-lightbox-img {
+    max-width: 100%;
+    max-height: calc(82vh - 80px);
+    object-fit: contain;
+    border-radius: 10px;
+    box-shadow: 0 10px 35px rgba(0, 0, 0, 0.55);
+    user-select: none;
+    animation: fadeInImg 0.2s ease-out;
+}
+
+@keyframes fadeInImg {
+    from { opacity: 0.4; transform: scale(0.98); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+/* Nav Buttons */
+.filmstrip-lightbox-nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: rgba(15, 23, 42, 0.75);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: all 0.2s ease;
+    backdrop-filter: blur(8px);
+    z-index: 5;
+}
+
+.filmstrip-lightbox-nav:hover {
+    background: rgba(245, 158, 11, 0.85);
+    border-color: rgba(245, 158, 11, 1);
+    transform: translateY(-50%) scale(1.1);
+    box-shadow: 0 4px 16px rgba(245, 158, 11, 0.4);
+}
+
+.filmstrip-lightbox-nav.prev {
+    left: 12px;
+}
+
+.filmstrip-lightbox-nav.next {
+    right: 12px;
+}
+
+/* Bottom Caption Bar */
+.filmstrip-lightbox-caption-bar {
+    padding: 8px 18px;
+    background: rgba(15, 23, 42, 0.95);
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    color: #94a3b8;
+    font-size: 0.8rem;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+@media (max-width: 768px) {
+    .filmstrip-lightbox-stage {
+        padding: 8px 40px;
+    }
+    .filmstrip-lightbox-media-container {
+        max-width: 100%;
+    }
+    .filmstrip-lightbox-nav {
+        width: 36px;
+        height: 36px;
+        font-size: 0.85rem;
+    }
+    .filmstrip-lightbox-nav.prev { left: 4px; }
+    .filmstrip-lightbox-nav.next { right: 4px; }
+    .filmstrip-lightbox-title { max-width: 200px; }
+}
+
