@@ -517,6 +517,10 @@ function renderWeatherUI(data, isVN, defaultLocName) {
                         <i class="fas fa-cloud-showers-heavy" style="color: #60a5fa; font-size: 0.72rem;"></i>
                         <span style="font-weight: 600;">${rainMm}mm</span>
                     </div>` : ''}
+                    <button type="button" class="weather-metric-pill weather-film-pill-btn" onclick="event.stopPropagation(); openFilmstripAlbumModal(event);" title="${isVN ? 'Album Cuộn Phim 35mm (Quản lý ảnh nền)' : '35mmフィルムアルバム'}" style="display: flex; align-items: center; gap: 4px; font-size: 0.73rem; color: #fde68a; padding: 2px 8px; border-radius: 6px; background: rgba(245, 158, 11, 0.22); border: 1px solid rgba(245, 158, 11, 0.35); cursor: pointer; transition: all 0.2s ease;">
+                        <i class="fas fa-film" style="color: #f59e0b; font-size: 0.72rem;"></i>
+                        <span style="font-weight: 600;">${isVN ? 'Album Phim' : 'フィルム'}</span>
+                    </button>
                 </div>
             </div>
         `;
@@ -1015,14 +1019,17 @@ window.toggleFilmstripEnabled = function(enabled) {
 };
 
 window.resetDefaultFilmstripPhotos = function() {
-    fetch('/api/weather/album')
+    fetch('/api/weather/album/reset', { method: 'POST' })
         .then(r => r.json())
-        .then(data => {
-            window.weatherAlbumData = data;
-            renderHeroFilmstripTrack();
-            renderFilmstripModalContent();
-            if (window.showToast) window.showToast('success', 'Đã cập nhật cuộn phim!');
-        });
+        .then(res => {
+            if (res && res.album) {
+                window.weatherAlbumData = res.album;
+                renderHeroFilmstripTrack();
+                renderFilmstripModalContent();
+                if (window.showToast) window.showToast('success', 'Đã khôi phục bộ ảnh mẫu!');
+            }
+        })
+        .catch(err => console.error('Reset error:', err));
 };
 
 // ==================== AI INSIGHTS REALTIME ====================

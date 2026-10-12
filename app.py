@@ -2323,6 +2323,20 @@ def update_weather_album_settings():
     _save_weather_album(album)
     return jsonify({'success': True, 'settings': album['settings']})
 
+@app.route('/api/weather/album/reset', methods=['POST'])
+def reset_weather_album():
+    defaults = [
+        {"id": "photo_1.jpg", "src": "/static/weather_album/photo_1.jpg", "caption": "Hạ Long Bay, Vietnam"},
+        {"id": "photo_2.jpg", "src": "/static/weather_album/photo_2.jpg", "caption": "Tokyo Tower, Japan"},
+        {"id": "photo_3.jpg", "src": "/static/weather_album/photo_3.jpg", "caption": "Warm Coffee & Vintage Vibes"},
+        {"id": "photo_4.jpg", "src": "/static/weather_album/photo_4.jpg", "caption": "Kyoto Pagoda, Japan"},
+        {"id": "photo_5.jpg", "src": "/static/weather_album/photo_5.jpg", "caption": "Phú Quốc Sunset, Vietnam"},
+        {"id": "photo_6.jpg", "src": "/static/weather_album/photo_6.jpg", "caption": "Majestic Mountain Peaks"}
+    ]
+    data = {"photos": defaults, "settings": {"speed": "normal", "enabled": True}}
+    _save_weather_album(data)
+    return jsonify({'success': True, 'album': data})
+
 @app.route('/api/insights', methods=['POST'])
 def api_insights():
     try:

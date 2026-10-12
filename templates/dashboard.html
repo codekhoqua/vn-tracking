@@ -244,7 +244,7 @@
     <div class="mobile-brand">
         <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" width="26" height="26" style="border-radius: var(--radius-sm);">
         <span>VN-Tracking</span>
-        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.34</i></sup>
+        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.35</i></sup>
     </div>
     <div class="mobile-topbar-right">
         <button type="button" class="mobile-icon-btn" onclick="toggleNotificationPanel(event)" title="{{ 'Thông báo' if lang == 'vi' else '通知' }}">
@@ -274,7 +274,7 @@
         <div style="display: flex; flex-direction: column; justify-content: center;">
             <span>VN-Tracking</span>
             <sup class="version-tag"
-                style="color: var(--text-3); font-size: 11px; margin-top: 2px;"><i>v1.9.34</i></sup>
+                style="color: var(--text-3); font-size: 11px; margin-top: 2px;"><i>v1.9.35</i></sup>
         </div>
     </div>
 
@@ -1386,18 +1386,12 @@
                     {{ t.title }}</h1>
             </div>
 
-            <!-- Center-Right: Weather Inline (3D Interactive Tilt Widget) & Film Album Button -->
-            <div style="display: flex; align-items: center; gap: 10px; margin-right: 24px;">
-                <div class="header-center" id="inline-weather-container"
-                    style="display: flex; align-items: center; min-width: 250px; cursor: pointer; user-select: none;"
-                    title="{{ 'Thời tiết 3D thực tế (Click để xem dự báo 7 ngày)' if lang == 'vi' else '3Dリアルタイム天気（クリックで7日間予報を表示）' }}"
-                    onclick="handleWeatherCardClick(event)">
-                    <span style="color: rgba(255,255,255,0.7); font-size: 0.88rem; font-weight: 500;">{{ 'Đang tải thời tiết...' if lang == 'vi' else '天気を読み込み中...' }}</span>
-                </div>
-                <button type="button" class="hero-film-album-btn" id="hero-film-album-btn" onclick="openFilmstripAlbumModal(event)" title="{{ 'Album Cuộn Phim 35mm (Thêm/quản lý ảnh nền)' if lang == 'vi' else '35mmフィルムアルバム（背景写真の管理）' }}">
-                    <i class="fas fa-film"></i>
-                    <span>{{ 'Album Phim' if lang == 'vi' else 'フィルム' }}</span>
-                </button>
+            <!-- Center-Right: Weather Inline (3D Interactive Tilt Widget with integrated Film Album button) -->
+            <div class="header-center" id="inline-weather-container"
+                style="display: flex; align-items: center; margin-right: 24px; min-width: 250px; cursor: pointer; user-select: none;"
+                title="{{ 'Thời tiết 3D thực tế (Click để xem dự báo 7 ngày)' if lang == 'vi' else '3Dリアルタイム天気（クリックで7日間予報を表示）' }}"
+                onclick="handleWeatherCardClick(event)">
+                <span style="color: rgba(255,255,255,0.7); font-size: 0.88rem; font-weight: 500;">{{ 'Đang tải thời tiết...' if lang == 'vi' else '天気を読み込み中...' }}</span>
             </div>
 
             <!-- Vertical Divider -->
