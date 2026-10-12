@@ -445,10 +445,20 @@ function renderWeatherUI(data, isVN, defaultLocName) {
         window.applyWeatherEffect(effectiveEffect);
     }
 
-    // Update Hero background
+    // Update Hero background with clean atmospheric sky gradient (Dribbble & Honor style)
+    const skyGradients = {
+        sun: "linear-gradient(135deg, #0b1329 0%, #16264c 50%, #261f3d 100%)",
+        rain: "linear-gradient(135deg, #090e17 0%, #0f1c2e 50%, #162438 100%)",
+        thunder: "linear-gradient(135deg, #070711 0%, #0f1129 50%, #1e1135 100%)",
+        snow: "linear-gradient(135deg, #081326 0%, #10233f 50%, #172d4d 100%)",
+        clouds: "linear-gradient(135deg, #0a0f1d 0%, #162033 50%, #1c273c 100%)",
+        fog: "linear-gradient(135deg, #0c1220 0%, #182234 50%, #1e2838 100%)",
+        clear_night: "linear-gradient(135deg, #050814 0%, #0b1026 50%, #121338 100%)"
+    };
     const bgEl = document.getElementById('hero-weather-bg');
     if (bgEl) {
-        bgEl.style.backgroundImage = `url('${bgUrl}')`;
+        bgEl.style.backgroundImage = 'none';
+        bgEl.style.background = skyGradients[effectiveEffect] || skyGradients.sun;
     }
 
     // Update Inline Container with 3D Gapsy Studio style
@@ -741,13 +751,19 @@ window.simulateWeatherEffect = function(mode) {
             fetchRealtimeWeather(true);
         }
     } else {
+        const skyGradients = {
+            sun: "linear-gradient(135deg, #0b1329 0%, #16264c 50%, #261f3d 100%)",
+            rain: "linear-gradient(135deg, #090e17 0%, #0f1c2e 50%, #162438 100%)",
+            thunder: "linear-gradient(135deg, #070711 0%, #0f1129 50%, #1e1135 100%)",
+            snow: "linear-gradient(135deg, #081326 0%, #10233f 50%, #172d4d 100%)",
+            clouds: "linear-gradient(135deg, #0a0f1d 0%, #162033 50%, #1c273c 100%)",
+            fog: "linear-gradient(135deg, #0c1220 0%, #182234 50%, #1e2838 100%)",
+            clear_night: "linear-gradient(135deg, #050814 0%, #0b1026 50%, #121338 100%)"
+        };
         const bgEl = document.getElementById('hero-weather-bg');
         if (bgEl) {
-            if (mode === 'rain') bgEl.style.backgroundImage = "url('https://images.unsplash.com/photo-1515694346937-94d85e41e6f0?q=80&w=1200')";
-            else if (mode === 'thunder') bgEl.style.backgroundImage = "url('https://images.unsplash.com/photo-1534274988757-a28bf1a57c17?q=80&w=1200')";
-            else if (mode === 'snow') bgEl.style.backgroundImage = "url('https://images.unsplash.com/photo-1517299321909-20b34934236a?q=80&w=1200')";
-            else if (mode === 'sun') bgEl.style.backgroundImage = "url('https://images.unsplash.com/photo-1601297183305-6df142704ea2?q=80&w=1200')";
-            else if (mode === 'clouds') bgEl.style.backgroundImage = "url('https://images.unsplash.com/photo-1501630834273-4b5604d2ee31?q=80&w=1200')";
+            bgEl.style.backgroundImage = 'none';
+            bgEl.style.background = skyGradients[mode] || skyGradients.sun;
         }
         if (window.applyWeatherEffect) {
             window.applyWeatherEffect(mode);
