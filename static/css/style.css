@@ -1378,21 +1378,21 @@ select option { background: var(--surface); color: var(--text); }
     top: -20px;
     animation: honorDriftBack 180s linear infinite;
     z-index: 1;
-    opacity: 0.35;
+    opacity: 0.18;
     filter: blur(3px);
 }
 .honor-cloud-band.band-mid {
     top: -10px;
     animation: honorDriftMid 130s linear infinite;
     z-index: 2;
-    opacity: 0.50;
+    opacity: 0.28;
     filter: blur(1px);
 }
 .honor-cloud-band.band-front {
     top: 2px;
     animation: honorDriftFront 90s linear infinite;
     z-index: 3;
-    opacity: 0.65;
+    opacity: 0.38;
 }
 
 /* Infinite Seamless Looping: Moves exactly 50% so second half seamlessly replaces first half */
@@ -1464,22 +1464,22 @@ select option { background: var(--surface); color: var(--text); }
 
 /* RAIN: Moody dark slate storm clouds */
 .honor-clouds-theme-rain .honor-cloud-img {
-    filter: brightness(0.55) contrast(1.15) drop-shadow(0 12px 28px rgba(2, 6, 23, 0.65));
+    filter: brightness(0.70) contrast(1.1) drop-shadow(0 12px 28px rgba(0, 0, 0, 0.45));
 }
 
 /* THUNDER: Tumultuous near-black thunderclouds */
 .honor-clouds-theme-thunder .honor-cloud-img {
-    filter: brightness(0.38) contrast(1.25) drop-shadow(0 16px 36px rgba(0, 0, 0, 0.85));
+    filter: brightness(0.55) contrast(1.15) drop-shadow(0 16px 36px rgba(0, 0, 0, 0.65));
 }
 
 /* CLOUDS / OVERCAST: Bright voluminous silver-white cumulus */
 .honor-clouds-theme-clouds .honor-cloud-img {
-    filter: brightness(1.05) contrast(1.05) drop-shadow(0 14px 28px rgba(15, 23, 42, 0.30));
+    filter: brightness(1.05) contrast(1.02) drop-shadow(0 14px 28px rgba(0, 0, 0, 0.25));
 }
 
 /* SUN: Golden-warmed glowing fair-weather clouds */
 .honor-clouds-theme-sun .honor-cloud-img {
-    filter: brightness(1.08) sepia(0.18) saturate(1.3) drop-shadow(0 15px 30px rgba(217, 119, 6, 0.25));
+    filter: brightness(1.12) sepia(0.2) saturate(1.2) drop-shadow(0 15px 30px rgba(217, 119, 6, 0.25));
 }
 
 /* SNOW: Crisp glacial icy white-cyan clouds */
@@ -1532,26 +1532,18 @@ select option { background: var(--surface); color: var(--text); }
     transform: translateY(-1px);
 }
 
-/* Sun Godrays (Honor Phone Sunlight) */
+/* Sun Radiant Ambient Glow (Honor Phone Sunlight Aura) - Soft, Elegant, No Stripes */
 .weather-fx-sun-godrays {
     position: absolute;
     inset: 0;
     pointer-events: none;
-    background: repeating-linear-gradient(
-        -32deg,
-        rgba(253, 224, 71, 0.09) 0px,
-        rgba(253, 224, 71, 0.09) 45px,
-        transparent 45px,
-        transparent 95px
-    );
-    opacity: 0.8;
-    animation: godraysWave 10s ease-in-out infinite alternate;
-    mask-image: radial-gradient(circle at 75% 25%, black 30%, transparent 80%);
-    -webkit-mask-image: radial-gradient(circle at 75% 25%, black 30%, transparent 80%);
+    background: radial-gradient(circle at 74% 28%, rgba(251, 191, 36, 0.22) 0%, rgba(245, 158, 11, 0.08) 42%, transparent 68%);
+    opacity: 0.85;
+    animation: sunAuraGlow 7s ease-in-out infinite alternate;
 }
-@keyframes godraysWave {
-    0% { transform: rotate(0deg) scale(1); opacity: 0.55; }
-    100% { transform: rotate(3deg) scale(1.04); opacity: 0.9; }
+@keyframes sunAuraGlow {
+    0%   { transform: scale(1); opacity: 0.65; }
+    100% { transform: scale(1.06); opacity: 0.95; }
 }
 
 /* Glass Rain Streaks (Honor Phone wet glass effect) */
