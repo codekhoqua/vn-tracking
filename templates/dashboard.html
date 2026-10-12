@@ -244,7 +244,7 @@
     <div class="mobile-brand">
         <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" width="26" height="26" style="border-radius: var(--radius-sm);">
         <span>VN-Tracking</span>
-        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.18</i></sup>
+        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.19</i></sup>
     </div>
     <div class="mobile-topbar-right">
         <button type="button" class="mobile-icon-btn" onclick="toggleNotificationPanel(event)" title="{{ 'Thông báo' if lang == 'vi' else '通知' }}">
@@ -274,7 +274,7 @@
         <div style="display: flex; flex-direction: column; justify-content: center;">
             <span>VN-Tracking</span>
             <sup class="version-tag"
-                style="color: var(--text-3); font-size: 11px; margin-top: 2px;"><i>v1.9.18</i></sup>
+                style="color: var(--text-3); font-size: 11px; margin-top: 2px;"><i>v1.9.19</i></sup>
         </div>
     </div>
 
@@ -6794,6 +6794,7 @@
                 status_class: "{{ card.status_class }}",
                 start_date: "{{ card.start_date }}",
                 end_date: "{{ card.end_date }}",
+                deadline: "{{ card.deadline }}",
                 vn_date: "{{ card.vn_date }}",
                 week_start: "{{ weeks[w].info.start }}",
                 week_end: "{{ weeks[w].info.end }}",
@@ -6822,10 +6823,6 @@
         else if (task.status_class === 'in-progress') status = 'In Progress';
         
         const today = new Date();
-        const tab = task.tab_key;
-        if (tab === 'truoc') today.setDate(today.getDate() - 7);
-        else if (tab === 'sau') today.setDate(today.getDate() + 7);
-        
         const day = today.getDay();
         const diffToMonday = day === 0 ? -6 : 1 - day;
         
@@ -6840,7 +6837,7 @@
             startDateObj.setDate(monday.getDate() + 2); // T2 + 2 = T4
             endDateObj.setDate(monday.getDate() + 7);   // T2 + 7 = T2 tuần sau
         } else {
-            // Retouch & Khác: Thứ 2 -> Thứ 6
+            // Retouch & Khác: Thứ 2 -> Thứ 6 (theo tuần làm việc)
             endDateObj.setDate(monday.getDate() + 4);   // T2 + 4 = T6
         }
         
@@ -6869,6 +6866,17 @@
 
         const projectName = getCleanProjectName(task.project_name);
 
+        const formatNotionDate = (dStr) => {
+            if (!dStr) return '';
+            const dt = new Date(dStr);
+            if (!isNaN(dt.getTime())) {
+                return fmt(dt);
+            }
+            return dStr;
+        };
+
+        const deadlineExport = formatNotionDate(task.deadline || task.end_date);
+
         const header = ['Name', '作品名', 'ステータス', '作業日程', '作業者', '納品日'];
         const escapeCSV = (val) => `"${(val || '').replace(/"/g, '""')}"`;
         const row = [
@@ -6877,7 +6885,7 @@
             escapeCSV(status), 
             escapeCSV(dateRange), 
             escapeCSV(workerExport),
-            escapeCSV(task.end_date)
+            escapeCSV(deadlineExport)
         ];
         
         const csvContent = "\uFEFF" + header.join(',') + "\n" + row.join(',');
