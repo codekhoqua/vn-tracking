@@ -856,9 +856,9 @@ window.renderHeroFilmstripTrack = function() {
     else if (settings.speed === 'fast') track.classList.add('speed-fast');
     else track.classList.add('speed-normal');
 
-    // Ensure enough items for seamless marquee loop (at least 14 frames per cycle)
+    // Ensure enough items for seamless marquee loop (at least 20 frames per cycle)
     let displayList = [...photos];
-    while (displayList.length < 14) {
+    while (displayList.length < 20) {
         displayList = displayList.concat(photos);
     }
 
