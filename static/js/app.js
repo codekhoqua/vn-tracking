@@ -411,17 +411,17 @@ function renderWeatherUI(data, isVN, defaultLocName) {
         desc = isVN ? "Sương mù" : "霧";
         bgUrl = "https://images.unsplash.com/photo-1487621167305-5d248087c724?q=80&w=1200";
         themeRgb = "203, 213, 225";
-        effectiveEffect = 'clear';
+        effectiveEffect = 'fog';
     } else if (category === 'clouds' || [116, 119, 122].includes(wCode)) {
         desc = isVN ? "Nhiều mây" : "曇り";
         bgUrl = "https://images.unsplash.com/photo-1501630834273-4b5604d2ee31?q=80&w=1200";
         themeRgb = "148, 163, 184";
-        effectiveEffect = 'clear';
+        effectiveEffect = 'clouds';
     } else if (!isDay) {
         desc = isVN ? "Trời quang (Đêm)" : "快晴 (夜)";
         bgUrl = "https://images.unsplash.com/photo-1509773896068-7fd415d91e2e?q=80&w=1200";
         themeRgb = "129, 140, 248";
-        effectiveEffect = 'clear';
+        effectiveEffect = 'clear_night';
     } else {
         desc = isVN ? "Nắng đẹp" : "晴れ";
         bgUrl = "https://images.unsplash.com/photo-1601297183305-6df142704ea2?q=80&w=1200";
@@ -691,6 +691,22 @@ window.openWeatherForecastModal = function() {
                 ${forecastHtml}
             </div>
         </div>
+
+        <!-- Honor Atmospheric Weather Simulator Toolbar -->
+        <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.12); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+            <div style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: rgba(255,255,255,0.7); font-weight: 600;">
+                <i class="fas fa-magic" style="color: #38bdf8;"></i>
+                <span>${isVN ? 'Trải nghiệm thời tiết phong cách Honor:' : 'Honor天気エフェクト体験:'}</span>
+            </div>
+            <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                <button type="button" class="weather-sim-btn ${!userWeatherOverride ? 'active' : ''}" data-mode="auto" onclick="simulateWeatherEffect('auto')">🔄 ${isVN ? 'Tự động' : '自動'}</button>
+                <button type="button" class="weather-sim-btn ${userWeatherOverride==='clouds' ? 'active' : ''}" data-mode="clouds" onclick="simulateWeatherEffect('clouds')">☁️ ${isVN ? 'Mây bay' : '雲海'}</button>
+                <button type="button" class="weather-sim-btn ${userWeatherOverride==='rain' ? 'active' : ''}" data-mode="rain" onclick="simulateWeatherEffect('rain')">🌧️ ${isVN ? 'Mưa rơi' : '雨'}</button>
+                <button type="button" class="weather-sim-btn ${userWeatherOverride==='thunder' ? 'active' : ''}" data-mode="thunder" onclick="simulateWeatherEffect('thunder')">⚡ ${isVN ? 'Sấm sét' : '雷雨'}</button>
+                <button type="button" class="weather-sim-btn ${userWeatherOverride==='sun' ? 'active' : ''}" data-mode="sun" onclick="simulateWeatherEffect('sun')">☀️ ${isVN ? 'Nắng vàng' : '快晴'}</button>
+                <button type="button" class="weather-sim-btn ${userWeatherOverride==='snow' ? 'active' : ''}" data-mode="snow" onclick="simulateWeatherEffect('snow')">❄️ ${isVN ? 'Tuyết trắng' : '雪'}</button>
+            </div>
+        </div>
     `;
 
     backdrop.classList.add('open');
@@ -711,17 +727,42 @@ document.addEventListener('keydown', (e) => {
 
 window.simulateWeatherEffect = function(mode) {
     userWeatherOverride = (mode === 'auto') ? null : mode;
-    if (window.applyWeatherEffect) {
-        if (mode === 'auto') {
-            if (lastWeatherPayload) {
-                const isVN = (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi');
-                renderWeatherUI(lastWeatherPayload, isVN, isVN ? "TP.HCM" : "Gifu");
-            } else {
-                fetchRealtimeWeather(true);
-            }
+    const isVN = (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi');
+
+    // Update active style on simulation buttons
+    document.querySelectorAll('.weather-sim-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.mode === (userWeatherOverride || 'auto'));
+    });
+
+    if (mode === 'auto') {
+        if (lastWeatherPayload) {
+            renderWeatherUI(lastWeatherPayload, isVN, isVN ? "TP.HCM" : "Gifu");
         } else {
+            fetchRealtimeWeather(true);
+        }
+    } else {
+        const bgEl = document.getElementById('hero-weather-bg');
+        if (bgEl) {
+            if (mode === 'rain') bgEl.style.backgroundImage = "url('https://images.unsplash.com/photo-1515694346937-94d85e41e6f0?q=80&w=1200')";
+            else if (mode === 'thunder') bgEl.style.backgroundImage = "url('https://images.unsplash.com/photo-1534274988757-a28bf1a57c17?q=80&w=1200')";
+            else if (mode === 'snow') bgEl.style.backgroundImage = "url('https://images.unsplash.com/photo-1517299321909-20b34934236a?q=80&w=1200')";
+            else if (mode === 'sun') bgEl.style.backgroundImage = "url('https://images.unsplash.com/photo-1601297183305-6df142704ea2?q=80&w=1200')";
+            else if (mode === 'clouds') bgEl.style.backgroundImage = "url('https://images.unsplash.com/photo-1501630834273-4b5604d2ee31?q=80&w=1200')";
+        }
+        if (window.applyWeatherEffect) {
             window.applyWeatherEffect(mode);
         }
+    }
+    if (window.showToast) {
+        const labels = {
+            auto: isVN ? '🔄 Trở về thời tiết tự động thực tế' : '🔄 自動リアルタイム天気に復帰',
+            clouds: isVN ? '☁️ Kích hoạt: Mây bay lờ lững chân thực' : '☁️ 雲海浮遊エフェクト起動',
+            rain: isVN ? '🌧️ Kích hoạt: Mưa rào & mặt kính Honor' : '🌧️ 雨天エフェクト起動',
+            thunder: isVN ? '⚡ Kích hoạt: Bão sấm sét & mây chớp sáng' : '⚡ 雷雨エフェクト起動',
+            sun: isVN ? '☀️ Kích hoạt: Nắng ấm & vạt mây vàng' : '☀️ 快晴エフェクト起動',
+            snow: isVN ? '❄️ Kích hoạt: Tuyết rơi mùa đông' : '❄️ 降雪エフェクト起動'
+        };
+        showToast(labels[mode] || mode, 'info');
     }
 };
 
@@ -6027,50 +6068,120 @@ function setInputStatus(id, state) {
         weatherAnimId = requestAnimationFrame(updateWeatherParticles);
     }
 
-    // Render Honor phone style volumetric drifting clouds across header
+    // Render Honor phone style realistic volumetric drifting clouds across header
     function renderHonorAtmosphericClouds(mode) {
         const cloudsLayer = document.getElementById('hero-weather-clouds-layer');
         if (!cloudsLayer) return;
 
-        cloudsLayer.className = `honor-clouds-container honor-clouds-theme-${mode || 'clear'}`;
-
-        if (!mode || mode === 'clear') {
-            cloudsLayer.innerHTML = '';
-            cloudsLayer.style.opacity = '0';
-            delete cloudsLayer.dataset.renderedMode;
-            return;
-        }
-
+        const effectiveTheme = (!mode || mode === 'clear') ? 'sun' : mode;
+        cloudsLayer.className = `honor-clouds-container honor-clouds-theme-${effectiveTheme}`;
         cloudsLayer.style.opacity = '1';
 
         // Check if already populated to prevent unnecessary DOM reconstruction
-        if (cloudsLayer.dataset.renderedMode === mode && cloudsLayer.children.length > 0) {
+        if (cloudsLayer.dataset.rendered === 'true') {
             return;
         }
-        cloudsLayer.dataset.renderedMode = mode;
+        cloudsLayer.dataset.rendered = 'true';
 
-        function generatePuffs(count, baseTop, sizeMin, sizeMax) {
-            let puffs = '';
-            for (let i = 0; i < count; i++) {
-                const left = (i / count) * 200 + (Math.random() * 8 - 4);
-                const width = Math.floor(sizeMin + Math.random() * (sizeMax - sizeMin));
-                const height = Math.floor(width * (0.55 + Math.random() * 0.25));
-                const top = Math.floor(baseTop + (Math.random() * 18 - 9));
-                puffs += `<div class="honor-cloud-puff" style="left: ${left}%; top: ${top}px; width: ${width}px; height: ${height}px;"></div>`;
+        // High quality organic volumetric cloud SVG shapes
+        const cloudSVG1 = (id) => `
+            <svg viewBox="0 0 500 180" class="honor-cloud-svg" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <linearGradient id="honorGrad1_${id}" x1="0" y1="0" x2="0" y2="100%">
+                  <stop offset="0%" stop-color="var(--cloud-top)" stop-opacity="var(--cloud-top-op)" />
+                  <stop offset="55%" stop-color="var(--cloud-mid)" stop-opacity="var(--cloud-mid-op)" />
+                  <stop offset="100%" stop-color="var(--cloud-bot)" stop-opacity="var(--cloud-bot-op)" />
+                </linearGradient>
+                <filter id="honorBlur1_${id}" x="-20%" y="-20%" width="140%" height="140%">
+                  <feGaussianBlur stdDeviation="8" />
+                </filter>
+              </defs>
+              <path d="M 60,160 C 25,160 0,135 0,105 C 0,78 20,55 48,50 C 55,20 84,0 120,0 C 152,0 180,18 192,44 C 206,32 226,24 248,24 C 285,24 316,50 322,85 C 336,78 354,74 372,74 C 412,74 445,102 450,140 C 466,142 480,154 480,165 C 480,175 464,175 446,175 L 60,175 Z" fill="url(#honorGrad1_${id})" />
+              <ellipse cx="120" cy="45" rx="55" ry="28" fill="var(--cloud-highlight)" filter="url(#honorBlur1_${id})" />
+              <ellipse cx="248" cy="60" rx="65" ry="32" fill="var(--cloud-highlight)" filter="url(#honorBlur1_${id})" />
+              <ellipse cx="372" cy="95" rx="55" ry="28" fill="var(--cloud-highlight)" filter="url(#honorBlur1_${id})" />
+            </svg>
+        `;
+
+        const cloudSVG2 = (id) => `
+            <svg viewBox="0 0 540 160" class="honor-cloud-svg" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <linearGradient id="honorGrad2_${id}" x1="0" y1="0" x2="0" y2="100%">
+                  <stop offset="0%" stop-color="var(--cloud-top)" stop-opacity="var(--cloud-top-op)" />
+                  <stop offset="55%" stop-color="var(--cloud-mid)" stop-opacity="var(--cloud-mid-op)" />
+                  <stop offset="100%" stop-color="var(--cloud-bot)" stop-opacity="var(--cloud-bot-op)" />
+                </linearGradient>
+                <filter id="honorBlur2_${id}" x="-20%" y="-20%" width="140%" height="140%">
+                  <feGaussianBlur stdDeviation="8" />
+                </filter>
+              </defs>
+              <path d="M 50,140 C 20,140 0,120 0,94 C 0,68 18,48 44,45 C 54,18 84,0 122,0 C 156,0 184,16 198,40 C 214,26 236,18 260,18 C 294,18 322,38 332,68 C 348,58 368,52 390,52 C 430,52 464,80 470,116 C 486,118 502,130 502,145 C 502,155 484,155 466,155 L 50,155 Z" fill="url(#honorGrad2_${id})" />
+              <ellipse cx="122" cy="40" rx="55" ry="26" fill="var(--cloud-highlight)" filter="url(#honorBlur2_${id})" />
+              <ellipse cx="260" cy="55" rx="60" ry="28" fill="var(--cloud-highlight)" filter="url(#honorBlur2_${id})" />
+              <ellipse cx="390" cy="75" rx="55" ry="25" fill="var(--cloud-highlight)" filter="url(#honorBlur2_${id})" />
+            </svg>
+        `;
+
+        const cloudSVG3 = (id) => `
+            <svg viewBox="0 0 460 150" class="honor-cloud-svg" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <linearGradient id="honorGrad3_${id}" x1="0" y1="0" x2="0" y2="100%">
+                  <stop offset="0%" stop-color="var(--cloud-top)" stop-opacity="var(--cloud-top-op)" />
+                  <stop offset="55%" stop-color="var(--cloud-mid)" stop-opacity="var(--cloud-mid-op)" />
+                  <stop offset="100%" stop-color="var(--cloud-bot)" stop-opacity="var(--cloud-bot-op)" />
+                </linearGradient>
+                <filter id="honorBlur3_${id}" x="-20%" y="-20%" width="140%" height="140%">
+                  <feGaussianBlur stdDeviation="8" />
+                </filter>
+              </defs>
+              <path d="M 45,130 C 18,130 0,112 0,88 C 0,64 18,45 42,42 C 50,16 78,0 112,0 C 142,0 168,15 180,38 C 194,26 212,20 234,20 C 264,20 288,38 296,65 C 310,56 328,50 348,50 C 382,50 412,74 418,105 C 432,108 444,118 444,130 C 444,140 430,140 414,140 L 45,140 Z" fill="url(#honorGrad3_${id})" />
+              <ellipse cx="112" cy="38" rx="48" ry="24" fill="var(--cloud-highlight)" filter="url(#honorBlur3_${id})" />
+              <ellipse cx="234" cy="52" rx="52" ry="26" fill="var(--cloud-highlight)" filter="url(#honorBlur3_${id})" />
+            </svg>
+        `;
+
+        function buildBandHTML(clouds) {
+            let html = '';
+            // Render original (0% to 100%) and seamless duplicate (100% to 200%)
+            for (let copy = 0; copy < 2; copy++) {
+                const offset = copy * 100;
+                clouds.forEach((c, idx) => {
+                    const id = `${c.type}_c${copy}_${idx}`;
+                    let svgContent = '';
+                    if (c.type === 1) svgContent = cloudSVG1(id);
+                    else if (c.type === 2) svgContent = cloudSVG2(id);
+                    else svgContent = cloudSVG3(id);
+
+                    html += `<div class="honor-cloud-item ${c.anim}" style="left: ${c.left + offset}%; top: ${c.top}px; width: ${c.width}px; animation-delay: ${c.delay}s;">${svgContent}</div>`;
+                });
             }
-            return puffs;
+            return html;
         }
 
+        // Layer 1: Back (Far distant haze, slow serene drift)
+        const backClouds = [
+            { type: 2, left: 3, top: -18, width: 440, anim: 'float-slow', delay: 0 },
+            { type: 1, left: 38, top: -24, width: 480, anim: 'float-slow', delay: -3 },
+            { type: 3, left: 74, top: -14, width: 420, anim: 'float-slow', delay: -6 }
+        ];
+
+        // Layer 2: Mid (Atmospheric cumulus body, medium pace)
+        const midClouds = [
+            { type: 1, left: 10, top: -6, width: 380, anim: 'float-med', delay: -1 },
+            { type: 3, left: 45, top: 4, width: 360, anim: 'float-med', delay: -4.5 },
+            { type: 2, left: 78, top: -2, width: 400, anim: 'float-med', delay: -2.5 }
+        ];
+
+        // Layer 3: Front (Close billows, dynamic foreground)
+        const frontClouds = [
+            { type: 3, left: 16, top: 12, width: 330, anim: 'float-fast', delay: -1.2 },
+            { type: 1, left: 58, top: 18, width: 350, anim: 'float-fast', delay: -3.8 }
+        ];
+
         cloudsLayer.innerHTML = `
-            <div class="honor-cloud-band band-back">
-                ${generatePuffs(7, -15, 240, 360)}
-            </div>
-            <div class="honor-cloud-band band-mid">
-                ${generatePuffs(6, 0, 200, 300)}
-            </div>
-            <div class="honor-cloud-band band-front">
-                ${generatePuffs(5, 12, 160, 260)}
-            </div>
+            <div class="honor-cloud-band band-back">${buildBandHTML(backClouds)}</div>
+            <div class="honor-cloud-band band-mid">${buildBandHTML(midClouds)}</div>
+            <div class="honor-cloud-band band-front">${buildBandHTML(frontClouds)}</div>
         `;
     }
 
