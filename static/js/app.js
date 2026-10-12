@@ -6103,24 +6103,19 @@ function setInputStatus(id, state) {
             return html;
         }
 
-        // Layer 1: Back (Far distant haze, slow serene drift)
+        // Layer 1: Back (Far distant haze, extremely slow majestic drift)
         const backClouds = [
-            { type: 2, left: -2, top: -20, width: 520, anim: 'float-slow', delay: 0, scale: 1.1 },
-            { type: 1, left: 34, top: -26, width: 480, anim: 'float-slow', delay: -3.5, scale: 1.05 },
-            { type: 2, left: 68, top: -16, width: 500, anim: 'float-slow', delay: -6.2, scale: 1.1 }
+            { type: 2, left: 10, top: -22, width: 560, anim: 'float-slow', delay: 0, scale: 1.05 }
         ];
 
-        // Layer 2: Mid (Atmospheric cumulus body, medium pace)
+        // Layer 2: Mid (Atmospheric cumulus body, leisurely floating)
         const midClouds = [
-            { type: 1, left: 8, top: -10, width: 420, anim: 'float-med', delay: -1.2, scale: 1.0 },
-            { type: 2, left: 42, top: -2, width: 440, anim: 'float-med', delay: -4.8, scale: 1.0 },
-            { type: 1, left: 76, top: -8, width: 400, anim: 'float-med', delay: -2.8, scale: 0.95 }
+            { type: 1, left: 58, top: -14, width: 450, anim: 'float-med', delay: -7.5, scale: 0.95 }
         ];
 
-        // Layer 3: Front (Close billowing vapor, dynamic foreground)
+        // Layer 3: Front (Soft ethereal foreground vapor)
         const frontClouds = [
-            { type: 2, left: 14, top: 8, width: 380, anim: 'float-fast', delay: -1.5, scale: 0.9 },
-            { type: 1, left: 56, top: 14, width: 360, anim: 'float-fast', delay: -4.0, scale: 0.88 }
+            { type: 2, left: 26, top: 4, width: 380, anim: 'float-fast', delay: -13.5, scale: 0.88 }
         ];
 
         cloudsLayer.innerHTML = `

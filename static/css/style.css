@@ -1363,7 +1363,7 @@ select option { background: var(--surface); color: var(--text); }
     transition: opacity 1.5s ease;
 }
 
-/* Seamless Looping Drift Bands */
+/* Seamless Looping Drift Bands (Slow, Majestic, Leisurely "Lững lờ") */
 .honor-cloud-band {
     position: absolute;
     left: 0;
@@ -1375,24 +1375,24 @@ select option { background: var(--surface); color: var(--text); }
 
 /* Layer Depths (Parallax) */
 .honor-cloud-band.band-back {
-    top: -24px;
-    animation: honorDriftBack 92s linear infinite;
+    top: -20px;
+    animation: honorDriftBack 180s linear infinite;
     z-index: 1;
-    opacity: 0.55;
-    filter: blur(4px);
+    opacity: 0.35;
+    filter: blur(3px);
 }
 .honor-cloud-band.band-mid {
-    top: -12px;
-    animation: honorDriftMid 58s linear infinite;
+    top: -10px;
+    animation: honorDriftMid 130s linear infinite;
     z-index: 2;
-    opacity: 0.78;
-    filter: blur(1.5px);
+    opacity: 0.50;
+    filter: blur(1px);
 }
 .honor-cloud-band.band-front {
-    top: 0px;
-    animation: honorDriftFront 35s linear infinite;
+    top: 2px;
+    animation: honorDriftFront 90s linear infinite;
     z-index: 3;
-    opacity: 0.92;
+    opacity: 0.65;
 }
 
 /* Infinite Seamless Looping: Moves exactly 50% so second half seamlessly replaces first half */
@@ -1409,7 +1409,7 @@ select option { background: var(--surface); color: var(--text); }
     100% { transform: translateX(-50%); }
 }
 
-/* Cloud Item Container & Weightless Undulating Wave ("Lờ lững") */
+/* Cloud Item Container & Weightless Undulating Wave ("Lờ lững / Lững lờ") */
 .honor-cloud-item {
     position: absolute;
     pointer-events: none;
@@ -1421,42 +1421,43 @@ select option { background: var(--surface); color: var(--text); }
 
 .honor-cloud-item.float-slow {
     animation-name: honorCloudFloatSlow;
-    animation-duration: 9.5s;
+    animation-duration: 22s;
 }
 .honor-cloud-item.float-med {
     animation-name: honorCloudFloatMed;
-    animation-duration: 7.2s;
+    animation-duration: 17s;
 }
 .honor-cloud-item.float-fast {
     animation-name: honorCloudFloatFast;
-    animation-duration: 5.6s;
+    animation-duration: 13s;
 }
 
 @keyframes honorCloudFloatSlow {
     0%   { transform: translateY(0px) scale(1); }
-    50%  { transform: translateY(-8px) scale(1.02); }
+    50%  { transform: translateY(-5px) scale(1.015); }
     100% { transform: translateY(0px) scale(1); }
 }
 @keyframes honorCloudFloatMed {
-    0%   { transform: translateY(-4px) scale(1.015); }
-    50%  { transform: translateY(6px) scale(0.985); }
-    100% { transform: translateY(-4px) scale(1.015); }
+    0%   { transform: translateY(-3px) scale(1.01); }
+    50%  { transform: translateY(4px) scale(0.99); }
+    100% { transform: translateY(-3px) scale(1.01); }
 }
 @keyframes honorCloudFloatFast {
-    0%   { transform: translateY(2px) scale(0.99); }
-    50%  { transform: translateY(-6px) scale(1.02); }
-    100% { transform: translateY(2px) scale(0.99); }
+    0%   { transform: translateY(2px) scale(0.995); }
+    50%  { transform: translateY(-4px) scale(1.015); }
+    100% { transform: translateY(2px) scale(0.995); }
 }
 
-/* Photorealistic Cloud Image Sprite */
+/* Photorealistic Cloud Image Sprite with Screen Blending */
 .honor-cloud-img {
     width: 100%;
     height: auto;
     display: block;
     pointer-events: none;
     user-select: none;
-    filter: drop-shadow(0 14px 28px rgba(15, 23, 42, 0.35));
-    transition: filter 1s ease, opacity 1s ease;
+    mix-blend-mode: screen;
+    filter: drop-shadow(0 12px 24px rgba(0, 0, 0, 0.45));
+    transition: filter 1.5s ease, opacity 1.5s ease;
 }
 
 /* ================== WEATHER ATMOSPHERIC THEMES ================== */
