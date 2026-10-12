@@ -1598,13 +1598,13 @@ select option { background: var(--surface); color: var(--text); }
     top: 0;
     bottom: 0;
     left: 0;
-    width: 440px;
+    width: 480px;
     max-width: 42%;
-    background: linear-gradient(90deg, rgba(11, 17, 32, 0.68) 0%, rgba(11, 17, 32, 0.38) 65%, transparent 100%);
+    background: linear-gradient(90deg, rgba(11, 17, 32, 0.68) 0%, rgba(11, 17, 32, 0.38) 72%, transparent 100%);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
-    mask-image: linear-gradient(to right, #000 0%, #000 60%, transparent 100%);
-    -webkit-mask-image: linear-gradient(to right, #000 0%, #000 60%, transparent 100%);
+    mask-image: linear-gradient(to right, #000 0%, #000 70%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, #000 0%, #000 70%, transparent 100%);
     pointer-events: none;
     z-index: 2;
     transition: opacity 0.3s ease;
@@ -1645,37 +1645,38 @@ select option { background: var(--surface); color: var(--text); }
 
 .weather-mockup-bar {
     display: flex;
-    align-items: center;
-    gap: 14px;
-    flex-wrap: wrap;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
     user-select: none;
     cursor: pointer;
+    max-width: 100%;
 }
 
 .weather-mockup-main {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
 }
 
 .weather-mockup-main .weather-3d-scene {
-    width: 44px;
-    height: 44px;
+    width: 40px;
+    height: 40px;
     flex-shrink: 0;
 }
 
 .weather-mockup-temp {
-    font-size: 1.95rem;
+    font-size: 1.85rem;
     font-weight: 800;
     color: #ffffff;
     line-height: 1;
     letter-spacing: -0.02em;
     font-variant-numeric: tabular-nums;
-    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.85);
 }
 
 .weather-mockup-temp sup {
-    font-size: 0.92rem;
+    font-size: 0.9rem;
     font-weight: 600;
     vertical-align: super;
     opacity: 0.85;
@@ -1685,52 +1686,55 @@ select option { background: var(--surface); color: var(--text); }
     display: flex;
     flex-direction: column;
     justify-content: center;
-    line-height: 1.25;
+    line-height: 1.2;
 }
 
 .weather-mockup-condition {
-    font-size: 0.86rem;
+    font-size: 0.84rem;
     font-weight: 700;
     color: #ffffff;
     display: flex;
     align-items: center;
     gap: 4px;
-    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.85);
 }
 
 .weather-mockup-range {
-    font-size: 0.76rem;
-    color: rgba(255, 255, 255, 0.75);
+    font-size: 0.74rem;
+    color: rgba(255, 255, 255, 0.82);
     font-weight: 500;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.85);
 }
 
 .weather-mockup-pills {
     display: flex;
     align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
+    gap: 5px;
+    flex-wrap: nowrap;
+    max-width: 100%;
 }
 
 .weather-mockup-pill {
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    gap: 5px;
-    padding: 6px 12px;
+    gap: 4px;
+    padding: 3px 8px;
     border-radius: 999px;
     background: rgba(15, 23, 42, 0.65);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
-    font-size: 0.78rem;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+    font-size: 0.72rem;
+    line-height: 1.2;
     color: rgba(255, 255, 255, 0.88);
+    white-space: nowrap;
     transition: all 0.2s ease;
 }
 
 .weather-mockup-pill:hover {
-    background: rgba(255, 255, 255, 0.14);
-    border-color: rgba(255, 255, 255, 0.32);
+    background: rgba(255, 255, 255, 0.16);
+    border-color: rgba(255, 255, 255, 0.35);
     color: #ffffff;
     transform: translateY(-1px);
 }
