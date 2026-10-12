@@ -1356,93 +1356,243 @@ select option { background: var(--surface); color: var(--text); }
 /* ================== HONOR PHONE STYLE ATMOSPHERIC CLOUDS & WEATHER ================== */
 .honor-clouds-container {
     position: absolute;
-    inset: 0;
+    inset: -35px -50px;
     overflow: hidden;
     pointer-events: none;
     z-index: 1;
-    transition: opacity 1s ease;
+    transition: opacity 1.5s ease;
+
+    /* Default / Clouds Theme Variables */
+    --cloud-top: #ffffff;
+    --cloud-top-op: 0.98;
+    --cloud-mid: #e2e8f0;
+    --cloud-mid-op: 0.92;
+    --cloud-bot: #94a3b8;
+    --cloud-bot-op: 0.82;
+    --cloud-shadow: rgba(15, 23, 42, 0.28);
+    --cloud-highlight: rgba(255, 255, 255, 0.35);
 }
 
-/* Individual Volumetric Cloud Formations */
+/* Seamless Looping Drift Bands */
 .honor-cloud-band {
     position: absolute;
-    top: -20px;
     left: 0;
     width: 200%;
-    height: 140%;
+    height: 100%;
     pointer-events: none;
     will-change: transform;
 }
 
+/* Layer Depths (Parallax) */
 .honor-cloud-band.band-back {
-    animation: honorDriftBack 55s linear infinite;
-    opacity: 0.55;
-    filter: blur(22px);
+    top: -22px;
+    animation: honorDriftBack 88s linear infinite;
     z-index: 1;
-}
-
-.honor-cloud-band.band-mid {
-    animation: honorDriftMid 38s linear infinite;
-    opacity: 0.70;
-    filter: blur(14px);
-    z-index: 2;
-}
-
-.honor-cloud-band.band-front {
-    animation: honorDriftFront 26s linear infinite;
-    opacity: 0.85;
+    opacity: 0.65;
     filter: blur(8px);
+}
+.honor-cloud-band.band-mid {
+    top: -8px;
+    animation: honorDriftMid 54s linear infinite;
+    z-index: 2;
+    opacity: 0.86;
+    filter: blur(4px);
+}
+.honor-cloud-band.band-front {
+    top: 6px;
+    animation: honorDriftFront 32s linear infinite;
     z-index: 3;
+    opacity: 0.98;
+    filter: blur(1.5px);
 }
 
+/* Infinite Seamless Looping: Moves exactly 50% so second half seamlessly replaces first half */
 @keyframes honorDriftBack {
-    0% { transform: translateX(0); }
+    0%   { transform: translateX(0); }
     100% { transform: translateX(-50%); }
 }
-
 @keyframes honorDriftMid {
-    0% { transform: translateX(0); }
+    0%   { transform: translateX(0); }
     100% { transform: translateX(-50%); }
 }
-
 @keyframes honorDriftFront {
-    0% { transform: translateX(0); }
+    0%   { transform: translateX(0); }
     100% { transform: translateX(-50%); }
 }
 
-.honor-cloud-puff {
+/* Cloud Item Container & Weightless Undulating Wave ("Lờ lững") */
+.honor-cloud-item {
     position: absolute;
-    border-radius: 50%;
-    background: radial-gradient(ellipse at center, rgba(71, 85, 105, 0.85) 0%, rgba(30, 41, 59, 0.65) 60%, transparent 100%);
-    transition: background 1s ease, filter 0.2s ease;
+    pointer-events: none;
+    will-change: transform;
+    animation-timing-function: ease-in-out;
+    animation-iteration-count: infinite;
+    animation-direction: alternate;
 }
 
-/* Weather theme colorings for clouds */
-/* Rain / Drizzle: Deep charcoal slate storm clouds */
-.honor-clouds-theme-rain .honor-cloud-puff {
-    background: radial-gradient(ellipse at center, rgba(51, 65, 85, 0.88) 0%, rgba(30, 41, 59, 0.70) 60%, transparent 100%);
+.honor-cloud-item.float-slow {
+    animation-name: honorCloudFloatSlow;
+    animation-duration: 9.5s;
 }
-/* Thunder / Heavy Storm: Very dark turbulent thunderclouds */
-.honor-clouds-theme-thunder .honor-cloud-puff {
-    background: radial-gradient(ellipse at center, rgba(30, 41, 59, 0.95) 0%, rgba(15, 23, 42, 0.85) 60%, transparent 100%);
+.honor-cloud-item.float-med {
+    animation-name: honorCloudFloatMed;
+    animation-duration: 7.2s;
 }
-/* Clouds / Overcast: Silver billowing puffy clouds */
-.honor-clouds-theme-clouds .honor-cloud-puff {
-    background: radial-gradient(ellipse at center, rgba(226, 232, 240, 0.75) 0%, rgba(148, 163, 184, 0.55) 60%, transparent 100%);
-}
-/* Sun: Warm glowing golden-rimmed clouds */
-.honor-clouds-theme-sun .honor-cloud-puff {
-    background: radial-gradient(ellipse at center, rgba(254, 240, 138, 0.50) 0%, rgba(251, 191, 36, 0.25) 55%, transparent 100%);
-}
-/* Clear Night: Ethereal midnight violet mist */
-.honor-clouds-theme-clear_night .honor-cloud-puff {
-    background: radial-gradient(ellipse at center, rgba(67, 56, 202, 0.40) 0%, rgba(30, 27, 75, 0.30) 60%, transparent 100%);
+.honor-cloud-item.float-fast {
+    animation-name: honorCloudFloatFast;
+    animation-duration: 5.6s;
 }
 
-/* Lightning flash on storm clouds (Honor style) */
-.honor-clouds-theme-thunder.flash .honor-cloud-puff {
-    background: radial-gradient(ellipse at center, rgba(254, 240, 138, 0.95) 0%, rgba(224, 242, 254, 0.85) 60%, transparent 100%) !important;
-    filter: brightness(2.2);
+@keyframes honorCloudFloatSlow {
+    0%   { transform: translateY(0px) scale(1); }
+    50%  { transform: translateY(-10px) scale(1.03); }
+    100% { transform: translateY(0px) scale(1); }
+}
+@keyframes honorCloudFloatMed {
+    0%   { transform: translateY(-5px) scale(1.02); }
+    50%  { transform: translateY(7px) scale(0.98); }
+    100% { transform: translateY(-5px) scale(1.02); }
+}
+@keyframes honorCloudFloatFast {
+    0%   { transform: translateY(3px) scale(0.99); }
+    50%  { transform: translateY(-8px) scale(1.025); }
+    100% { transform: translateY(3px) scale(0.99); }
+}
+
+.honor-cloud-svg {
+    width: 100%;
+    height: auto;
+    display: block;
+    overflow: visible;
+    filter: drop-shadow(0 14px 28px var(--cloud-shadow));
+    transition: filter 1s ease;
+}
+
+/* ================== WEATHER ATMOSPHERIC THEMES ================== */
+
+/* RAIN: Heavy atmospheric slate-charcoal clouds */
+.honor-clouds-theme-rain {
+    --cloud-top: #64748b;
+    --cloud-top-op: 0.96;
+    --cloud-mid: #475569;
+    --cloud-mid-op: 0.92;
+    --cloud-bot: #1e293b;
+    --cloud-bot-op: 0.98;
+    --cloud-shadow: rgba(2, 6, 23, 0.55);
+    --cloud-highlight: rgba(148, 163, 184, 0.22);
+}
+
+/* THUNDER: Dark tumultuous thunderstorm clouds */
+.honor-clouds-theme-thunder {
+    --cloud-top: #475569;
+    --cloud-top-op: 0.98;
+    --cloud-mid: #334155;
+    --cloud-mid-op: 0.96;
+    --cloud-bot: #0f172a;
+    --cloud-bot-op: 0.98;
+    --cloud-shadow: rgba(0, 0, 0, 0.70);
+    --cloud-highlight: rgba(100, 116, 139, 0.25);
+}
+
+/* CLOUDS / OVERCAST: Pure voluminous cumulus billowing clouds */
+.honor-clouds-theme-clouds {
+    --cloud-top: #ffffff;
+    --cloud-top-op: 0.98;
+    --cloud-mid: #e2e8f0;
+    --cloud-mid-op: 0.92;
+    --cloud-bot: #94a3b8;
+    --cloud-bot-op: 0.84;
+    --cloud-shadow: rgba(15, 23, 42, 0.28);
+    --cloud-highlight: rgba(255, 255, 255, 0.40);
+}
+
+/* SUN: Golden-fringed sunny fair-weather clouds */
+.honor-clouds-theme-sun {
+    --cloud-top: #fef08a;
+    --cloud-top-op: 0.90;
+    --cloud-mid: #ffffff;
+    --cloud-mid-op: 0.75;
+    --cloud-bot: #fde047;
+    --cloud-bot-op: 0.45;
+    --cloud-shadow: rgba(217, 119, 6, 0.20);
+    --cloud-highlight: rgba(254, 240, 138, 0.50);
+}
+
+/* SNOW: Crisp glacial icy white-cyan clouds */
+.honor-clouds-theme-snow {
+    --cloud-top: #ffffff;
+    --cloud-top-op: 0.98;
+    --cloud-mid: #e0f2fe;
+    --cloud-mid-op: 0.92;
+    --cloud-bot: #bae6fd;
+    --cloud-bot-op: 0.85;
+    --cloud-shadow: rgba(14, 165, 233, 0.22);
+    --cloud-highlight: rgba(224, 242, 254, 0.40);
+}
+
+/* NIGHT: Deep celestial moonlit indigo mist clouds */
+.honor-clouds-theme-clear_night {
+    --cloud-top: #a5b4fc;
+    --cloud-top-op: 0.65;
+    --cloud-mid: #6366f1;
+    --cloud-mid-op: 0.50;
+    --cloud-bot: #312e81;
+    --cloud-bot-op: 0.70;
+    --cloud-shadow: rgba(30, 27, 75, 0.45);
+    --cloud-highlight: rgba(165, 180, 252, 0.20);
+}
+
+/* FOG: Dense low-lying rolling cloud blankets */
+.honor-clouds-theme-fog {
+    --cloud-top: #f1f5f9;
+    --cloud-top-op: 0.85;
+    --cloud-mid: #cbd5e1;
+    --cloud-mid-op: 0.80;
+    --cloud-bot: #94a3b8;
+    --cloud-bot-op: 0.75;
+    --cloud-shadow: rgba(71, 85, 105, 0.25);
+    --cloud-highlight: rgba(241, 245, 249, 0.30);
+}
+.honor-clouds-theme-fog .honor-cloud-band {
+    filter: blur(12px) !important;
+}
+
+/* Lightning flash: Clouds flash brilliantly with internal energy */
+.honor-clouds-container.flash {
+    filter: brightness(3) contrast(1.25) !important;
+    transition: none !important;
+}
+.honor-clouds-container.flash .honor-cloud-svg {
+    filter: drop-shadow(0 0 45px rgba(254, 240, 138, 0.9)) !important;
+}
+
+/* Weather Simulation Controls Bar */
+.weather-sim-btn {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #e2e8f0;
+    padding: 6px 13px;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.weather-sim-btn:hover {
+    background: rgba(255, 255, 255, 0.20);
+    transform: translateY(-2px);
+    border-color: rgba(255, 255, 255, 0.35);
+    color: #ffffff;
+}
+.weather-sim-btn.active {
+    background: linear-gradient(135deg, #38bdf8 0%, #6366f1 100%);
+    border-color: rgba(255, 255, 255, 0.4);
+    color: #ffffff;
+    box-shadow: 0 4px 14px rgba(56, 189, 248, 0.45);
+    transform: translateY(-1px);
 }
 
 /* Sun Godrays (Honor Phone Sunlight) */
