@@ -213,6 +213,11 @@ function initWeatherTime() {
     const el = document.getElementById('main-hero-banner');
     if (!el) return;
 
+    // Initialize 35mm Cinema Filmstrip Album
+    if (window.initWeatherFilmstripAlbum) {
+        window.initWeatherFilmstripAlbum();
+    }
+
     // Fetch immediately
     fetchRealtimeWeather(false);
 
@@ -782,6 +787,242 @@ window.simulateWeatherEffect = function(mode) {
         };
         showToast(labels[mode] || mode, 'info');
     }
+};
+
+// ==================== WEATHER 35MM CINEMA FILMSTRIP ALBUM ====================
+window.weatherAlbumData = {
+    photos: [],
+    settings: { speed: 'normal', enabled: true }
+};
+
+window.initWeatherFilmstripAlbum = function() {
+    fetch('/api/weather/album')
+        .then(r => r.json())
+        .then(data => {
+            if (data && data.photos) {
+                window.weatherAlbumData = data;
+                renderHeroFilmstripTrack();
+            }
+        })
+        .catch(e => console.warn('Filmstrip album fetch error:', e));
+
+    // Bind dropzone events on modal once DOM ready
+    setTimeout(() => {
+        const dropzone = document.getElementById('filmstrip-dropzone');
+        if (dropzone && !dropzone.dataset.bound) {
+            dropzone.dataset.bound = 'true';
+            ['dragenter', 'dragover'].forEach(name => {
+                dropzone.addEventListener(name, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dropzone.classList.add('dragover');
+                }, false);
+            });
+            ['dragleave', 'drop'].forEach(name => {
+                dropzone.addEventListener(name, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dropzone.classList.remove('dragover');
+                }, false);
+            });
+            dropzone.addEventListener('drop', (e) => {
+                const dt = e.dataTransfer;
+                if (dt && dt.files && dt.files.length > 0) {
+                    window.handleFilmstripUpload(dt.files);
+                }
+            }, false);
+        }
+    }, 500);
+};
+
+window.renderHeroFilmstripTrack = function() {
+    const track = document.getElementById('hero-filmstrip-track');
+    const container = document.getElementById('hero-filmstrip-layer');
+    if (!track || !container) return;
+
+    const data = window.weatherAlbumData || { photos: [], settings: { speed: 'normal', enabled: true } };
+    const photos = data.photos || [];
+    const settings = data.settings || { speed: 'normal', enabled: true };
+
+    if (!settings.enabled || photos.length === 0) {
+        container.classList.add('disabled');
+        return;
+    }
+    container.classList.remove('disabled');
+
+    // Update speed class
+    track.className = 'hero-filmstrip-track';
+    if (settings.speed === 'slow') track.classList.add('speed-slow');
+    else if (settings.speed === 'fast') track.classList.add('speed-fast');
+    else track.classList.add('speed-normal');
+
+    // Ensure enough items for seamless marquee loop (at least 14 frames per cycle)
+    let displayList = [...photos];
+    while (displayList.length < 14) {
+        displayList = displayList.concat(photos);
+    }
+
+    // Render 2 duplicate sets for infinite seamless 0% -> -50% translation
+    let html = '';
+    for (let set = 0; set < 2; set++) {
+        displayList.forEach(p => {
+            html += `
+                <div class="hero-film-item">
+                    <img src="${p.src}" alt="${p.caption || ''}" class="hero-film-photo" loading="lazy">
+                    <div class="hero-film-overlay-frame"></div>
+                    <div class="hero-film-caption">${p.caption || ''}</div>
+                </div>
+            `;
+        });
+    }
+    track.innerHTML = html;
+};
+
+window.openFilmstripAlbumModal = function(e) {
+    if (e) e.stopPropagation();
+    const modal = document.getElementById('filmstrip-modal-backdrop');
+    if (!modal) return;
+
+    renderFilmstripModalContent();
+    modal.classList.add('open');
+};
+
+window.closeFilmstripAlbumModal = function(e) {
+    if (e) e.stopPropagation();
+    const modal = document.getElementById('filmstrip-modal-backdrop');
+    if (modal) modal.classList.remove('open');
+};
+
+window.renderFilmstripModalContent = function() {
+    const data = window.weatherAlbumData || { photos: [], settings: { speed: 'normal', enabled: true } };
+    const photos = data.photos || [];
+    const settings = data.settings || { speed: 'normal', enabled: true };
+
+    const speedSelect = document.getElementById('filmstrip-speed-select');
+    if (speedSelect) speedSelect.value = settings.speed || 'normal';
+
+    const enableToggle = document.getElementById('filmstrip-enable-toggle');
+    if (enableToggle) enableToggle.checked = (settings.enabled !== false);
+
+    const countLabel = document.getElementById('filmstrip-count-label');
+    if (countLabel) {
+        const isVN = (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi');
+        countLabel.textContent = isVN ? `${photos.length} ảnh trong cuộn phim` : `${photos.length} 枚の写真`;
+    }
+
+    const grid = document.getElementById('filmstrip-photos-grid');
+    if (!grid) return;
+
+    if (photos.length === 0) {
+        grid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: rgba(255,255,255,0.45); padding: 30px;">Chưa có ảnh nào trong cuộn phim</div>`;
+        return;
+    }
+
+    grid.innerHTML = photos.map(p => `
+        <div class="filmstrip-thumb-item">
+            <img src="${p.src}" alt="${p.caption || ''}" class="filmstrip-thumb-photo" loading="lazy">
+            <div class="filmstrip-thumb-frame"></div>
+            <button type="button" class="filmstrip-thumb-delete" onclick="deleteFilmstripPhoto('${p.id}')" title="Xóa ảnh này">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>
+    `).join('');
+};
+
+window.handleFilmstripUpload = function(files) {
+    if (!files || files.length === 0) return;
+    const formData = new FormData();
+    for (let i = 0; i < files.length; i++) {
+        formData.append('photos', files[i]);
+    }
+
+    if (window.showToast) {
+        window.showToast('info', 'Đang tải ảnh lên cuộn phim...');
+    }
+
+    fetch('/api/weather/album/upload', {
+        method: 'POST',
+        body: formData
+    })
+    .then(r => r.json())
+    .then(res => {
+        if (res.success && res.album) {
+            window.weatherAlbumData = res.album;
+            renderHeroFilmstripTrack();
+            renderFilmstripModalContent();
+            if (window.showToast) {
+                window.showToast('success', `Đã thêm ${res.uploaded ? res.uploaded.length : 1} ảnh vào cuộn phim!`);
+            }
+        } else {
+            if (window.showToast) window.showToast('error', res.error || 'Lỗi khi tải ảnh');
+        }
+    })
+    .catch(err => {
+        console.error('Upload error:', err);
+        if (window.showToast) window.showToast('error', 'Lỗi kết nối máy chủ');
+    });
+};
+
+window.deleteFilmstripPhoto = function(id) {
+    if (!id) return;
+    fetch('/api/weather/album/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id })
+    })
+    .then(r => r.json())
+    .then(res => {
+        if (res.success && res.album) {
+            window.weatherAlbumData = res.album;
+            renderHeroFilmstripTrack();
+            renderFilmstripModalContent();
+            if (window.showToast) {
+                window.showToast('info', 'Đã xóa ảnh khỏi cuộn phim');
+            }
+        }
+    })
+    .catch(err => console.error('Delete error:', err));
+};
+
+window.changeFilmstripSpeed = function(speed) {
+    fetch('/api/weather/album/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ speed })
+    })
+    .then(r => r.json())
+    .then(res => {
+        if (res.success && res.settings) {
+            if (window.weatherAlbumData) window.weatherAlbumData.settings = res.settings;
+            renderHeroFilmstripTrack();
+        }
+    });
+};
+
+window.toggleFilmstripEnabled = function(enabled) {
+    fetch('/api/weather/album/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled })
+    })
+    .then(r => r.json())
+    .then(res => {
+        if (res.success && res.settings) {
+            if (window.weatherAlbumData) window.weatherAlbumData.settings = res.settings;
+            renderHeroFilmstripTrack();
+        }
+    });
+};
+
+window.resetDefaultFilmstripPhotos = function() {
+    fetch('/api/weather/album')
+        .then(r => r.json())
+        .then(data => {
+            window.weatherAlbumData = data;
+            renderHeroFilmstripTrack();
+            renderFilmstripModalContent();
+            if (window.showToast) window.showToast('success', 'Đã cập nhật cuộn phim!');
+        });
 };
 
 // ==================== AI INSIGHTS REALTIME ====================

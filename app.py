@@ -2230,6 +2230,99 @@ def api_weather():
         }
         return jsonify(dummy_data)
 
+# ---------------- WEATHER FILMSTRIP ALBUM APIS ----------------
+WEATHER_ALBUM_DIR = os.path.join(os.path.dirname(__file__), 'static', 'weather_album')
+WEATHER_ALBUM_JSON = os.path.join(WEATHER_ALBUM_DIR, 'album.json')
+
+def _load_weather_album():
+    os.makedirs(WEATHER_ALBUM_DIR, exist_ok=True)
+    if os.path.exists(WEATHER_ALBUM_JSON):
+        try:
+            with open(WEATHER_ALBUM_JSON, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception as e:
+            print("Error loading album.json:", e)
+    defaults = [
+        {"id": "photo_1.jpg", "src": "/static/weather_album/photo_1.jpg", "caption": "Hạ Long Bay, Vietnam"},
+        {"id": "photo_2.jpg", "src": "/static/weather_album/photo_2.jpg", "caption": "Tokyo Tower, Japan"},
+        {"id": "photo_3.jpg", "src": "/static/weather_album/photo_3.jpg", "caption": "Warm Coffee & Vintage Vibes"},
+        {"id": "photo_4.jpg", "src": "/static/weather_album/photo_4.jpg", "caption": "Kyoto Pagoda, Japan"},
+        {"id": "photo_5.jpg", "src": "/static/weather_album/photo_5.jpg", "caption": "Phú Quốc Sunset, Vietnam"},
+        {"id": "photo_6.jpg", "src": "/static/weather_album/photo_6.jpg", "caption": "Majestic Mountain Peaks"}
+    ]
+    data = {"photos": defaults, "settings": {"speed": "normal", "enabled": True}}
+    try:
+        with open(WEATHER_ALBUM_JSON, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print("Error saving default album.json:", e)
+    return data
+
+def _save_weather_album(data):
+    os.makedirs(WEATHER_ALBUM_DIR, exist_ok=True)
+    with open(WEATHER_ALBUM_JSON, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+@app.route('/api/weather/album', methods=['GET'])
+def get_weather_album():
+    return jsonify(_load_weather_album())
+
+@app.route('/api/weather/album/upload', methods=['POST'])
+def upload_weather_album():
+    if 'photos' not in request.files and 'file' not in request.files:
+        return jsonify({'success': False, 'error': 'No file uploaded'}), 400
+    files = request.files.getlist('photos') if 'photos' in request.files else [request.files['file']]
+    allowed_exts = {'.jpg', '.jpeg', '.png', '.webp', '.gif'}
+    album = _load_weather_album()
+    uploaded = []
+    
+    for f in files:
+        if not f or not f.filename:
+            continue
+        ext = os.path.splitext(f.filename)[1].lower()
+        if ext not in allowed_exts:
+            continue
+        unique_name = f"user_{int(time.time())}_{uuid.uuid4().hex[:6]}{ext}"
+        target_path = os.path.join(WEATHER_ALBUM_DIR, unique_name)
+        f.save(target_path)
+        caption = os.path.splitext(f.filename)[0].replace('_', ' ').replace('-', ' ').strip()
+        item = {
+            "id": unique_name,
+            "src": f"/static/weather_album/{unique_name}",
+            "caption": caption or "Khoảnh khắc kỷ niệm"
+        }
+        album['photos'].append(item)
+        uploaded.append(item)
+        
+    _save_weather_album(album)
+    return jsonify({'success': True, 'uploaded': uploaded, 'album': album})
+
+@app.route('/api/weather/album/delete', methods=['POST'])
+def delete_weather_album_photo():
+    data = request.json or {}
+    photo_id = data.get('id')
+    if not photo_id:
+        return jsonify({'success': False, 'error': 'Missing photo id'}), 400
+    album = _load_weather_album()
+    album['photos'] = [p for p in album.get('photos', []) if p.get('id') != photo_id]
+    _save_weather_album(album)
+    
+    try:
+        file_path = os.path.join(WEATHER_ALBUM_DIR, photo_id)
+        if os.path.exists(file_path):
+            os.remove(file_path)
+    except Exception as e:
+        print("Error deleting album photo file:", e)
+    return jsonify({'success': True, 'album': album})
+
+@app.route('/api/weather/album/settings', methods=['POST'])
+def update_weather_album_settings():
+    data = request.json or {}
+    album = _load_weather_album()
+    album['settings'] = {**album.get('settings', {}), **data}
+    _save_weather_album(album)
+    return jsonify({'success': True, 'settings': album['settings']})
+
 @app.route('/api/insights', methods=['POST'])
 def api_insights():
     try:

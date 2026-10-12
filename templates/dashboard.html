@@ -244,7 +244,7 @@
     <div class="mobile-brand">
         <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" width="26" height="26" style="border-radius: var(--radius-sm);">
         <span>VN-Tracking</span>
-        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.31</i></sup>
+        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.32</i></sup>
     </div>
     <div class="mobile-topbar-right">
         <button type="button" class="mobile-icon-btn" onclick="toggleNotificationPanel(event)" title="{{ 'Thông báo' if lang == 'vi' else '通知' }}">
@@ -274,7 +274,7 @@
         <div style="display: flex; flex-direction: column; justify-content: center;">
             <span>VN-Tracking</span>
             <sup class="version-tag"
-                style="color: var(--text-3); font-size: 11px; margin-top: 2px;"><i>v1.9.31</i></sup>
+                style="color: var(--text-3); font-size: 11px; margin-top: 2px;"><i>v1.9.32</i></sup>
         </div>
     </div>
 
@@ -1359,10 +1359,16 @@
             <div id="hero-weather-bg"
                 style="position: absolute; inset: 0; background: radial-gradient(circle at 78% 25%, rgba(245, 158, 11, 0.22) 0%, rgba(251, 191, 36, 0.08) 35%, transparent 65%), linear-gradient(135deg, #0a1226 0%, #0f1c3f 50%, #151a30 100%); transition: background 1.2s ease;">
             </div>
+            <!-- 35mm Cinema Filmstrip Album Track Layer (Runs smoothly across the hero background) -->
+            <div id="hero-filmstrip-layer" class="hero-filmstrip-container">
+                <div class="hero-filmstrip-track" id="hero-filmstrip-track"></div>
+            </div>
+            <!-- Filmstrip Cinematic Tint / Vignette for optimal weather readability -->
+            <div class="hero-filmstrip-vignette" id="hero-filmstrip-vignette"></div>
             <!-- Dynamic Honor-Style Volumetric Cloud Atmosphere Layers -->
             <div id="hero-weather-clouds-layer" class="honor-clouds-container"></div>
             <!-- Dynamic Weather FX Atmosphere Layer (Sun aura, Lightning flash, Rain drops) -->
-            <div id="hero-weather-fx-layer" style="position: absolute; inset: 0; pointer-events: none; z-index: 2;"></div>
+            <div id="hero-weather-fx-layer" style="position: absolute; inset: 0; pointer-events: none; z-index: 3;"></div>
         </div>
 
         <!-- Content Wrapper -->
@@ -1380,12 +1386,18 @@
                     {{ t.title }}</h1>
             </div>
 
-            <!-- Center-Right: Weather Inline (3D Interactive Tilt Widget) -->
-            <div class="header-center" id="inline-weather-container"
-                style="display: flex; align-items: center; margin-right: 24px; min-width: 250px; cursor: pointer; user-select: none;"
-                title="{{ 'Thời tiết 3D thực tế (Click để xem dự báo 7 ngày)' if lang == 'vi' else '3Dリアルタイム天気（クリックで7日間予報を表示）' }}"
-                onclick="handleWeatherCardClick(event)">
-                <span style="color: rgba(255,255,255,0.7); font-size: 0.88rem; font-weight: 500;">{{ 'Đang tải thời tiết...' if lang == 'vi' else '天気を読み込み中...' }}</span>
+            <!-- Center-Right: Weather Inline (3D Interactive Tilt Widget) & Film Album Button -->
+            <div style="display: flex; align-items: center; gap: 10px; margin-right: 24px;">
+                <div class="header-center" id="inline-weather-container"
+                    style="display: flex; align-items: center; min-width: 250px; cursor: pointer; user-select: none;"
+                    title="{{ 'Thời tiết 3D thực tế (Click để xem dự báo 7 ngày)' if lang == 'vi' else '3Dリアルタイム天気（クリックで7日間予報を表示）' }}"
+                    onclick="handleWeatherCardClick(event)">
+                    <span style="color: rgba(255,255,255,0.7); font-size: 0.88rem; font-weight: 500;">{{ 'Đang tải thời tiết...' if lang == 'vi' else '天気を読み込み中...' }}</span>
+                </div>
+                <button type="button" class="hero-film-album-btn" id="hero-film-album-btn" onclick="openFilmstripAlbumModal(event)" title="{{ 'Album Cuộn Phim 35mm (Thêm/quản lý ảnh nền)' if lang == 'vi' else '35mmフィルムアルバム（背景写真の管理）' }}">
+                    <i class="fas fa-film"></i>
+                    <span>{{ 'Album Phim' if lang == 'vi' else 'フィルム' }}</span>
+                </button>
             </div>
 
             <!-- Vertical Divider -->
@@ -6934,6 +6946,61 @@
         </button>
         <div id="weather-modal-body">
             <!-- Dynamic 3D Forecast Content rendered by JS -->
+        </div>
+    </div>
+</div>
+
+<!-- Weather Filmstrip Album Modal -->
+<div class="filmstrip-modal-backdrop" id="filmstrip-modal-backdrop" onclick="closeFilmstripAlbumModal(event)">
+    <div class="filmstrip-modal-card" onclick="event.stopPropagation()">
+        <div class="filmstrip-modal-header">
+            <h3>
+                <i class="fas fa-film" style="color: #f59e0b;"></i>
+                <span>{{ 'Album Cuộn Phim Thời Tiết 35mm' if lang == 'vi' else '35mmフィルム天気アルバム' }}</span>
+            </h3>
+            <button type="button" class="filmstrip-modal-close" onclick="closeFilmstripAlbumModal(event)" aria-label="Đóng">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="filmstrip-modal-body">
+            <!-- Drag & Drop Upload Zone -->
+            <div class="filmstrip-dropzone" id="filmstrip-dropzone" onclick="document.getElementById('filmstrip-file-input').click()">
+                <div class="filmstrip-dropzone-icon"><i class="fas fa-cloud-upload-alt"></i></div>
+                <div style="font-weight: 700; color: #fff; margin-bottom: 4px;">{{ 'Thêm ảnh vào cuộn phim' if lang == 'vi' else 'フィルムに写真を追加' }}</div>
+                <div style="font-size: 0.8rem; color: rgba(255,255,255,0.6);">{{ 'Kéo thả ảnh vào đây hoặc click để chọn tệp (JPG, PNG, WEBP)' if lang == 'vi' else 'ドラッグ＆ドロップまたはクリックして選択' }}</div>
+                <input type="file" id="filmstrip-file-input" multiple accept="image/*" style="display: none;" onchange="handleFilmstripUpload(this.files)">
+            </div>
+
+            <!-- Controls & Settings Bar -->
+            <div class="filmstrip-settings-bar">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 0.82rem; color: rgba(255,255,255,0.8); font-weight: 600;">{{ 'Tốc độ cuộn:' if lang == 'vi' else 'スクロール速度:' }}</span>
+                    <select id="filmstrip-speed-select" onchange="changeFilmstripSpeed(this.value)" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #fff; border-radius: 6px; padding: 4px 8px; font-size: 0.8rem; cursor: pointer;">
+                        <option value="slow">{{ 'Chậm rãi (75s)' if lang == 'vi' else '低速 (75s)' }}</option>
+                        <option value="normal" selected>{{ 'Vừa phải (45s)' if lang == 'vi' else '標準 (45s)' }}</option>
+                        <option value="fast">{{ 'Nhanh (25s)' if lang == 'vi' else '高速 (25s)' }}</option>
+                    </select>
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <label style="display: flex; align-items: center; gap: 6px; font-size: 0.82rem; color: rgba(255,255,255,0.85); cursor: pointer; user-select: none;">
+                        <input type="checkbox" id="filmstrip-enable-toggle" checked onchange="toggleFilmstripEnabled(this.checked)" style="cursor: pointer;">
+                        <span>{{ 'Chiếu cuộn phim nền' if lang == 'vi' else '背景フィルムを再生' }}</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Photo Gallery Counter -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <span style="font-size: 0.82rem; font-weight: 700; color: rgba(255,255,255,0.7);" id="filmstrip-count-label">0 ảnh trong cuộn phim</span>
+                <button type="button" class="btn-sm" onclick="resetDefaultFilmstripPhotos()" style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); color: #94a3b8; border-radius: 6px; padding: 4px 10px; font-size: 0.75rem; cursor: pointer; transition: all 0.2s;">
+                    <i class="fas fa-undo-alt" style="margin-right: 4px;"></i>{{ 'Khôi phục ảnh mẫu' if lang == 'vi' else 'サンプル復元' }}
+                </button>
+            </div>
+
+            <!-- Photos Grid -->
+            <div class="filmstrip-photos-grid" id="filmstrip-photos-grid">
+                <!-- Populated dynamically via JS -->
+            </div>
         </div>
     </div>
 </div>
