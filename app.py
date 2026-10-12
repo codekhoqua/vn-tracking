@@ -2380,9 +2380,9 @@ def api_insights():
             if 'daily' in om_data and 'weather_code' in om_data['daily']:
                 today_code = om_data['daily']['weather_code'][0]
                 if today_code >= 51:
-                    insights.append("🌧️ Sắp tới có khả năng mưa, bạn ra ngoài nhớ mang theo ô nhé!" if is_vi else "🌧️ もうすぐ雨が降る可能性があります。外出時は傘をお忘れなく！")
+                    insights.append("Sắp tới có khả năng mưa, bạn ra ngoài nhớ mang theo ô nhé!" if is_vi else "もうすぐ雨が降る可能性があります。外出時は傘をお忘れなく！")
                 else:
-                    insights.append("☀️ Thời tiết khá đẹp, chúc bạn một ngày làm việc tràn đầy năng lượng!" if is_vi else "☀️ 天気は良好です。今日も一日頑張りましょう！")
+                    insights.append("Thời tiết khá đẹp, chúc bạn một ngày làm việc tràn đầy năng lượng!" if is_vi else "天気は良好です。今日も一日頑張りましょう！")
         except Exception as e:
             print(f"Weather prediction error in insights API: {e}")
             
@@ -2390,34 +2390,34 @@ def api_insights():
         if total_truoc > 0:
             diff = ((total_nay - total_truoc) / total_truoc) * 100
             if diff > 0:
-                insights.append(f"📈 Khối lượng task tăng {diff:.0f}% so với tuần trước." if is_vi else f"📈 今週のタスク量は先週より{diff:.0f}%増加。")
+                insights.append(f"Khối lượng task tăng {diff:.0f}% so với tuần trước." if is_vi else f"今週のタスク量は先週より{diff:.0f}%増加。")
             elif diff < 0:
-                insights.append(f"📉 Khối lượng task giảm {-diff:.0f}% so với tuần trước." if is_vi else f"📉 今週のタスク量は先週より{-diff:.0f}%減少。")
+                insights.append(f"Khối lượng task giảm {-diff:.0f}% so với tuần trước." if is_vi else f"今週のタスク量は先週より{-diff:.0f}%減少。")
             else:
-                insights.append(f"⚖️ Khối lượng task ổn định so với tuần trước." if is_vi else f"⚖️ 今週のタスク量は先週と同じです。")
+                insights.append(f"Khối lượng task ổn định so với tuần trước." if is_vi else f"今週のタスク量は先週と同じです。")
         else:
-            insights.append(f"🚀 Một tuần mới đầy năng lượng! Hãy lập kế hoạch thật tốt nhé." if is_vi else f"🚀 新しい一週間の始まりです！計画をしっかり立てましょう。")
+            insights.append(f"Một tuần mới đầy năng lượng! Hãy lập kế hoạch thật tốt nhé." if is_vi else f"新しい一週間の始まりです！計画をしっかり立てましょう。")
         
         if total_nay > 0:
             completion_rate = (completed / total_nay) * 100
             if completion_rate >= 100:
-                insights.append(f"🏆 Xuất sắc! Toàn bộ công việc tuần này đã được hoàn thành 100%." if is_vi else f"🏆 素晴らしい！全てのタスクが完了しました。")
+                insights.append(f"Xuất sắc! Toàn bộ công việc tuần này đã được hoàn thành 100%." if is_vi else f"素晴らしい！全てのタスクが完了しました。")
             elif completion_rate >= 80:
-                insights.append(f"🔥 Tuyệt vời! Đã hoàn thành {completion_rate:.0f}% công việc." if is_vi else f"🔥 素晴らしい！タスクの{completion_rate:.0f}%が完了しました。")
+                insights.append(f"Tuyệt vời! Đã hoàn thành {completion_rate:.0f}% công việc." if is_vi else f"素晴らしい！タスクの{completion_rate:.0f}%が完了しました。")
             elif completion_rate > 0:
-                insights.append(f"📊 Tiến độ: {completion_rate:.0f}% task đã hoàn thành." if is_vi else f"📊 現在の進捗：タスクの{completion_rate:.0f}%が完了。")
+                insights.append(f"Tiến độ: {completion_rate:.0f}% task đã hoàn thành." if is_vi else f"現在の進捗：タスクの{completion_rate:.0f}%が完了。")
             else:
-                insights.append(f"🎯 Hãy bắt tay vào hoàn thành task đầu tiên của tuần này nhé!" if is_vi else f"🎯 今週の最初のタスクを完了させましょう！")
+                insights.append(f"Hãy bắt tay vào hoàn thành task đầu tiên của tuần này nhé!" if is_vi else f"今週の最初のタスクを完了させましょう！")
                 
             in_progress = total_nay - completed - not_started
             if in_progress > 0:
-                insights.append(f"⏳ Đang xử lý {in_progress} task, cố lên nào team!" if is_vi else f"⏳ 現在{in_progress}件のタスクが進行中です。頑張って！")
+                insights.append(f"Đang xử lý {in_progress} task, cố lên nào team!" if is_vi else f"現在{in_progress}件のタスクが進行中です。頑張って！")
                 
             if not_started > 0:
-                insights.append(f"⚠️ Chú ý: Còn {not_started} task chưa bắt đầu." if is_vi else f"⚠️ 注意：まだ開始されていないタスクが{not_started}件。")
+                insights.append(f"Chú ý: Còn {not_started} task chưa bắt đầu." if is_vi else f"注意：まだ開始されていないタスクが{not_started}件。")
             else:
                 if completed < total_nay:
-                    insights.append(f"✨ Tuyệt vời! Tất cả các task đều đã được bắt đầu triển khai." if is_vi else f"✨ 素晴らしい！全てのタスクが開始されました。")
+                    insights.append(f"Tuyệt vời! Tất cả các task đều đã được bắt đầu triển khai." if is_vi else f"素晴らしい！全てのタスクが開始されました。")
 
         # 3. LLM Insights via Groq
         groq_api_key = os.environ.get('GROQ_API_KEY', '')

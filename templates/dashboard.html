@@ -244,7 +244,7 @@
     <div class="mobile-brand">
         <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" width="26" height="26" style="border-radius: var(--radius-sm);">
         <span>VN-Tracking</span>
-        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.46</i></sup>
+        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.47</i></sup>
     </div>
     <div class="mobile-topbar-right">
         <button type="button" class="mobile-icon-btn" onclick="toggleNotificationPanel(event)" title="{{ 'Thông báo' if lang == 'vi' else '通知' }}">
@@ -274,7 +274,7 @@
         <div style="display: flex; flex-direction: column; justify-content: center;">
             <span>VN-Tracking</span>
             <sup class="version-tag"
-                style="color: var(--text-3); font-size: 11px; margin-top: 2px;"><i>v1.9.46</i></sup>
+                style="color: var(--text-3); font-size: 11px; margin-top: 2px;"><i>v1.9.47</i></sup>
         </div>
     </div>
 
@@ -1564,17 +1564,6 @@
         </style>
         <div class="ai-insights-bar">
             <div class="ai-insights-label">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-                    stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M12 2v4"></path>
-                    <path d="M12 18v4"></path>
-                    <path d="M4.93 4.93l2.83 2.83"></path>
-                    <path d="M16.24 16.24l2.83 2.83"></path>
-                    <path d="M2 12h4"></path>
-                    <path d="M18 12h4"></path>
-                    <path d="M4.93 19.07l2.83-2.83"></path>
-                    <path d="M16.24 7.76l2.83-2.83"></path>
-                </svg>
                 AI Insights
             </div>
 
@@ -1582,7 +1571,7 @@
                 <div class="ai-insights-scroll" id="aiInsightsScroll">
                     <div class="ai-insight-item" style="opacity: 0.7;">
                         <span class="ai-insight-dot"></span>
-                        {{ '✨ Đang phân tích dữ liệu & thời tiết...' if lang == 'vi' else '✨ データと天気を分析中...' }}
+                        {{ 'Đang phân tích dữ liệu & thời tiết...' if lang == 'vi' else 'データと天気を分析中...' }}
                     </div>
                 </div>
             </div>
