@@ -1574,6 +1574,16 @@ def process_dashboard_data():
                 return dt.strftime('%m/%d/%Y')
             except:
                 return str(d_str)
+
+        def format_notion_date_str(d_str):
+            if not d_str or str(d_str).strip() in ['nan', 'NaN', 'None', '']: return ''
+            clean_d = re.sub(r'\([A-Za-z]+\)', '', str(d_str)).strip().replace('-', ' ')
+            try:
+                dt = date_parser.parse(clean_d, default=datetime(current_year, 1, 1))
+                return dt.strftime('%Y/%m/%d')
+            except:
+                return str(d_str)
+
         records = df_to_records(df_target)
         comments_db = get_supabase_task_comments() or {}
         for row in records:
@@ -1604,6 +1614,7 @@ def process_dashboard_data():
             
             start_date = format_jp_date(str(row.get('Start', row.get('Ngày bắt đầu', ''))).strip())
             end_date = format_jp_date(str(row.get('End', row.get('Deadline (Nộp)', row.get('Hạn chót', row.get('Deadline', ''))))).strip())
+            deadline = format_notion_date_str(str(row.get('Deadline (Nộp)', row.get('Hạn chót', row.get('Deadline', row.get('End', ''))))).strip())
             
             end_w = row.get('end_w')
             start_w = row.get('start_w')
@@ -1621,6 +1632,7 @@ def process_dashboard_data():
                 "job_type": job_type,
                 "start_date": start_date,
                 "end_date": end_date,
+                "deadline": deadline,
                 "vn_date": format_jp_date(str(row.get('VN', '')).strip()),
                 "is_coop": row.get('is_coop', False),
                 "volume_key": vol_key,
@@ -3126,7 +3138,7 @@ def export_notion_csv():
         start_date = row.get('start_date', '')
         end_date = row.get('end_date', '')
         worker = row.get('worker', '')
-        deadline = row.get('end_date', '') 
+        deadline = row.get('deadline') or row.get('end_date', '')
         
         writer.writerow([title, project_name, status, start_date, end_date, worker, deadline])
         
@@ -3179,7 +3191,7 @@ def export_single_notion_csv():
     start_date = target_row.get('start_date', '')
     end_date = target_row.get('end_date', '')
     worker = target_row.get('worker', '')
-    deadline = target_row.get('end_date', '') 
+    deadline = target_row.get('deadline') or target_row.get('end_date', '') 
     
     writer.writerow([title, project_name, status, start_date, end_date, worker, deadline])
     
