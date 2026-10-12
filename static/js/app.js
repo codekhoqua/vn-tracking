@@ -406,6 +406,7 @@ function renderWeatherUI(data, isVN, defaultLocName) {
     // Extract extra weather indicators
     const humidity = (cc.humidity !== undefined && cc.humidity !== null) ? cc.humidity : 80;
     const windKmh = (cc.wind_kmh !== undefined && cc.wind_kmh !== null) ? cc.wind_kmh : 8;
+    const uvIdx = (cc.uv_index !== undefined && cc.uv_index !== null) ? cc.uv_index : 0;
     const rainMm = (cc.rain_mm !== undefined && cc.rain_mm !== null) ? cc.rain_mm : 0;
     const formattedRain = (typeof rainMm === 'number') ? (rainMm % 1 === 0 ? rainMm : Number(rainMm.toFixed(1))) : rainMm;
 
