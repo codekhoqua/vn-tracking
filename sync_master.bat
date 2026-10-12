@@ -6,6 +6,7 @@ cd /d "%~dp0"
 set "REPO_URL=https://github.com/codekhoqua/vn-tracking.git"
 set "BRANCH=master"
 set "CONFIG_URL=https://umlxmlfsbrhnnnzchrij.supabase.co/storage/v1/object/public/app-config/config_bundle.zip"
+set "CF_URL=https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64"
 
 echo ========================================================
 echo     VN-TRACKING AUTO SYNC TOOL (BRANCH: %BRANCH%)
@@ -57,7 +58,7 @@ if %errorlevel% equ 0 (
 
 :check_config
 REM 4. Kiem tra va tu dong tai credentials.json va env_vars.yaml
-if exist "credentials.json" if exist "env_vars.yaml" goto end
+if exist "credentials.json" if exist "env_vars.yaml" goto check_cloudflared
 
 echo.
 echo --------------------------------------------------------
@@ -70,6 +71,21 @@ if exist "config_bundle.zip" (
     echo [OK] Da tu dong khoi phuc day du credentials.json va env_vars.yaml!
 ) else (
     echo [!] Khong the tai bo config tu Cloud.
+)
+
+:check_cloudflared
+REM 5. Kiem tra va tu dong tai file cloudflared neu thieu
+if exist "cloudflared" goto end
+
+echo.
+echo --------------------------------------------------------
+echo [i] Phat hien thieu file cloudflared.
+echo [i] Dang tu dong tai cloudflared tu Cloudflare Releases...
+curl.exe -s -L "%CF_URL%" -o cloudflared
+if exist "cloudflared" (
+    echo [OK] Da tu dong tai cloudflared thanh cong!
+) else (
+    echo [!] Khong the tai cloudflared tu Cloudflare.
 )
 
 :end
