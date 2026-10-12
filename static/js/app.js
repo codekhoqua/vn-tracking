@@ -406,8 +406,8 @@ function renderWeatherUI(data, isVN, defaultLocName) {
     // Extract extra weather indicators
     const humidity = (cc.humidity !== undefined && cc.humidity !== null) ? cc.humidity : 80;
     const windKmh = (cc.wind_kmh !== undefined && cc.wind_kmh !== null) ? cc.wind_kmh : 8;
-    const uvIdx = (cc.uv_index !== undefined && cc.uv_index !== null) ? cc.uv_index : 0;
     const rainMm = (cc.rain_mm !== undefined && cc.rain_mm !== null) ? cc.rain_mm : 0;
+    const formattedRain = (typeof rainMm === 'number') ? (rainMm % 1 === 0 ? rainMm : Number(rainMm.toFixed(1))) : rainMm;
 
     // Apply manual user simulation override if active
     if (userWeatherOverride) {
@@ -487,7 +487,7 @@ function renderWeatherUI(data, isVN, defaultLocName) {
                     ${rainMm > 0 ? `
                     <div class="weather-metric-pill" title="${isVN ? 'Lượng mưa hiện tại' : '降水量'}" style="display: flex; align-items: center; gap: 4px; font-size: 0.73rem; color: #bfdbfe; padding: 2px 7px; border-radius: 6px; background: rgba(96, 165, 250, 0.16); border: 1px solid rgba(96, 165, 250, 0.2);">
                         <i class="fas fa-cloud-showers-heavy" style="color: #60a5fa; font-size: 0.72rem;"></i>
-                        <span style="font-weight: 600;">${rainMm}mm</span>
+                        <span style="font-weight: 600;">${formattedRain}mm</span>
                     </div>` : ''}
                     <button type="button" class="weather-metric-pill weather-film-pill-btn" onclick="event.stopPropagation(); openFilmstripAlbumModal(event);" title="${isVN ? 'Album Cuộn Phim 35mm (Quản lý ảnh nền)' : '35mmフィルムアルバム'}" style="display: flex; align-items: center; gap: 4px; font-size: 0.73rem; color: #fde68a; padding: 2px 8px; border-radius: 6px; background: rgba(245, 158, 11, 0.22); border: 1px solid rgba(245, 158, 11, 0.35); cursor: pointer; transition: all 0.2s ease;">
                         <i class="fas fa-film" style="color: #f59e0b; font-size: 0.72rem;"></i>
