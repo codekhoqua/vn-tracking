@@ -342,41 +342,10 @@ function getWeather3DMarkup(category, isDay, wCode) {
     }
 }
 
-// 3D Mouse Parallax & Tilt Handler
+// 3D Mouse Parallax & Tilt Handler (Disabled per user request: card stays completely still)
 function attachWeather3DTilt(card) {
-    if (!card || card.dataset.tiltAttached) return;
-    card.dataset.tiltAttached = 'true';
-    
-    const glare = card.querySelector('.weather-card-glare');
-    
-    card.addEventListener('mousemove', (e) => {
-        const rect = card.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-        
-        const centerX = rect.width / 2;
-        const centerY = rect.height / 2;
-        
-        const rotateX = ((y - centerY) / centerY) * -12;
-        const rotateY = ((x - centerX) / centerX) * 14;
-        
-        card.style.transform = `perspective(800px) rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg) scale3d(1.03, 1.03, 1.03)`;
-        
-        if (glare) {
-            const pctX = (x / rect.width) * 100;
-            const pctY = (y / rect.height) * 100;
-            glare.style.background = `radial-gradient(circle at ${pctX.toFixed(1)}% ${pctY.toFixed(1)}%, rgba(255, 255, 255, 0.28) 0%, transparent 60%)`;
-        }
-    });
-    
-    card.addEventListener('mouseleave', () => {
-        card.style.transform = 'perspective(800px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)';
-        card.style.transition = 'transform 0.5s cubic-bezier(0.23, 1, 0.32, 1)';
-    });
-    
-    card.addEventListener('mouseenter', () => {
-        card.style.transition = 'transform 0.1s ease-out';
-    });
+    if (!card) return;
+    card.style.transform = 'none';
 }
 
 function renderWeatherUI(data, isVN, defaultLocName) {
