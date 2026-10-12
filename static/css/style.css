@@ -1589,20 +1589,16 @@ select option { background: var(--surface); color: var(--text); }
 
 /* ======================== HERO MOCKUP FORMAT LAYOUT ======================== */
 .hero-filmstrip-scrim {
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(180deg, rgba(11, 17, 32, 0.12) 0%, rgba(11, 17, 32, 0.42) 45%, rgba(11, 17, 32, 0.88) 100%);
-    pointer-events: none;
-    z-index: 2;
+    display: none !important;
 }
 
 .hero-welcome-text {
     font-size: 0.88rem;
-    color: rgba(255, 255, 255, 0.82);
+    color: rgba(255, 255, 255, 0.92);
     font-weight: 600;
     margin-bottom: 4px;
     letter-spacing: 0.02em;
-    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.55);
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.85), 0 0 16px rgba(0, 0, 0, 0.6);
     display: flex;
     align-items: center;
     gap: 6px;
@@ -1615,7 +1611,7 @@ select option { background: var(--surface); color: var(--text); }
     letter-spacing: -0.025em;
     margin: 0;
     line-height: 1.15;
-    text-shadow: 0 3px 10px rgba(0, 0, 0, 0.6);
+    text-shadow: 0 2px 12px rgba(0, 0, 0, 0.9), 0 0 24px rgba(0, 0, 0, 0.75);
     white-space: nowrap;
 }
 
@@ -1721,39 +1717,42 @@ select option { background: var(--surface); color: var(--text); }
     font-weight: 700;
 }
 
-/* Prominent Album Button in Hero Controls */
+/* Glassmorphic Album Button with Blur & Glow like Filter Button */
 .hero-album-btn {
     display: inline-flex;
     align-items: center;
-    gap: 7px;
-    padding: 0 18px;
+    gap: 8px;
+    padding: 0 16px;
     height: 40px;
     border-radius: 999px;
-    background: #f59e0b;
-    color: #111827;
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.22), rgba(217, 119, 6, 0.32));
+    border: 1px solid rgba(245, 158, 11, 0.5);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    color: #fef3c7;
     font-size: 0.84rem;
     font-weight: 700;
-    border: none;
     cursor: pointer;
-    box-shadow: 0 4px 16px rgba(245, 158, 11, 0.35);
+    box-shadow: 0 0 16px rgba(245, 158, 11, 0.25);
     transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     white-space: nowrap;
 }
 
 .hero-album-btn:hover {
-    background: #fbbf24;
-    transform: translateY(-1px) scale(1.02);
-    box-shadow: 0 6px 22px rgba(245, 158, 11, 0.5);
-    color: #000;
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.36), rgba(217, 119, 6, 0.48));
+    border-color: rgba(245, 158, 11, 0.8);
+    color: #ffffff;
+    box-shadow: 0 0 20px rgba(245, 158, 11, 0.45);
+    transform: translateY(-1px);
 }
 
 .hero-album-btn:active {
-    transform: translateY(0) scale(0.98);
+    transform: translateY(0);
 }
 
 .hero-album-btn i {
-    font-size: 0.95rem;
-    color: #111827;
+    font-size: 0.9rem;
+    color: #fbbf24;
 }
 
 @media (max-width: 1024px) {
