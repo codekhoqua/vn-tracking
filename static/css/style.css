@@ -1592,6 +1592,34 @@ select option { background: var(--surface); color: var(--text); }
     display: none !important;
 }
 
+/* Localized Left Focus Scrim: slightly blurs & softens album photos only in the Title/Weather zone */
+.hero-left-focus-scrim {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 440px;
+    max-width: 42%;
+    background: linear-gradient(90deg, rgba(11, 17, 32, 0.68) 0%, rgba(11, 17, 32, 0.38) 65%, transparent 100%);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    mask-image: linear-gradient(to right, #000 0%, #000 60%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, #000 0%, #000 60%, transparent 100%);
+    pointer-events: none;
+    z-index: 2;
+    transition: opacity 0.3s ease;
+}
+
+@media (max-width: 768px) {
+    .hero-left-focus-scrim {
+        width: 100%;
+        max-width: 100%;
+        background: linear-gradient(180deg, rgba(11, 17, 32, 0.72) 0%, rgba(11, 17, 32, 0.4) 65%, transparent 100%);
+        mask-image: linear-gradient(to bottom, #000 0%, #000 70%, transparent 100%);
+        -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 70%, transparent 100%);
+    }
+}
+
 .hero-welcome-text {
     font-size: 0.88rem;
     color: rgba(255, 255, 255, 0.92);
