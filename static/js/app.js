@@ -445,25 +445,28 @@ function renderWeatherUI(data, isVN, defaultLocName) {
             <div class="weather-3d-card" id="weather-3d-card" style="--weather-theme-rgb: ${themeRgb};">
                 <div class="weather-card-glare"></div>
                 
-                ${getWeather3DMarkup(category, isDay, wCode)}
-                
-                <div class="weather-3d-content">
-                    <div class="weather-3d-temp">
-                        ${temp}<sup>°c</sup>
-                    </div>
+                <!-- Row 1: Weather 3D Icon + Temperature + City & Details -->
+                <div class="weather-3d-main-row">
+                    ${getWeather3DMarkup(category, isDay, wCode)}
                     
-                    <div class="weather-3d-meta">
-                        <div class="weather-3d-city">
-                            <span class="weather-live-dot" title="Live update: 60s"></span>
-                            <span>${locName}</span>
-                            <i class="fas fa-sync-alt" id="weather-sync-icon" style="font-size: 0.72rem; color: rgba(255,255,255,0.45); margin-left: 3px; cursor: pointer;" title="${isVN ? 'Cập nhật thời tiết ngay' : '今すぐ更新'}"></i>
+                    <div class="weather-3d-content">
+                        <div class="weather-3d-temp">
+                            ${temp}<sup>°c</sup>
                         </div>
-                        <div class="weather-3d-desc">${desc}</div>
-                        <div class="weather-3d-range">H: ${maxTemp}° | L: ${minTemp}°</div>
+                        
+                        <div class="weather-3d-meta">
+                            <div class="weather-3d-city">
+                                <span class="weather-live-dot" title="Live update: 60s"></span>
+                                <span>${locName}</span>
+                                <i class="fas fa-sync-alt" id="weather-sync-icon" style="font-size: 0.72rem; color: rgba(255,255,255,0.45); margin-left: 3px; cursor: pointer;" title="${isVN ? 'Cập nhật thời tiết ngay' : '今すぐ更新'}"></i>
+                            </div>
+                            <div class="weather-3d-desc">${desc}</div>
+                            <div class="weather-3d-range">H: ${maxTemp}° | L: ${minTemp}°</div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- 3D Pills Badges -->
+                <!-- Row 2: Weather Metrics + Album Button -->
                 <div class="weather-3d-pills">
                     <div class="weather-metric-pill" title="${isVN ? 'Nhiệt độ cảm nhận thực tế' : '体感温度'}" style="display: flex; align-items: center; gap: 4px; font-size: 0.73rem; color: #fed7aa; padding: 2px 7px; border-radius: 6px; background: rgba(251, 146, 60, 0.16); border: 1px solid rgba(251, 146, 60, 0.2);">
                         <i class="fas fa-temperature-high" style="color: #fb923c; font-size: 0.72rem;"></i>
@@ -488,7 +491,7 @@ function renderWeatherUI(data, isVN, defaultLocName) {
                     </div>` : ''}
                     <button type="button" class="weather-metric-pill weather-film-pill-btn" onclick="event.stopPropagation(); openFilmstripAlbumModal(event);" title="${isVN ? 'Album Cuộn Phim 35mm (Quản lý ảnh nền)' : '35mmフィルムアルバム'}" style="display: flex; align-items: center; gap: 4px; font-size: 0.73rem; color: #fde68a; padding: 2px 8px; border-radius: 6px; background: rgba(245, 158, 11, 0.22); border: 1px solid rgba(245, 158, 11, 0.35); cursor: pointer; transition: all 0.2s ease;">
                         <i class="fas fa-film" style="color: #f59e0b; font-size: 0.72rem;"></i>
-                        <span style="font-weight: 600;">${isVN ? 'Album Phim' : 'フィルム'}</span>
+                        <span style="font-weight: 600;">${isVN ? 'Album' : 'アルバム'}</span>
                     </button>
                 </div>
             </div>
@@ -895,7 +898,7 @@ window.renderFilmstripModalContent = function() {
     grid.innerHTML = photos.map(p => `
         <div class="filmstrip-thumb-item">
             <div class="film-sprocket-backlight"></div>
-            <img src="${p.src}" alt="${p.caption || ''}" class="filmstrip-thumb-photo" loading="lazy">
+            <img src="${p.src}" alt="${p.caption || ''}" class="filmstrip-thumb-photo" loading="lazy" decoding="async">
             <div class="filmstrip-thumb-frame"></div>
             <button type="button" class="filmstrip-thumb-delete" onclick="deleteFilmstripPhoto('${p.id}')" title="Xóa ảnh này">
                 <i class="fas fa-trash"></i>
@@ -6314,7 +6317,7 @@ function setInputStatus(id, state) {
         }
     }
 
-    // Weather atmospheric overlays disabled per user request to highlight film album only
+    // Weather particle effects across outer page, hero banner overlays kept clean for film album
     window.applyWeatherEffect = function(mode) {
         initWeatherCanvas();
         const fxLayer = document.getElementById('hero-weather-fx-layer');
@@ -6325,26 +6328,64 @@ function setInputStatus(id, state) {
             thunderTimer = null;
         }
 
+        // Keep hero banner atmospheric FX & clouds hidden to keep film album clear & prominent
         if (fxLayer) {
             fxLayer.className = '';
             fxLayer.innerHTML = '';
             fxLayer.style.display = 'none';
         }
-
         renderHonorAtmosphericClouds(mode);
 
-        if (weatherAnimId) {
-            cancelAnimationFrame(weatherAnimId);
-            weatherAnimId = null;
+        if (mode === 'clear' || !mode) {
+            currentWeatherMode = null;
+            if (weatherAnimId) {
+                cancelAnimationFrame(weatherAnimId);
+                weatherAnimId = null;
+            }
+            if (weatherCtx && weatherCanvas) {
+                weatherCtx.clearRect(0, 0, weatherCanvas.width, weatherCanvas.height);
+                weatherCanvas.style.display = 'none';
+            }
+            if (chartEl) {
+                chartEl.classList.remove('rain-wet-rim', 'snow-frost-rim', 'sun-warm-rim');
+            }
+            return;
         }
-        if (weatherCtx && weatherCanvas) {
-            weatherCtx.clearRect(0, 0, weatherCanvas.width, weatherCanvas.height);
-            weatherCanvas.style.display = 'none';
+
+        currentWeatherMode = mode;
+        if (weatherCanvas) weatherCanvas.style.display = 'block';
+
+        if (mode === 'rain' || mode === 'thunder') {
+            const totalDrops = Math.min(50, Math.floor(window.innerWidth / 24));
+            rainDrops = [];
+            rainSplashes = [];
+            for (let i = 0; i < totalDrops; i++) {
+                rainDrops.push(createRainDrop(true));
+            }
+        } else if (mode === 'snow') {
+            const totalFlakes = Math.min(48, Math.floor(window.innerWidth / 26));
+            snowFlakes = [];
+            for (let i = 0; i < totalFlakes; i++) {
+                snowFlakes.push(createSnowFlake(true));
+            }
+        } else {
+            if (weatherAnimId) {
+                cancelAnimationFrame(weatherAnimId);
+                weatherAnimId = null;
+            }
+            if (weatherCtx && weatherCanvas) {
+                weatherCtx.clearRect(0, 0, weatherCanvas.width, weatherCanvas.height);
+                weatherCanvas.style.display = 'none';
+            }
+            if (chartEl) {
+                chartEl.classList.remove('rain-wet-rim', 'snow-frost-rim', 'sun-warm-rim');
+            }
+            return;
         }
-        if (chartEl) {
-            chartEl.classList.remove('rain-wet-rim', 'snow-frost-rim', 'sun-warm-rim');
-        }
-        currentWeatherMode = null;
+
+        lastRectUpdate = 0;
+        if (weatherAnimId) cancelAnimationFrame(weatherAnimId);
+        weatherAnimId = requestAnimationFrame(updateWeatherParticles);
     };
 
     // Backward compatibility aliases

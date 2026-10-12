@@ -244,7 +244,7 @@
     <div class="mobile-brand">
         <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" width="26" height="26" style="border-radius: var(--radius-sm);">
         <span>VN-Tracking</span>
-        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.37</i></sup>
+        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.38</i></sup>
     </div>
     <div class="mobile-topbar-right">
         <button type="button" class="mobile-icon-btn" onclick="toggleNotificationPanel(event)" title="{{ 'Thông báo' if lang == 'vi' else '通知' }}">
@@ -274,7 +274,7 @@
         <div style="display: flex; flex-direction: column; justify-content: center;">
             <span>VN-Tracking</span>
             <sup class="version-tag"
-                style="color: var(--text-3); font-size: 11px; margin-top: 2px;"><i>v1.9.37</i></sup>
+                style="color: var(--text-3); font-size: 11px; margin-top: 2px;"><i>v1.9.38</i></sup>
         </div>
     </div>
 
@@ -1369,14 +1369,14 @@
         <div
             style="position: relative; z-index: 50; display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 24px 32px;">
 
-            <!-- Left: Titles -->
-            <div class="header-left" style="flex: 1; margin-bottom: 0;">
+            <!-- Left: Titles (Glassmorphism Blur Card) -->
+            <div class="header-left header-title-glass-card" style="margin-bottom: 0;">
                 <div class="header-title"
                     style="font-size: 0.88rem; color: rgba(255,255,255,0.75); font-weight: 600; margin-bottom: 4px; letter-spacing: 0.02em;">
                     {{
                     t.welcome }}, {{ user }}</div>
                 <h1
-                    style="font-size: 2.2rem; font-weight: 800; background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 50%, #93c5fd 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: -0.025em; margin: 0; display: inline-block;">
+                    style="font-size: 2.1rem; font-weight: 800; background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 50%, #93c5fd 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: -0.025em; margin: 0; display: inline-block;">
                     {{ t.title }}</h1>
             </div>
 
