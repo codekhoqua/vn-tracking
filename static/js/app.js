@@ -265,6 +265,115 @@ function fetchRealtimeWeather(force = false) {
         });
 }
 
+// Helper: Generate 3D Weather Scene Markup (Gapsy / Dribbble Style)
+function getWeather3DMarkup(category, isDay, wCode) {
+    if (category === 'snow' || [227, 230, 323, 326, 329, 332, 335, 338, 350, 371].includes(wCode)) {
+        return `
+            <div class="weather-3d-scene">
+                <div class="weather-3d-float">
+                    <div class="weather-3d-cloud">
+                        <div class="weather-3d-rain" style="bottom: -12px;">
+                            <span class="weather-3d-star" style="width: 6px; height: 6px; left: 6px;"></span>
+                            <span class="weather-3d-star" style="width: 7px; height: 7px; left: 20px; animation-delay: 0.5s;"></span>
+                            <span class="weather-3d-star" style="width: 5px; height: 5px; left: 34px; animation-delay: 1s;"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+    } else if (category === 'thunder' || [200, 386, 389, 392, 395].includes(wCode)) {
+        return `
+            <div class="weather-3d-scene">
+                <div class="weather-3d-float">
+                    <div class="weather-3d-cloud storm">
+                        <svg class="weather-3d-bolt" viewBox="0 0 24 24" fill="#facc15">
+                            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                        </svg>
+                    </div>
+                </div>
+            </div>`;
+    } else if (category === 'rain' || (wCode >= 263 && wCode <= 314) || [353, 356, 359].includes(wCode)) {
+        return `
+            <div class="weather-3d-scene">
+                <div class="weather-3d-float">
+                    <div class="weather-3d-cloud">
+                        <div class="weather-3d-rain">
+                            <span class="weather-3d-drop"></span>
+                            <span class="weather-3d-drop"></span>
+                            <span class="weather-3d-drop"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+    } else if (category === 'clouds' || [116, 119, 122].includes(wCode)) {
+        return `
+            <div class="weather-3d-scene">
+                <div class="weather-3d-float">
+                    <div class="weather-3d-sun-cloud">
+                        <div class="weather-3d-sun"></div>
+                        <div class="weather-3d-cloud"></div>
+                    </div>
+                </div>
+            </div>`;
+    } else if (!isDay) {
+        return `
+            <div class="weather-3d-scene">
+                <div class="weather-3d-float">
+                    <div class="weather-3d-moon">
+                        <span class="weather-3d-star" style="width: 4px; height: 4px; top: -4px; right: 2px;"></span>
+                        <span class="weather-3d-star" style="width: 3px; height: 3px; bottom: 4px; right: -8px; animation-delay: 0.7s;"></span>
+                        <span class="weather-3d-star" style="width: 5px; height: 5px; top: 14px; left: -10px; animation-delay: 1.2s;"></span>
+                    </div>
+                </div>
+            </div>`;
+    } else {
+        return `
+            <div class="weather-3d-scene">
+                <div class="weather-3d-float">
+                    <div class="weather-3d-sun">
+                        <div class="weather-3d-sun-rays"></div>
+                    </div>
+                </div>
+            </div>`;
+    }
+}
+
+// 3D Mouse Parallax & Tilt Handler
+function attachWeather3DTilt(card) {
+    if (!card || card.dataset.tiltAttached) return;
+    card.dataset.tiltAttached = 'true';
+    
+    const glare = card.querySelector('.weather-card-glare');
+    
+    card.addEventListener('mousemove', (e) => {
+        const rect = card.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        
+        const centerX = rect.width / 2;
+        const centerY = rect.height / 2;
+        
+        const rotateX = ((y - centerY) / centerY) * -12;
+        const rotateY = ((x - centerX) / centerX) * 14;
+        
+        card.style.transform = `perspective(800px) rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg) scale3d(1.03, 1.03, 1.03)`;
+        
+        if (glare) {
+            const pctX = (x / rect.width) * 100;
+            const pctY = (y / rect.height) * 100;
+            glare.style.background = `radial-gradient(circle at ${pctX.toFixed(1)}% ${pctY.toFixed(1)}%, rgba(255, 255, 255, 0.28) 0%, transparent 60%)`;
+        }
+    });
+    
+    card.addEventListener('mouseleave', () => {
+        card.style.transform = 'perspective(800px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)';
+        card.style.transition = 'transform 0.5s cubic-bezier(0.23, 1, 0.32, 1)';
+    });
+    
+    card.addEventListener('mouseenter', () => {
+        card.style.transition = 'transform 0.1s ease-out';
+    });
+}
+
 function renderWeatherUI(data, isVN, defaultLocName) {
     if (!data || !data.current_condition || !data.current_condition[0]) return;
     const cc = data.current_condition[0];
@@ -280,51 +389,43 @@ function renderWeatherUI(data, isVN, defaultLocName) {
 
     let desc = isVN ? "Nhiều mây" : "曇り";
     let bgUrl = "https://images.unsplash.com/photo-1501630834273-4b5604d2ee31?q=80&w=1200";
-    let iconSvg = `<svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.5 19A4.5 4.5 0 0 0 18 10c-1-5-8.5-5-10-1.5A5 5 0 1 0 8 19h9.5z"></path></svg>`;
-    let iconColor = "#94a3b8";
+    let themeRgb = "148, 163, 184"; // Slate
     let effectiveEffect = category;
 
     if (category === 'snow' || [227, 230, 323, 326, 329, 332, 335, 338, 350, 371].includes(wCode)) {
         desc = isVN ? "Tuyết rơi" : "雪";
         bgUrl = "https://images.unsplash.com/photo-1542601098-3adb3baeb1ec?q=80&w=1200";
-        iconSvg = `<svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 17.58A5 5 0 0 0 18 8h-1.26A8 8 0 1 0 4 16.25"></path><line x1="8" y1="16" x2="8.01" y2="16"></line><line x1="8" y1="20" x2="8.01" y2="20"></line><line x1="12" y1="18" x2="12.01" y2="18"></line><line x1="12" y1="22" x2="12.01" y2="22"></line><line x1="16" y1="16" x2="16.01" y2="16"></line><line x1="16" y1="20" x2="16.01" y2="20"></line></svg>`;
-        iconColor = "#e0f2fe";
+        themeRgb = "186, 230, 253";
         effectiveEffect = 'snow';
     } else if (category === 'thunder' || [200, 386, 389, 392, 395].includes(wCode)) {
         desc = isVN ? "Giông bão" : "雷雨";
         bgUrl = "https://images.unsplash.com/photo-1534274988757-a28bf1a57c17?q=80&w=1200";
-        iconSvg = `<svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 16.9A5 5 0 0 0 18 7h-1.26a8 8 0 1 0-11.62 9"></path><polyline points="13 11 9 17 15 17 11 23"></polyline></svg>`;
-        iconColor = "#fcd34d";
+        themeRgb = "250, 204, 21";
         effectiveEffect = 'thunder';
     } else if (category === 'rain' || (wCode >= 263 && wCode <= 314) || [353, 356, 359].includes(wCode)) {
         desc = isVN ? (wCode === 266 ? "Mưa phùn" : "Có mưa") : "雨";
         bgUrl = "https://images.unsplash.com/photo-1515694346937-94d85e41e6f0?q=80&w=1200";
-        iconSvg = `<svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="16" y1="13" x2="16" y2="21"></line><line x1="8" y1="13" x2="8" y2="21"></line><line x1="12" y1="15" x2="12" y2="23"></line><path d="M20 16.58A5 5 0 0 0 18 7h-1.26A8 8 0 1 0 4 15.25"></path></svg>`;
-        iconColor = "#60a5fa";
+        themeRgb = "56, 189, 248";
         effectiveEffect = 'rain';
     } else if (category === 'fog' || [143, 248, 260].includes(wCode)) {
         desc = isVN ? "Sương mù" : "霧";
         bgUrl = "https://images.unsplash.com/photo-1487621167305-5d248087c724?q=80&w=1200";
-        iconSvg = `<svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.5 19A4.5 4.5 0 0 0 18 10c-1-5-8.5-5-10-1.5A5 5 0 1 0 8 19h9.5z"></path></svg>`;
-        iconColor = "#cbd5e1";
+        themeRgb = "203, 213, 225";
         effectiveEffect = 'clear';
     } else if (category === 'clouds' || [116, 119, 122].includes(wCode)) {
         desc = isVN ? "Nhiều mây" : "曇り";
         bgUrl = "https://images.unsplash.com/photo-1501630834273-4b5604d2ee31?q=80&w=1200";
-        iconSvg = `<svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.5 19A4.5 4.5 0 0 0 18 10c-1-5-8.5-5-10-1.5A5 5 0 1 0 8 19h9.5z"></path></svg>`;
-        iconColor = "#94a3b8";
+        themeRgb = "148, 163, 184";
         effectiveEffect = 'clear';
     } else if (!isDay) {
         desc = isVN ? "Trời quang (Đêm)" : "快晴 (夜)";
         bgUrl = "https://images.unsplash.com/photo-1509773896068-7fd415d91e2e?q=80&w=1200";
-        iconSvg = `<svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>`;
-        iconColor = "#e2e8f0";
+        themeRgb = "129, 140, 248";
         effectiveEffect = 'clear';
     } else {
         desc = isVN ? "Nắng đẹp" : "晴れ";
         bgUrl = "https://images.unsplash.com/photo-1601297183305-6df142704ea2?q=80&w=1200";
-        iconSvg = `<svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`;
-        iconColor = "#fbbf24";
+        themeRgb = "245, 158, 11";
         effectiveEffect = 'sun';
     }
 
@@ -350,62 +451,76 @@ function renderWeatherUI(data, isVN, defaultLocName) {
         bgEl.style.backgroundImage = `url('${bgUrl}')`;
     }
 
-    // Update Inline Container with extra weather indicators
+    // Update Inline Container with 3D Gapsy Studio style
     const inlineContainer = document.getElementById('inline-weather-container');
     if (inlineContainer) {
         inlineContainer.style.display = 'flex';
         inlineContainer.style.alignItems = 'center';
         inlineContainer.innerHTML = `
-            <div style="display: flex; align-items: center;">
-                <div style="color: ${iconColor}; display: flex; align-items: center; justify-content: center; margin-right: 4px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); transition: transform 0.3s ease;">
-                    ${iconSvg}
-                </div>
-                <div style="font-size: 3rem; font-weight: 300; color: #fff; line-height: 1; text-shadow: 0 2px 8px rgba(0,0,0,0.4); margin-right: 10px; font-variant-numeric: tabular-nums;">
-                    ${temp}<span style="font-size: 1.2rem; vertical-align: super; font-weight: 500; opacity: 0.9;">°c</span>
-                </div>
-                <div style="display: flex; flex-direction: column; justify-content: center; min-width: 105px;">
-                    <div style="font-size: 0.95rem; font-weight: 700; color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,0.4); display: flex; align-items: center; gap: 4px; margin-bottom: 2px;">
-                        <span class="weather-live-dot" title="Live update: 60s"></span>
-                        <span>${locName}</span>
-                        <i class="fas fa-sync-alt" id="weather-sync-icon" style="font-size: 0.72rem; color: rgba(255,255,255,0.45); margin-left: 2px; cursor: pointer;" title="${isVN ? 'Cập nhật thời tiết ngay' : '今すぐ更新'}"></i>
+            <div class="weather-3d-card" id="weather-3d-card" style="--weather-theme-rgb: ${themeRgb};">
+                <div class="weather-card-glare"></div>
+                
+                ${getWeather3DMarkup(category, isDay, wCode)}
+                
+                <div class="weather-3d-content">
+                    <div class="weather-3d-temp">
+                        ${temp}<sup>°c</sup>
                     </div>
-                    <div style="font-size: 0.85rem; color: rgba(255,255,255,0.85); font-weight: 500; text-shadow: 0 1px 4px rgba(0,0,0,0.4); margin-bottom: 2px;">${desc}</div>
-                    <div style="font-size: 0.74rem; color: rgba(255,255,255,0.65); font-weight: 500; text-shadow: 0 1px 4px rgba(0,0,0,0.4);">H: ${maxTemp}° | L: ${minTemp}°</div>
+                    
+                    <div class="weather-3d-meta">
+                        <div class="weather-3d-city">
+                            <span class="weather-live-dot" title="Live update: 60s"></span>
+                            <span>${locName}</span>
+                            <i class="fas fa-sync-alt" id="weather-sync-icon" style="font-size: 0.72rem; color: rgba(255,255,255,0.45); margin-left: 3px; cursor: pointer;" title="${isVN ? 'Cập nhật thời tiết ngay' : '今すぐ更新'}"></i>
+                        </div>
+                        <div class="weather-3d-desc">${desc}</div>
+                        <div class="weather-3d-range">H: ${maxTemp}° | L: ${minTemp}°</div>
+                    </div>
                 </div>
-            </div>
 
-            <!-- Extra Realtime Weather Metrics Badges -->
-            <div class="weather-metrics-cluster" style="display: flex; flex-wrap: wrap; gap: 5px; margin-left: 14px; background: rgba(255,255,255,0.06); padding: 5px 8px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);">
-                <!-- Cảm giác như -->
-                <div class="weather-metric-pill" title="${isVN ? 'Nhiệt độ cảm nhận thực tế' : '体感温度'}" style="display: flex; align-items: center; gap: 4px; font-size: 0.73rem; color: #fed7aa; padding: 2px 6px; border-radius: 6px; background: rgba(251, 146, 60, 0.14);">
-                    <i class="fas fa-temperature-high" style="color: #fb923c; font-size: 0.72rem;"></i>
-                    <span style="font-weight: 600;">~${feelsLike}°</span>
+                <!-- 3D Pills Badges -->
+                <div class="weather-3d-pills">
+                    <div class="weather-metric-pill" title="${isVN ? 'Nhiệt độ cảm nhận thực tế' : '体感温度'}" style="display: flex; align-items: center; gap: 4px; font-size: 0.73rem; color: #fed7aa; padding: 2px 7px; border-radius: 6px; background: rgba(251, 146, 60, 0.16); border: 1px solid rgba(251, 146, 60, 0.2);">
+                        <i class="fas fa-temperature-high" style="color: #fb923c; font-size: 0.72rem;"></i>
+                        <span style="font-weight: 600;">~${feelsLike}°</span>
+                    </div>
+                    <div class="weather-metric-pill" title="${isVN ? 'Độ ẩm không khí' : '湿度'}" style="display: flex; align-items: center; gap: 4px; font-size: 0.73rem; color: #bae6fd; padding: 2px 7px; border-radius: 6px; background: rgba(56, 189, 248, 0.16); border: 1px solid rgba(56, 189, 248, 0.2);">
+                        <i class="fas fa-tint" style="color: #38bdf8; font-size: 0.72rem;"></i>
+                        <span style="font-weight: 600;">${humidity}%</span>
+                    </div>
+                    <div class="weather-metric-pill" title="${isVN ? 'Tốc độ gió' : '風速'}" style="display: flex; align-items: center; gap: 4px; font-size: 0.73rem; color: #e2e8f0; padding: 2px 7px; border-radius: 6px; background: rgba(148, 163, 184, 0.16); border: 1px solid rgba(148, 163, 184, 0.2);">
+                        <i class="fas fa-wind" style="color: #cbd5e1; font-size: 0.72rem;"></i>
+                        <span style="font-weight: 600;">${windKmh}km/h</span>
+                    </div>
+                    <div class="weather-metric-pill" title="${isVN ? 'Chỉ số tia UV' : 'UVインデックス'}" style="display: flex; align-items: center; gap: 4px; font-size: 0.73rem; color: #fef08a; padding: 2px 7px; border-radius: 6px; background: rgba(250, 204, 21, 0.16); border: 1px solid rgba(250, 204, 21, 0.2);">
+                        <i class="fas fa-sun" style="color: #facc15; font-size: 0.72rem;"></i>
+                        <span style="font-weight: 600;">UV ${uvIdx}</span>
+                    </div>
+                    ${rainMm > 0 ? `
+                    <div class="weather-metric-pill" title="${isVN ? 'Lượng mưa hiện tại' : '降水量'}" style="display: flex; align-items: center; gap: 4px; font-size: 0.73rem; color: #bfdbfe; padding: 2px 7px; border-radius: 6px; background: rgba(96, 165, 250, 0.16); border: 1px solid rgba(96, 165, 250, 0.2);">
+                        <i class="fas fa-cloud-showers-heavy" style="color: #60a5fa; font-size: 0.72rem;"></i>
+                        <span style="font-weight: 600;">${rainMm}mm</span>
+                    </div>` : ''}
                 </div>
-                <!-- Độ ẩm -->
-                <div class="weather-metric-pill" title="${isVN ? 'Độ ẩm không khí' : '湿度'}" style="display: flex; align-items: center; gap: 4px; font-size: 0.73rem; color: #bae6fd; padding: 2px 6px; border-radius: 6px; background: rgba(56, 189, 248, 0.14);">
-                    <i class="fas fa-tint" style="color: #38bdf8; font-size: 0.72rem;"></i>
-                    <span style="font-weight: 600;">${humidity}%</span>
-                </div>
-                <!-- Gió -->
-                <div class="weather-metric-pill" title="${isVN ? 'Tốc độ gió' : '風速'}" style="display: flex; align-items: center; gap: 4px; font-size: 0.73rem; color: #e2e8f0; padding: 2px 6px; border-radius: 6px; background: rgba(148, 163, 184, 0.14);">
-                    <i class="fas fa-wind" style="color: #cbd5e1; font-size: 0.72rem;"></i>
-                    <span style="font-weight: 600;">${windKmh}km/h</span>
-                </div>
-                <!-- UV -->
-                <div class="weather-metric-pill" title="${isVN ? 'Chỉ số tia UV' : 'UVインデックス'}" style="display: flex; align-items: center; gap: 4px; font-size: 0.73rem; color: #fef08a; padding: 2px 6px; border-radius: 6px; background: rgba(250, 204, 21, 0.14);">
-                    <i class="fas fa-sun" style="color: #facc15; font-size: 0.72rem;"></i>
-                    <span style="font-weight: 600;">UV ${uvIdx}</span>
-                </div>
-                ${rainMm > 0 ? `
-                <!-- Lượng mưa -->
-                <div class="weather-metric-pill" title="${isVN ? 'Lượng mưa hiện tại' : '降水量'}" style="display: flex; align-items: center; gap: 4px; font-size: 0.73rem; color: #bfdbfe; padding: 2px 6px; border-radius: 6px; background: rgba(96, 165, 250, 0.14);">
-                    <i class="fas fa-cloud-showers-heavy" style="color: #60a5fa; font-size: 0.72rem;"></i>
-                    <span style="font-weight: 600;">${rainMm}mm</span>
-                </div>` : ''}
             </div>
         `;
+
+        // Attach mouse tilt interaction
+        const cardEl = document.getElementById('weather-3d-card');
+        if (cardEl) {
+            attachWeather3DTilt(cardEl);
+        }
     }
 }
+
+// Click Router: Sync refresh vs Open 3D Forecast Modal
+window.handleWeatherCardClick = function(e) {
+    if (e.target && (e.target.id === 'weather-sync-icon' || e.target.closest('#weather-sync-icon'))) {
+        window.refreshWeatherNow(e);
+    } else {
+        window.openWeatherForecastModal();
+    }
+};
 
 window.refreshWeatherNow = function(e) {
     if (e) e.stopPropagation();
@@ -425,6 +540,174 @@ window.refreshWeatherNow = function(e) {
         if (syncIcon) syncIcon.classList.remove('fa-spin');
     }, 1200);
 };
+
+// =================== 3D WEATHER FORECAST MODAL (SHOWCASE) ===================
+window.openWeatherForecastModal = function() {
+    const backdrop = document.getElementById('weather-forecast-modal-backdrop');
+    const modalBody = document.getElementById('weather-modal-body');
+    if (!backdrop || !modalBody) return;
+
+    const data = lastWeatherPayload;
+    if (!data || !data.current_condition || !data.current_condition[0]) {
+        fetchRealtimeWeather(false);
+        return;
+    }
+
+    const isVN = (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi');
+    const cc = data.current_condition[0];
+    const weather = data.weather ? data.weather[0] : {};
+    const temp = cc.temp_C || '28';
+    const feelsLike = cc.FeelsLikeC || temp;
+    const maxTemp = weather.maxtempC || temp;
+    const minTemp = weather.mintempC || temp;
+    const wCode = parseInt(cc.weatherCode || 113);
+    const category = cc.category || 'sun';
+    const isDay = cc.is_day !== undefined ? cc.is_day : 1;
+    const locName = data.location || (isVN ? "TP.HCM" : "Gifu");
+    const humidity = cc.humidity || 75;
+    const windKmh = cc.wind_kmh || 8;
+    const uvIdx = cc.uv_index || 0;
+    const pressure = cc.pressure_hpa || 1012;
+    const cloudPct = cc.cloud_pct || 40;
+    const forecast = data.forecast || [];
+
+    // Format weekday
+    const dayNamesVN = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+    const dayNamesJA = ['日', '月', '火', '水', '木', '金', '土'];
+
+    let forecastHtml = '';
+    forecast.forEach((f, idx) => {
+        let dayLabel = isVN ? 'Hôm nay' : '今日';
+        if (idx > 0) {
+            try {
+                const d = new Date(f.date + 'T00:00:00');
+                const dayIdx = d.getDay();
+                dayLabel = isVN ? dayNamesVN[dayIdx] : dayNamesJA[dayIdx];
+            } catch (e) {
+                dayLabel = `+${idx}d`;
+            }
+        }
+        
+        let miniIcon = '☀️';
+        if (f.category === 'rain') miniIcon = '🌧️';
+        else if (f.category === 'thunder') miniIcon = '⛈️';
+        else if (f.category === 'snow') miniIcon = '❄️';
+        else if (f.category === 'clouds') miniIcon = '⛅';
+        else if (f.category === 'fog') miniIcon = '🌫️';
+
+        forecastHtml += `
+            <div class="forecast-day-card ${idx === 0 ? 'today' : ''}">
+                <div style="font-size: 0.78rem; font-weight: 700; color: ${idx === 0 ? '#38bdf8' : 'rgba(255,255,255,0.7)'}; margin-bottom: 6px;">${dayLabel}</div>
+                <div style="font-size: 1.6rem; margin-bottom: 6px; filter: drop-shadow(0 2px 6px rgba(0,0,0,0.3));">${miniIcon}</div>
+                <div style="font-size: 0.88rem; font-weight: 700; color: #fff;">${f.max_temp}°</div>
+                <div style="font-size: 0.72rem; color: rgba(255,255,255,0.5); font-weight: 500;">${f.min_temp}°</div>
+            </div>
+        `;
+    });
+
+    modalBody.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px;">
+            <div>
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                    <span class="weather-live-dot"></span>
+                    <span style="font-size: 1.3rem; font-weight: 800; color: #fff; letter-spacing: -0.01em;">${locName}</span>
+                    <span style="font-size: 0.78rem; color: #38bdf8; background: rgba(56, 189, 248, 0.15); padding: 2px 8px; border-radius: 999px; font-weight: 600;">3D LIVE</span>
+                </div>
+                <div style="font-size: 0.85rem; color: rgba(255,255,255,0.6);">
+                    ${isVN ? 'Dữ liệu khí tượng Open-Meteo vệ tinh thời gian thực' : '気象衛星リアルタイム観測データ'}
+                </div>
+            </div>
+            <button onclick="refreshWeatherNow(event)" style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 12px; padding: 6px 14px; color: #fff; font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 6px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.16)'" onmouseout="this.style.background='rgba(255,255,255,0.08)'">
+                <i class="fas fa-sync-alt" id="modal-weather-sync-icon"></i>
+                <span>${isVN ? 'Làm mới vệ tinh' : '衛星データ更新'}</span>
+            </button>
+        </div>
+
+        <!-- 3D Hero Display Box -->
+        <div style="display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; padding: 20px 28px; margin-bottom: 22px;">
+            <div style="display: flex; align-items: center; gap: 20px;">
+                ${getWeather3DMarkup(category, isDay, wCode)}
+                <div>
+                    <div style="font-size: 3.6rem; font-weight: 300; line-height: 1; letter-spacing: -0.03em; color: #fff;">
+                        ${temp}<span style="font-size: 1.5rem; vertical-align: super; font-weight: 500; opacity: 0.85;">°c</span>
+                    </div>
+                    <div style="font-size: 0.95rem; color: rgba(255,255,255,0.85); font-weight: 600; margin-top: 4px;">
+                        ${isVN ? 'Cảm giác như' : '体感'}: ${feelsLike}°C
+                    </div>
+                </div>
+            </div>
+            <div style="text-align: right;">
+                <div style="font-size: 1.15rem; font-weight: 700; color: #fff; margin-bottom: 4px;">
+                    ${isVN ? (category === 'rain' ? 'Trời có mưa' : category === 'thunder' ? 'Giông bão sét' : category === 'snow' ? 'Tuyết rơi' : category === 'clouds' ? 'Nhiều mây râm' : 'Trời quang nắng đẹp') : (category === 'rain' ? '雨天' : category === 'thunder' ? '雷雨' : category === 'snow' ? '降雪' : category === 'clouds' ? '曇り' : '快晴')}
+                </div>
+                <div style="font-size: 0.85rem; color: rgba(255,255,255,0.65); font-weight: 500;">
+                    ${isVN ? 'Nhiệt độ ngày' : '最高/最低'}: ${minTemp}°C - ${maxTemp}°C
+                </div>
+                <div style="font-size: 0.8rem; color: rgba(255,255,255,0.5); margin-top: 4px;">
+                    ${isVN ? 'Mây bao phủ' : '雲量'}: ${cloudPct}%
+                </div>
+            </div>
+        </div>
+
+        <!-- 4 Metrics Grid -->
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 24px;">
+            <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 12px 14px;">
+                <div style="display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: #bae6fd; margin-bottom: 4px;">
+                    <i class="fas fa-tint" style="color: #38bdf8;"></i>
+                    <span>${isVN ? 'Độ ẩm' : '湿度'}</span>
+                </div>
+                <div style="font-size: 1.25rem; font-weight: 700; color: #fff;">${humidity}%</div>
+            </div>
+            <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 12px 14px;">
+                <div style="display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: #fed7aa; margin-bottom: 4px;">
+                    <i class="fas fa-wind" style="color: #fb923c;"></i>
+                    <span>${isVN ? 'Tốc độ gió' : '風速'}</span>
+                </div>
+                <div style="font-size: 1.25rem; font-weight: 700; color: #fff;">${windKmh} <span style="font-size: 0.75rem; font-weight: 500; opacity: 0.7;">km/h</span></div>
+            </div>
+            <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 12px 14px;">
+                <div style="display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: #fef08a; margin-bottom: 4px;">
+                    <i class="fas fa-sun" style="color: #facc15;"></i>
+                    <span>${isVN ? 'Tia UV' : 'UV指数'}</span>
+                </div>
+                <div style="font-size: 1.25rem; font-weight: 700; color: #fff;">UV ${uvIdx}</div>
+            </div>
+            <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 12px 14px;">
+                <div style="display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: #e2e8f0; margin-bottom: 4px;">
+                    <i class="fas fa-tachometer-alt" style="color: #cbd5e1;"></i>
+                    <span>${isVN ? 'Áp suất' : '気圧'}</span>
+                </div>
+                <div style="font-size: 1.25rem; font-weight: 700; color: #fff;">${pressure} <span style="font-size: 0.75rem; font-weight: 500; opacity: 0.7;">hPa</span></div>
+            </div>
+        </div>
+
+        <!-- 7-Day Forecast Section -->
+        <div>
+            <div style="font-size: 0.88rem; font-weight: 700; color: rgba(255,255,255,0.85); margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+                <i class="far fa-calendar-alt" style="color: #38bdf8;"></i>
+                <span>${isVN ? 'Dự báo thời tiết 7 ngày tới' : '週間天気予報（7日間）'}</span>
+            </div>
+            <div class="weather-forecast-grid">
+                ${forecastHtml}
+            </div>
+        </div>
+    `;
+
+    backdrop.classList.add('open');
+};
+
+window.closeWeatherForecastModal = function(e) {
+    if (e) e.stopPropagation();
+    const backdrop = document.getElementById('weather-forecast-modal-backdrop');
+    if (backdrop) backdrop.classList.remove('open');
+};
+
+// Listen for Escape key to close weather modal
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        window.closeWeatherForecastModal();
+    }
+});
 
 window.simulateWeatherEffect = function(mode) {
     userWeatherOverride = (mode === 'auto') ? null : mode;
