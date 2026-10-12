@@ -447,7 +447,7 @@ function renderWeatherUI(data, isVN, defaultLocName) {
 
     // Update Hero background with clean atmospheric sky gradient (Dribbble & Honor style)
     const skyGradients = {
-        sun: "linear-gradient(135deg, #0b1329 0%, #16264c 50%, #261f3d 100%)",
+        sun: "linear-gradient(135deg, #0369a1 0%, #0284c7 40%, #0ea5e9 70%, #f59e0b 100%)",
         rain: "linear-gradient(135deg, #090e17 0%, #0f1c2e 50%, #162438 100%)",
         thunder: "linear-gradient(135deg, #070711 0%, #0f1129 50%, #1e1135 100%)",
         snow: "linear-gradient(135deg, #081326 0%, #10233f 50%, #172d4d 100%)",
@@ -752,7 +752,7 @@ window.simulateWeatherEffect = function(mode) {
         }
     } else {
         const skyGradients = {
-            sun: "linear-gradient(135deg, #0b1329 0%, #16264c 50%, #261f3d 100%)",
+            sun: "linear-gradient(135deg, #0369a1 0%, #0284c7 40%, #0ea5e9 70%, #f59e0b 100%)",
             rain: "linear-gradient(135deg, #090e17 0%, #0f1c2e 50%, #162438 100%)",
             thunder: "linear-gradient(135deg, #070711 0%, #0f1129 50%, #1e1135 100%)",
             snow: "linear-gradient(135deg, #081326 0%, #10233f 50%, #172d4d 100%)",
@@ -6089,8 +6089,13 @@ function setInputStatus(id, state) {
         const cloudsLayer = document.getElementById('hero-weather-clouds-layer');
         if (!cloudsLayer) return;
 
-        const effectiveTheme = (!mode || mode === 'clear') ? 'sun' : mode;
-        cloudsLayer.className = `honor-clouds-container honor-clouds-theme-${effectiveTheme}`;
+        // On sunny or clear skies, the sky is sunny and radiant - hide storm clouds!
+        if (!mode || mode === 'sun' || mode === 'clear' || mode === 'clear_night') {
+            cloudsLayer.style.opacity = '0';
+            return;
+        }
+
+        cloudsLayer.className = `honor-clouds-container honor-clouds-theme-${mode}`;
         cloudsLayer.style.opacity = '1';
 
         // Check if already populated to prevent unnecessary DOM reconstruction
