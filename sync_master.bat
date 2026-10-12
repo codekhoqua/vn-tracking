@@ -48,13 +48,23 @@ if %errorlevel% equ 0 (
 goto check_config
 
 :do_clone
-echo [i] Thu muc chua co Git. Dang keo toan bo code ve...
-git clone -b %BRANCH% %REPO_URL% .
+echo [i] Thu muc chua co Git. Dang khoi tao va keo toan bo code ve...
+git init >nul
+git remote add origin %REPO_URL% 2>nul || git remote set-url origin %REPO_URL%
+git fetch origin %BRANCH%
+if %errorlevel% neq 0 (
+    echo [FAIL] Khong the ket noi den GitHub. Kiem tra lai mang.
+    goto check_config
+)
+git reset --hard origin/%BRANCH%
+git branch -M %BRANCH% 2>nul
+git branch -u origin/%BRANCH% %BRANCH% 2>nul
 if %errorlevel% equ 0 (
     echo [OK] Da keo toan bo code thanh cong!
 ) else (
-    echo [FAIL] Khong the clone code. Kiem tra lai ket noi mang.
+    echo [FAIL] Khong the reset code.
 )
+goto check_config
 
 :check_config
 REM 4. Kiem tra va tu dong tai credentials.json va env_vars.yaml
