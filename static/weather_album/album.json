@@ -1,38 +1,63 @@
 {
   "photos": [
     {
-      "id": "photo_1.jpg",
-      "src": "/static/weather_album/photo_1.jpg",
-      "caption": "Hạ Long Bay, Vietnam"
+      "id": "user_1791788186_1ed182.jpg",
+      "src": "/static/weather_album/user_1791788186_1ed182.jpg",
+      "caption": "20260307 120328"
     },
     {
-      "id": "photo_2.jpg",
-      "src": "/static/weather_album/photo_2.jpg",
-      "caption": "Tokyo Tower, Japan"
+      "id": "user_1791788186_49189e.jpg",
+      "src": "/static/weather_album/user_1791788186_49189e.jpg",
+      "caption": "20260808 101951"
     },
     {
-      "id": "photo_3.jpg",
-      "src": "/static/weather_album/photo_3.jpg",
-      "caption": "Warm Coffee & Vintage Vibes"
+      "id": "user_1791788186_671955.jpg",
+      "src": "/static/weather_album/user_1791788186_671955.jpg",
+      "caption": "20260808 113045"
     },
     {
-      "id": "photo_4.jpg",
-      "src": "/static/weather_album/photo_4.jpg",
-      "caption": "Kyoto Pagoda, Japan"
+      "id": "user_1791788186_f2a0ee.jpg",
+      "src": "/static/weather_album/user_1791788186_f2a0ee.jpg",
+      "caption": "20260808 114653"
     },
     {
-      "id": "photo_5.jpg",
-      "src": "/static/weather_album/photo_5.jpg",
-      "caption": "Phú Quốc Sunset, Vietnam"
+      "id": "user_1791788186_a5aa58.jpg",
+      "src": "/static/weather_album/user_1791788186_a5aa58.jpg",
+      "caption": "20260808 120236"
     },
     {
-      "id": "photo_6.jpg",
-      "src": "/static/weather_album/photo_6.jpg",
-      "caption": "Majestic Mountain Peaks"
+      "id": "user_1791788186_baa764.jpg",
+      "src": "/static/weather_album/user_1791788186_baa764.jpg",
+      "caption": "20260808 124434(0)"
+    },
+    {
+      "id": "user_1791788186_ceff22.jpg",
+      "src": "/static/weather_album/user_1791788186_ceff22.jpg",
+      "caption": "20260808 141558"
+    },
+    {
+      "id": "user_1791788186_dbb96c.jpg",
+      "src": "/static/weather_album/user_1791788186_dbb96c.jpg",
+      "caption": "20260808 164211"
+    },
+    {
+      "id": "user_1791788186_b0a40a.jpg",
+      "src": "/static/weather_album/user_1791788186_b0a40a.jpg",
+      "caption": "20260808 165435"
+    },
+    {
+      "id": "user_1791788186_ad3066.jpg",
+      "src": "/static/weather_album/user_1791788186_ad3066.jpg",
+      "caption": "20260808 165606"
+    },
+    {
+      "id": "user_1791788186_49973d.jpg",
+      "src": "/static/weather_album/user_1791788186_49973d.jpg",
+      "caption": "IMG20260808104117"
     }
   ],
   "settings": {
-    "speed": "normal",
+    "speed": "slow",
     "enabled": true
   }
 }

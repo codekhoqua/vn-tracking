@@ -1587,7 +1587,7 @@ select option { background: var(--surface); color: var(--text); }
     }
 }
 
-/* ======================== 3D WEATHER WIDGET (GAPSY / DRIBBLE STYLE) ======================== */
+/* ======================== WEATHER WIDGET ======================== */
 .weather-3d-card {
     position: relative;
     display: flex;
@@ -1600,34 +1600,22 @@ select option { background: var(--surface); color: var(--text); }
     -webkit-backdrop-filter: blur(20px);
     border: 1px solid rgba(255, 255, 255, 0.16);
     box-shadow: 0 10px 30px -6px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.22);
-    transform-style: preserve-3d;
-    perspective: 800px;
     cursor: pointer;
     user-select: none;
-    transition: box-shadow 0.3s ease, border-color 0.3s ease, transform 0.15s ease-out;
+    transition: box-shadow 0.3s ease, border-color 0.3s ease;
     overflow: hidden;
+    transform: none !important;
 }
 
 .weather-3d-card:hover {
     border-color: rgba(255, 255, 255, 0.32);
-    box-shadow: 0 18px 45px -8px rgba(0, 0, 0, 0.55), 0 0 24px rgba(var(--weather-theme-rgb, 56, 189, 248), 0.28);
+    box-shadow: 0 14px 35px -8px rgba(0, 0, 0, 0.55), 0 0 20px rgba(var(--weather-theme-rgb, 56, 189, 248), 0.25);
+    transform: none !important;
 }
 
 /* Dynamic Glare Shimmer Layer */
 .weather-card-glare {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    border-radius: inherit;
-    background: radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.25) 0%, transparent 60%);
-    opacity: 0;
-    transition: opacity 0.3s ease;
-    mix-blend-mode: overlay;
-    z-index: 5;
-}
-
-.weather-3d-card:hover .weather-card-glare {
-    opacity: 1;
+    display: none !important;
 }
 
 /* 3D Visual Icon Container */
