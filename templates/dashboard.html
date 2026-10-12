@@ -244,7 +244,7 @@
     <div class="mobile-brand">
         <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" width="26" height="26" style="border-radius: var(--radius-sm);">
         <span>VN-Tracking</span>
-        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.29</i></sup>
+        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.31</i></sup>
     </div>
     <div class="mobile-topbar-right">
         <button type="button" class="mobile-icon-btn" onclick="toggleNotificationPanel(event)" title="{{ 'Thông báo' if lang == 'vi' else '通知' }}">
@@ -274,7 +274,7 @@
         <div style="display: flex; flex-direction: column; justify-content: center;">
             <span>VN-Tracking</span>
             <sup class="version-tag"
-                style="color: var(--text-3); font-size: 11px; margin-top: 2px;"><i>v1.9.29</i></sup>
+                style="color: var(--text-3); font-size: 11px; margin-top: 2px;"><i>v1.9.31</i></sup>
         </div>
     </div>
 
@@ -1357,7 +1357,7 @@
             style="position: absolute; inset: 0; border-radius: 24px; overflow: hidden; pointer-events: none; z-index: 1;">
             <!-- Base dynamic weather sky canvas -->
             <div id="hero-weather-bg"
-                style="position: absolute; inset: 0; background: linear-gradient(135deg, #0b1329 0%, #16264c 50%, #261f3d 100%); transition: background 1.2s ease;">
+                style="position: absolute; inset: 0; background: radial-gradient(circle at 78% 25%, rgba(245, 158, 11, 0.22) 0%, rgba(251, 191, 36, 0.08) 35%, transparent 65%), linear-gradient(135deg, #0a1226 0%, #0f1c3f 50%, #151a30 100%); transition: background 1.2s ease;">
             </div>
             <!-- Dynamic Honor-Style Volumetric Cloud Atmosphere Layers -->
             <div id="hero-weather-clouds-layer" class="honor-clouds-container"></div>
