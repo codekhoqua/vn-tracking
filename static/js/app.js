@@ -437,63 +437,54 @@ function renderWeatherUI(data, isVN, defaultLocName) {
         bgEl.style.background = skyGradients[effectiveEffect] || skyGradients.sun;
     }
 
-    // Update Inline Container with 3D Gapsy Studio style
+    // Update Inline Container with horizontal weather mockup format
     const inlineContainer = document.getElementById('inline-weather-container');
     if (inlineContainer) {
         inlineContainer.style.display = 'flex';
         inlineContainer.style.alignItems = 'center';
         inlineContainer.innerHTML = `
-            <div class="weather-3d-card" id="weather-3d-card" style="--weather-theme-rgb: ${themeRgb};">
-                <div class="weather-card-glare"></div>
-                
-                <!-- Row 1: Weather 3D Icon + Temperature + City & Details -->
-                <div class="weather-3d-main-row">
+            <div class="weather-mockup-bar" id="weather-3d-card" style="--weather-theme-rgb: ${themeRgb};">
+                <!-- Icon + Temp + City Info -->
+                <div class="weather-mockup-main">
                     ${getWeather3DMarkup(category, isDay, wCode)}
                     
-                    <div class="weather-3d-content">
-                        <div class="weather-3d-temp">
-                            ${temp}<sup>°c</sup>
+                    <div class="weather-mockup-temp">
+                        ${temp}<sup>°c</sup>
+                    </div>
+                    
+                    <div class="weather-mockup-meta">
+                        <div class="weather-mockup-condition">
+                            <span>${desc}</span>
+                            <span class="weather-live-dot" title="Live update: 60s"></span>
+                            <i class="fas fa-sync-alt" id="weather-sync-icon" style="font-size: 0.72rem; color: rgba(255,255,255,0.45); margin-left: 3px; cursor: pointer;" title="${isVN ? 'Cập nhật thời tiết ngay' : '今すぐ更新'}"></i>
                         </div>
-                        
-                        <div class="weather-3d-meta">
-                            <div class="weather-3d-city">
-                                <span class="weather-live-dot" title="Live update: 60s"></span>
-                                <span>${locName}</span>
-                                <i class="fas fa-sync-alt" id="weather-sync-icon" style="font-size: 0.72rem; color: rgba(255,255,255,0.45); margin-left: 3px; cursor: pointer;" title="${isVN ? 'Cập nhật thời tiết ngay' : '今すぐ更新'}"></i>
-                            </div>
-                            <div class="weather-3d-desc">${desc}</div>
-                            <div class="weather-3d-range">H: ${maxTemp}° | L: ${minTemp}°</div>
-                        </div>
+                        <div class="weather-mockup-range">${locName} · ${minTemp}° – ${maxTemp}°</div>
                     </div>
                 </div>
 
-                <!-- Row 2: Weather Metrics + Album Button -->
-                <div class="weather-3d-pills">
-                    <div class="weather-metric-pill" title="${isVN ? 'Nhiệt độ cảm nhận thực tế' : '体感温度'}" style="display: flex; align-items: center; gap: 4px; font-size: 0.73rem; color: #fed7aa; padding: 2px 7px; border-radius: 6px; background: rgba(251, 146, 60, 0.16); border: 1px solid rgba(251, 146, 60, 0.2);">
-                        <i class="fas fa-temperature-high" style="color: #fb923c; font-size: 0.72rem;"></i>
-                        <span style="font-weight: 600;">~${feelsLike}°</span>
+                <!-- Weather Metric Pills -->
+                <div class="weather-mockup-pills">
+                    <div class="weather-mockup-pill" title="${isVN ? 'Nhiệt độ cảm nhận thực tế' : '体感温度'}">
+                        <span>${isVN ? 'Cảm giác như' : '体感'}</span>
+                        <strong>${feelsLike}°</strong>
                     </div>
-                    <div class="weather-metric-pill" title="${isVN ? 'Độ ẩm không khí' : '湿度'}" style="display: flex; align-items: center; gap: 4px; font-size: 0.73rem; color: #bae6fd; padding: 2px 7px; border-radius: 6px; background: rgba(56, 189, 248, 0.16); border: 1px solid rgba(56, 189, 248, 0.2);">
-                        <i class="fas fa-tint" style="color: #38bdf8; font-size: 0.72rem;"></i>
-                        <span style="font-weight: 600;">${humidity}%</span>
+                    <div class="weather-mockup-pill" title="${isVN ? 'Độ ẩm không khí' : '湿度'}">
+                        <span>${isVN ? 'Độ ẩm' : '湿度'}</span>
+                        <strong>${humidity}%</strong>
                     </div>
-                    <div class="weather-metric-pill" title="${isVN ? 'Tốc độ gió' : '風速'}" style="display: flex; align-items: center; gap: 4px; font-size: 0.73rem; color: #e2e8f0; padding: 2px 7px; border-radius: 6px; background: rgba(148, 163, 184, 0.16); border: 1px solid rgba(148, 163, 184, 0.2);">
-                        <i class="fas fa-wind" style="color: #cbd5e1; font-size: 0.72rem;"></i>
-                        <span style="font-weight: 600;">${windKmh}km/h</span>
+                    <div class="weather-mockup-pill" title="${isVN ? 'Tốc độ gió' : '風速'}">
+                        <span>${isVN ? 'Gió' : '風速'}</span>
+                        <strong>${windKmh} km/h</strong>
                     </div>
-                    <div class="weather-metric-pill" title="${isVN ? 'Chỉ số tia UV' : 'UVインデックス'}" style="display: flex; align-items: center; gap: 4px; font-size: 0.73rem; color: #fef08a; padding: 2px 7px; border-radius: 6px; background: rgba(250, 204, 21, 0.16); border: 1px solid rgba(250, 204, 21, 0.2);">
-                        <i class="fas fa-sun" style="color: #facc15; font-size: 0.72rem;"></i>
-                        <span style="font-weight: 600;">UV ${uvIdx}</span>
+                    <div class="weather-mockup-pill" title="${isVN ? 'Chỉ số tia UV' : 'UVインデックス'}">
+                        <span>UV</span>
+                        <strong>${uvIdx}</strong>
                     </div>
                     ${rainMm > 0 ? `
-                    <div class="weather-metric-pill" title="${isVN ? 'Lượng mưa hiện tại' : '降水量'}" style="display: flex; align-items: center; gap: 4px; font-size: 0.73rem; color: #bfdbfe; padding: 2px 7px; border-radius: 6px; background: rgba(96, 165, 250, 0.16); border: 1px solid rgba(96, 165, 250, 0.2);">
-                        <i class="fas fa-cloud-showers-heavy" style="color: #60a5fa; font-size: 0.72rem;"></i>
-                        <span style="font-weight: 600;">${formattedRain}mm</span>
+                    <div class="weather-mockup-pill" title="${isVN ? 'Lượng mưa hiện tại' : '降水量'}">
+                        <span>${isVN ? 'Mưa' : '降水量'}</span>
+                        <strong>${formattedRain} mm</strong>
                     </div>` : ''}
-                    <button type="button" class="weather-metric-pill weather-film-pill-btn" onclick="event.stopPropagation(); openFilmstripAlbumModal(event);" title="${isVN ? 'Album Cuộn Phim 35mm (Quản lý ảnh nền)' : '35mmフィルムアルバム'}" style="display: flex; align-items: center; gap: 4px; font-size: 0.73rem; color: #fde68a; padding: 2px 8px; border-radius: 6px; background: rgba(245, 158, 11, 0.22); border: 1px solid rgba(245, 158, 11, 0.35); cursor: pointer; transition: all 0.2s ease;">
-                        <i class="fas fa-film" style="color: #f59e0b; font-size: 0.72rem;"></i>
-                        <span style="font-weight: 600;">${isVN ? 'Album' : 'アルバム'}</span>
-                    </button>
                 </div>
             </div>
         `;
