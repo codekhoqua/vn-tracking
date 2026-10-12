@@ -1587,24 +1587,93 @@ select option { background: var(--surface); color: var(--text); }
     }
 }
 
-/* ======================== WEATHER WIDGET & TITLE GLASS ======================== */
-.header-title-glass-card {
-    background: rgba(15, 23, 42, 0.45);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.16);
-    box-shadow: 0 10px 30px -6px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.22);
-    border-radius: 20px;
-    padding: 10px 22px;
+/* ======================== UNIFIED HERO GLASS CARD ======================== */
+.hero-unified-card {
+    position: relative;
     display: inline-flex;
-    flex-direction: column;
-    justify-content: center;
+    align-items: center;
+    gap: 16px;
+    padding: 8px 18px;
+    border-radius: 20px;
+    background: rgba(15, 23, 42, 0.52);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    box-shadow: 0 12px 35px -6px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+    user-select: none;
     transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    max-width: 100%;
 }
 
-.header-title-glass-card:hover {
-    border-color: rgba(255, 255, 255, 0.28);
-    box-shadow: 0 14px 35px -8px rgba(0, 0, 0, 0.55), 0 0 20px rgba(147, 197, 253, 0.15);
+.hero-unified-card:hover {
+    border-color: rgba(255, 255, 255, 0.32);
+    box-shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.6), 0 0 24px rgba(56, 189, 248, 0.16);
+}
+
+.hero-unified-title-section {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-width: 0;
+    text-align: left;
+}
+
+.hero-unified-welcome {
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.75);
+    font-weight: 600;
+    margin-bottom: 2px;
+    letter-spacing: 0.02em;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+}
+
+.hero-unified-title {
+    font-size: 1.35rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 50%, #93c5fd 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: -0.02em;
+    margin: 0;
+    line-height: 1.22;
+    white-space: nowrap;
+}
+
+.hero-unified-divider {
+    width: 1px;
+    height: 44px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.20) 50%, rgba(255, 255, 255, 0.05) 100%);
+    flex-shrink: 0;
+}
+
+.hero-unified-weather-section {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+}
+
+/* Remove separate card styling when inside unified card */
+.hero-unified-card .weather-3d-card {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    overflow: visible !important;
+}
+
+.hero-unified-card .weather-3d-temp {
+    font-size: 2.3rem;
+}
+
+.hero-unified-card .weather-3d-scene {
+    width: 50px;
+    height: 50px;
 }
 
 .weather-3d-card {
@@ -1612,7 +1681,7 @@ select option { background: var(--surface); color: var(--text); }
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 6px;
+    gap: 5px;
     padding: 8px 14px;
     border-radius: 18px;
     background: rgba(15, 23, 42, 0.45);
@@ -1630,13 +1699,39 @@ select option { background: var(--surface); color: var(--text); }
 .weather-3d-main-row {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
 }
 
 .weather-3d-card:hover {
     border-color: rgba(255, 255, 255, 0.32);
     box-shadow: 0 14px 35px -8px rgba(0, 0, 0, 0.55), 0 0 20px rgba(var(--weather-theme-rgb, 56, 189, 248), 0.25);
     transform: none !important;
+}
+
+@media (max-width: 1024px) {
+    .hero-content-wrapper {
+        justify-content: center !important;
+        flex-wrap: wrap;
+        padding: 14px 16px !important;
+    }
+    .hero-unified-card {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 12px;
+    }
+    .hero-unified-divider {
+        display: none;
+    }
+}
+@media (max-width: 640px) {
+    .hero-unified-title {
+        font-size: 1.15rem !important;
+        white-space: normal !important;
+        text-align: center;
+    }
+    .hero-unified-title-section {
+        text-align: center;
+    }
 }
 
 /* Dynamic Glare Shimmer Layer */
