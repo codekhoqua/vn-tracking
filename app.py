@@ -1580,7 +1580,7 @@ def process_dashboard_data():
             clean_d = re.sub(r'\([A-Za-z]+\)', '', str(d_str)).strip().replace('-', ' ')
             try:
                 dt = date_parser.parse(clean_d, default=datetime(current_year, 1, 1))
-                return dt.strftime('%Y/%m/%d')
+                return dt.strftime('%Y-%m-%d')
             except:
                 return str(d_str)
 
