@@ -1660,9 +1660,15 @@ select option { background: var(--surface); color: var(--text); }
 }
 
 .weather-mockup-main .weather-3d-scene {
-    width: 40px;
-    height: 40px;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     flex-shrink: 0;
+    transform: scale(0.68);
+    transform-origin: center center;
+    margin-right: -4px;
 }
 
 .weather-mockup-temp {
