@@ -2115,7 +2115,7 @@ def api_weather():
             f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}"
             f"&current=temperature_2m,apparent_temperature,weather_code,is_day,precipitation,rain,showers,snowfall,"
             f"relative_humidity_2m,wind_speed_10m,wind_direction_10m,uv_index,surface_pressure,cloud_cover"
-            f"&daily=temperature_2m_max,temperature_2m_min,uv_index_max&timezone={tz}"
+            f"&daily=weather_code,temperature_2m_max,temperature_2m_min,uv_index_max&timezone={tz}"
         )
         r = requests.get(url, timeout=5)
         om_data = r.json()
@@ -2163,6 +2163,29 @@ def api_weather():
         max_temp = str(int(round(om_data['daily']['temperature_2m_max'][0]))) if 'daily' in om_data and om_data['daily'].get('temperature_2m_max') else temp_c
         min_temp = str(int(round(om_data['daily']['temperature_2m_min'][0]))) if 'daily' in om_data and om_data['daily'].get('temperature_2m_min') else temp_c
 
+        # Build 7-day forecast list
+        forecast_days = []
+        if 'daily' in om_data and 'time' in om_data['daily']:
+            d_times = om_data['daily'].get('time', [])
+            d_codes = om_data['daily'].get('weather_code', [])
+            d_max = om_data['daily'].get('temperature_2m_max', [])
+            d_min = om_data['daily'].get('temperature_2m_min', [])
+            for i in range(min(len(d_times), 7)):
+                code_i = d_codes[i] if i < len(d_codes) else 0
+                cat_i = "sun"
+                if code_i in [71, 73, 75, 77, 85, 86]: cat_i = "snow"
+                elif code_i in [95, 96, 99]: cat_i = "thunder"
+                elif code_i in [51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82]: cat_i = "rain"
+                elif code_i in [45, 48]: cat_i = "fog"
+                elif code_i in [2, 3]: cat_i = "clouds"
+                forecast_days.append({
+                    "date": d_times[i],
+                    "weather_code": code_i,
+                    "category": cat_i,
+                    "max_temp": int(round(d_max[i])) if i < len(d_max) and d_max[i] is not None else 30,
+                    "min_temp": int(round(d_min[i])) if i < len(d_min) and d_min[i] is not None else 24
+                })
+
         data = {
             "current_condition": [{
                 "temp_C": temp_c,
@@ -2183,6 +2206,7 @@ def api_weather():
                 "maxtempC": max_temp,
                 "mintempC": min_temp
             }],
+            "forecast": forecast_days,
             "location": resolved_city,
             "latitude": lat,
             "longitude": lon,
