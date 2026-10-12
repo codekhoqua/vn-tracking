@@ -1,73 +1,63 @@
 {
   "photos": [
     {
-      "id": "user_1791788186_1ed182.jpg",
-      "src": "/static/weather_album/user_1791788186_1ed182.jpg",
-      "caption": "20260307 120328"
-    },
-    {
-      "id": "user_1791788186_49189e.jpg",
-      "src": "/static/weather_album/user_1791788186_49189e.jpg",
+      "id": "user_1791792933_7e51a4.jpg",
+      "src": "/static/weather_album/user_1791792933_7e51a4.jpg",
       "caption": "20260808 101951"
     },
     {
-      "id": "user_1791788186_671955.jpg",
-      "src": "/static/weather_album/user_1791788186_671955.jpg",
+      "id": "user_1791792934_af3592.jpg",
+      "src": "/static/weather_album/user_1791792934_af3592.jpg",
       "caption": "20260808 113045"
     },
     {
-      "id": "user_1791788186_f2a0ee.jpg",
-      "src": "/static/weather_album/user_1791788186_f2a0ee.jpg",
+      "id": "user_1791792949_a443bb.jpg",
+      "src": "/static/weather_album/user_1791792949_a443bb.jpg",
       "caption": "20260808 114653"
     },
     {
-      "id": "user_1791788186_a5aa58.jpg",
-      "src": "/static/weather_album/user_1791788186_a5aa58.jpg",
+      "id": "user_1791792951_6c1463.jpg",
+      "src": "/static/weather_album/user_1791792951_6c1463.jpg",
       "caption": "20260808 120236"
     },
     {
-      "id": "user_1791788186_baa764.jpg",
-      "src": "/static/weather_album/user_1791788186_baa764.jpg",
+      "id": "user_1791792952_4d0745.jpg",
+      "src": "/static/weather_album/user_1791792952_4d0745.jpg",
       "caption": "20260808 124434(0)"
     },
     {
-      "id": "user_1791788186_ceff22.jpg",
-      "src": "/static/weather_album/user_1791788186_ceff22.jpg",
+      "id": "user_1791792954_a81df2.jpg",
+      "src": "/static/weather_album/user_1791792954_a81df2.jpg",
+      "caption": "20260808 124434"
+    },
+    {
+      "id": "user_1791792955_8f449e.jpg",
+      "src": "/static/weather_album/user_1791792955_8f449e.jpg",
       "caption": "20260808 141558"
     },
     {
-      "id": "user_1791788186_dbb96c.jpg",
-      "src": "/static/weather_album/user_1791788186_dbb96c.jpg",
+      "id": "user_1791792956_f1704e.jpg",
+      "src": "/static/weather_album/user_1791792956_f1704e.jpg",
       "caption": "20260808 164211"
     },
     {
-      "id": "user_1791788186_b0a40a.jpg",
-      "src": "/static/weather_album/user_1791788186_b0a40a.jpg",
+      "id": "user_1791792957_34cfb3.jpg",
+      "src": "/static/weather_album/user_1791792957_34cfb3.jpg",
       "caption": "20260808 165435"
     },
     {
-      "id": "user_1791788186_ad3066.jpg",
-      "src": "/static/weather_album/user_1791788186_ad3066.jpg",
+      "id": "user_1791792958_dad1af.jpg",
+      "src": "/static/weather_album/user_1791792958_dad1af.jpg",
       "caption": "20260808 165606"
     },
     {
-      "id": "user_1791788186_49973d.jpg",
-      "src": "/static/weather_album/user_1791788186_49973d.jpg",
+      "id": "user_1791792959_897864.jpg",
+      "src": "/static/weather_album/user_1791792959_897864.jpg",
       "caption": "IMG20260808104117"
-    },
-    {
-      "id": "user_1791789078_5dd658.jpg",
-      "src": "/static/weather_album/user_1791789078_5dd658.jpg",
-      "caption": "20261012 132229"
-    },
-    {
-      "id": "user_1791789636_321e02.jpg",
-      "src": "/static/weather_album/user_1791789636_321e02.jpg",
-      "caption": "20261005 104804"
     }
   ],
   "settings": {
-    "speed": "slow",
+    "speed": "normal",
     "enabled": true
   }
 }

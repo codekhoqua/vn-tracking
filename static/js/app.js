@@ -823,7 +823,7 @@ window.renderHeroFilmstripTrack = function() {
                     <div class="film-sprocket-backlight"></div>
                     <img src="${p.src}" alt="${p.caption || ''}" class="hero-film-photo" loading="lazy">
                     <div class="hero-film-overlay-frame"></div>
-                    <div class="hero-film-caption">${p.caption || ''}</div>
+                    <div class="hero-film-caption">${p.name || p.caption || ''}</div>
                 </div>
             `;
         });
@@ -871,54 +871,181 @@ window.renderFilmstripModalContent = function() {
         return;
     }
 
-    grid.innerHTML = photos.map(p => `
-        <div class="filmstrip-thumb-item">
-            <div class="film-sprocket-backlight"></div>
-            <img src="${p.src}" alt="${p.caption || ''}" class="filmstrip-thumb-photo" loading="lazy" decoding="async">
-            <div class="filmstrip-thumb-frame"></div>
-            <button type="button" class="filmstrip-thumb-delete" onclick="deleteFilmstripPhoto('${p.id}')" title="Xóa ảnh này">
-                <i class="fas fa-trash"></i>
-            </button>
-        </div>
-    `).join('');
+    grid.innerHTML = photos.map(p => {
+        const displayName = p.name || p.caption || p.id || '';
+        return `
+            <div class="filmstrip-thumb-item" id="filmstrip-thumb-${p.id}">
+                <div class="film-sprocket-backlight"></div>
+                <img src="${p.src}" alt="${displayName}" class="filmstrip-thumb-photo" loading="lazy" decoding="async">
+                <div class="filmstrip-thumb-frame"></div>
+                <button type="button" class="filmstrip-thumb-delete" onclick="deleteFilmstripPhoto('${p.id}', event)" title="Xóa ảnh này">
+                    <i class="fas fa-trash"></i>
+                </button>
+                <div class="filmstrip-thumb-caption" title="${displayName}">
+                    <i class="far fa-image" style="font-size: 9px; opacity: 0.7; margin-right: 3px;"></i>${displayName}
+                </div>
+            </div>
+        `;
+    }).join('');
 };
 
 window.handleFilmstripUpload = function(files) {
     if (!files || files.length === 0) return;
+    
+    const count = files.length;
+    const fileNames = Array.from(files).map(f => f.name).join(', ');
+    const isVN = (typeof CURRENT_LANG === 'undefined' || CURRENT_LANG === 'vi');
+
+    // UI Progress elements
+    const progressContainer = document.getElementById('filmstrip-upload-progress');
+    const progressBar = document.getElementById('filmstrip-progress-bar-fill');
+    const progressPercent = document.getElementById('filmstrip-progress-percent');
+    const progressText = document.getElementById('filmstrip-progress-text');
+    const progressFile = document.getElementById('filmstrip-progress-current-file');
+    const progressIcon = document.getElementById('filmstrip-progress-icon');
+    const dropzone = document.getElementById('filmstrip-dropzone');
+
+    if (progressContainer) {
+        progressContainer.style.display = 'block';
+        if (progressBar) progressBar.style.width = '0%';
+        if (progressPercent) progressPercent.textContent = '0%';
+        if (progressText) progressText.textContent = isVN ? `Đang chuẩn bị tải ${count} ảnh lên...` : `${count}枚の写真を準備中...`;
+        if (progressFile) progressFile.textContent = fileNames;
+        if (progressIcon) progressIcon.className = 'fas fa-spinner fa-spin';
+    }
+    if (dropzone) {
+        dropzone.style.pointerEvents = 'none';
+        dropzone.style.opacity = '0.65';
+    }
+
+    if (window.showToast) {
+        window.showToast('info', isVN ? `Đang tải ${count} ảnh lên Supabase...` : `${count}枚の写真をSupabaseにアップロード中...`);
+    }
+
     const formData = new FormData();
     for (let i = 0; i < files.length; i++) {
         formData.append('photos', files[i]);
     }
 
-    if (window.showToast) {
-        window.showToast('info', 'Đang tải ảnh lên cuộn phim...');
-    }
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/api/weather/album/upload', true);
 
-    fetch('/api/weather/album/upload', {
-        method: 'POST',
-        body: formData
-    })
-    .then(r => r.json())
-    .then(res => {
-        if (res.success && res.album) {
-            window.weatherAlbumData = res.album;
-            renderHeroFilmstripTrack();
-            renderFilmstripModalContent();
-            if (window.showToast) {
-                window.showToast('success', `Đã thêm ${res.uploaded ? res.uploaded.length : 1} ảnh vào cuộn phim!`);
+    xhr.upload.onprogress = function(e) {
+        if (e.lengthComputable) {
+            // 0% -> 85% during network byte transmission
+            const percent = Math.min(85, Math.round((e.loaded / e.total) * 85));
+            if (progressBar) progressBar.style.width = percent + '%';
+            if (progressPercent) progressPercent.textContent = percent + '%';
+            if (progressText) progressText.textContent = isVN ? `Đang tải lên (${percent}%)...` : `アップロード中 (${percent}%)...`;
+        }
+    };
+
+    xhr.upload.onload = function() {
+        // Bytes transferred, now server compresses and saves to Supabase Storage
+        if (progressBar) progressBar.style.width = '90%';
+        if (progressPercent) progressPercent.textContent = '90%';
+        if (progressText) progressText.textContent = isVN ? 'Đang nén tối ưu hóa & lưu vào Supabase...' : '最適化・Supabase保存中...';
+    };
+
+    xhr.onload = function() {
+        if (dropzone) {
+            dropzone.style.pointerEvents = '';
+            dropzone.style.opacity = '1';
+        }
+        const fileInput = document.getElementById('filmstrip-file-input');
+        if (fileInput) fileInput.value = '';
+
+        if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+                const res = JSON.parse(xhr.responseText);
+                if (res.success && res.album) {
+                    if (progressBar) progressBar.style.width = '100%';
+                    if (progressPercent) progressPercent.textContent = '100%';
+                    if (progressText) progressText.textContent = isVN ? 'Hoàn tất tải ảnh lên!' : 'アップロード完了！';
+                    if (progressIcon) progressIcon.className = 'fas fa-check-circle';
+
+                    window.weatherAlbumData = res.album;
+                    renderHeroFilmstripTrack();
+                    renderFilmstripModalContent();
+
+                    const uploadedNames = (res.uploaded || []).map(p => p.name || p.caption).join(', ');
+                    if (window.showToast) {
+                        window.showToast('success', isVN ? `Đã lưu thành công ${res.uploaded ? res.uploaded.length : count} ảnh! ${uploadedNames ? '(' + uploadedNames + ')' : ''}` : `${res.uploaded ? res.uploaded.length : count}枚の写真を保存しました！`);
+                    }
+
+                    setTimeout(() => {
+                        if (progressContainer) progressContainer.style.display = 'none';
+                    }, 2200);
+                    return;
+                } else {
+                    if (progressText) progressText.textContent = 'Lỗi: ' + (res.error || 'Không thể tải ảnh');
+                    if (progressIcon) progressIcon.className = 'fas fa-exclamation-triangle';
+                    if (window.showToast) window.showToast('error', res.error || 'Lỗi khi tải ảnh');
+                }
+            } catch (err) {
+                if (progressText) progressText.textContent = 'Lỗi phân tích phản hồi máy chủ';
+                if (progressIcon) progressIcon.className = 'fas fa-exclamation-triangle';
+                if (window.showToast) window.showToast('error', 'Lỗi máy chủ');
             }
         } else {
-            if (window.showToast) window.showToast('error', res.error || 'Lỗi khi tải ảnh');
+            if (progressText) progressText.textContent = 'Lỗi máy chủ (' + xhr.status + ')';
+            if (progressIcon) progressIcon.className = 'fas fa-exclamation-triangle';
+            if (window.showToast) window.showToast('error', 'Lỗi máy chủ (' + xhr.status + ')');
         }
-    })
-    .catch(err => {
-        console.error('Upload error:', err);
-        if (window.showToast) window.showToast('error', 'Lỗi kết nối máy chủ');
-    });
+
+        setTimeout(() => {
+            if (progressContainer) progressContainer.style.display = 'none';
+        }, 3500);
+    };
+
+    xhr.onerror = function() {
+        if (dropzone) {
+            dropzone.style.pointerEvents = '';
+            dropzone.style.opacity = '1';
+        }
+        const fileInput = document.getElementById('filmstrip-file-input');
+        if (fileInput) fileInput.value = '';
+
+        if (progressText) progressText.textContent = 'Lỗi kết nối máy chủ';
+        if (progressIcon) progressIcon.className = 'fas fa-exclamation-triangle';
+        if (window.showToast) window.showToast('error', 'Lỗi kết nối khi tải ảnh');
+
+        setTimeout(() => {
+            if (progressContainer) progressContainer.style.display = 'none';
+        }, 3500);
+    };
+
+    xhr.send(formData);
 };
 
-window.deleteFilmstripPhoto = function(id) {
+window.deleteFilmstripPhoto = function(id, e) {
+    if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
     if (!id) return;
+
+    const isVN = (typeof CURRENT_LANG === 'undefined' || CURRENT_LANG === 'vi');
+    const data = window.weatherAlbumData || { photos: [] };
+    const targetPhoto = (data.photos || []).find(p => p.id === id);
+    const photoName = targetPhoto ? (targetPhoto.name || targetPhoto.caption || id) : id;
+
+    const thumbEl = document.getElementById(`filmstrip-thumb-${id}`) || (e && e.target ? e.target.closest('.filmstrip-thumb-item') : null);
+    const deleteBtn = thumbEl ? thumbEl.querySelector('.filmstrip-thumb-delete') : null;
+
+    if (thumbEl) {
+        thumbEl.classList.add('deleting');
+    }
+    if (deleteBtn) {
+        deleteBtn.disabled = true;
+        deleteBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        deleteBtn.style.opacity = '1';
+    }
+
+    if (window.showToast) {
+        window.showToast('info', isVN ? `Đang xóa ảnh "${photoName}" khỏi Supabase...` : `写真をSupabaseから削除中...`);
+    }
+
     fetch('/api/weather/album/delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -931,11 +1058,26 @@ window.deleteFilmstripPhoto = function(id) {
             renderHeroFilmstripTrack();
             renderFilmstripModalContent();
             if (window.showToast) {
-                window.showToast('info', 'Đã xóa ảnh khỏi cuộn phim');
+                window.showToast('success', isVN ? `Đã xóa ảnh "${photoName}" thành công!` : `写真を削除しました！`);
             }
+        } else {
+            if (thumbEl) thumbEl.classList.remove('deleting');
+            if (deleteBtn) {
+                deleteBtn.disabled = false;
+                deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
+            }
+            if (window.showToast) window.showToast('error', res.error || (isVN ? 'Lỗi khi xóa ảnh' : '削除エラー'));
         }
     })
-    .catch(err => console.error('Delete error:', err));
+    .catch(err => {
+        console.error('Delete error:', err);
+        if (thumbEl) thumbEl.classList.remove('deleting');
+        if (deleteBtn) {
+            deleteBtn.disabled = false;
+            deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
+        }
+        if (window.showToast) window.showToast('error', isVN ? 'Lỗi kết nối khi xóa ảnh' : '接続エラー');
+    });
 };
 
 window.changeFilmstripSpeed = function(speed) {

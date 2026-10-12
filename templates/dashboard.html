@@ -244,7 +244,7 @@
     <div class="mobile-brand">
         <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" width="26" height="26" style="border-radius: var(--radius-sm);">
         <span>VN-Tracking</span>
-        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.48</i></sup>
+        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.49</i></sup>
     </div>
     <div class="mobile-topbar-right">
         <button type="button" class="mobile-icon-btn" onclick="toggleNotificationPanel(event)" title="{{ 'Thông báo' if lang == 'vi' else '通知' }}">
@@ -274,7 +274,7 @@
         <div style="display: flex; flex-direction: column; justify-content: center;">
             <span>VN-Tracking</span>
             <sup class="version-tag"
-                style="color: var(--text-3); font-size: 11px; margin-top: 2px;"><i>v1.9.48</i></sup>
+                style="color: var(--text-3); font-size: 11px; margin-top: 2px;"><i>v1.9.49</i></sup>
         </div>
     </div>
 
@@ -6953,6 +6953,21 @@
                 <div style="font-weight: 700; color: #fff; margin-bottom: 4px;">{{ 'Thêm ảnh vào cuộn phim' if lang == 'vi' else 'フィルムに写真を追加' }}</div>
                 <div style="font-size: 0.8rem; color: rgba(255,255,255,0.6);">{{ 'Kéo thả ảnh vào đây hoặc click để chọn tệp (JPG, PNG, WEBP)' if lang == 'vi' else 'ドラッグ＆ドロップまたはクリックして選択' }}</div>
                 <input type="file" id="filmstrip-file-input" multiple accept="image/*" style="display: none;" onchange="handleFilmstripUpload(this.files)">
+            </div>
+
+            <!-- Upload Progress Indicator -->
+            <div id="filmstrip-upload-progress" class="filmstrip-upload-progress" style="display: none;">
+                <div class="filmstrip-progress-header">
+                    <div class="filmstrip-progress-title">
+                        <i class="fas fa-spinner fa-spin" id="filmstrip-progress-icon"></i>
+                        <span id="filmstrip-progress-text">{{ 'Đang tải ảnh lên...' if lang == 'vi' else '写真をアップロード中...' }}</span>
+                    </div>
+                    <span id="filmstrip-progress-percent" class="filmstrip-progress-percent">0%</span>
+                </div>
+                <div class="filmstrip-progress-bar-bg">
+                    <div id="filmstrip-progress-bar-fill" class="filmstrip-progress-bar-fill" style="width: 0%;"></div>
+                </div>
+                <div id="filmstrip-progress-current-file" class="filmstrip-progress-current-file"></div>
             </div>
 
             <!-- Controls & Settings Bar -->
