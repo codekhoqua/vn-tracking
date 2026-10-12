@@ -675,22 +675,6 @@ window.openWeatherForecastModal = function() {
                 ${forecastHtml}
             </div>
         </div>
-
-        <!-- Honor Atmospheric Weather Simulator Toolbar -->
-        <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.12); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
-            <div style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: rgba(255,255,255,0.7); font-weight: 600;">
-                <i class="fas fa-magic" style="color: #38bdf8;"></i>
-                <span>${isVN ? 'Trải nghiệm thời tiết phong cách Honor:' : 'Honor天気エフェクト体験:'}</span>
-            </div>
-            <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-                <button type="button" class="weather-sim-btn ${!userWeatherOverride ? 'active' : ''}" data-mode="auto" onclick="simulateWeatherEffect('auto')">🔄 ${isVN ? 'Tự động' : '自動'}</button>
-                <button type="button" class="weather-sim-btn ${userWeatherOverride==='clouds' ? 'active' : ''}" data-mode="clouds" onclick="simulateWeatherEffect('clouds')">☁️ ${isVN ? 'Mây bay' : '雲海'}</button>
-                <button type="button" class="weather-sim-btn ${userWeatherOverride==='rain' ? 'active' : ''}" data-mode="rain" onclick="simulateWeatherEffect('rain')">🌧️ ${isVN ? 'Mưa rơi' : '雨'}</button>
-                <button type="button" class="weather-sim-btn ${userWeatherOverride==='thunder' ? 'active' : ''}" data-mode="thunder" onclick="simulateWeatherEffect('thunder')">⚡ ${isVN ? 'Sấm sét' : '雷雨'}</button>
-                <button type="button" class="weather-sim-btn ${userWeatherOverride==='sun' ? 'active' : ''}" data-mode="sun" onclick="simulateWeatherEffect('sun')">☀️ ${isVN ? 'Nắng vàng' : '快晴'}</button>
-                <button type="button" class="weather-sim-btn ${userWeatherOverride==='snow' ? 'active' : ''}" data-mode="snow" onclick="simulateWeatherEffect('snow')">❄️ ${isVN ? 'Tuyết trắng' : '雪'}</button>
-            </div>
-        </div>
     `;
 
     backdrop.classList.add('open');
@@ -1019,10 +1003,12 @@ async function fetchAiInsights() {
             // Multiply the insights to ensure they easily overflow the screen width for seamless looping
             let itemsHtml = '';
             data.insights.forEach(insight => {
+                // Strip all emojis and icons
+                const cleanText = insight.replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}\u2600-\u27BF]/gu, '').trim();
                 itemsHtml += `
                     <div class="ai-insight-item">
                         <span class="ai-insight-dot"></span>
-                        ${insight}
+                        ${cleanText}
                     </div>
                 `;
             });
