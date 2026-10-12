@@ -1592,10 +1592,10 @@ select option { background: var(--surface); color: var(--text); }
     position: relative;
     display: inline-flex;
     align-items: center;
-    gap: 16px;
-    padding: 8px 18px;
+    gap: 20px;
+    padding: 12px 22px;
     border-radius: 20px;
-    background: rgba(15, 23, 42, 0.52);
+    background: rgba(15, 23, 42, 0.48);
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
     border: 1px solid rgba(255, 255, 255, 0.18);
@@ -1619,10 +1619,10 @@ select option { background: var(--surface); color: var(--text); }
 }
 
 .hero-unified-welcome {
-    font-size: 0.8rem;
+    font-size: 0.88rem;
     color: rgba(255, 255, 255, 0.75);
     font-weight: 600;
-    margin-bottom: 2px;
+    margin-bottom: 4px;
     letter-spacing: 0.02em;
     display: flex;
     align-items: center;
@@ -1631,20 +1631,21 @@ select option { background: var(--surface); color: var(--text); }
 }
 
 .hero-unified-title {
-    font-size: 1.35rem;
+    font-size: 2.15rem;
     font-weight: 800;
     background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 50%, #93c5fd 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.025em;
     margin: 0;
-    line-height: 1.22;
+    line-height: 1.15;
     white-space: nowrap;
+    display: inline-block;
 }
 
 .hero-unified-divider {
     width: 1px;
-    height: 44px;
+    height: 54px;
     background: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.20) 50%, rgba(255, 255, 255, 0.05) 100%);
     flex-shrink: 0;
 }
@@ -1668,12 +1669,12 @@ select option { background: var(--surface); color: var(--text); }
 }
 
 .hero-unified-card .weather-3d-temp {
-    font-size: 2.3rem;
+    font-size: 2.8rem;
 }
 
 .hero-unified-card .weather-3d-scene {
-    width: 50px;
-    height: 50px;
+    width: 60px;
+    height: 60px;
 }
 
 .weather-3d-card {
