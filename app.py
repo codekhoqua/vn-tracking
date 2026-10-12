@@ -2345,11 +2345,13 @@ def upload_weather_album():
             except Exception as e:
                 print(f"Error uploading photo {unique_name} to Supabase:", e)
 
+        orig_name = f.filename or unique_name
         caption = os.path.splitext(f.filename)[0].replace('_', ' ').replace('-', ' ').strip()
         item = {
             "id": unique_name,
             "src": f"/static/weather_album/{unique_name}",
-            "caption": caption or "Khoảnh khắc kỷ niệm"
+            "caption": caption or orig_name,
+            "name": orig_name
         }
         album['photos'].append(item)
         uploaded.append(item)
