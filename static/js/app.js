@@ -3761,9 +3761,12 @@ function toggleCalendarPopup(deadlineText) {
 
 document.addEventListener('click', function (e) {
     const popup = document.getElementById('calendar-popup');
-    const badge = document.getElementById('deadline-nay-badge');
+    const badgeNay = document.getElementById('deadline-nay-badge');
+    const badgeSau = document.getElementById('deadline-sau-badge');
     if (popup && popup.style.display === 'block') {
-        if (!popup.contains(e.target) && e.target !== badge) {
+        const isClickBadge = (badgeNay && (badgeNay === e.target || badgeNay.contains(e.target))) ||
+                             (badgeSau && (badgeSau === e.target || badgeSau.contains(e.target)));
+        if (!popup.contains(e.target) && !isClickBadge) {
             popup.style.display = 'none';
         }
     }
