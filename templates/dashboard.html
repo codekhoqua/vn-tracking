@@ -244,7 +244,7 @@
     <div class="mobile-brand">
         <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" width="26" height="26" style="border-radius: var(--radius-sm);">
         <span>VN-Tracking</span>
-        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.59</i></sup>
+        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.60</i></sup>
     </div>
     <div class="mobile-topbar-right">
         <button type="button" class="mobile-icon-btn" onclick="toggleNotificationPanel(event)" title="{{ 'Thông báo' if lang == 'vi' else '通知' }}">
@@ -357,7 +357,7 @@
             </div>
             <div class="sidebar-logo-text">
                 <span class="sidebar-brand-name">VN-Tracking</span>
-                <sup class="version-tag"><i>v1.9.59</i></sup>
+                <sup class="version-tag"><i>v1.9.60</i></sup>
             </div>
         </div>
     </div>
@@ -391,7 +391,10 @@
                 <span>Data Table</span>
             </div>
         </div>
+    </nav>
 
+    <div class="nav-label">TOOLS</div>
+    <div class="sidebar-nav" id="sidebar-tools" aria-label="Tools menu">
         <div class="nav-item" style="--i:2; cursor: pointer;" onclick="openDriveModal()" id="nav-drive">
             <div class="nav-item-content">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -432,7 +435,7 @@
         </a>
 
         {% if session.get('user') == 'Manager' or session.get('role') == 'admin' %}
-        <div class="nav-item" style="--i:5; cursor: pointer;" onclick="openRoleModal()" id="nav-role">
+        <div class="nav-item" style="--i:5; cursor: pointer;" onclick="openRoleModal()" id="nav-role" title="Role Members">
             <div class="nav-item-content">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                     stroke-linecap="round" stroke-linejoin="round">
@@ -441,11 +444,11 @@
                     <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
                     <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
                 </svg>
-                <span>{{ 'Phân quyền' if lang == 'vi' else '権限管理' }}</span>
+                <span>Role Members</span>
             </div>
         </div>
         {% endif %}
-    </nav>
+    </div>
 
     <div class="nav-label">{{ 'SETTINGS' if lang == 'vi' else '設定' }}</div>
     <div class="nav-item nav-item-settings" style="overflow: visible;">
