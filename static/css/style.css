@@ -2858,13 +2858,11 @@ body.sidebar-collapsed .custom-lang-select {
 .profile-popover-backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.35);
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
+    background: transparent;
     z-index: 100004;
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.25s var(--ux-ease);
+    transition: opacity 0.2s ease;
 }
 .profile-popover-backdrop.open {
     opacity: 1;
@@ -2873,7 +2871,7 @@ body.sidebar-collapsed .custom-lang-select {
 
 .profile-panel {
     position: fixed;
-    left: calc(var(--sidebar-w) + 12px);
+    left: calc(var(--sidebar-w) + 14px);
     bottom: 18px;
     width: 290px;
     max-width: calc(100vw - 32px);
@@ -2881,7 +2879,7 @@ body.sidebar-collapsed .custom-lang-select {
     opacity: 0;
     pointer-events: none;
     transform: translateX(-12px) scale(0.96);
-    transition: opacity 0.3s var(--ux-ease), transform 0.4s var(--ux-spring), left 0.5s var(--ux-spring);
+    transition: opacity 0.25s var(--ux-ease), transform 0.35s var(--ux-spring), left 0.4s var(--ux-spring);
 }
 .profile-panel.open {
     opacity: 1;
