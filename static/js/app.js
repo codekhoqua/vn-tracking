@@ -112,7 +112,7 @@ function filterSection(tabKey, cvFilter, workerFilter) {
 function placeSidebarHighlight(it) {
     const hl = document.getElementById('sidebar-hl');
     if (!hl) return;
-    const activeItem = it || document.querySelector('.sidebar-nav .nav-item.active') || document.querySelector('.sidebar .nav-item.active');
+    const activeItem = it || document.querySelector('#sidebar-nav .nav-item.active') || document.querySelector('.sidebar .nav-item.active');
     if (!activeItem) {
         hl.style.opacity = '0';
         return;
@@ -153,7 +153,7 @@ function toggleSidebarRail() {
 })();
 
 function updateSidebarActiveState(isTableVisible) {
-    const navItems = document.querySelectorAll('.sidebar-nav .nav-item');
+    const navItems = document.querySelectorAll('#sidebar-nav .nav-item');
     if (navItems.length < 2) return;
 
     navItems.forEach(item => item.classList.remove('active'));
