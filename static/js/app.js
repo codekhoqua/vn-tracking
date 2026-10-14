@@ -132,9 +132,10 @@ function toggleSidebarRail() {
     try {
         localStorage.setItem('vn_sidebar_collapsed', isCollapsed ? 'true' : 'false');
     } catch (e) {}
-    setTimeout(() => {
-        placeSidebarHighlight();
-    }, 320);
+    placeSidebarHighlight();
+    setTimeout(placeSidebarHighlight, 150);
+    setTimeout(placeSidebarHighlight, 350);
+    setTimeout(placeSidebarHighlight, 600);
 }
 
 // Restore saved sidebar collapsed state on load
