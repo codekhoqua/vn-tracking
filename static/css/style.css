@@ -2854,135 +2854,243 @@ body.sidebar-collapsed .custom-lang-select {
     border-radius: var(--radius-xl);
 }
 
-/* ======================== PROFILE SLIDE-UP PANEL ======================== */
-.sidebar-footer {
-    margin-top: auto;
-    position: relative;
+/* ======================== PROFILE FLYOUT POPOVER ======================== */
+.profile-popover-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 100004;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s var(--ux-ease);
+}
+.profile-popover-backdrop.open {
+    opacity: 1;
+    pointer-events: auto;
 }
 
 .profile-panel {
-    max-height: 0;
-    overflow: hidden;
-    transition: max-height 0.4s cubic-bezier(0.16, 1, 0.3, 1),
-                opacity 0.3s ease,
-                margin 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    position: fixed;
+    left: calc(var(--sidebar-w) + 12px);
+    bottom: 18px;
+    width: 290px;
+    max-width: calc(100vw - 32px);
+    z-index: 100005;
     opacity: 0;
-    margin-bottom: 0;
-    border-radius: var(--radius-xl);
+    pointer-events: none;
+    transform: translateX(-12px) scale(0.96);
+    transition: opacity 0.3s var(--ux-ease), transform 0.4s var(--ux-spring), left 0.5s var(--ux-spring);
+}
+.profile-panel.open {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateX(0) scale(1);
 }
 
-.profile-panel.open {
-    max-height: 420px;
-    opacity: 1;
-    margin-bottom: 10px;
+/* Little triangle indicator pointing to user card on desktop */
+.profile-panel::before {
+    content: "";
+    position: absolute;
+    left: -7px;
+    bottom: 24px;
+    width: 14px;
+    height: 14px;
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    transform: rotate(45deg);
+    border-bottom-left-radius: 3px;
+    z-index: 3;
 }
 
 .profile-panel-inner {
+    position: relative;
+    z-index: 2;
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: var(--radius-xl);
-    padding: 22px 18px 18px;
-    text-align: center;
-    box-shadow: var(--shadow-lg);
-    backdrop-filter: blur(20px);
+    border-radius: 20px;
+    padding: 20px 18px 18px;
+    box-shadow: 0 20px 45px -8px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
 }
 
+.profile-panel-close {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    background: var(--surface-hover);
+    color: var(--text-3);
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    z-index: 4;
+}
+.profile-panel-close:hover {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+    border-color: rgba(239, 68, 68, 0.3);
+    transform: scale(1.08);
+}
+
+.profile-panel-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 16px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.profile-panel-avatar-wrap {
+    position: relative;
+    flex: none;
+}
 .profile-panel-avatar {
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
+    width: 52px;
+    height: 52px;
+    border-radius: 16px;
     background: var(--primary-gradient);
     color: white;
-    font-size: 1.5rem;
+    font-size: 1.35rem;
     font-weight: 800;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin: 0 auto 12px;
     overflow: hidden;
     box-shadow: 0 4px 16px var(--primary-glow);
     border: 2px solid var(--surface);
 }
+.profile-panel-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.profile-status-dot {
+    position: absolute;
+    bottom: -2px;
+    right: -2px;
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    background: #10b981;
+    border: 2.5px solid var(--surface);
+    box-shadow: 0 0 6px #10b981;
+}
 
+.profile-panel-meta {
+    flex: 1;
+    min-width: 0;
+}
 .profile-panel-name {
     font-weight: 800;
     font-size: 1.05rem;
     color: var(--text);
     margin-bottom: 2px;
-    letter-spacing: -0.01em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    letter-spacing: -0.02em;
 }
-
-.profile-panel-team {
-    font-size: 0.78rem;
+.profile-panel-username {
+    font-size: 0.8rem;
     color: var(--text-3);
-    margin-bottom: 14px;
+    margin-bottom: 6px;
     font-weight: 600;
+}
+.profile-panel-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: var(--radius-full);
+    font-size: 10px;
+    font-weight: 750;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background: var(--primary-bg);
+    color: var(--primary);
+    border: 1px solid rgba(99, 102, 241, 0.25);
 }
 
 .profile-panel-details {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
     background: var(--surface-hover);
     border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-md);
+    border-radius: 14px;
     padding: 10px 14px;
-    margin-bottom: 14px;
+    margin-bottom: 16px;
 }
-
-.profile-detail-row {
+.profile-detail-item {
     display: flex;
     justify-content: space-between;
-    padding: 6px 0;
-    font-size: 0.82rem;
+    align-items: center;
+    font-size: 0.84rem;
 }
-.profile-detail-row:not(:last-child) {
+.profile-detail-item:not(:last-child) {
+    padding-bottom: 6px;
     border-bottom: 1px solid var(--border-subtle);
 }
-.profile-detail-row span:first-child {
+.profile-detail-label {
+    display: flex;
+    align-items: center;
+    gap: 7px;
     color: var(--text-3);
     font-weight: 600;
 }
-.profile-detail-row span:last-child {
+.profile-detail-val {
     color: var(--text);
-    font-weight: 700;
+    font-weight: 750;
 }
 
 .profile-panel-actions {
     display: flex;
     gap: 8px;
 }
-
 .profile-action-btn {
     flex: 1;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 6px;
-    padding: 9px 12px;
-    border-radius: var(--radius-md);
+    padding: 10px 12px;
+    border-radius: 12px;
+    font-size: 0.82rem;
+    font-weight: 650;
     border: 1px solid var(--border);
     background: var(--surface);
-    color: var(--text-2);
-    font-size: 0.78rem;
-    font-weight: 700;
-    font-family: var(--font);
+    color: var(--text);
     cursor: pointer;
-    box-shadow: var(--shadow-xs);
-    transition: all var(--t-fast);
+    transition: all 0.2s var(--ux-spring);
+    user-select: none;
 }
 .profile-action-btn:hover {
-    background: var(--surface-hover);
-    color: var(--text);
-    border-color: var(--border-focus);
-    transform: translateY(-1px);
+    border-color: var(--primary);
+    background: var(--primary-bg);
+    color: var(--primary);
+    transform: translateY(-1.5px);
+    box-shadow: 0 4px 12px var(--primary-glow);
 }
-
+.profile-action-btn:active {
+    transform: scale(0.95);
+}
 .profile-action-logout {
-    color: var(--accent-rose);
-    border-color: rgba(244, 63, 94, 0.3);
+    color: #ef4444;
+    border-color: rgba(239, 68, 68, 0.25);
 }
 .profile-action-logout:hover {
-    background: rgba(244, 63, 94, 0.1);
-    color: #e11d48;
-    border-color: var(--accent-rose);
+    background: rgba(239, 68, 68, 0.12) !important;
+    border-color: #ef4444 !important;
+    color: #ef4444 !important;
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25) !important;
 }
 
 .profile-chevron {
@@ -2990,6 +3098,25 @@ body.sidebar-collapsed .custom-lang-select {
 }
 .profile-chevron.rotated {
     transform: rotate(180deg);
+}
+
+/* Tablet & Mobile Screens */
+@media (max-width: 1024px) {
+    .profile-panel {
+        left: 16px !important;
+        right: 16px !important;
+        bottom: 24px !important;
+        width: auto !important;
+        max-width: 400px !important;
+        margin: 0 auto;
+        transform: translateY(20px) scale(0.96);
+    }
+    .profile-panel.open {
+        transform: translateY(0) scale(1);
+    }
+    .profile-panel::before {
+        display: none;
+    }
 }
 
 /* ======================== 11. RESPONSIVE (MOBILE & TABLET) ======================== */

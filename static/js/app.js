@@ -3232,35 +3232,29 @@ document.addEventListener('DOMContentLoaded', () => {
 // });
 // resetIdleTimer();
 
-// ===================== PROFILE PANEL (SLIDE-UP) =====================
+// ===================== PROFILE PANEL (FLYOUT POPOVER) =====================
 function toggleProfilePanel() {
     const panel = document.getElementById('profile-panel');
+    const backdrop = document.getElementById('profile-popover-backdrop');
     const chevron = document.getElementById('profile-chevron');
-    const lofi = document.getElementById('lofi-radio-widget');
-    if (panel) {
-        panel.classList.toggle('open');
+    if (!panel) return;
+
+    const isOpen = panel.classList.toggle('open');
+    if (backdrop) {
+        backdrop.classList.toggle('open', isOpen);
     }
     if (chevron) {
-        chevron.classList.toggle('rotated');
-    }
-    if (lofi) {
-        // Toggle a compact mode when the profile panel opens to save space
-        if (panel.classList.contains('open')) {
-            lofi.classList.add('compact-mode');
-        } else {
-            lofi.classList.remove('compact-mode');
-        }
+        chevron.classList.toggle('rotated', isOpen);
     }
 }
 
-// Close profile panel when clicking outside sidebar
-document.addEventListener('click', function (e) {
-    const panel = document.getElementById('profile-panel');
-    const sidebar = document.querySelector('.sidebar');
-    if (panel && panel.classList.contains('open') && sidebar && !sidebar.contains(e.target)) {
-        panel.classList.remove('open');
-        const chevron = document.getElementById('profile-chevron');
-        if (chevron) chevron.classList.remove('rotated');
+// Close profile panel when pressing Escape
+document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+        const panel = document.getElementById('profile-panel');
+        if (panel && panel.classList.contains('open')) {
+            toggleProfilePanel();
+        }
     }
 });
 
