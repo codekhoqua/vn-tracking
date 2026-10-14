@@ -108,16 +108,60 @@ function filterSection(tabKey, cvFilter, workerFilter) {
     });
 }
 
-// ===================== NAVIGATION & SCROLLING =====================
+// ===================== LUCIAN #040 SIDEBAR RAIL & NAVIGATION =====================
+function placeSidebarHighlight(it) {
+    const hl = document.getElementById('sidebar-hl');
+    if (!hl) return;
+    const activeItem = it || document.querySelector('.sidebar-nav .nav-item.active') || document.querySelector('.sidebar .nav-item.active');
+    if (!activeItem) {
+        hl.style.opacity = '0';
+        return;
+    }
+    hl.style.setProperty('--y', activeItem.offsetTop + 'px');
+    hl.style.height = activeItem.offsetHeight + 'px';
+    hl.style.opacity = '1';
+}
+
+function toggleSidebarRail() {
+    const isCollapsed = document.body.classList.toggle('sidebar-collapsed');
+    const tog = document.getElementById('sidebar-rail-tog');
+    if (tog) {
+        tog.setAttribute('aria-expanded', String(!isCollapsed));
+        tog.setAttribute('aria-label', isCollapsed ? 'Mở rộng menu' : 'Thu gọn menu');
+    }
+    try {
+        localStorage.setItem('vn_sidebar_collapsed', isCollapsed ? 'true' : 'false');
+    } catch (e) {}
+    setTimeout(() => {
+        placeSidebarHighlight();
+    }, 320);
+}
+
+// Restore saved sidebar collapsed state on load
+(function initSidebarRail() {
+    try {
+        if (window.innerWidth > 1024 && localStorage.getItem('vn_sidebar_collapsed') === 'true') {
+            document.body.classList.add('sidebar-collapsed');
+            const tog = document.getElementById('sidebar-rail-tog');
+            if (tog) {
+                tog.setAttribute('aria-expanded', 'false');
+                tog.setAttribute('aria-label', 'Mở rộng menu');
+            }
+        }
+    } catch (e) {}
+})();
+
 function updateSidebarActiveState(isTableVisible) {
-    const navItems = document.querySelectorAll('.sidebar .nav-item');
+    const navItems = document.querySelectorAll('.sidebar-nav .nav-item');
     if (navItems.length < 2) return;
 
     navItems.forEach(item => item.classList.remove('active'));
     if (isTableVisible) {
         navItems[1].classList.add('active'); // Data Table
+        placeSidebarHighlight(navItems[1]);
     } else {
         navItems[0].classList.add('active'); // Dashboard
+        placeSidebarHighlight(navItems[0]);
     }
 }
 
@@ -147,14 +191,38 @@ document.addEventListener('DOMContentLoaded', () => {
         observer.observe(tableSection);
     }
 
-    // Fallback for Dashboard click
-    const navItems = document.querySelectorAll('.sidebar .nav-item');
-    if (navItems.length > 0) {
-        navItems[0].addEventListener('click', () => {
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-            updateSidebarActiveState(false);
+    // Nav click handlers & sliding highlight
+    const navItems = document.querySelectorAll('.sidebar-nav .nav-item');
+    navItems.forEach((item, index) => {
+        item.addEventListener('click', () => {
+            if (index === 0) {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                updateSidebarActiveState(false);
+            } else if (index === 1) {
+                // scrollToTable handled by onclick
+            } else {
+                navItems.forEach(x => x.classList.remove('active'));
+                item.classList.add('active');
+                placeSidebarHighlight(item);
+            }
         });
-    }
+        item.addEventListener('keydown', (e) => {
+            const dir = e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0;
+            if (dir) {
+                e.preventDefault();
+                navItems[(index + dir + navItems.length) % navItems.length].focus();
+            }
+        });
+    });
+
+    // Initial highlight position after DOM paint
+    setTimeout(() => {
+        placeSidebarHighlight();
+    }, 150);
+
+    window.addEventListener('resize', () => {
+        placeSidebarHighlight();
+    });
 });
 
 // ===================== LANGUAGE SWITCHING =====================
@@ -201,6 +269,7 @@ function scrollToTable() {
             if (arrow) arrow.textContent = '▲';
         }
         wrapper.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        updateSidebarActiveState(true);
     }
 }
 

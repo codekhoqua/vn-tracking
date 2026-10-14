@@ -244,7 +244,7 @@
     <div class="mobile-brand">
         <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" width="26" height="26" style="border-radius: var(--radius-sm);">
         <span>VN-Tracking</span>
-        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.55</i></sup>
+        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.56</i></sup>
     </div>
     <div class="mobile-topbar-right">
         <button type="button" class="mobile-icon-btn" onclick="toggleNotificationPanel(event)" title="{{ 'Thông báo' if lang == 'vi' else '通知' }}">
@@ -263,92 +263,114 @@
 </header>
 <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="closeMobileSidebar()"></div>
 
-<!-- ============ SIDEBAR ============ -->
-<aside class="sidebar">
+<!-- ============ SIDEBAR (LUCIAN #040 SLIDING RAIL) ============ -->
+<aside class="sidebar" id="sidebar-rail">
     <button type="button" class="sidebar-mobile-close" onclick="closeMobileSidebar()" aria-label="Đóng">
         <i class="fas fa-times"></i>
     </button>
-    <div class="sidebar-logo">
-        <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" width="32" height="32"
-            style="border-radius: var(--radius-sm); margin-right: 8px;">
-        <div style="display: flex; flex-direction: column; justify-content: center;">
-            <span>VN-Tracking</span>
-            <sup class="version-tag"
-                style="color: var(--text-3); font-size: 11px; margin-top: 2px;"><i>v1.9.55</i></sup>
+    <div class="sidebar-top">
+        <div class="sidebar-logo">
+            <div class="sidebar-logo-icon">
+                <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" width="28" height="28"
+                    style="border-radius: var(--radius-sm); display: block;">
+            </div>
+            <div class="sidebar-logo-text">
+                <span class="sidebar-brand-name">VN-Tracking</span>
+                <sup class="version-tag"><i>v1.9.56</i></sup>
+            </div>
         </div>
+        <button class="sidebar-rail-tog" id="sidebar-rail-tog" type="button" aria-expanded="true" aria-label="Thu gọn / Mở rộng" title="Thu gọn / Mở rộng" onclick="toggleSidebarRail()">
+            <svg viewBox="0 0 16 16"><path d="M10 3.5L5.5 8 10 12.5"/></svg>
+        </button>
     </div>
 
     <div class="nav-label">MAIN</div>
-    <div class="nav-item active" style="cursor: pointer;" id="nav-dashboard">
-        <div class="nav-item-content">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                stroke-linecap="round" stroke-linejoin="round">
-                <rect x="3" y="3" width="7" height="7"></rect>
-                <rect x="14" y="3" width="7" height="7"></rect>
-                <rect x="14" y="14" width="7" height="7"></rect>
-                <rect x="3" y="14" width="7" height="7"></rect>
-            </svg>
-            Dashboard
+    <nav class="sidebar-nav" id="sidebar-nav" aria-label="Main menu">
+        <div class="sidebar-hl" id="sidebar-hl" role="presentation"></div>
+        <div class="nav-item active" style="--i:0; cursor: pointer;" id="nav-dashboard">
+            <div class="nav-item-content">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="14" width="7" height="7"></rect>
+                    <rect x="3" y="14" width="7" height="7"></rect>
+                </svg>
+                <span>Dashboard</span>
+            </div>
         </div>
-    </div>
-    <div class="nav-item" onclick="scrollToTable()">
-        <div class="nav-item-content">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                stroke-linecap="round" stroke-linejoin="round">
-                <line x1="8" y1="6" x2="21" y2="6"></line>
-                <line x1="8" y1="12" x2="21" y2="12"></line>
-                <line x1="8" y1="18" x2="21" y2="18"></line>
-                <line x1="3" y1="6" x2="3.01" y2="6"></line>
-                <line x1="3" y1="12" x2="3.01" y2="12"></line>
-                <line x1="3" y1="18" x2="3.01" y2="18"></line>
-            </svg>
-            Data Table
+        <div class="nav-item" style="--i:1; cursor: pointer;" onclick="scrollToTable()" id="nav-datatable">
+            <div class="nav-item-content">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="8" y1="6" x2="21" y2="6"></line>
+                    <line x1="8" y1="12" x2="21" y2="12"></line>
+                    <line x1="8" y1="18" x2="21" y2="18"></line>
+                    <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                    <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                    <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                </svg>
+                <span>Data Table</span>
+            </div>
         </div>
-    </div>
 
-    <div class="nav-item" onclick="openDriveModal()">
-        <div class="nav-item-content">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                stroke-linecap="round" stroke-linejoin="round">
-                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
-            </svg>
-            LSA Drive
+        <div class="nav-item" style="--i:2; cursor: pointer;" onclick="openDriveModal()" id="nav-drive">
+            <div class="nav-item-content">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                </svg>
+                <span>LSA Drive</span>
+            </div>
         </div>
-    </div>
-    <div class="nav-item" onclick="openCalendarModal()" style="cursor: pointer;">
-        <div class="nav-item-content">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                <line x1="16" y1="2" x2="16" y2="6"></line>
-                <line x1="8" y1="2" x2="8" y2="6"></line>
-                <line x1="3" y1="10" x2="21" y2="10"></line>
-            </svg>
-            Team Calendar
+        <div class="nav-item" style="--i:3; cursor: pointer;" onclick="openCalendarModal()" id="nav-calendar">
+            <div class="nav-item-content">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+                <span>Team Calendar</span>
+            </div>
         </div>
-    </div>
 
-    <a href="/psd-tool" target="_blank" class="nav-item" style="text-decoration: none; color: inherit;">
-        <div class="nav-item-content">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                stroke-linecap="round" stroke-linejoin="round">
-                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
-                <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
-            </svg>
-            Prepare PSD
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" stroke-width="2"
-                stroke-linecap="round" stroke-linejoin="round" style="margin-left: auto;">
-                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                <polyline points="15 3 21 3 21 9"></polyline>
-                <line x1="10" y1="14" x2="21" y2="3"></line>
-            </svg>
-        </div>
-    </a>
+        <a href="/psd-tool" target="_blank" class="nav-item" style="--i:4; text-decoration: none; color: inherit;" id="nav-psd">
+            <div class="nav-item-content">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+                    <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+                </svg>
+                <span>Prepare PSD</span>
+                <svg class="nav-ext-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round" style="margin-left: auto;">
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                    <polyline points="15 3 21 3 21 9"></polyline>
+                    <line x1="10" y1="14" x2="21" y2="3"></line>
+                </svg>
+            </div>
+        </a>
 
-    </div>
+        {% if session.get('user') == 'Manager' or session.get('role') == 'admin' %}
+        <div class="nav-item" style="--i:5; cursor: pointer;" onclick="openRoleModal()" id="nav-role">
+            <div class="nav-item-content">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="9" cy="7" r="4"></circle>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                </svg>
+                <span>{{ 'Phân quyền' if lang == 'vi' else '権限管理' }}</span>
+            </div>
+        </div>
+        {% endif %}
+    </nav>
 
     <div class="nav-label">{{ 'SETTINGS' if lang == 'vi' else '設定' }}</div>
-    <div class="nav-item" style="overflow: visible;">
+    <div class="nav-item nav-item-settings" style="overflow: visible;">
         <div class="nav-item-content">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                 stroke-linecap="round" stroke-linejoin="round">
@@ -357,7 +379,7 @@
                 <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z">
                 </path>
             </svg>
-            {{ 'Language' if lang == 'vi' else '言語' }}
+            <span>{{ 'Language' if lang == 'vi' else '言語' }}</span>
         </div>
 
         <!-- Custom Language Select -->
@@ -375,21 +397,6 @@
             </div>
         </div>
     </div>
-
-    {% if session.get('user') == 'Manager' or session.get('role') == 'admin' %}
-    <div class="nav-item" onclick="openRoleModal()" style="cursor: pointer;">
-        <div class="nav-item-content">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                stroke-linecap="round" stroke-linejoin="round">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                <circle cx="9" cy="7" r="4"></circle>
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-            </svg>
-            {{ 'Phân quyền' if lang == 'vi' else '権限管理' }}
-        </div>
-    </div>
-    {% endif %}
 
     <div style="flex-grow: 1;"></div>
 
