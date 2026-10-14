@@ -244,7 +244,7 @@
     <div class="mobile-brand">
         <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" width="26" height="26" style="border-radius: var(--radius-sm);">
         <span>VN-Tracking</span>
-        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.58</i></sup>
+        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.59</i></sup>
     </div>
     <div class="mobile-topbar-right">
         <button type="button" class="mobile-icon-btn" onclick="toggleNotificationPanel(event)" title="{{ 'Thông báo' if lang == 'vi' else '通知' }}">
@@ -263,6 +263,84 @@
 </header>
 <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="closeMobileSidebar()"></div>
 
+<!-- Profile Flyout Popover & Backdrop (Placed at root body level so sidebar backdrop-filter & overflow-x: hidden won't clip/blur it) -->
+<div class="profile-popover-backdrop" id="profile-popover-backdrop" onclick="toggleProfilePanel()"></div>
+
+{% set p = user_profiles.get(user, {}) if user_profiles else {} %}
+<div class="profile-panel" id="profile-panel" role="dialog" aria-modal="true" aria-label="Thông tin tài khoản">
+    <div class="profile-panel-inner">
+        <!-- Close Button -->
+        <button type="button" class="profile-panel-close" onclick="toggleProfilePanel()" aria-label="Đóng">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+        </button>
+
+        <!-- Profile Header -->
+        <div class="profile-panel-header">
+            <div class="profile-panel-avatar-wrap">
+                <div class="profile-panel-avatar">
+                    {% if p.avatar %}
+                    <img src="{{ p.avatar }}" alt="Avatar" class="avatar-img" referrerpolicy="no-referrer"
+                        onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                    <div class="avatar-fallback" style="display:none;">{{ p.fullname[0]|upper if p.fullname else
+                        (user[0]|upper if user else 'U') }}</div>
+                    {% else %}
+                    {{ user[0]|upper if user else 'U' }}
+                    {% endif %}
+                </div>
+                <span class="profile-status-dot" title="Online"></span>
+            </div>
+            <div class="profile-panel-meta">
+                <div class="profile-panel-name">{{ p.fullname or user }}</div>
+                <div class="profile-panel-username">@{{ user }}</div>
+                <span class="profile-panel-badge">{{ role or p.team or 'Member' }}</span>
+            </div>
+        </div>
+
+        <!-- Profile Details -->
+        <div class="profile-panel-details">
+            <div class="profile-detail-item">
+                <span class="profile-detail-label">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><polyline points="17 11 19 13 23 9"></polyline></svg>
+                    {{ 'Giới tính' if lang == 'vi' else '性別' }}
+                </span>
+                <span class="profile-detail-val">{{ p.gender or '---' }}</span>
+            </div>
+            <div class="profile-detail-item">
+                <span class="profile-detail-label">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                    {{ 'Năm sinh' if lang == 'vi' else '生年' }}
+                </span>
+                <span class="profile-detail-val">{{ p.birth_year or '---' }}</span>
+            </div>
+        </div>
+
+        <!-- Profile Action Buttons -->
+        <div class="profile-panel-actions">
+            <button type="button" class="profile-action-btn"
+                onclick="event.stopPropagation(); toggleProfilePanel(); openChangePassModal()">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                </svg>
+                <span>{{ 'Đổi mật khẩu' if lang == 'vi' else 'パスワード変更' }}</span>
+            </button>
+            <button type="button" class="profile-action-btn profile-action-logout" onclick="window.location.href='/logout'">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                    <polyline points="16 17 21 12 16 7"></polyline>
+                    <line x1="21" y1="12" x2="9" y2="12"></line>
+                </svg>
+                <span>{{ 'Đăng xuất' if lang == 'vi' else 'ログアウト' }}</span>
+            </button>
+        </div>
+    </div>
+</div>
+
 <!-- ============ SIDEBAR (LUCIAN #040 SLIDING RAIL) ============ -->
 <aside class="sidebar" id="sidebar-rail">
     <button type="button" class="sidebar-mobile-close" onclick="closeMobileSidebar()" aria-label="Đóng">
@@ -279,7 +357,7 @@
             </div>
             <div class="sidebar-logo-text">
                 <span class="sidebar-brand-name">VN-Tracking</span>
-                <sup class="version-tag"><i>v1.9.58</i></sup>
+                <sup class="version-tag"><i>v1.9.59</i></sup>
             </div>
         </div>
     </div>
@@ -1278,84 +1356,7 @@
             }
         </style>
 
-        <!-- Backdrop for Profile Popover -->
-        <div class="profile-popover-backdrop" id="profile-popover-backdrop" onclick="toggleProfilePanel()"></div>
-
-        <!-- Profile Flyout Popover Card (Never pushes sidebar content) -->
         {% set p = user_profiles.get(user, {}) if user_profiles else {} %}
-        <div class="profile-panel" id="profile-panel" role="dialog" aria-modal="true" aria-label="Thông tin tài khoản">
-            <div class="profile-panel-inner">
-                <!-- Close Button -->
-                <button type="button" class="profile-panel-close" onclick="toggleProfilePanel()" aria-label="Đóng">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                    </svg>
-                </button>
-
-                <!-- Profile Header -->
-                <div class="profile-panel-header">
-                    <div class="profile-panel-avatar-wrap">
-                        <div class="profile-panel-avatar">
-                            {% if p.avatar %}
-                            <img src="{{ p.avatar }}" alt="Avatar" class="avatar-img" referrerpolicy="no-referrer"
-                                onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                            <div class="avatar-fallback" style="display:none;">{{ p.fullname[0]|upper if p.fullname else
-                                (user[0]|upper if user else 'U') }}</div>
-                            {% else %}
-                            {{ user[0]|upper if user else 'U' }}
-                            {% endif %}
-                        </div>
-                        <span class="profile-status-dot" title="Online"></span>
-                    </div>
-                    <div class="profile-panel-meta">
-                        <div class="profile-panel-name">{{ p.fullname or user }}</div>
-                        <div class="profile-panel-username">@{{ user }}</div>
-                        <span class="profile-panel-badge">{{ role or p.team or 'Member' }}</span>
-                    </div>
-                </div>
-
-                <!-- Profile Details -->
-                <div class="profile-panel-details">
-                    <div class="profile-detail-item">
-                        <span class="profile-detail-label">
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><polyline points="17 11 19 13 23 9"></polyline></svg>
-                            {{ 'Giới tính' if lang == 'vi' else '性別' }}
-                        </span>
-                        <span class="profile-detail-val">{{ p.gender or '---' }}</span>
-                    </div>
-                    <div class="profile-detail-item">
-                        <span class="profile-detail-label">
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-                            {{ 'Năm sinh' if lang == 'vi' else '生年' }}
-                        </span>
-                        <span class="profile-detail-val">{{ p.birth_year or '---' }}</span>
-                    </div>
-                </div>
-
-                <!-- Profile Action Buttons -->
-                <div class="profile-panel-actions">
-                    <button type="button" class="profile-action-btn"
-                        onclick="event.stopPropagation(); toggleProfilePanel(); openChangePassModal()">
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                        </svg>
-                        <span>{{ 'Đổi mật khẩu' if lang == 'vi' else 'パスワード変更' }}</span>
-                    </button>
-                    <button type="button" class="profile-action-btn profile-action-logout" onclick="window.location.href='/logout'">
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                            <polyline points="16 17 21 12 16 7"></polyline>
-                            <line x1="21" y1="12" x2="9" y2="12"></line>
-                        </svg>
-                        <span>{{ 'Đăng xuất' if lang == 'vi' else 'ログアウト' }}</span>
-                    </button>
-                </div>
-            </div>
-        </div>
 
         <div class="user-card" onclick="toggleProfilePanel()"
             title="{{ 'Thông tin cá nhân' if lang == 'vi' else 'プロフィール' }}">
