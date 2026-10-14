@@ -251,18 +251,18 @@ select option { background: var(--surface); color: var(--text); }
     min-width: 0;
 }
 .sidebar-logo-icon {
-    width: 38px;
-    height: 38px;
+    width: 36px;
+    height: 36px;
     flex: none;
-    border-radius: 12px;
-    background: var(--primary-gradient);
+    border-radius: 9px;
+    background: transparent !important;
     display: grid;
     place-items: center;
-    box-shadow: 0 4px 14px var(--primary-glow);
-    transition: transform 0.5s var(--ux-spring);
+    box-shadow: none !important;
+    transition: transform 0.4s var(--ux-spring);
 }
 .sidebar-logo:hover .sidebar-logo-icon {
-    transform: scale(1.08) rotate(-4deg);
+    transform: scale(1.08);
 }
 .sidebar-logo-text {
     display: flex;
@@ -3113,6 +3113,169 @@ body.sidebar-collapsed .custom-lang-select {
         transform: translateY(0) scale(1);
     }
     .profile-panel::before {
+        display: none;
+    }
+}
+
+/* ======================== SIDEBAR WIDGET TABS (PET / MUSIC) ======================== */
+.sidebar-widget-tabs {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: 8px;
+}
+.widget-tab-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 9px;
+    border: none;
+    background: transparent;
+    color: var(--text-3);
+    font-size: 11px;
+    font-weight: 750;
+    cursor: pointer;
+    transition: all 0.2s var(--ux-spring);
+    user-select: none;
+}
+.widget-tab-btn:hover {
+    color: var(--text);
+    background: rgba(255, 255, 255, 0.04);
+}
+.widget-tab-btn.active {
+    background: var(--surface);
+    color: var(--primary);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+[data-theme="dark"] .widget-tab-btn.active {
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+}
+body.sidebar-collapsed .sidebar-widget-tabs {
+    flex-direction: column;
+    padding: 2px;
+}
+body.sidebar-collapsed .widget-tab-btn span {
+    display: none !important;
+}
+
+/* ======================== PET FLYOUT POPOVER ======================== */
+.pet-popover-backdrop {
+    position: fixed;
+    inset: 0;
+    background: transparent;
+    z-index: 100004;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+}
+.pet-popover-backdrop.open {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.pet-flyout-popover {
+    position: fixed;
+    left: calc(var(--sidebar-w) + 14px);
+    bottom: 80px;
+    width: 320px;
+    max-width: calc(100vw - 32px);
+    z-index: 100005;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateX(-12px) scale(0.96);
+    transition: opacity 0.25s var(--ux-ease), transform 0.35s var(--ux-spring), left 0.4s var(--ux-spring);
+    display: none;
+}
+.pet-flyout-popover.open {
+    display: block !important;
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateX(0) scale(1);
+}
+.pet-flyout-popover::before {
+    content: "";
+    position: absolute;
+    left: -7px;
+    bottom: 30px;
+    width: 14px;
+    height: 14px;
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    transform: rotate(45deg);
+    border-bottom-left-radius: 3px;
+    z-index: 3;
+}
+.pet-flyout-inner {
+    position: relative;
+    z-index: 2;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 16px 18px 18px;
+    box-shadow: 0 20px 45px -8px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+}
+.pet-flyout-close {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    background: var(--surface-hover);
+    color: var(--text-3);
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    z-index: 4;
+}
+.pet-flyout-close:hover {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+    border-color: rgba(239, 68, 68, 0.3);
+    transform: scale(1.08);
+}
+.pet-flyout-title {
+    font-size: 13.5px;
+    font-weight: 800;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.pet-lb-container-flyout {
+    margin-top: 10px;
+    max-height: 250px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+@media (max-width: 1024px) {
+    .pet-flyout-popover {
+        left: 16px !important;
+        right: 16px !important;
+        bottom: 24px !important;
+        width: auto !important;
+        max-width: 400px !important;
+        margin: 0 auto;
+        transform: translateY(20px) scale(0.96);
+    }
+    .pet-flyout-popover.open {
+        transform: translateY(0) scale(1);
+    }
+    .pet-flyout-popover::before {
         display: none;
     }
 }
