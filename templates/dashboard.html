@@ -244,7 +244,7 @@
     <div class="mobile-brand">
         <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" width="26" height="26" style="border-radius: var(--radius-sm);">
         <span>VN-Tracking</span>
-        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.54</i></sup>
+        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.55</i></sup>
     </div>
     <div class="mobile-topbar-right">
         <button type="button" class="mobile-icon-btn" onclick="toggleNotificationPanel(event)" title="{{ 'Thông báo' if lang == 'vi' else '通知' }}">
@@ -274,7 +274,7 @@
         <div style="display: flex; flex-direction: column; justify-content: center;">
             <span>VN-Tracking</span>
             <sup class="version-tag"
-                style="color: var(--text-3); font-size: 11px; margin-top: 2px;"><i>v1.9.54</i></sup>
+                style="color: var(--text-3); font-size: 11px; margin-top: 2px;"><i>v1.9.55</i></sup>
         </div>
     </div>
 
@@ -993,7 +993,7 @@
             /* FLOATING POP-OUT VIDEO PLAYER FOR LSA MUSIC */
             #radio-video-wrapper.is-popped-out {
                 position: fixed !important;
-                z-index: 100000 !important;
+                z-index: 1000000 !important;
                 border-radius: 16px !important;
                 box-shadow: 0 16px 36px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(99, 102, 241, 0.4) !important;
                 display: flex !important;
@@ -1674,12 +1674,12 @@
             <span>{{ weeks.truoc.info.start }} - {{ weeks.truoc.info.end }}</span>
             <span class="deadline-badge">{{ 'Deadline đã qua' if lang == 'vi' else '期限切れ' }}</span>
         </div>
-        <div class="info-banner" id="banner-nay" style="position: relative; z-index: 1200;">
+        <div class="info-banner" id="banner-nay" style="position: relative;">
             <span>{{ weeks.nay.info.start }} - {{ weeks.nay.info.end }}</span>
             <span class="deadline-badge" id="deadline-nay-badge" style="cursor: pointer;"
                 onclick="toggleCalendarPopup('{{ weeks.nay.info.deadline }}', this)">{{ weeks.nay.info.deadline }}</span>
         </div>
-        <div class="info-banner" id="banner-sau" style="display: none; position: relative; z-index: 1200;">
+        <div class="info-banner" id="banner-sau" style="display: none; position: relative;">
             <span>{{ weeks.sau.info.start }} - {{ weeks.sau.info.end }}</span>
             {% if weeks.sau.info.deadline and weeks.sau.info.deadline != t.not_update %}
             <span class="deadline-badge" id="deadline-sau-badge" style="cursor: pointer;"
@@ -1690,7 +1690,7 @@
             {% endif %}
         </div>
         <div id="calendar-popup"
-            style="display: none; position: absolute; top: calc(100% + 10px); right: 0; z-index: 999999; margin-top: 0; background: var(--surface); border-radius: 20px; box-shadow: 0 16px 36px -4px rgba(0,0,0,0.5), 0 0 0 1px var(--border); overflow: hidden; width: max-content; backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); background-color: color-mix(in srgb, var(--surface) 85%, transparent);">
+            style="display: none; position: absolute; top: calc(100% + 10px); right: 0; z-index: 999; margin-top: 0; background: var(--surface); border-radius: 20px; box-shadow: 0 16px 36px -4px rgba(0,0,0,0.5), 0 0 0 1px var(--border); overflow: hidden; width: max-content; backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); background-color: color-mix(in srgb, var(--surface) 85%, transparent);">
             <div style="display: flex; min-width: 460px;">
                 <div
                     style="padding: 20px; width: 140px; border-right: 1px solid var(--border); display: flex; flex-direction: column;">
