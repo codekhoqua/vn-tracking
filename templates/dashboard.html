@@ -242,9 +242,9 @@
         <i class="fas fa-bars"></i>
     </button>
     <div class="mobile-brand">
-        <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" width="26" height="26" style="border-radius: var(--radius-sm);">
+        <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" width="30" height="30" style="border-radius: 8px; object-fit: contain;">
         <span>VN-Tracking</span>
-        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.60</i></sup>
+        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.61</i></sup>
     </div>
     <div class="mobile-topbar-right">
         <button type="button" class="mobile-icon-btn" onclick="toggleNotificationPanel(event)" title="{{ 'Thông báo' if lang == 'vi' else '通知' }}">
@@ -341,6 +341,45 @@
     </div>
 </div>
 
+<!-- Pet Flyout Popover & Backdrop (Placed at root body level so sidebar overflow won't clip it and it never pushes sidebar content) -->
+<div class="pet-popover-backdrop" id="pet-popover-backdrop" onclick="toggleSidebarPetDetails()"></div>
+
+<div id="pet-panel" class="pet-flyout-popover" role="dialog" aria-modal="true" aria-label="Chi tiết thú cưng">
+    <div class="pet-flyout-inner">
+        <!-- Close Button -->
+        <button type="button" class="pet-flyout-close" onclick="toggleSidebarPetDetails()" aria-label="Đóng">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+        </button>
+
+        <div class="pet-flyout-header">
+            <div class="pet-flyout-title">
+                <span>🏆 {{ 'Bảng Xếp Hạng & Chi Tiết' if lang == 'vi' else 'ランキング＆詳細' }}</span>
+            </div>
+            <div class="sidebar-pet-details-top" style="margin-top: 10px;">
+                <span id="pet-stage-badge" class="pet-stage-badge">BABY</span>
+                <button onclick="resetPet()" class="sidebar-pet-reset-btn"
+                    title="{{ 'Cài lại pet' if lang == 'vi' else 'リセット' }}">
+                    ⚠️ {{ 'Reset' if lang == 'vi' else 'リセット' }}
+                </button>
+            </div>
+        </div>
+
+        <!-- Goose Color Customizer Bar -->
+        <div id="goose-color-picker-wrap" class="goose-color-picker-wrap" style="display: none;">
+            <div class="goose-color-header">
+                <span>🎨 {{ 'Màu lông Ngỗng:' if lang == 'vi' else 'ガチョウの毛色:' }}</span>
+                <span id="goose-color-name" class="goose-color-active-label">Trắng Tuyết</span>
+            </div>
+            <div class="goose-swatch-list" id="sidebar-goose-swatches"></div>
+        </div>
+
+        <div id="inline-leaderboard-container" class="pet-lb-container-flyout"></div>
+    </div>
+</div>
+
 <!-- ============ SIDEBAR (LUCIAN #040 SLIDING RAIL) ============ -->
 <aside class="sidebar" id="sidebar-rail">
     <button type="button" class="sidebar-mobile-close" onclick="closeMobileSidebar()" aria-label="Đóng">
@@ -352,12 +391,12 @@
     <div class="sidebar-top">
         <div class="sidebar-logo">
             <div class="sidebar-logo-icon">
-                <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" width="28" height="28"
-                    style="border-radius: var(--radius-sm); display: block;">
+                <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" width="36" height="36"
+                    style="border-radius: 9px; display: block; object-fit: contain;">
             </div>
             <div class="sidebar-logo-text">
                 <span class="sidebar-brand-name">VN-Tracking</span>
-                <sup class="version-tag"><i>v1.9.60</i></sup>
+                <sup class="version-tag"><i>v1.9.61</i></sup>
             </div>
         </div>
     </div>
@@ -482,6 +521,18 @@
     <div style="flex-grow: 1;"></div>
 
     <div class="sidebar-footer">
+        <!-- Segmented Widget Switcher (Pet 🐾 | Music 🎵) -->
+        <div class="sidebar-widget-tabs" id="sidebar-widget-tabs">
+            <button type="button" class="widget-tab-btn active" id="tab-btn-pet" onclick="switchSidebarWidget('pet')">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 5.172a2 2 0 0 0-3.414 1.414l.828 2.828A2 2 0 0 1 7.172 11H4a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h3.172a2 2 0 0 1 1.414.586l.828 2.828A2 2 0 0 0 12 21a2 2 0 0 0 1.414-3.414l-.828-2.828A2 2 0 0 1 13 13.172V10a2 2 0 0 0-2-2h-.172z"/></svg>
+                <span>Pet 3D</span>
+            </button>
+            <button type="button" class="widget-tab-btn" id="tab-btn-music" onclick="switchSidebarWidget('music')">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
+                <span>LSA Music</span>
+            </button>
+        </div>
+
         <!-- 🐾 3D VIRTUAL PET SIDEBAR PANEL (TRÊN LSA MUSIC) -->
         <div id="sidebar-pet-panel" class="sidebar-pet-panel">
             <!-- Header: Pet Name & Level (Left) | Quick Actions (Right) -->
@@ -511,7 +562,7 @@
                     <button id="sidebar-pet-expand-btn" onclick="toggleSidebarPetDetails()" class="sidebar-pet-action-btn"
                         title="{{ 'Chi tiết / Bảng xếp hạng' if lang == 'vi' else '詳細 / ランキング' }}">
                         <svg id="sidebar-pet-chevron"
-                            style="transform: rotate(180deg); transition: transform 0.25s ease;" width="11" height="11"
+                            style="transition: transform 0.25s ease;" width="11" height="11"
                             viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
                             stroke-linecap="round" stroke-linejoin="round">
                             <polyline points="6 9 12 15 18 9"></polyline>
@@ -523,7 +574,7 @@
             <!-- 3D Pet Stage (Embedded neatly in panel) -->
             <div id="roaming-pet-container" class="roaming-pet-3d-wrapper">
                 <div class="pet-3d-canvas-box">
-                    <canvas id="roaming-pet-canvas" width="228" height="165"></canvas>
+                    <canvas id="roaming-pet-canvas" width="228" height="125"></canvas>
                     <div class="stage-shadow-pedestal"></div>
                 </div>
                 <div id="pet-speech-bubble" class="pet-speech-bubble">
@@ -561,33 +612,6 @@
                 </button>
             </div>
 
-            <!-- Expandable Drawer: Stage badge, Inline Leaderboard, Reset -->
-            <div id="pet-panel" class="sidebar-pet-details" style="display: block;">
-                <div class="sidebar-pet-details-top">
-                    <span id="pet-stage-badge" class="pet-stage-badge">BABY</span>
-                    <button onclick="resetPet()" class="sidebar-pet-reset-btn"
-                        title="{{ 'Cài lại pet' if lang == 'vi' else 'リセット' }}">
-                        ⚠️ {{ 'Reset' if lang == 'vi' else 'リセット' }}
-                    </button>
-                </div>
-
-                <!-- Goose Color Customizer Bar -->
-                <div id="goose-color-picker-wrap" class="goose-color-picker-wrap" style="display: none;">
-                    <div class="goose-color-header">
-                        <span>🎨 {{ 'Màu lông Ngỗng:' if lang == 'vi' else 'ガチョウの毛色:' }}</span>
-                        <span id="goose-color-name" class="goose-color-active-label">Trắng Tuyết</span>
-                    </div>
-                    <div class="goose-swatch-list" id="sidebar-goose-swatches"></div>
-                </div>
-
-
-
-                <div class="pet-lb-header">
-                    <span>🏆 {{ 'Bảng Xếp Hạng' if lang == 'vi' else 'ランキング' }}</span>
-                </div>
-                <div id="inline-leaderboard-container"></div>
-            </div>
-
             <!-- Empty State / Adopt Button when no pet adopted yet -->
             <div id="sidebar-pet-empty" style="display: none; padding: 16px 12px; text-align: center;">
                 <div style="font-size: 28px; margin-bottom: 4px; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));">🐾
@@ -613,7 +637,7 @@
 
         <!-- LOFI RADIO WIDGET (Apple Music Style) -->
         <div id="lofi-radio-widget"
-            style="position: relative; width: 100%; margin-bottom: 6px; border-radius: 16px; overflow: hidden; box-shadow: 0 8px 24px rgba(0,0,0,0.2); background: #1c1c1e; color: #fff; transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);">
+            style="position: relative; width: 100%; margin-bottom: 6px; border-radius: 16px; overflow: hidden; box-shadow: 0 8px 24px rgba(0,0,0,0.2); background: #1c1c1e; color: #fff; transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); display: none;">
 
             <!-- Blurred Background Cover -->
             <div id="radio-bg-blur"
@@ -4426,7 +4450,7 @@
     .roaming-pet-3d-wrapper {
         position: relative;
         width: 100%;
-        height: 165px;
+        height: 125px;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -4437,14 +4461,14 @@
     .pet-3d-canvas-box {
         position: relative;
         width: 100%;
-        height: 165px;
+        height: 125px;
         display: flex;
         justify-content: center;
     }
 
     #roaming-pet-canvas {
         width: 228px;
-        height: 165px;
+        height: 125px;
         outline: none;
         display: block;
         cursor: pointer;
@@ -5994,18 +6018,60 @@
 
     function toggleSidebarPetDetails() {
         const details = document.getElementById('pet-panel');
+        const backdrop = document.getElementById('pet-popover-backdrop');
         const chevron = document.getElementById('sidebar-pet-chevron');
         if (!details) return;
-        const isHidden = (details.style.display === 'none' || window.getComputedStyle(details).display === 'none');
-        if (isHidden) {
-            details.style.display = 'block';
-            if (chevron) chevron.style.transform = 'rotate(180deg)';
+
+        const isOpen = details.classList.toggle('open');
+        if (backdrop) backdrop.classList.toggle('open', isOpen);
+        if (chevron) chevron.style.transform = isOpen ? 'rotate(180deg)' : 'rotate(0deg)';
+        if (isOpen) {
             loadInlineLeaderboard();
-        } else {
-            details.style.display = 'none';
-            if (chevron) chevron.style.transform = 'rotate(0deg)';
         }
     }
+
+    function switchSidebarWidget(tab) {
+        const petPanel = document.getElementById('sidebar-pet-panel');
+        const musicPanel = document.getElementById('lofi-radio-widget');
+        const marquee = document.getElementById('radio-participants-marquee');
+        const tabPet = document.getElementById('tab-btn-pet');
+        const tabMusic = document.getElementById('tab-btn-music');
+
+        if (tab === 'music') {
+            if (petPanel) petPanel.style.display = 'none';
+            if (musicPanel) musicPanel.style.display = 'block';
+            if (marquee) marquee.style.display = 'flex';
+            if (tabPet) tabPet.classList.remove('active');
+            if (tabMusic) tabMusic.classList.add('active');
+            try { localStorage.setItem('sidebar_active_widget', 'music'); } catch (e) {}
+        } else {
+            if (petPanel) petPanel.style.display = 'block';
+            if (musicPanel) musicPanel.style.display = 'none';
+            if (marquee) marquee.style.display = 'none';
+            if (tabPet) tabPet.classList.add('active');
+            if (tabMusic) tabMusic.classList.remove('active');
+            try { localStorage.setItem('sidebar_active_widget', 'pet'); } catch (e) {}
+            window.dispatchEvent(new Event('resize'));
+        }
+    }
+
+    // Restore active widget tab on boot
+    (function initActiveWidgetTab() {
+        try {
+            const saved = localStorage.getItem('sidebar_active_widget') || 'pet';
+            switchSidebarWidget(saved);
+        } catch (e) {}
+    })();
+
+    // Close pet details flyout on Escape key
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+            const petPanel = document.getElementById('pet-panel');
+            if (petPanel && petPanel.classList.contains('open')) {
+                toggleSidebarPetDetails();
+            }
+        }
+    });
 
     function togglePetPanel() {
         toggleSidebarPetDetails();
