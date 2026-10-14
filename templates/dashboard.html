@@ -244,7 +244,7 @@
     <div class="mobile-brand">
         <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" width="26" height="26" style="border-radius: var(--radius-sm);">
         <span>VN-Tracking</span>
-        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.56</i></sup>
+        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.57</i></sup>
     </div>
     <div class="mobile-topbar-right">
         <button type="button" class="mobile-icon-btn" onclick="toggleNotificationPanel(event)" title="{{ 'Thông báo' if lang == 'vi' else '通知' }}">
@@ -268,6 +268,9 @@
     <button type="button" class="sidebar-mobile-close" onclick="closeMobileSidebar()" aria-label="Đóng">
         <i class="fas fa-times"></i>
     </button>
+    <button class="sidebar-rail-tog" id="sidebar-rail-tog" type="button" aria-expanded="true" aria-label="Thu gọn / Mở rộng" title="Thu gọn / Mở rộng" onclick="toggleSidebarRail()">
+        <svg viewBox="0 0 16 16"><path d="M10 3.5L5.5 8 10 12.5"/></svg>
+    </button>
     <div class="sidebar-top">
         <div class="sidebar-logo">
             <div class="sidebar-logo-icon">
@@ -276,12 +279,9 @@
             </div>
             <div class="sidebar-logo-text">
                 <span class="sidebar-brand-name">VN-Tracking</span>
-                <sup class="version-tag"><i>v1.9.56</i></sup>
+                <sup class="version-tag"><i>v1.9.57</i></sup>
             </div>
         </div>
-        <button class="sidebar-rail-tog" id="sidebar-rail-tog" type="button" aria-expanded="true" aria-label="Thu gọn / Mở rộng" title="Thu gọn / Mở rộng" onclick="toggleSidebarRail()">
-            <svg viewBox="0 0 16 16"><path d="M10 3.5L5.5 8 10 12.5"/></svg>
-        </button>
     </div>
 
     <div class="nav-label">MAIN</div>

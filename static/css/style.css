@@ -284,37 +284,37 @@ select option { background: var(--surface); color: var(--text); }
 /* Lucian #040 Rail Collapse Toggle Button */
 .sidebar-rail-tog {
     position: absolute;
-    right: -4px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 28px;
-    height: 34px;
+    right: -11px;
+    top: 22px;
+    width: 24px;
+    height: 30px;
     border: 1px solid var(--border);
     padding: 0;
-    border-radius: 9px 0 0 9px;
-    background: var(--surface-hover);
+    border-radius: 8px;
+    background: var(--surface);
     color: var(--text-2);
     display: grid;
     place-items: center;
     cursor: pointer;
     opacity: 0;
-    transition: opacity 0.25s var(--ux-ease), background 0.2s, color 0.2s, border-color 0.2s;
-    z-index: 5;
+    transition: opacity 0.25s var(--ux-ease), background 0.2s, color 0.2s, border-color 0.2s, transform 0.4s var(--ux-spring);
+    z-index: 20;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 .sidebar:hover .sidebar-rail-tog,
-.sidebar-rail-tog:focus-visible,
-body.sidebar-collapsed .sidebar-rail-tog {
+.sidebar-rail-tog:focus-visible {
     opacity: 1;
 }
 .sidebar-rail-tog:hover {
-    background: var(--surface);
-    color: var(--primary);
+    background: var(--primary);
+    color: #fff;
     border-color: var(--primary);
-    box-shadow: 0 2px 8px var(--primary-glow);
+    box-shadow: 0 4px 12px var(--primary-glow);
+    transform: scale(1.08);
 }
 .sidebar-rail-tog svg {
-    width: 15px;
-    height: 15px;
+    width: 14px;
+    height: 14px;
     fill: none;
     stroke: currentColor;
     stroke-width: 2.2;
@@ -635,44 +635,71 @@ body.sidebar-collapsed .sidebar-rail-tog svg {
 body.sidebar-collapsed {
     --sidebar-w: 78px;
 }
-body.sidebar-collapsed .sidebar-logo-text {
-    opacity: 0;
-    pointer-events: none;
-    width: 0;
-    transform: translateX(-10px);
+body.sidebar-collapsed .sidebar {
+    padding: 20px 10px;
 }
-body.sidebar-collapsed .nav-label {
-    opacity: 0;
-    height: 0;
-    margin: 0;
-    overflow: hidden;
-}
-body.sidebar-collapsed .nav-item span {
-    opacity: 0;
-    pointer-events: none;
-    transform: translateX(-10px);
-}
-body.sidebar-collapsed .nav-item {
-    padding: 0;
+body.sidebar-collapsed .sidebar-top {
     justify-content: center;
+    padding: 0;
 }
-body.sidebar-collapsed .nav-item-content {
+body.sidebar-collapsed .sidebar-logo {
     justify-content: center;
     gap: 0;
+    width: 100%;
+}
+body.sidebar-collapsed .sidebar-logo-icon {
+    margin: 0 auto;
+}
+body.sidebar-collapsed .sidebar-logo-text {
+    display: none !important;
+}
+body.sidebar-collapsed .nav-label {
+    display: none !important;
+}
+body.sidebar-collapsed .nav-item {
+    padding: 0 !important;
+    justify-content: center !important;
+}
+body.sidebar-collapsed .nav-item:hover {
+    transform: none !important;
+}
+body.sidebar-collapsed .nav-item-content {
+    justify-content: center !important;
+    gap: 0 !important;
+    width: 100% !important;
+}
+body.sidebar-collapsed .nav-item svg {
+    margin: 0 auto;
+}
+body.sidebar-collapsed .nav-item span {
+    display: none !important;
 }
 body.sidebar-collapsed .nav-ext-icon {
-    display: none;
+    display: none !important;
+}
+body.sidebar-collapsed .nav-badge,
+body.sidebar-collapsed .sidebar-bd {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+}
+body.sidebar-collapsed .user-card {
+    padding: 0 !important;
+    justify-content: center !important;
+    height: 48px;
+    background: transparent;
+    border-color: transparent;
+}
+body.sidebar-collapsed .user-card:hover {
+    background: var(--surface-hover);
+    border-color: var(--border);
+}
+body.sidebar-collapsed .user-avatar {
+    margin: 0 auto;
 }
 body.sidebar-collapsed .user-info,
 body.sidebar-collapsed .profile-chevron {
-    opacity: 0;
-    pointer-events: none;
-    width: 0;
-    display: none;
-}
-body.sidebar-collapsed .user-card {
-    padding: 0;
-    justify-content: center;
+    display: none !important;
 }
 body.sidebar-collapsed .sidebar-pet-panel,
 body.sidebar-collapsed #lofi-radio-widget,
@@ -680,7 +707,7 @@ body.sidebar-collapsed #radio-participants-marquee {
     display: none !important;
 }
 body.sidebar-collapsed .custom-lang-select {
-    display: none;
+    display: none !important;
 }
 
 /* ======================== 4. MAIN AREA & HEADER ======================== */
