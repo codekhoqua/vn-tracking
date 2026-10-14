@@ -7370,7 +7370,7 @@ function updateCardBadge(index, active, h='00', m='00') {
             }
         }
         badge.style.display = 'inline-flex';
-        badge.innerHTML = `⏱️ ${h}:${m}`;
+        badge.innerHTML = `<i class="far fa-clock" style="margin-right: 4px;"></i>${h}:${m}`;
     });
 }
 

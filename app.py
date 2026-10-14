@@ -1011,7 +1011,7 @@ def render_checklist_html(tac_pham_key, index, lang, api_url, checked_ids=None, 
     elif is_coop:
         badge_html = '<span class="handover-partner-badge">Retouch ⇄ Lettering</span>'
     else:
-        badge_html = f'<span class="handover-partner-badge" style="opacity: 0.85;">💬 { "Ghi chú & Thảo luận" if lang == "vi" else "メモ・連絡" }</span>'
+        badge_html = f'<span class="handover-partner-badge" style="opacity: 0.85;"><i class="far fa-comment-dots" style="margin-right: 4px;"></i>{ "Ghi chú & Thảo luận" if lang == "vi" else "メモ・連絡" }</span>'
 
     safe_volume_key = str(volume_key).replace('\\', '\\\\').replace("'", "\\'").replace('"', '&quot;')
     handover_html = f'''
@@ -1052,15 +1052,15 @@ def render_checklist_html(tac_pham_key, index, lang, api_url, checked_ids=None, 
 
     tracker_html = f'''<div class="time-tracker-box" id="tracker_{index}" data-tp-key="{tac_pham_key}" style="margin-top: 0; height: 100%;">
         <div class="tracker-header">
-            ⏱️ { "Theo dõi thời gian" if lang == "vi" else "タイムトラッカー" }
+            <i class="fas fa-stopwatch" style="margin-right: 6px; color: var(--primary);"></i>{ "Theo dõi thời gian" if lang == "vi" else "タイムトラッカー" }
             <label style="float: right; font-size: 0.8rem; font-weight: normal; cursor: pointer; color: var(--text-2);">
-                 <input type="checkbox" id="manual_time_cb_{index}" onchange="toggleManualTime('{index}')"> { "Nhập tay" if lang == "vi" else "手 động入力" }
+                 <input type="checkbox" id="manual_time_cb_{index}" onchange="toggleManualTime('{index}')"> { "Nhập tay" if lang == "vi" else "手動入力" }
             </label>
         </div>
         
         <div class="tracker-controls" id="auto_controls_{index}">
-            <button class="btn-tracker start" id="btn_start_{index}" onclick="startTracker('{index}')">▶ { "Bắt đầu" if lang == "vi" else "開始" }</button>
-            <button class="btn-tracker end" id="btn_end_{index}" onclick="endTracker('{index}')" disabled>⏹ { "Kết thúc" if lang == "vi" else "終了" }</button>
+            <button class="btn-tracker start" id="btn_start_{index}" onclick="startTracker('{index}')"><i class="fas fa-play" style="margin-right: 5px;"></i>{ "Bắt đầu" if lang == "vi" else "開始" }</button>
+            <button class="btn-tracker end" id="btn_end_{index}" onclick="endTracker('{index}')" disabled><i class="fas fa-stop" style="margin-right: 5px;"></i>{ "Kết thúc" if lang == "vi" else "終了" }</button>
             <span class="tracker-time" id="time_display_{index}">00:00:00</span>
         </div>
         
@@ -1074,7 +1074,7 @@ def render_checklist_html(tac_pham_key, index, lang, api_url, checked_ids=None, 
 
         <div class="tracker-inputs">
             <input type="text" id="tracker_note_{index}" placeholder="{ "Mô tả công việc..." if lang == "vi" else "備考..." }" class="tracker-note">
-            <button class="btn-tracker save" id="btn_save_{index}" onclick="saveTracker('{index}', '{tac_pham_key}')">{ "Lưu Log" if lang == "vi" else "保存" }</button>
+            <button class="btn-tracker save" id="btn_save_{index}" onclick="saveTracker('{index}', '{tac_pham_key}')"><i class="fas fa-save" style="margin-right: 5px;"></i>{ "Lưu Log" if lang == "vi" else "保存" }</button>
         </div>
     </div>'''
 
