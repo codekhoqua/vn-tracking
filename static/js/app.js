@@ -332,6 +332,23 @@ document.addEventListener('DOMContentLoaded', () => {
         placeSidebarHighlight();
         placeToolsHighlight();
     });
+
+    // Preload LSA Drive iframe in background so clicking it opens INSTANTLY
+    function preloadDriveIframe() {
+        const iframe = document.getElementById('drive-page-iframe');
+        if (iframe && (!iframe.src || iframe.src === window.location.href || iframe.src.endsWith('/'))) {
+            iframe.src = '/drive?modal=1';
+        }
+    }
+    const navDrive = document.getElementById('nav-drive');
+    if (navDrive) {
+        navDrive.addEventListener('mouseenter', preloadDriveIframe, { once: true });
+    }
+    if ('requestIdleCallback' in window) {
+        window.requestIdleCallback(() => setTimeout(preloadDriveIframe, 1000));
+    } else {
+        setTimeout(preloadDriveIframe, 1500);
+    }
 });
 
 // ===================== LANGUAGE SWITCHING =====================

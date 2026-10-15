@@ -1428,8 +1428,14 @@
                 return;
             }
             
+            // Filter out system and hidden files
+            const visibleItems = (data.items || []).filter(item => {
+                const n = (item.name || '').toLowerCase().trim();
+                return n !== 'system file' && n !== '_system' && !n.startsWith('.') && !n.startsWith('_system') && !n.startsWith('system file');
+            });
+            
             grid.innerHTML = '';
-            if (data.items.length === 0) {
+            if (visibleItems.length === 0) {
                 grid.innerHTML = `
                 <div class="empty-state">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
@@ -1445,12 +1451,12 @@
             }
             
             // Sort folders first
-            data.items.sort((a, b) => {
+            visibleItems.sort((a, b) => {
                 if (a.is_dir === b.is_dir) return a.name.localeCompare(b.name);
                 return a.is_dir ? -1 : 1;
             });
             
-            data.items.forEach((item, idx) => {
+            visibleItems.forEach((item, idx) => {
                 const el = document.createElement('div');
                 el.className = 'drive-item';
                 el.style.animationDelay = `${idx * 0.05}s`; // Staggered animation
@@ -1620,8 +1626,9 @@
 
 
 <!-- ============ MODALS FOR LOGTIME / CHECKLIST ============ -->
+{% if not is_modal and weeks %}
 {% for tab_key in ['truoc', 'nay', 'sau'] %}
-{% for row in weeks[tab_key].tasks %}
+{% for row in weeks.get(tab_key, {}).get('tasks', []) %}
 {% set tp_key = row['tp_key'] %}
 {% set tp_name_display = row['tp_name'] %}
 {% set worker = row['Người thực hiện']|string|trim %}
@@ -1684,6 +1691,7 @@
 </div>
 {% endfor %}
 {% endfor %}
+{% endif %}
 
 
 {% endblock %}
@@ -1901,16 +1909,17 @@
 
     // Store mappings from card name to modal ID
     const modalMap = {};
+    {% if not is_modal and weeks %}
     {% for tab_key in ['truoc', 'nay', 'sau'] %}
     modalMap['{{ tab_key }}'] = {};
-    {% for row in weeks[tab_key].tasks %}
+    {% for row in weeks.get(tab_key, {}).get('tasks', []) %}
     {% set tp_key = row['tp_key'] %}
     modalMap['{{ tab_key }}']["{{ tp_key }}"] = "{{ tab_key }}-{{ loop.index0 }}";
     {% endfor %}
     {% endfor %}
+    {% endif %}
 </script>
 <!-- Confetti Library for Celebration Effects -->
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-<script src="{{ url_for('static', filename='js/app.js') }}?v={{ range(1, 100000) | random }}"></script>
 
 {% endblock %}

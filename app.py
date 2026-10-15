@@ -2951,11 +2951,32 @@ def lsa_drive():
     if not session.get('logged_in'):
         return redirect('/')
         
-    data = process_dashboard_data()
-    if data is None:
-        return "Lỗi tải dữ liệu. Vui lòng kiểm tra lại link Google Sheets.", 500
     is_modal = request.args.get('modal') == '1'
-    return render_template('drive.html', is_modal=is_modal, **data)
+    lang = session.get('lang', 'vi')
+    t = DICT_LANG.get(lang, DICT_LANG['vi'])
+    user = session.get('user', '')
+    role = session.get('role', 'member')
+    user_profiles = {}
+    try:
+        user_profiles = load_user_profiles()
+    except Exception:
+        pass
+
+    return render_template(
+        'drive.html',
+        is_modal=is_modal,
+        lang=lang,
+        t=t,
+        user=user,
+        role=role,
+        user_profiles=user_profiles,
+        weeks={},
+        filter_cv_nay=[],
+        filter_cv_sau=[],
+        users=[],
+        tasks=[],
+        app_version='v1.9.83',
+    )
 
 # =====================================================================
 # DRIVE APIs
@@ -2973,6 +2994,27 @@ USE_SUPABASE = bool(SUPABASE_URL and SUPABASE_SERVICE_KEY)
 
 # File placeholder để "giả lập" thư mục rỗng trên object storage.
 SB_KEEP = '.keep'
+
+HIDDEN_DRIVE_NAMES = {'system file', '_system', '.system', '.keep'}
+
+def is_hidden_drive_item(name):
+    if not name:
+        return True
+    s = str(name).strip().lower()
+    if s in HIDDEN_DRIVE_NAMES:
+        return True
+    if s.startswith('.') or s.startswith('_system') or s.startswith('system file'):
+        return True
+    return False
+
+def is_protected_system_path(path):
+    if not path:
+        return False
+    parts = [p.strip().lower() for p in str(path).replace('\\', '/').split('/') if p.strip()]
+    for p in parts:
+        if p in HIDDEN_DRIVE_NAMES or p.startswith('.') or p.startswith('_system') or p.startswith('system file'):
+            return True
+    return False
 
 
 def _sb_headers(extra=None):
@@ -3033,7 +3075,7 @@ def sb_list(prefix):
     items = []
     for obj in r.json():
         name = obj.get('name')
-        if not name or name == SB_KEEP:
+        if not name or is_hidden_drive_item(name):
             continue
         # Folder: entry không có metadata/id (Supabase trả id=None cho "thư mục" ảo).
         is_dir = obj.get('id') is None
@@ -3140,6 +3182,8 @@ def drive_list():
     items = []
     try:
         for filename in os.listdir(target_dir):
+            if is_hidden_drive_item(filename):
+                continue
             filepath = os.path.join(target_dir, filename)
             is_dir = os.path.isdir(filepath)
             stats = os.stat(filepath)
@@ -3160,6 +3204,9 @@ def drive_upload():
         return jsonify({'error': 'Unauthorized'}), 401
         
     req_path = request.form.get('path', '')
+
+    if is_protected_system_path(req_path):
+        return jsonify({'error': 'Không thể tải lên thư mục hệ thống!'}), 400
 
     if 'file' not in request.files:
         return jsonify({'error': 'No file part'}), 400
@@ -3224,6 +3271,9 @@ def drive_create_folder():
     if not folder_name:
         return jsonify({'error': 'Folder name required'}), 400
 
+    if is_protected_system_path(folder_name) or is_protected_system_path(req_path):
+        return jsonify({'error': 'Không thể tạo hoặc can thiệp vào thư mục hệ thống!'}), 400
+
     if USE_SUPABASE:
         base = _sb_clean(req_path)
         # tên folder không được chứa dấu tách đường dẫn
@@ -3261,6 +3311,9 @@ def drive_delete():
     
     if not req_path:
         return jsonify({'error': 'Path required'}), 400
+
+    if is_protected_system_path(req_path):
+        return jsonify({'error': 'Không thể xóa tệp hoặc thư mục hệ thống!'}), 403
 
     if USE_SUPABASE:
         clean = _sb_clean(req_path)
@@ -3337,6 +3390,15 @@ def drive_delete_multiple():
 
     errors = []
     success_count = 0
+    valid_paths = []
+    for p in paths:
+        if is_protected_system_path(p):
+            errors.append(f"Bảo vệ hệ thống: Không thể xóa {p}")
+            continue
+        valid_paths.append(p)
+    paths = valid_paths
+    if not paths:
+        return jsonify({'success': False, 'error': 'Không có tệp hợp lệ để xóa', 'errors': errors}), 400
 
     if USE_SUPABASE:
         all_objs = []
