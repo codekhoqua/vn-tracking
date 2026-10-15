@@ -866,11 +866,11 @@ def _load_all_tracker_rows(force_refresh=False):
         ws = _get_tracker_ws()
         raw_values = ws.get_all_values()
         parsed_rows = []
-        for row in raw_values[3:]:
+        for idx, row in enumerate(raw_values[3:], start=4):
             if not any(row):
                 continue
-            def _get_c(idx):
-                return str(row[idx]).strip() if len(row) > idx else ''
+            def _get_c(c_idx):
+                return str(row[c_idx]).strip() if len(row) > c_idx else ''
             
             dur = _get_c(1)
             st_time = _get_c(2)
@@ -883,6 +883,7 @@ def _load_all_tracker_rows(force_refresh=False):
             session = _get_c(9)
             
             parsed_rows.append({
+                'row_index': idx,
                 'duration': dur,
                 'start_time': st_time,
                 'end_time': end_time,
@@ -919,6 +920,7 @@ def get_tracker_history_for_session(session_code, task_name=""):
             return False
         return target == val or target in val or val in target
 
+    total_hours = 0.0
     for r in rows:
         r_session = str(r.get('session', '')).strip().lower()
         r_task = str(r.get('task_name', '')).strip().lower()
@@ -927,7 +929,81 @@ def get_tracker_history_for_session(session_code, task_name=""):
            (t_clean and _matches(t_clean, r_task)) or \
            (s_clean and _matches(s_clean, r_task)):
             matched.append(r)
-    return matched
+            try:
+                total_hours += float(r.get('duration') or 0)
+            except (ValueError, TypeError):
+                pass
+
+    total_hours_formatted = int(total_hours) if total_hours.is_integer() else round(total_hours, 2)
+    return {
+        'items': matched,
+        'total_duration': total_hours_formatted,
+        'count': len(matched)
+    }
+
+def delete_tracker_session_gspread(session_code, task_name=""):
+    with tracker_submit_lock:
+        ws = _get_tracker_ws()
+        raw_values = ws.get_all_values()
+        s_clean = str(session_code or '').strip().lower()
+        t_clean = str(task_name or '').strip().lower()
+        expected_session = get_tracker_session_code(task_name).lower() if task_name else ""
+
+        def _matches(target, val):
+            return bool(target and val and (target == val or target in val or val in target))
+
+        rows_to_delete = []
+        for idx, row in enumerate(raw_values[3:], start=4):
+            if not any(row):
+                continue
+            r_task = str(row[5]).strip().lower() if len(row) > 5 else ''
+            r_session = str(row[9]).strip().lower() if len(row) > 9 else ''
+
+            if (s_clean and r_session == s_clean) or \
+               (expected_session and r_session == expected_session) or \
+               (s_clean and _matches(s_clean, r_session)) or \
+               (t_clean and _matches(t_clean, r_task)) or \
+               (s_clean and _matches(s_clean, r_task)):
+                rows_to_delete.append(idx)
+
+        for r_idx in reversed(rows_to_delete):
+            try:
+                ws.delete_rows(r_idx)
+            except Exception as ex:
+                print(f"Error deleting row {r_idx}:", ex)
+
+        _load_all_tracker_rows(force_refresh=True)
+        return len(rows_to_delete)
+
+def delete_tracker_log_row_gspread(row_index, session_code="", task_name=""):
+    with tracker_submit_lock:
+        ws = _get_tracker_ws()
+        deleted = False
+        if row_index and isinstance(row_index, int) and row_index >= 4:
+            try:
+                ws.delete_rows(row_index)
+                deleted = True
+            except Exception as ex:
+                print(f"Error deleting row {row_index}:", ex)
+        
+        if not deleted:
+            raw_values = ws.get_all_values()
+            s_clean = str(session_code or '').strip().lower()
+            t_clean = str(task_name or '').strip().lower()
+            for idx in range(len(raw_values), 3, -1):
+                row = raw_values[idx - 1]
+                r_task = str(row[5]).strip().lower() if len(row) > 5 else ''
+                r_session = str(row[9]).strip().lower() if len(row) > 9 else ''
+                if (s_clean and r_session == s_clean) or (t_clean and r_task == t_clean):
+                    try:
+                        ws.delete_rows(idx)
+                        deleted = True
+                        break
+                    except Exception as ex:
+                        print("Fallback delete row error:", ex)
+
+        _load_all_tracker_rows(force_refresh=True)
+        return deleted
 
 def save_tracker_time_gspread(data):
     def parse_num(val):
@@ -951,8 +1027,17 @@ def save_tracker_time_gspread(data):
     if not session:
         session = get_tracker_session_code(task_name)
 
+    # Calculate sum for this session
+    existing_info = get_tracker_history_for_session(session, task_name)
+    current_sum = float(existing_info.get('total_duration', 0))
+    try:
+        current_sum += float(duration)
+    except (ValueError, TypeError):
+        pass
+    sum_formatted = int(current_sum) if current_sum.is_integer() else round(current_sum, 2)
+
     row_data = [
-        '',             # A: 合計時間
+        sum_formatted,  # A: 合計時間
         duration,       # B: 時間
         start_time,     # C: 開始
         end_time,       # D: 終了
@@ -1434,9 +1519,15 @@ def render_task_tracker_html(tac_pham_key, index, lang):
         </div>
 
         <div class="tracker-history-section" id="tracker_history_section_{index}">
-            <div class="tracker-history-header">
+            <div class="tracker-history-header" style="display: flex; justify-content: space-between; align-items: center;">
                 <span><i class="fas fa-history" style="margin-right: 5px; color: var(--primary);"></i>{ "Lịch sử bấm giờ" if lang == "vi" else "計測履歴" }</span>
-                <span class="tracker-history-count" id="tracker_history_count_{index}" style="font-size: 0.72rem; color: var(--text-3);"></span>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="tracker-history-total" id="tracker_history_total_{index}" style="font-size: 0.76rem; font-weight: 700; color: #10b981; background: rgba(16, 185, 129, 0.12); padding: 2px 7px; border-radius: 4px; display: none;"></span>
+                    <span class="tracker-history-count" id="tracker_history_count_{index}" style="font-size: 0.72rem; color: var(--text-3);"></span>
+                    <button type="button" class="btn-delete-session" id="btn_delete_session_{index}" onclick="deleteTrackerSession('{index}', '{safe_tp}')" style="display: none; background: rgba(239, 68, 68, 0.12); border: none; color: #ef4444; font-size: 0.72rem; font-weight: 600; padding: 2px 7px; border-radius: 4px; cursor: pointer;" title="{ 'Xóa toàn bộ session này' if lang == 'vi' else 'このセッションを全削除' }">
+                        <i class="fas fa-trash-alt" style="margin-right: 3px;"></i>{ "Xóa session" if lang == "vi" else "セッション削除" }
+                    </button>
+                </div>
             </div>
             <div class="tracker-history-list" id="tracker_history_list_{index}">
                 <div class="tracker-history-empty">{ "Chưa có lượt bấm giờ nào" if lang == "vi" else "履歴はありません" }</div>
@@ -3464,8 +3555,13 @@ def api_log_member_time():
     try:
         ok = save_tracker_time_gspread(data)
         if ok:
-            history = get_tracker_history_for_session(session_code, task_name)
-            return jsonify({"status": "success", "history": history})
+            history_info = get_tracker_history_for_session(session_code, task_name)
+            return jsonify({
+                "status": "success", 
+                "history": history_info['items'],
+                "total_duration": history_info['total_duration'],
+                "count": history_info['count']
+            })
         return jsonify({"status": "error", "message": "Không thể lưu vào Google Sheet"}), 500
     except Exception as e:
         print("Log member time error:", e)
@@ -3477,8 +3573,58 @@ def api_tracker_history():
         return jsonify({"status": "error", "message": "Unauthorized"}), 401
     session_code = request.args.get('session', '').strip()
     task_name = request.args.get('task_name', '').strip()
-    history = get_tracker_history_for_session(session_code, task_name)
-    return jsonify({"status": "success", "history": history})
+    history_info = get_tracker_history_for_session(session_code, task_name)
+    return jsonify({
+        "status": "success", 
+        "history": history_info['items'],
+        "total_duration": history_info['total_duration'],
+        "count": history_info['count']
+    })
+
+@app.route('/api/delete_tracker_session', methods=['POST'])
+def api_delete_tracker_session():
+    if not session.get('logged_in'):
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+    data = request.get_json() or {}
+    session_code = data.get('session', '').strip()
+    task_name = data.get('task_name', '').strip()
+    if not session_code and not task_name:
+        return jsonify({"status": "error", "message": "Missing session or task_name"}), 400
+
+    try:
+        count = delete_tracker_session_gspread(session_code, task_name)
+        return jsonify({
+            "status": "success", 
+            "deleted_count": count, 
+            "history": [], 
+            "total_duration": 0, 
+            "count": 0
+        })
+    except Exception as e:
+        print("Delete tracker session error:", e)
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route('/api/delete_tracker_log', methods=['POST'])
+def api_delete_tracker_log():
+    if not session.get('logged_in'):
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+    data = request.get_json() or {}
+    row_index = data.get('row_index')
+    session_code = data.get('session', '').strip()
+    task_name = data.get('task_name', '').strip()
+
+    try:
+        delete_tracker_log_row_gspread(row_index, session_code, task_name)
+        history_info = get_tracker_history_for_session(session_code, task_name)
+        return jsonify({
+            "status": "success", 
+            "history": history_info['items'],
+            "total_duration": history_info['total_duration'],
+            "count": history_info['count']
+        })
+    except Exception as e:
+        print("Delete tracker log error:", e)
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route('/api/change-password', methods=['POST'])
 def api_change_password():

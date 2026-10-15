@@ -7652,9 +7652,11 @@ function escapeHtml(str) {
         .replace(/'/g, '&#039;');
 }
 
-function renderTrackerHistoryList(index, items) {
+function renderTrackerHistoryList(index, items, totalDuration) {
     const listEl = document.getElementById(`tracker_history_list_${index}`);
     const countEl = document.getElementById(`tracker_history_count_${index}`);
+    const totalEl = document.getElementById(`tracker_history_total_${index}`);
+    const deleteSessionBtn = document.getElementById(`btn_delete_session_${index}`);
     if (!listEl) return;
 
     const rawItems = Array.isArray(items) ? items : [];
@@ -7671,7 +7673,18 @@ function renderTrackerHistoryList(index, items) {
 
     const isVi = typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi';
     
+    // Compute total duration
+    let total = totalDuration !== undefined ? totalDuration : uniqueItems.reduce((acc, it) => acc + (parseFloat(it.duration) || 0), 0);
+    let totalFormatted = (typeof total === 'number' && Number.isInteger(total)) ? total : parseFloat(Number(total).toFixed(2));
+    if (isNaN(totalFormatted)) totalFormatted = 0;
+
+    if (totalEl) {
+        totalEl.textContent = isVi ? `Tổng: ${totalFormatted}h` : `合計: ${totalFormatted}h`;
+        totalEl.style.display = uniqueItems.length ? 'inline-block' : 'none';
+    }
+
     if (countEl) countEl.textContent = uniqueItems.length ? `${uniqueItems.length} LOG` : '';
+    if (deleteSessionBtn) deleteSessionBtn.style.display = uniqueItems.length ? 'inline-flex' : 'none';
 
     if (!uniqueItems.length) {
         listEl.innerHTML = `<div class="tracker-history-empty">${isVi ? 'Chưa có lượt bấm giờ nào' : '履歴はありません'}</div>`;
@@ -7686,13 +7699,19 @@ function renderTrackerHistoryList(index, items) {
         const dateStr = item.start_date || item.date || '';
         const dur = item.duration !== undefined ? item.duration : '0';
         const user = item.user || '';
+        const rIdx = item.row_index || 0;
         return `
-            <div class="tracker-history-item">
-                <div class="tracker-history-item-left">
-                    <span class="tracker-history-note" title="${escapeHtml(item.note || '')}">${escapeHtml(note)}</span>
-                    <span class="tracker-history-time">${escapeHtml(timeStr)}${dateStr ? ' • ' + escapeHtml(dateStr) : ''}${user ? ' • ' + escapeHtml(user) : ''}</span>
+            <div class="tracker-history-item" style="display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; border-bottom: 1px solid var(--border); font-size: 0.85rem;">
+                <div class="tracker-history-item-left" style="display: flex; flex-direction: column; gap: 2px; overflow: hidden; max-width: 65%;">
+                    <span class="tracker-history-note" style="font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(item.note || '')}">${escapeHtml(note)}</span>
+                    <span class="tracker-history-time" style="font-size: 0.75rem; color: var(--text-3);">${escapeHtml(timeStr)}${dateStr ? ' • ' + escapeHtml(dateStr) : ''}${user ? ' • ' + escapeHtml(user) : ''}</span>
                 </div>
-                <span class="tracker-history-dur">${escapeHtml(dur)}h</span>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="tracker-history-dur" style="font-family: monospace; font-weight: 700; color: var(--primary); font-size: 0.9rem;">${escapeHtml(dur)}h</span>
+                    <button type="button" class="btn-delete-tracker-item" onclick="deleteTrackerLogItem('${index}', ${rIdx}, '${escapeHtml(item.task_name || '')}')" style="background: none; border: none; color: var(--text-3); cursor: pointer; padding: 4px 6px; border-radius: 4px; font-size: 0.8rem; transition: all 0.2s;" onmouseover="this.style.color='#ef4444'; this.style.background='rgba(239, 68, 68, 0.1)';" onmouseout="this.style.color='var(--text-3)'; this.style.background='none';" title="${isVi ? 'Xóa log này' : 'このログを削除'}">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </div>
             </div>
         `;
     }).join('');
@@ -7709,7 +7728,7 @@ async function loadTrackerHistory(index, tpKey) {
         const res = await fetch(`/api/tracker_history?session=${encodeURIComponent(sessionCode)}&task_name=${encodeURIComponent(tpKey || '')}`);
         const data = await res.json();
         if (data.status === 'success' && Array.isArray(data.history)) {
-            renderTrackerHistoryList(index, data.history);
+            renderTrackerHistoryList(index, data.history, data.total_duration);
         }
     } catch (e) {
         console.error('Failed to load tracker history:', e);
@@ -7752,7 +7771,7 @@ async function executeSaveTracker(index, tpKey, durationHours, finalStartTime, f
             
             // Render history immediately returned from server
             if (Array.isArray(data.history)) {
-                renderTrackerHistoryList(index, data.history);
+                renderTrackerHistoryList(index, data.history, data.total_duration);
             } else {
                 loadTrackerHistory(index, tpKey);
             }
@@ -7789,6 +7808,71 @@ async function executeSaveTracker(index, tpKey, durationHours, finalStartTime, f
             btn.innerHTML = oldText;
             btn.disabled = false;
         }
+    }
+}
+
+async function deleteTrackerSession(index, tpKey) {
+    const isVi = typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi';
+    const trackerBox = document.getElementById(`tracker_${index}`);
+    const sessionCode = trackerBox?.getAttribute('data-session') || '';
+    
+    if (!confirm(isVi ? `Bạn có chắc chắn muốn xóa toàn bộ lịch sử session này (${sessionCode})?` : `このセッション (${sessionCode}) のすべての履歴を削除してもよろしいですか？`)) {
+        return;
+    }
+
+    const btn = document.getElementById(`btn_delete_session_${index}`);
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ...';
+    }
+
+    try {
+        const res = await fetch('/api/delete_tracker_session', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ session: sessionCode, task_name: tpKey })
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+            showToast(isVi ? 'Đã xóa session thành công!' : 'セッションを削除しました！', 'success');
+            renderTrackerHistoryList(index, [], 0);
+        } else {
+            showToast('Error: ' + (data.message || 'Lỗi khi xóa session'), 'error');
+        }
+    } catch (e) {
+        showToast(isVi ? 'Lỗi kết nối khi xóa session!' : '接続エラー！', 'error');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = `<i class="fas fa-trash-alt" style="margin-right: 3px;"></i>${isVi ? 'Xóa session' : 'セッション削除'}`;
+        }
+    }
+}
+
+async function deleteTrackerLogItem(index, rowIndex, tpKey) {
+    const isVi = typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi';
+    const trackerBox = document.getElementById(`tracker_${index}`);
+    const sessionCode = trackerBox?.getAttribute('data-session') || '';
+
+    if (!confirm(isVi ? 'Bạn có chắc chắn muốn xóa lượt bấm giờ này?' : 'この計測履歴を削除してもよろしいですか？')) {
+        return;
+    }
+
+    try {
+        const res = await fetch('/api/delete_tracker_log', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ row_index: rowIndex, session: sessionCode, task_name: tpKey })
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+            showToast(isVi ? 'Đã xóa log thành công!' : 'ログを削除しました！', 'success');
+            renderTrackerHistoryList(index, data.history || [], data.total_duration);
+        } else {
+            showToast('Error: ' + (data.message || 'Lỗi khi xóa log'), 'error');
+        }
+    } catch (e) {
+        showToast(isVi ? 'Lỗi kết nối!' : '接続エラー！', 'error');
     }
 }
 
