@@ -2356,6 +2356,12 @@ function closeModal(modalId) {
         document.body.style.overflow = '';
         if (window.lenis) window.lenis.start();
     }
+    if (window._taskFinishedPendingReload) {
+        window._taskFinishedPendingReload = false;
+        if (typeof window.triggerAutoReloadOnTaskDone === 'function') {
+            window.triggerAutoReloadOnTaskDone();
+        }
+    }
 }
 
 // CALENDAR
@@ -2473,6 +2479,10 @@ function initChecklistInContainer(container) {
                 }).then(r => r.json()).then(data => {
                     if (typeof handlePetXPResponse === 'function') handlePetXPResponse(data);
                 }).catch(() => {});
+
+                if ((rawId === 't9' || rawId === 't8') && e.target.checked) {
+                    window._taskFinishedPendingReload = true;
+                }
 
                 updateTaskProgressLocally(tpKey, container);
             });
@@ -3021,6 +3031,9 @@ function showLogtimeSaveModal(state, isVi) {
             if (window._duoAnim) {
                 try { window._duoAnim.destroy(); } catch (e) {}
                 window._duoAnim = null;
+            }
+            if (typeof window.triggerAutoReloadOnTaskDone === 'function') {
+                window.triggerAutoReloadOnTaskDone();
             }
         };
 
@@ -8140,50 +8153,20 @@ if (typeof document !== 'undefined') {
     }
 
     function triggerAutoReload(newVersion) {
+        // Triggered only when a task is explicitly finished
         if (isReloading) return;
-        
-        // If user is currently typing, wait until they blur or finish
-        if (isUserTyping()) {
-            const active = document.activeElement;
-            const onBlurOnce = () => {
-                active.removeEventListener('blur', onBlurOnce);
-                setTimeout(() => triggerAutoReload(newVersion), 800);
-            };
-            active.addEventListener('blur', onBlurOnce);
-            setTimeout(() => { if (!isReloading) triggerAutoReload(newVersion); }, 15000);
-            return;
-        }
-
         isReloading = true;
-        const isVi = (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi');
-        const verStr = newVersion || 'mới';
-
-        // Display sleek reload overlay
-        const overlay = document.createElement('div');
-        overlay.id = 'auto-reload-overlay';
-        overlay.style.cssText = 'position: fixed; inset: 0; z-index: 9999999; background: rgba(15, 23, 42, 0.88); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; color: #f8fafc; font-family: "Plus Jakarta Sans", Inter, sans-serif;';
-        overlay.innerHTML = `
-            <div style="background: rgba(30, 41, 59, 0.95); border: 1.5px solid rgba(129, 140, 248, 0.4); border-radius: 24px; padding: 32px 40px; text-align: center; box-shadow: 0 25px 60px -15px rgba(0,0,0,0.7); max-width: 440px; width: 90%;">
-                <div style="width: 64px; height: 64px; margin: 0 auto 16px; background: rgba(99, 102, 241, 0.15); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 32px;">
-                    🚀
-                </div>
-                <h3 style="margin: 0 0 10px; font-size: 1.25rem; font-weight: 800; color: #a5b4fc; letter-spacing: -0.02em;">
-                    ${isVi ? 'Đang cập nhật phiên bản mới' : '最新バージョンに更新中'}
-                </h3>
-                <p style="margin: 0 0 20px; font-size: 0.92rem; color: #cbd5e1; line-height: 1.5;">
-                    ${isVi ? `Đã có bản cập nhật <strong>${verStr}</strong>! Hệ thống đang tự động tải lại phiên bản mới...` : `新しいバージョン<strong>${verStr}</strong>が配信されました。自動で再読み込みしています...`}
-                </p>
-                <div style="display: inline-block; width: 32px; height: 32px; border: 3px solid rgba(129, 140, 248, 0.2); border-top-color: #818cf8; border-radius: 50%; animation: ltSpin 0.8s linear infinite;"></div>
-            </div>
-        `;
-        document.body.appendChild(overlay);
-
         setTimeout(() => {
             const url = new URL(window.location.href);
             url.searchParams.set('_bv', Date.now());
             window.location.href = url.toString();
-        }, 1200);
+        }, 500);
     }
+
+    // Exposed helper: reload automatically when a task is finished
+    window.triggerAutoReloadOnTaskDone = function() {
+        triggerAutoReload();
+    };
 
     function checkVersionData(data) {
         if (!data || isReloading) return;
@@ -8193,10 +8176,17 @@ if (typeof document !== 'undefined') {
         if (!clientVersion && sVer) clientVersion = sVer;
         if (!clientBuildId && sBuild) clientBuildId = sBuild;
 
+        // Silently record new version - DO NOT auto reload just because version changed!
         if ((clientVersion && sVer && sVer !== clientVersion) ||
             (clientBuildId && sBuild && sBuild !== clientBuildId)) {
-            console.log(`[AutoReload] New build detected! Client: ${clientVersion} (${clientBuildId}) -> Server: ${sVer} (${sBuild})`);
-            triggerAutoReload(sVer);
+            console.log(`[AutoReload] New build registered: ${sVer}. Reload will only occur when a task is done.`);
+            clientVersion = sVer;
+            clientBuildId = sBuild;
+            window._pendingVersionUpdate = sVer;
+            // Silently update version badge in UI
+            document.querySelectorAll('.version-tag i').forEach(el => {
+                el.textContent = sVer;
+            });
         }
     }
 
