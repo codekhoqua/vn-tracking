@@ -7582,9 +7582,10 @@ async function saveTracker(index, tpKey) {
         let formatDateOnly = (date) => date.toLocaleDateString('en-US'); // MM/DD/YYYY
 
         if (dur) {
-            durationHours = parseFloat(dur);
+            let durHours = parseFloat(dur);
+            durationMinutes = Math.round(durHours * 60);
             let sD = st ? new Date(st.replace(' ', 'T')) : new Date();
-            let eD = et ? new Date(et.replace(' ', 'T')) : new Date(sD.getTime() + durationHours * 3600000);
+            let eD = et ? new Date(et.replace(' ', 'T')) : new Date(sD.getTime() + durationMinutes * 60000);
             finalStartTime = formatTimeOnly(sD);
             finalEndTime = formatTimeOnly(eD);
             finalStartDate = formatDateOnly(sD);
@@ -7595,7 +7596,9 @@ async function saveTracker(index, tpKey) {
             if (eDate < sDate) {
                 eDate.setDate(eDate.getDate() + 1);
             }
-            durationHours = (eDate - sDate) / 3600000;
+            let diffMs = Math.max(0, eDate - sDate);
+            durationMinutes = Math.round(diffMs / 60000);
+            if (diffMs > 0 && durationMinutes === 0) durationMinutes = 1;
             finalStartTime = formatTimeOnly(sDate);
             finalEndTime = formatTimeOnly(eDate);
             finalStartDate = formatDateOnly(sDate);
@@ -7614,7 +7617,11 @@ async function saveTracker(index, tpKey) {
         
         const startTime = parseInt(startTimeStr);
         const endTime = parseInt(endTimeStr);
-        durationHours = (endTime - startTime) / 3600000;
+        let diffMs = Math.max(0, endTime - startTime);
+        durationMinutes = Math.round(diffMs / 60000);
+        if (diffMs > 0 && durationMinutes === 0) {
+            durationMinutes = 1;
+        }
         
         let formatTimeOnly = (date) => date.toLocaleTimeString('en-GB', {hour: '2-digit', minute:'2-digit'});
         let formatDateOnly = (date) => date.toLocaleDateString('en-US');
@@ -7633,13 +7640,44 @@ async function saveTracker(index, tpKey) {
         const todayFormatted = today.toLocaleDateString('en-US'); // MM/DD/YYYY
         if (finalStartDate !== todayFormatted) {
             showConfirmDateModal(finalStartDate, todayFormatted, () => {
-                executeSaveTracker(index, tpKey, durationHours, finalStartTime, finalEndTime, finalStartDate, finalEndDate, isManual);
+                executeSaveTracker(index, tpKey, durationMinutes, finalStartTime, finalEndTime, finalStartDate, finalEndDate, isManual);
             });
             return;
         }
     }
 
-    executeSaveTracker(index, tpKey, durationHours, finalStartTime, finalEndTime, finalStartDate, finalEndDate, isManual);
+    executeSaveTracker(index, tpKey, durationMinutes, finalStartTime, finalEndTime, finalStartDate, finalEndDate, isManual);
+}
+
+function parseDurationToMinutes(val) {
+    if (val === null || val === undefined) return 0;
+    const s = String(val).trim().toLowerCase();
+    if (!s) return 0;
+    const hMatch = s.match(/(\d+(?:\.\d+)?)\s*(?:h|giờ|時間)/);
+    const mMatch = s.match(/(\d+(?:\.\d+)?)\s*(?:p|m|phút|分)/);
+    if (hMatch || mMatch) {
+        const h = hMatch ? parseFloat(hMatch[1]) : 0;
+        const m = mMatch ? parseFloat(mMatch[1]) : 0;
+        return Math.round(h * 60 + m);
+    }
+    const num = parseFloat(s);
+    if (!isNaN(num)) {
+        return Math.round(num * 60);
+    }
+    return 0;
+}
+
+function formatMinutesToDisplay(minutes, isVi = true) {
+    const mins = Math.max(0, Math.round(minutes || 0));
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    if (h > 0 && m > 0) {
+        return isVi ? `${h}h ${m}p` : `${h}時間${m}分`;
+    } else if (h > 0) {
+        return isVi ? `${h}h` : `${h}時間`;
+    } else {
+        return isVi ? `${m}p` : `${m}分`;
+    }
 }
 
 function escapeHtml(str) {
@@ -7673,13 +7711,17 @@ function renderTrackerHistoryList(index, items, totalDuration) {
 
     const isVi = typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi';
     
-    // Compute total duration
-    let total = totalDuration !== undefined ? totalDuration : uniqueItems.reduce((acc, it) => acc + (parseFloat(it.duration) || 0), 0);
-    let totalFormatted = (typeof total === 'number' && Number.isInteger(total)) ? total : parseFloat(Number(total).toFixed(2));
-    if (isNaN(totalFormatted)) totalFormatted = 0;
+    // Compute total duration with minutes
+    let totalMins = 0;
+    if (totalDuration !== undefined && totalDuration !== null && totalDuration !== '') {
+        totalMins = parseDurationToMinutes(totalDuration);
+    } else {
+        totalMins = uniqueItems.reduce((acc, it) => acc + parseDurationToMinutes(it.duration), 0);
+    }
+    const totalDisplay = formatMinutesToDisplay(totalMins, isVi);
 
     if (totalEl) {
-        totalEl.textContent = isVi ? `Tổng: ${totalFormatted}h` : `合計: ${totalFormatted}h`;
+        totalEl.textContent = isVi ? `TỔNG: ${totalDisplay}` : `合計: ${totalDisplay}`;
         totalEl.style.display = uniqueItems.length ? 'inline-block' : 'none';
     }
 
@@ -7692,22 +7734,27 @@ function renderTrackerHistoryList(index, items, totalDuration) {
     }
 
     listEl.innerHTML = uniqueItems.slice().reverse().map(item => {
-        const note = item.note || (isVi ? 'Không có mô tả' : '備考なし');
+        const rawNote = (item.note || '').trim();
+        const hasNote = rawNote && rawNote !== 'Không có mô tả' && rawNote !== '備考なし';
+        const noteHtml = hasNote 
+            ? `<span class="tracker-history-note" style="font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(rawNote)}">${escapeHtml(rawNote)}</span>` 
+            : '';
         const timeStr = (item.start_time && item.end_time) 
             ? `${item.start_time} - ${item.end_time}` 
             : (item.time || '');
         const dateStr = item.start_date || item.date || '';
-        const dur = item.duration !== undefined ? item.duration : '0';
+        const itemMins = parseDurationToMinutes(item.duration);
+        const durDisplay = formatMinutesToDisplay(itemMins, isVi);
         const user = item.user || '';
         const rIdx = item.row_index || 0;
         return `
             <div class="tracker-history-item" style="display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; border-bottom: 1px solid var(--border); font-size: 0.85rem;">
                 <div class="tracker-history-item-left" style="display: flex; flex-direction: column; gap: 2px; overflow: hidden; max-width: 65%;">
-                    <span class="tracker-history-note" style="font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(item.note || '')}">${escapeHtml(note)}</span>
+                    ${noteHtml}
                     <span class="tracker-history-time" style="font-size: 0.75rem; color: var(--text-3);">${escapeHtml(timeStr)}${dateStr ? ' • ' + escapeHtml(dateStr) : ''}${user ? ' • ' + escapeHtml(user) : ''}</span>
                 </div>
                 <div style="display: flex; align-items: center; gap: 8px;">
-                    <span class="tracker-history-dur" style="font-family: monospace; font-weight: 700; color: var(--primary); font-size: 0.9rem;">${escapeHtml(dur)}h</span>
+                    <span class="tracker-history-dur" style="font-family: monospace; font-weight: 700; color: #3b82f6; font-size: 0.85rem; background: rgba(59, 130, 246, 0.12); padding: 2px 7px; border-radius: 4px;">${escapeHtml(durDisplay)}</span>
                     <button type="button" class="btn-delete-tracker-item" onclick="deleteTrackerLogItem('${index}', ${rIdx}, '${escapeHtml(item.task_name || '')}')" style="background: none; border: none; color: var(--text-3); cursor: pointer; padding: 4px 6px; border-radius: 4px; font-size: 0.8rem; transition: all 0.2s;" onmouseover="this.style.color='#ef4444'; this.style.background='rgba(239, 68, 68, 0.1)';" onmouseout="this.style.color='var(--text-3)'; this.style.background='none';" title="${isVi ? 'Xóa log này' : 'このログを削除'}">
                         <i class="fas fa-trash-alt"></i>
                     </button>
@@ -7735,16 +7782,19 @@ async function loadTrackerHistory(index, tpKey) {
     }
 }
 
-async function executeSaveTracker(index, tpKey, durationHours, finalStartTime, finalEndTime, finalStartDate, finalEndDate, isManual) {
+async function executeSaveTracker(index, tpKey, durationMinutes, finalStartTime, finalEndTime, finalStartDate, finalEndDate, isManual) {
     const trackerBox = document.getElementById(`tracker_${index}`);
     const sessionCode = trackerBox?.getAttribute('data-session') || '';
     const note = document.getElementById(`tracker_note_${index}`)?.value || '';
+    const isVi = typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi';
+    const formattedDuration = formatMinutesToDisplay(durationMinutes, isVi);
     
     const payload = {
         action: 'log_member_time',
         task_name: tpKey,
         session: sessionCode,
-        duration: durationHours.toFixed(2),
+        duration: formattedDuration,
+        duration_minutes: durationMinutes,
         start_time: finalStartTime,
         end_time: finalEndTime,
         start_date: finalStartDate,
@@ -7816,7 +7866,7 @@ async function deleteTrackerSession(index, tpKey) {
     const trackerBox = document.getElementById(`tracker_${index}`);
     const sessionCode = trackerBox?.getAttribute('data-session') || '';
     
-    if (!confirm(isVi ? `Bạn có chắc chắn muốn xóa toàn bộ lịch sử session này (${sessionCode})?` : `このセッション (${sessionCode}) のすべての履歴を削除してもよろしいですか？`)) {
+    if (!confirm(isVi ? 'Bạn có chắc chắn muốn xóa toàn bộ lịch sử bấm giờ này?' : 'このタスクのすべての計測履歴を削除してもよろしいですか？')) {
         return;
     }
 

@@ -908,6 +908,36 @@ def get_tracker_session_code(tac_pham_key):
     h = hashlib.md5(clean_k.encode('utf-8')).hexdigest()[:8].upper()
     return f"TRK-{h}"
 
+def parse_duration_to_minutes(val):
+    """Chuyển đổi mọi định dạng thời gian (1.5, '1h 30p', '45p', '2h') thành số phút."""
+    if val is None or str(val).strip() == '':
+        return 0
+    s = str(val).strip().lower()
+    h_match = re.search(r'(\d+(?:\.\d+)?)\s*(?:h|giờ|時間)', s)
+    m_match = re.search(r'(\d+(?:\.\d+)?)\s*(?:p|m|phút|分)', s)
+    if h_match or m_match:
+        h = float(h_match.group(1)) if h_match else 0.0
+        m = float(m_match.group(1)) if m_match else 0.0
+        return int(round(h * 60 + m))
+    try:
+        f = float(s)
+        return int(round(f * 60))
+    except ValueError:
+        return 0
+
+def format_minutes_to_display(minutes, lang='vi'):
+    mins = int(round(minutes or 0))
+    if mins <= 0:
+        return '0p' if lang == 'vi' else '0分'
+    h = mins // 60
+    m = mins % 60
+    if h > 0 and m > 0:
+        return f"{h}h {m}p" if lang == 'vi' else f"{h}時間{m}分"
+    elif h > 0:
+        return f"{h}h" if lang == 'vi' else f"{h}時間"
+    else:
+        return f"{m}p" if lang == 'vi' else f"{m}分"
+
 def get_tracker_history_for_session(session_code, task_name=""):
     rows = _load_all_tracker_rows()
     matched = []
@@ -920,7 +950,7 @@ def get_tracker_history_for_session(session_code, task_name=""):
             return False
         return target == val or target in val or val in target
 
-    total_hours = 0.0
+    total_minutes = 0
     for r in rows:
         r_session = str(r.get('session', '')).strip().lower()
         r_task = str(r.get('task_name', '')).strip().lower()
@@ -928,16 +958,20 @@ def get_tracker_history_for_session(session_code, task_name=""):
            (expected_session and r_session == expected_session) or \
            (t_clean and _matches(t_clean, r_task)) or \
            (s_clean and _matches(s_clean, r_task)):
-            matched.append(r)
-            try:
-                total_hours += float(r.get('duration') or 0)
-            except (ValueError, TypeError):
-                pass
+            item_copy = dict(r)
+            dur_mins = parse_duration_to_minutes(item_copy.get('duration'))
+            if dur_mins > 0:
+                item_copy['duration'] = format_minutes_to_display(dur_mins)
+            elif not item_copy.get('duration') or item_copy.get('duration') in ('0', '0.0', '0.00', '0h'):
+                item_copy['duration'] = '0p'
+            matched.append(item_copy)
+            total_minutes += dur_mins
 
-    total_hours_formatted = int(total_hours) if total_hours.is_integer() else round(total_hours, 2)
+    total_display = format_minutes_to_display(total_minutes)
     return {
         'items': matched,
-        'total_duration': total_hours_formatted,
+        'total_duration': total_display,
+        'total_minutes': total_minutes,
         'count': len(matched)
     }
 
@@ -1006,16 +1040,18 @@ def delete_tracker_log_row_gspread(row_index, session_code="", task_name=""):
         return deleted
 
 def save_tracker_time_gspread(data):
-    def parse_num(val):
-        if val is None or str(val).strip() == '':
-            return ''
+    raw_dur = str(data.get('duration', '0')).strip()
+    dur_minutes = data.get('duration_minutes')
+    if dur_minutes is None:
+        dur_minutes = parse_duration_to_minutes(raw_dur)
+    else:
         try:
-            f = float(val)
-            return int(f) if f.is_integer() else f
-        except ValueError:
-            return str(val)
+            dur_minutes = int(dur_minutes)
+        except (ValueError, TypeError):
+            dur_minutes = parse_duration_to_minutes(raw_dur)
 
-    duration = parse_num(data.get('duration', '0'))
+    formatted_duration = format_minutes_to_display(dur_minutes) if dur_minutes > 0 else raw_dur
+
     start_time = str(data.get('start_time', '')).strip()
     end_time = str(data.get('end_time', '')).strip()
     note = str(data.get('note', '')).strip()
@@ -1029,24 +1065,20 @@ def save_tracker_time_gspread(data):
 
     # Calculate sum for this session
     existing_info = get_tracker_history_for_session(session, task_name)
-    current_sum = float(existing_info.get('total_duration', 0))
-    try:
-        current_sum += float(duration)
-    except (ValueError, TypeError):
-        pass
-    sum_formatted = int(current_sum) if current_sum.is_integer() else round(current_sum, 2)
+    current_total_mins = existing_info.get('total_minutes', 0) + dur_minutes
+    total_display = format_minutes_to_display(current_total_mins)
 
     row_data = [
-        sum_formatted,  # A: 合計時間
-        duration,       # B: 時間
-        start_time,     # C: 開始
-        end_time,       # D: 終了
-        note,           # E: 備考
-        task_name,      # F: 作品名
-        username,       # G: 担当者
-        start_date,     # H: 開始日
-        end_date,       # I: 終了日
-        session         # J: Session
+        total_display,        # A: 合計時間
+        formatted_duration,   # B: 時間
+        start_time,           # C: 開始
+        end_time,             # D: 終了
+        note,                 # E: 備考
+        task_name,            # F: 作品名
+        username,             # G: 担当者
+        start_date,           # H: 開始日
+        end_date,             # I: 終了日
+        session               # J: Session
     ]
 
     with tracker_submit_lock:
@@ -1064,7 +1096,7 @@ def save_tracker_time_gspread(data):
             ws.append_row(row_data, value_input_option='USER_ENTERED')
             
         new_record = {
-            'duration': str(duration),
+            'duration': formatted_duration,
             'start_time': start_time,
             'end_time': end_time,
             'note': note,
@@ -1492,7 +1524,6 @@ def render_task_tracker_html(tac_pham_key, index, lang):
         <div class="tracker-header">
             <span>
                 <i class="fas fa-stopwatch" style="margin-right: 6px; color: var(--primary);"></i>{ "Theo dõi thời gian" if lang == "vi" else "タイムトラッカー" }
-                <span class="tracker-session-badge" style="font-size: 0.75rem; font-family: monospace; background: rgba(99, 102, 241, 0.15); color: var(--primary); padding: 2px 6px; border-radius: 4px; margin-left: 6px;" title="Mã session: {session_code}">{session_code}</span>
             </span>
             <label style="font-size: 0.8rem; font-weight: normal; cursor: pointer; color: var(--text-2);">
                  <input type="checkbox" id="manual_time_cb_{index}" onchange="toggleManualTime('{index}')"> { "Nhập tay" if lang == "vi" else "手動入力" }
