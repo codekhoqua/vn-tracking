@@ -8637,4 +8637,181 @@ if (typeof document !== 'undefined') {
     }
 })();
 
+// =====================================================================
+// LEAVE REQUEST (TEAM CALENDAR)
+// =====================================================================
+let isSubmittingLeave = false;
+let leaveStartPicker = null;
+let leaveEndPicker = null;
+
+// Configurable entry mapping for Google Form
+window.GOOGLE_LEAVE_FORM_CONFIG = {
+    formUrl: "https://docs.google.com/forms/d/e/1FAIpQLSdTN5OaUnud70UtSV9ygYJ8ob-nBk5VOFlfrJwaow9W-TcKJg/formResponse",
+    entries: {
+        fullname: "entry.1",
+        leaveType: "entry.2",
+        startDate: "entry.3",
+        endDate: "entry.4",
+        reason: "entry.5",
+        handover: "entry.6"
+    }
+};
+
+function openLeaveModal() {
+    const modal = document.getElementById('leave-modal');
+    const overlay = document.getElementById('leave-overlay');
+    if (!modal || !overlay) return;
+
+    modal.style.display = 'block';
+    overlay.style.display = 'block';
+    requestAnimationFrame(() => {
+        overlay.classList.add('open');
+    });
+
+    if (window.pauseWeatherEffect) window.pauseWeatherEffect();
+
+    // Init flatpickrs if not yet initialized
+    const startInput = document.getElementById('leave-start-date');
+    const endInput = document.getElementById('leave-end-date');
+    const today = new Date().toISOString().split('T')[0];
+
+    if (typeof flatpickr !== 'undefined') {
+        if (!leaveStartPicker && startInput) {
+            leaveStartPicker = flatpickr(startInput, {
+                defaultDate: today,
+                dateFormat: "Y-m-d",
+                onChange: function(selectedDates, dateStr) {
+                    if (leaveEndPicker && (!endInput.value || endInput.value < dateStr)) {
+                        leaveEndPicker.setDate(dateStr);
+                    }
+                }
+            });
+        }
+        if (!leaveEndPicker && endInput) {
+            leaveEndPicker = flatpickr(endInput, {
+                defaultDate: today,
+                dateFormat: "Y-m-d"
+            });
+        }
+    } else {
+        if (startInput && !startInput.value) startInput.value = today;
+        if (endInput && !endInput.value) endInput.value = today;
+    }
+}
+
+function closeLeaveModal() {
+    const modal = document.getElementById('leave-modal');
+    const overlay = document.getElementById('leave-overlay');
+    if (modal) modal.style.display = 'none';
+    if (overlay) {
+        overlay.classList.remove('open');
+        overlay.style.display = 'none';
+    }
+    if (window.resumeWeatherEffect) window.resumeWeatherEffect();
+}
+
+function onLeaveIframeLoad() {
+    if (isSubmittingLeave) {
+        finishLeaveSubmission(true);
+    }
+}
+
+function finishLeaveSubmission(success) {
+    isSubmittingLeave = false;
+    const btn = document.getElementById('btn-submit-leave');
+    if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-paper-plane"></i> <span>Gửi đơn nghỉ phép</span>';
+    }
+    closeLeaveModal();
+    if (success) {
+        if (typeof showToast === 'function') {
+            showToast('✅ Đã gửi đơn nghỉ phép thành công!', 'success');
+        } else {
+            alert('Đã gửi đơn nghỉ phép thành công!');
+        }
+    }
+}
+
+async function submitLeaveRequest(e) {
+    if (e) e.preventDefault();
+    if (isSubmittingLeave) return;
+
+    const fullname = (document.getElementById('leave-fullname')?.value || '').trim();
+    const leaveType = (document.getElementById('leave-type')?.value || '').trim();
+    const startDate = (document.getElementById('leave-start-date')?.value || '').trim();
+    const endDate = (document.getElementById('leave-end-date')?.value || '').trim();
+    const reason = (document.getElementById('leave-reason')?.value || '').trim();
+    const handover = (document.getElementById('leave-handover')?.value || '').trim();
+
+    if (!fullname || !startDate || !endDate) {
+        if (typeof showToast === 'function') {
+            showToast('Vui lòng điền đầy đủ họ tên và thời gian nghỉ!', 'error');
+        } else {
+            alert('Vui lòng điền đầy đủ họ tên và thời gian nghỉ!');
+        }
+        return;
+    }
+
+    isSubmittingLeave = true;
+    const btn = document.getElementById('btn-submit-leave');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Đang gửi đơn...</span>';
+    }
+
+    // 1. Post to local API backup
+    try {
+        fetch('/api/submit_leave_request', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                fullname: fullname,
+                leave_type: leaveType,
+                start_date: startDate,
+                end_date: endDate,
+                reason: reason,
+                handover: handover
+            })
+        }).catch(() => {});
+    } catch (_) {}
+
+    // 2. Submit to Google Form via hidden form & iframe
+    try {
+        const hiddenForm = document.getElementById('google-hidden-leave-form');
+        if (hiddenForm) {
+            hiddenForm.innerHTML = '';
+            const cfg = window.GOOGLE_LEAVE_FORM_CONFIG.entries;
+
+            const appendField = (name, val) => {
+                if (!name) return;
+                const inp = document.createElement('input');
+                inp.type = 'hidden';
+                inp.name = name;
+                inp.value = val;
+                hiddenForm.appendChild(inp);
+            };
+
+            appendField(cfg.fullname, fullname);
+            appendField(cfg.leaveType, leaveType);
+            appendField(cfg.startDate, startDate);
+            appendField(cfg.endDate, endDate);
+            appendField(cfg.reason, reason);
+            appendField(cfg.handover, handover);
+
+            hiddenForm.submit();
+        }
+    } catch (err) {
+        console.warn('Google form hidden submit error:', err);
+    }
+
+    // Fallback timer if iframe load event is blocked by cross-origin
+    setTimeout(() => {
+        if (isSubmittingLeave) {
+            finishLeaveSubmission(true);
+        }
+    }, 1800);
+}
+
+
 
