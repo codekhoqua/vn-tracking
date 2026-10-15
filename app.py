@@ -2975,7 +2975,7 @@ def lsa_drive():
         filter_cv_sau=[],
         users=[],
         tasks=[],
-        app_version='v1.9.90',
+        app_version='v1.9.91',
     )
 
 # =====================================================================
@@ -3866,6 +3866,53 @@ def calendar_view():
         embed_url = embed_url.replace('&amp;', '&')
         return redirect(embed_url)
     return "<h3 style='color: #cbd5e1; font-family: sans-serif; text-align: center; margin-top: 50px;'>Vui lòng dán mã nhúng vào biến GOOGLE_CALENDAR_EMBED_URL trong file .env.local</h3>", 200
+
+@app.route('/api/submit_leave_request', methods=['POST'])
+def api_submit_leave_request():
+    if not session.get('logged_in'):
+        return jsonify({"ok": False, "error": "Unauthorized"}), 401
+    try:
+        data = request.get_json() or {}
+        fullname = str(data.get('fullname') or session.get('user') or '').strip()
+        leave_type = str(data.get('leave_type') or '').strip()
+        start_date = str(data.get('start_date') or '').strip()
+        end_date = str(data.get('end_date') or '').strip()
+        reason = str(data.get('reason') or '').strip()
+        handover = str(data.get('handover') or '').strip()
+        username = session.get('user', '')
+
+        rec = {
+            "id": f"leave_{int(time.time())}_{uuid.uuid4().hex[:6]}",
+            "username": username,
+            "fullname": fullname,
+            "leave_type": leave_type,
+            "start_date": start_date,
+            "end_date": end_date,
+            "reason": reason,
+            "handover": handover,
+            "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+
+        # Save to data/leave_requests.json
+        data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
+        os.makedirs(data_dir, exist_ok=True)
+        file_path = os.path.join(data_dir, 'leave_requests.json')
+        leaves = []
+        if os.path.exists(file_path):
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    leaves = json.load(f)
+            except Exception:
+                leaves = []
+        leaves.insert(0, rec)
+        # Giữ lại tối đa 200 đơn gần nhất
+        leaves = leaves[:200]
+        with open(file_path, 'w', encoding='utf-8') as f:
+            json.dump(leaves, f, ensure_ascii=False, indent=2)
+
+        return jsonify({"ok": True, "record": rec})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
 
 @app.route('/api/export_notion_csv')
 def export_notion_csv():
