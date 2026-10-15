@@ -1727,14 +1727,16 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
 /* Time Tracker Card */
 .task-side-col .time-tracker-box {
     margin-top: 0;
+    flex: 0 0 auto !important;
+    height: auto !important;
     background: linear-gradient(145deg, rgba(30, 32, 48, 0.75), rgba(20, 22, 34, 0.85));
     border: 1px solid rgba(99, 102, 241, 0.22);
     border-radius: var(--radius-xl);
-    padding: 18px 20px;
+    padding: 12px 18px;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 8px;
     position: relative;
     overflow: hidden;
 }
@@ -1859,12 +1861,12 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
     background: linear-gradient(145deg, rgba(30, 32, 48, 0.75), rgba(20, 22, 34, 0.85));
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: var(--radius-xl);
-    padding: 20px 22px;
+    padding: 22px 24px;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
     display: flex;
     flex-direction: column;
-    flex: 1;
-    justify-content: space-between;
+    flex: 1 1 auto;
+    min-height: 480px;
 }
 
 .task-side-col .task-page-logtime-header {
@@ -1891,24 +1893,30 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
     flex: 1;
     display: flex;
     flex-direction: column;
+}
+
+.task-side-col .task-page-logtime-card .logtime-form form {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
     justify-content: space-between;
 }
 
 .task-side-col .form-row.cols-4 {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 14px 14px;
-    margin-bottom: 14px;
+    gap: 16px 16px;
+    margin-bottom: 16px;
 }
 
 .task-side-col .form-group {
     display: flex;
     flex-direction: column;
-    gap: 5px;
+    gap: 6px;
 }
 
 .task-side-col .form-group label {
-    font-size: 0.76rem;
+    font-size: 0.8rem;
     font-weight: 700;
     color: var(--text-3);
     margin-bottom: 2px;
@@ -1917,12 +1925,12 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
 .task-side-col .form-group select,
 .task-side-col .form-group input {
     width: 100%;
-    padding: 9px 12px;
-    background: rgba(0, 0, 0, 0.3);
-    border: 1px solid rgba(255, 255, 255, 0.09);
+    padding: 10px 14px;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: var(--radius-md);
     color: var(--text);
-    font-size: 0.86rem;
+    font-size: 0.9rem;
     font-family: inherit;
     transition: all 0.2s ease;
     box-sizing: border-box;
