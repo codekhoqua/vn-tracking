@@ -7557,6 +7557,9 @@ function updateCardBadge(index, active, h='00', m='00') {
 }
 
 async function saveTracker(index, tpKey) {
+    const btnSave = document.getElementById(`btn_save_${index}`);
+    if (btnSave && btnSave.disabled) return;
+
     const isManual = document.getElementById(`manual_time_cb_${index}`)?.checked;
     
     let durationHours = 0;
@@ -7654,17 +7657,28 @@ function renderTrackerHistoryList(index, items) {
     const countEl = document.getElementById(`tracker_history_count_${index}`);
     if (!listEl) return;
 
-    items = Array.isArray(items) ? items : [];
+    const rawItems = Array.isArray(items) ? items : [];
+    // Deduplicate identical items
+    const seen = new Set();
+    const uniqueItems = [];
+    for (const it of rawItems) {
+        const sig = `${it.duration}_${it.start_time}_${it.end_time}_${it.note}_${it.start_date}_${it.user}`;
+        if (!seen.has(sig)) {
+            seen.add(sig);
+            uniqueItems.push(it);
+        }
+    }
+
     const isVi = typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi';
     
-    if (countEl) countEl.textContent = items.length ? `${items.length} LOG` : '';
+    if (countEl) countEl.textContent = uniqueItems.length ? `${uniqueItems.length} LOG` : '';
 
-    if (!items.length) {
+    if (!uniqueItems.length) {
         listEl.innerHTML = `<div class="tracker-history-empty">${isVi ? 'Chưa có lượt bấm giờ nào' : '履歴はありません'}</div>`;
         return;
     }
 
-    listEl.innerHTML = items.slice().reverse().map(item => {
+    listEl.innerHTML = uniqueItems.slice().reverse().map(item => {
         const note = item.note || (isVi ? 'Không có mô tả' : '備考なし');
         const timeStr = (item.start_time && item.end_time) 
             ? `${item.start_time} - ${item.end_time}` 
@@ -7689,7 +7703,7 @@ async function loadTrackerHistory(index, tpKey) {
     if (!listEl) return;
 
     const trackerBox = document.getElementById(`tracker_${index}`);
-    const sessionCode = trackerBox?.getAttribute('data-session') || tpKey || '';
+    const sessionCode = trackerBox?.getAttribute('data-session') || '';
 
     try {
         const res = await fetch(`/api/tracker_history?session=${encodeURIComponent(sessionCode)}&task_name=${encodeURIComponent(tpKey || '')}`);
@@ -7704,7 +7718,7 @@ async function loadTrackerHistory(index, tpKey) {
 
 async function executeSaveTracker(index, tpKey, durationHours, finalStartTime, finalEndTime, finalStartDate, finalEndDate, isManual) {
     const trackerBox = document.getElementById(`tracker_${index}`);
-    const sessionCode = trackerBox?.getAttribute('data-session') || tpKey || '';
+    const sessionCode = trackerBox?.getAttribute('data-session') || '';
     const note = document.getElementById(`tracker_note_${index}`)?.value || '';
     
     const payload = {

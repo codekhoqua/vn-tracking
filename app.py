@@ -899,11 +899,20 @@ def _load_all_tracker_rows(force_refresh=False):
         print("Lỗi load tracker rows:", e)
         return _tracker_history_cache.get('rows', [])
 
+def get_tracker_session_code(tac_pham_key):
+    """Tạo mã session chuẩn cho tracker (vd: TRK-3CF53CFF)."""
+    if not tac_pham_key:
+        return ""
+    clean_k = str(tac_pham_key).strip()
+    h = hashlib.md5(clean_k.encode('utf-8')).hexdigest()[:8].upper()
+    return f"TRK-{h}"
+
 def get_tracker_history_for_session(session_code, task_name=""):
     rows = _load_all_tracker_rows()
     matched = []
     s_clean = str(session_code or '').strip().lower()
     t_clean = str(task_name or '').strip().lower()
+    expected_session = get_tracker_session_code(task_name).lower() if task_name else ""
     
     def _matches(target, val):
         if not target or not val:
@@ -913,7 +922,8 @@ def get_tracker_history_for_session(session_code, task_name=""):
     for r in rows:
         r_session = str(r.get('session', '')).strip().lower()
         r_task = str(r.get('task_name', '')).strip().lower()
-        if (s_clean and _matches(s_clean, r_session)) or \
+        if (s_clean and r_session == s_clean) or \
+           (expected_session and r_session == expected_session) or \
            (t_clean and _matches(t_clean, r_task)) or \
            (s_clean and _matches(s_clean, r_task)):
             matched.append(r)
@@ -937,7 +947,9 @@ def save_tracker_time_gspread(data):
     username = str(data.get('username', '')).strip()
     start_date = str(data.get('start_date', '')).strip()
     end_date = str(data.get('end_date', '')).strip()
-    session = str(data.get('session', '') or task_name).strip()
+    session = str(data.get('session', '')).strip()
+    if not session:
+        session = get_tracker_session_code(task_name)
 
     row_data = [
         '',             # A: 合計時間
@@ -953,6 +965,11 @@ def save_tracker_time_gspread(data):
     ]
 
     with tracker_submit_lock:
+        had_cache = bool(_tracker_history_cache.get('rows'))
+        if not had_cache:
+            _load_all_tracker_rows(force_refresh=False)
+            had_cache = bool(_tracker_history_cache.get('rows'))
+
         try:
             ws = _get_tracker_ws()
             ws.append_row(row_data, value_input_option='USER_ENTERED')
@@ -972,10 +989,11 @@ def save_tracker_time_gspread(data):
             'end_date': end_date,
             'session': session
         }
-        if not _tracker_history_cache.get('rows'):
-            _load_all_tracker_rows()
-        if 'rows' in _tracker_history_cache and isinstance(_tracker_history_cache['rows'], list):
+        if had_cache and 'rows' in _tracker_history_cache and isinstance(_tracker_history_cache['rows'], list):
             _tracker_history_cache['rows'].append(new_record)
+        else:
+            _load_all_tracker_rows(force_refresh=True)
+
         print(f"==> [Service Account Tracker] Đã lưu tracker vào JPメンバー用 cho: {task_name} ({username}) Session: {session}", flush=True)
         return True
 
@@ -1384,9 +1402,13 @@ def render_task_handover_html(tac_pham_key, index, lang, row_data=None):
 
 def render_task_tracker_html(tac_pham_key, index, lang):
     safe_tp = str(tac_pham_key).replace('"', '&quot;')
-    return f'''<div class="time-tracker-box" id="tracker_{index}" data-tp-key="{safe_tp}" data-session="{safe_tp}" style="margin-top: 0;">
+    session_code = get_tracker_session_code(tac_pham_key)
+    return f'''<div class="time-tracker-box" id="tracker_{index}" data-tp-key="{safe_tp}" data-session="{session_code}" style="margin-top: 0;">
         <div class="tracker-header">
-            <span><i class="fas fa-stopwatch" style="margin-right: 6px; color: var(--primary);"></i>{ "Theo dõi thời gian" if lang == "vi" else "タイムトラッカー" }</span>
+            <span>
+                <i class="fas fa-stopwatch" style="margin-right: 6px; color: var(--primary);"></i>{ "Theo dõi thời gian" if lang == "vi" else "タイムトラッカー" }
+                <span class="tracker-session-badge" style="font-size: 0.75rem; font-family: monospace; background: rgba(99, 102, 241, 0.15); color: var(--primary); padding: 2px 6px; border-radius: 4px; margin-left: 6px;" title="Mã session: {session_code}">{session_code}</span>
+            </span>
             <label style="font-size: 0.8rem; font-weight: normal; cursor: pointer; color: var(--text-2);">
                  <input type="checkbox" id="manual_time_cb_{index}" onchange="toggleManualTime('{index}')"> { "Nhập tay" if lang == "vi" else "手動入力" }
             </label>
