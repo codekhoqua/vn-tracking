@@ -2992,7 +2992,7 @@ def lsa_drive():
         filter_cv_sau=[],
         users=[],
         tasks=[],
-        app_version='v1.9.97',
+        app_version='v1.9.98',
     )
 
 # =====================================================================
@@ -3884,6 +3884,71 @@ def calendar_view():
         return redirect(embed_url)
     return "<h3 style='color: #cbd5e1; font-family: sans-serif; text-align: center; margin-top: 50px;'>Vui lòng dán mã nhúng vào biến GOOGLE_CALENDAR_EMBED_URL trong file .env.local</h3>", 200
 
+LEAVE_GDRIVE_FOLDER_ID = '1rcBkd1l_JZvXx_9m5uIITnj1qNzPNR81Zj5OldGQcVcqSpYafh3d3KU_-R8ZXsI7nOQKL4Sr'
+
+def upload_leave_file_to_gdrive(file_bytes, filename, mime_type=None, folder_id=LEAVE_GDRIVE_FOLDER_ID):
+    """Tải file xác nhận nghỉ phép lên thư mục Google Drive của công ty."""
+    try:
+        creds_dict = load_credentials_dict()
+        if not creds_dict:
+            return False, "Chưa cấu hình credentials Google"
+
+        from google.oauth2.service_account import Credentials
+        import google.auth.transport.requests
+
+        creds = Credentials.from_service_account_info(
+            creds_dict,
+            scopes=['https://www.googleapis.com/auth/drive']
+        )
+        req = google.auth.transport.requests.Request()
+        creds.refresh(req)
+        token = creds.token
+        if not token:
+            return False, "Không lấy được access token Google"
+
+        if not mime_type:
+            ext = os.path.splitext(filename)[1].lower()
+            mime_map = {
+                '.png': 'image/png',
+                '.jpg': 'image/jpeg',
+                '.jpeg': 'image/jpeg',
+                '.webp': 'image/webp',
+                '.pdf': 'application/pdf'
+            }
+            mime_type = mime_map.get(ext, 'image/jpeg')
+
+        metadata = {
+            'name': filename,
+            'parents': [folder_id]
+        }
+        files = {
+            'data': ('metadata', json.dumps(metadata), 'application/json; charset=UTF-8'),
+            'file': (filename, file_bytes, mime_type)
+        }
+        r = requests.post(
+            'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true',
+            headers={'Authorization': f'Bearer {token}'},
+            files=files,
+            timeout=30
+        )
+        if r.status_code in [200, 201]:
+            res = r.json()
+            file_id = res.get('id')
+            web_link = f"https://drive.google.com/file/d/{file_id}/view"
+            print(f"[GDrive Upload Success] id={file_id}, file={filename}")
+            return True, web_link
+        elif r.status_code == 404:
+            err_msg = "Thư mục Google Drive chưa được chia sẻ với email bot (logtime-sa@logtime-app-3366.iam.gserviceaccount.com)"
+            print(f"[GDrive Upload Error 404] {err_msg}")
+            return False, err_msg
+        else:
+            err_msg = f"HTTP {r.status_code}: {r.text}"
+            print(f"[GDrive Upload Error] {err_msg}")
+            return False, err_msg
+    except Exception as e:
+        print(f"[GDrive Upload Exception] {e}")
+        return False, str(e)
+
 @app.route('/api/submit_leave_request', methods=['POST'])
 def api_submit_leave_request():
     if not session.get('logged_in'):
@@ -3911,16 +3976,48 @@ def api_submit_leave_request():
 
         # Handle attachment file if uploaded
         attachment_filename = ''
+        gdrive_uploaded = False
+        gdrive_link = ''
+        gdrive_err = ''
+
         if 'attachment' in request.files:
             file = request.files['attachment']
             if file and file.filename:
-                safe_name = re.sub(r'[^a-zA-Z0-9_.-]', '_', file.filename)
+                ext = os.path.splitext(file.filename)[1] or '.png'
+                target_filename = str(data.get('target_filename') or '').strip()
+                if not target_filename or not target_filename.startswith('HR - Leave Request'):
+                    yymmdd = 'YYMMDD'
+                    if start_date:
+                        parts = start_date.split('-')
+                        if len(parts) == 3:
+                            yymmdd = f"{parts[0][-2:]}{parts[1].zfill(2)}{parts[2].zfill(2)}"
+                    target_filename = f"HR - Leave Request - {yymmdd} - {staff_code or 'MÃ_NV'} - {fullname or 'HỌ_VÀ_TÊN'}{ext}"
+                elif not os.path.splitext(target_filename)[1]:
+                    target_filename += ext
+
+                file_bytes = file.read()
+
+                # Lưu ở local
                 data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
                 attach_dir = os.path.join(data_dir, 'leave_attachments')
                 os.makedirs(attach_dir, exist_ok=True)
-                save_filename = f"{int(time.time())}_{safe_name}"
-                file.save(os.path.join(attach_dir, save_filename))
-                attachment_filename = save_filename
+                local_path = os.path.join(attach_dir, target_filename)
+                with open(local_path, 'wb') as lf:
+                    lf.write(file_bytes)
+                attachment_filename = target_filename
+
+                # Upload lên Google Drive
+                ok, res_link = upload_leave_file_to_gdrive(
+                    file_bytes=file_bytes,
+                    filename=target_filename,
+                    mime_type=file.content_type,
+                    folder_id=LEAVE_GDRIVE_FOLDER_ID
+                )
+                if ok:
+                    gdrive_uploaded = True
+                    gdrive_link = res_link
+                else:
+                    gdrive_err = res_link
 
         rec = {
             "id": f"leave_{int(time.time())}_{uuid.uuid4().hex[:6]}",
@@ -3938,6 +4035,8 @@ def api_submit_leave_request():
             "reason": reason,
             "handover": handover,
             "attachment": attachment_filename,
+            "gdrive_link": gdrive_link,
+            "gdrive_uploaded": gdrive_uploaded,
             "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         }
 
@@ -3958,7 +4057,13 @@ def api_submit_leave_request():
         with open(file_path, 'w', encoding='utf-8') as f:
             json.dump(leaves, f, ensure_ascii=False, indent=2)
 
-        return jsonify({"ok": True, "record": rec})
+        return jsonify({
+            "ok": True,
+            "record": rec,
+            "gdrive_uploaded": gdrive_uploaded,
+            "gdrive_link": gdrive_link,
+            "gdrive_error": gdrive_err
+        })
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
 
