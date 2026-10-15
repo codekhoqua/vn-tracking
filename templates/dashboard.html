@@ -475,6 +475,12 @@
                                             <div id="leave-gdrive-upload-status" style="font-size: 0.82rem; display: none;"></div>
                                         </div>
                                     </div>
+
+                                    <!-- Thông báo bắt buộc tải ảnh lên Drive thành công mới được gửi đơn -->
+                                    <div id="leave-upload-required-notice" style="margin-top: 12px; padding: 10px 14px; border-radius: 8px; font-size: 0.82rem; display: flex; align-items: center; gap: 8px; background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); color: #fbbf24;">
+                                        <i class="fas fa-exclamation-triangle"></i>
+                                        <span><strong>Bắt buộc:</strong> Bạn cần chọn ảnh xác nhận và bấm <strong>Tải ảnh lên Google Drive</strong> thành công trước khi gửi đơn.</span>
+                                    </div>
                                 </div>
                             </div>
 
@@ -500,7 +506,7 @@
                                 <span>{{ 'Tiếp theo' if lang == 'vi' else '次へ' }}</span>
                                 <i class="fas fa-arrow-right"></i>
                             </button>
-                            <button type="button" id="leave-btn-submit" class="btn btn-primary" onclick="submitMultiStepLeave(event)" style="padding: 9px 24px; border-radius: 10px; font-size: 0.9rem; display: none; align-items: center; gap: 8px; font-weight: 600; background: #10b981; border-color: #10b981;">
+                            <button type="button" id="leave-btn-submit" class="btn btn-primary" onclick="submitMultiStepLeave(event)" style="padding: 9px 24px; border-radius: 10px; font-size: 0.9rem; display: none; align-items: center; gap: 8px; font-weight: 600; background: #10b981; border-color: #10b981; opacity: 0.5; cursor: not-allowed;" disabled title="Vui lòng tải ảnh lên Google Drive trước khi gửi đơn">
                                 <i class="fas fa-paper-plane"></i>
                                 <span>{{ 'Gửi đơn nghỉ phép' if lang == 'vi' else '申請を送信' }}</span>
                             </button>
@@ -737,7 +743,7 @@
     <div class="mobile-brand">
         <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" width="30" height="30" style="border-radius: 8px; object-fit: contain;">
         <span>VN-Tracking</span>
-        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.99</i></sup>
+        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.100</i></sup>
     </div>
     <div class="mobile-topbar-right">
         <button type="button" class="mobile-icon-btn" onclick="toggleNotificationPanel(event)" title="{{ 'Thông báo' if lang == 'vi' else '通知' }}">
@@ -889,7 +895,7 @@
             </div>
             <div class="sidebar-logo-text">
                 <span class="sidebar-brand-name">VN-Tracking</span>
-                <sup class="version-tag"><i>v1.9.99</i></sup>
+                <sup class="version-tag"><i>v1.9.100</i></sup>
             </div>
         </div>
     </div>
