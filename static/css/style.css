@@ -3117,55 +3117,6 @@ body.sidebar-collapsed .custom-lang-select {
     }
 }
 
-/* ======================== SIDEBAR WIDGET TABS (PET / MUSIC) ======================== */
-.sidebar-widget-tabs {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    padding: 3px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    margin-bottom: 8px;
-}
-.widget-tab-btn {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    padding: 6px 10px;
-    border-radius: 9px;
-    border: none;
-    background: transparent;
-    color: var(--text-3);
-    font-size: 11px;
-    font-weight: 750;
-    cursor: pointer;
-    transition: all 0.2s var(--ux-spring);
-    user-select: none;
-}
-.widget-tab-btn:hover {
-    color: var(--text);
-    background: rgba(255, 255, 255, 0.04);
-}
-.widget-tab-btn.active {
-    background: var(--surface);
-    color: var(--primary);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-}
-[data-theme="dark"] .widget-tab-btn.active {
-    background: rgba(255, 255, 255, 0.12);
-    color: #fff;
-}
-body.sidebar-collapsed .sidebar-widget-tabs {
-    flex-direction: column;
-    padding: 2px;
-}
-body.sidebar-collapsed .widget-tab-btn span {
-    display: none !important;
-}
-
 /* ======================== PET FLYOUT POPOVER ======================== */
 .pet-popover-backdrop {
     position: fixed;
