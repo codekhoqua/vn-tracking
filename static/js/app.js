@@ -8660,26 +8660,7 @@ window.GOOGLE_LEAVE_FORM_CONFIG = {
     }
 };
 
-function openLeaveModal() {
-    const modal = document.getElementById('leave-modal');
-    const overlay = document.getElementById('leave-overlay');
-    if (!modal || !overlay) {
-        console.error("Leave modal or overlay not found!");
-        return;
-    }
-
-    currentLeaveStep = 1;
-    updateLeaveStepUI();
-
-    overlay.style.display = 'block';
-    modal.style.display = 'flex';
-    void modal.offsetWidth; // force reflow
-    overlay.classList.add('active');
-    modal.classList.add('active');
-
-    if (window.pauseWeatherEffect) window.pauseWeatherEffect();
-
-    // Init flatpickrs if not yet initialized
+function initLeaveDatePickers() {
     const startInput = document.getElementById('leave-start-date');
     const endInput = document.getElementById('leave-end-date');
     const today = new Date().toISOString().split('T')[0];
@@ -8711,18 +8692,39 @@ function openLeaveModal() {
     updateLeaveFilenamePreview();
 }
 
+function switchCalendarSubpage(subpage) {
+    const isAttendance = (subpage === 'attendance');
+    const mainView = document.getElementById('calendar-subview-main');
+    const attView = document.getElementById('calendar-subview-attendance');
+    const tabCal = document.getElementById('tab-btn-calendar');
+    const tabAtt = document.getElementById('tab-btn-attendance');
+    const crumbSep = document.getElementById('calendar-crumb-subpage-sep');
+    const crumbTxt = document.getElementById('calendar-crumb-subpage-text');
+
+    if (tabCal) tabCal.classList.toggle('active', !isAttendance);
+    if (tabAtt) tabAtt.classList.toggle('active', isAttendance);
+
+    if (crumbSep) crumbSep.style.display = isAttendance ? 'inline' : 'none';
+    if (crumbTxt) crumbTxt.style.display = isAttendance ? 'inline' : 'none';
+
+    if (mainView) mainView.style.display = isAttendance ? 'none' : 'flex';
+    if (attView) attView.style.display = isAttendance ? 'block' : 'none';
+
+    if (isAttendance) {
+        currentLeaveStep = 1;
+        updateLeaveStepUI();
+        initLeaveDatePickers();
+    }
+}
+window.switchCalendarSubpage = switchCalendarSubpage;
+
+function openLeaveModal() {
+    openToolPage('calendar');
+    switchCalendarSubpage('attendance');
+}
+
 function closeLeaveModal() {
-    const modal = document.getElementById('leave-modal');
-    const overlay = document.getElementById('leave-overlay');
-    if (modal) {
-        modal.classList.remove('active');
-        setTimeout(() => { modal.style.display = 'none'; }, 250);
-    }
-    if (overlay) {
-        overlay.classList.remove('active');
-        setTimeout(() => { overlay.style.display = 'none'; }, 250);
-    }
-    if (window.resumeWeatherEffect) window.resumeWeatherEffect();
+    switchCalendarSubpage('calendar');
 }
 
 window.openLeaveModal = openLeaveModal;
@@ -8972,6 +8974,7 @@ async function submitMultiStepLeave(e) {
 
     const fullname = (document.getElementById('leave-fullname')?.value || '').trim();
     const staffCode = (document.getElementById('leave-staff-code')?.value || '').trim();
+    const gmail = (document.getElementById('leave-gmail')?.value || '').trim();
     const dept = document.querySelector('input[name="leave_department"]:checked')?.value || 'DESIGN';
     const startDate = (document.getElementById('leave-start-date')?.value || '').trim();
     const startTime = (document.getElementById('leave-start-time')?.value || '08:00').trim();
@@ -9005,6 +9008,7 @@ async function submitMultiStepLeave(e) {
         const formData = new FormData();
         formData.append('fullname', fullname);
         formData.append('staff_code', staffCode);
+        formData.append('gmail', gmail);
         formData.append('department', dept);
         formData.append('start_date', startDate);
         formData.append('start_time', startTime);

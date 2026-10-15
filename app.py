@@ -338,6 +338,20 @@ def load_users_from_sheet(url):
             avatar_raw = str(row.iloc[6]).strip() if len(row) > 6 and not pd.isna(row.iloc[6]) and str(row.iloc[6]).strip() not in ['nan', 'NaN', ''] else ""
             avatar = fix_drive_url(avatar_raw)
             team = str(row.iloc[7]).strip() if len(row) > 7 and not pd.isna(row.iloc[7]) and str(row.iloc[7]).strip() not in ['nan', 'NaN', ''] else ""
+
+            # Format MSNV (Column I, index 8)
+            msnv_raw = row.iloc[8] if len(row) > 8 else None
+            if pd.notna(msnv_raw) and str(msnv_raw).strip() not in ['nan', 'NaN', '']:
+                try:
+                    msnv = str(int(float(str(msnv_raw).strip())))
+                except Exception:
+                    msnv = str(msnv_raw).strip()
+            else:
+                msnv = ""
+
+            # Format Gmail (Column J, index 9)
+            gmail = str(row.iloc[9]).strip() if len(row) > 9 and not pd.isna(row.iloc[9]) and str(row.iloc[9]).strip() not in ['nan', 'NaN', ''] else ""
+
             users[username] = {
                 "password": password, 
                 "role": role,
@@ -345,11 +359,14 @@ def load_users_from_sheet(url):
                 "gender": gender,
                 "birth_year": birth_year,
                 "avatar": avatar,
-                "team": team
+                "team": team,
+                "msnv": msnv,
+                "gmail": gmail
             }
             
         return users
-    except Exception:
+    except Exception as e:
+        print("Error loading users from sheet:", e)
         return {}
 
 _checklist_cache = None
@@ -2975,7 +2992,7 @@ def lsa_drive():
         filter_cv_sau=[],
         users=[],
         tasks=[],
-        app_version='v1.9.95',
+        app_version='v1.9.96',
     )
 
 # =====================================================================
@@ -3880,6 +3897,7 @@ def api_submit_leave_request():
 
         fullname = str(data.get('fullname') or session.get('user') or '').strip()
         staff_code = str(data.get('staff_code') or '').strip()
+        gmail = str(data.get('gmail') or '').strip()
         department = str(data.get('department') or '').strip()
         leave_type = str(data.get('leave_type') or '').strip()
         start_date = str(data.get('start_date') or '').strip()
@@ -3909,6 +3927,7 @@ def api_submit_leave_request():
             "username": username,
             "fullname": fullname,
             "staff_code": staff_code,
+            "gmail": gmail,
             "department": department,
             "leave_type": leave_type,
             "start_date": start_date,
