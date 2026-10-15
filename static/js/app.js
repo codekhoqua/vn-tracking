@@ -2374,57 +2374,71 @@ function closeModal(modalId) {
     }
 }
 
-// CALENDAR
-function openCalendarModal() {
-    const overlay = document.getElementById('calendar-modal-overlay');
-    const modal = document.getElementById('calendar-modal');
-    const iframe = document.getElementById('calendar-iframe');
+// ===================== TOOLS FULL-PAGE DETAIL VIEWS =====================
+function openToolPage(toolKey) {
+    // Close other open modals/pages
+    document.querySelectorAll('.modal-overlay.open').forEach(m => m.classList.remove('open'));
+    document.querySelectorAll('#sidebar-tools .nav-item').forEach(n => n.classList.remove('active'));
 
-    if (iframe && (!iframe.src || iframe.src === window.location.href)) {
-        iframe.src = '/calendar';
+    const pageId = `page-view-${toolKey}`;
+    const pageEl = document.getElementById(pageId);
+    if (!pageEl) return;
+
+    if (toolKey === 'drive') {
+        const iframe = document.getElementById('drive-page-iframe') || document.getElementById('drive-iframe');
+        if (iframe && (!iframe.src || iframe.src === window.location.href || iframe.src.endsWith('/'))) {
+            iframe.src = '/drive?modal=1';
+        }
+    } else if (toolKey === 'calendar') {
+        const iframe = document.getElementById('calendar-page-iframe') || document.getElementById('calendar-iframe');
+        if (iframe && (!iframe.src || iframe.src === window.location.href || iframe.src.endsWith('/'))) {
+            iframe.src = '/calendar';
+        }
+    } else if (toolKey === 'psd') {
+        const iframe = document.getElementById('psd-page-iframe');
+        if (iframe && (!iframe.src || iframe.src === window.location.href || iframe.src.endsWith('/'))) {
+            iframe.src = '/psd-tool';
+        }
     }
 
-    if (overlay) overlay.classList.add('active');
-    if (modal) modal.classList.add('active');
+    const navItem = document.getElementById(`nav-${toolKey}`);
+    if (navItem) navItem.classList.add('active');
+
+    if (window.lenis) window.lenis.stop();
     document.body.style.overflow = 'hidden';
+    pageEl.scrollTop = 0;
+    pageEl.classList.add('open');
 }
 
-function closeCalendarModal() {
-    const overlay = document.getElementById('calendar-modal-overlay');
-    const modal = document.getElementById('calendar-modal');
-    if (overlay) overlay.classList.remove('active');
-    if (modal) modal.classList.remove('active');
-    document.body.style.overflow = '';
-}
-
-// DRIVES
-function closeDriveModal() {
-    const overlay = document.getElementById('drive-modal-overlay');
-    const modal = document.getElementById('drive-modal');
-    if (overlay) overlay.classList.remove('active');
-    if (modal) modal.classList.remove('active');
-    document.body.style.overflow = '';
-}
-
-function openDriveModal() {
-    const overlay = document.getElementById('drive-modal-overlay');
-    const modal = document.getElementById('drive-modal');
-    const iframe = document.getElementById('drive-iframe');
-
-    if (iframe && (!iframe.src || iframe.src === window.location.href)) {
-        iframe.src = '/drive?modal=1';
+function closeToolPage(toolKey) {
+    const pageId = `page-view-${toolKey}`;
+    const pageEl = document.getElementById(pageId);
+    if (pageEl) {
+        pageEl.classList.remove('open');
     }
+    const navItem = document.getElementById(`nav-${toolKey}`);
+    if (navItem) navItem.classList.remove('active');
 
-    if (overlay) overlay.classList.add('active');
-    if (modal) modal.classList.add('active');
-    document.body.style.overflow = 'hidden';
+    if (!document.querySelector('.modal-overlay.open')) {
+        document.body.style.overflow = '';
+        if (window.lenis) window.lenis.start();
+    }
 }
+
+// Backward-compatible wrappers for tools
+function openDriveModal() { openToolPage('drive'); }
+function closeDriveModal() { closeToolPage('drive'); }
+function openCalendarModal() { openToolPage('calendar'); }
+function closeCalendarModal() { closeToolPage('calendar'); }
+function openPsdToolPage() { openToolPage('psd'); }
+function closePsdToolPage() { closeToolPage('psd'); }
 
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
         document.querySelectorAll('.modal-overlay.open').forEach(m => {
             m.classList.remove('open');
         });
+        document.querySelectorAll('#sidebar-tools .nav-item').forEach(n => n.classList.remove('active'));
         document.querySelectorAll('.cp-overlay.active, .cp-modal.active').forEach(m => {
             m.classList.remove('active');
         });
@@ -3955,24 +3969,14 @@ document.addEventListener('click', function (e) {
 });
 
 // ======================================
-// ROLE MODAL (Popup Phân Quyền)
+// ROLE PAGE VIEW (Chi tiết Phân Quyền)
 // ======================================
 function openRoleModal() {
-    const overlay = document.getElementById('role-overlay');
-    const modal = document.getElementById('role-modal');
-    if (overlay && modal) {
-        overlay.classList.add('active');
-        modal.classList.add('active');
-    }
+    openToolPage('role');
 }
 
 function closeRoleModal() {
-    const overlay = document.getElementById('role-overlay');
-    const modal = document.getElementById('role-modal');
-    if (overlay && modal) {
-        overlay.classList.remove('active');
-        modal.classList.remove('active');
-    }
+    closeToolPage('role');
 }
 
 function updateRole(username, btn) {
