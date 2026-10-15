@@ -926,23 +926,7 @@ CHECKLIST_TEXT = {
 # =====================================================================
 # 7. JINJA2 HELPER FUNCTIONS (Render checklist & logtime inline)
 # =====================================================================
-def render_checklist_html(tac_pham_key, index, lang, api_url, checked_ids=None, row_data=None, task_links_dict=None):
-    l = CHECKLIST_TEXT.get(lang, CHECKLIST_TEXT['vi'])
-    if checked_ids is None:
-        checked_ids = set()
-    else:
-        checked_ids = set(str(x).strip().lower() for x in checked_ids)
-
-    def ch(tid):
-        return 'checked' if tid in checked_ids else ''
-
-    is_combined = ('写植/ﾚﾀｯﾁ' in str(tac_pham_key) or '写植/レタッチ' in str(tac_pham_key) or 'Lettering/Retouch' in str(tac_pham_key) or 'lettering/retouch' in str(tac_pham_key).lower())
-    
-    is_coop = is_combined or bool(row_data and row_data.get('is_coop'))
-    volume_key = (row_data and row_data.get('volume_key')) or (tac_pham_key.split(' - ')[1] if ' - ' in str(tac_pham_key) else str(tac_pham_key))
-    partner_worker = (row_data and row_data.get('partner_worker')) or ''
-    partner_cv = (row_data and row_data.get('partner_cv')) or ''
-
+def render_task_links_html(tac_pham_key, index, lang, task_links_dict=None):
     # Task Resource Links (Mikan, Notion, Asana, Dropbox) - Keyed strictly by individual task role (tac_pham_key)
     t_links = {}
     if task_links_dict:
@@ -988,7 +972,7 @@ def render_checklist_html(tac_pham_key, index, lang, api_url, checked_ids=None, 
         </a>
         '''
 
-    links_html = f'''
+    return f'''
     <div class="task-links-box" id="task_links_{index}" data-tp-key="{tac_pham_key}">
         <div class="task-links-header">
             <span class="task-links-title"><i class="fas fa-link" style="color: var(--primary); margin-right: 6px;"></i>{ "Liên kết làm việc:" if lang == "vi" else "作業リンク:" }</span>
@@ -1005,81 +989,17 @@ def render_checklist_html(tac_pham_key, index, lang, api_url, checked_ids=None, 
     </div>
     '''
 
-    if partner_worker:
-        partner_info_text = f"Đồng đội: <strong>{partner_worker}</strong> ({partner_cv})" if partner_cv else f"Đồng đội: <strong>{partner_worker}</strong>"
-        badge_html = f'<span class="handover-partner-badge">{partner_info_text}</span>'
-    elif is_coop:
-        badge_html = '<span class="handover-partner-badge">Retouch ⇄ Lettering</span>'
+def render_task_steps_html(tac_pham_key, index, lang, checked_ids=None):
+    l = CHECKLIST_TEXT.get(lang, CHECKLIST_TEXT['vi'])
+    if checked_ids is None:
+        checked_ids = set()
     else:
-        badge_html = f'<span class="handover-partner-badge" style="opacity: 0.85;"><i class="far fa-comment-dots" style="margin-right: 4px;"></i>{ "Ghi chú & Thảo luận" if lang == "vi" else "メモ・連絡" }</span>'
+        checked_ids = set(str(x).strip().lower() for x in checked_ids)
 
-    safe_volume_key = str(volume_key).replace('\\', '\\\\').replace("'", "\\'").replace('"', '&quot;')
-    handover_html = f'''
-    <div class="task-handover-box" id="handover_{index}" data-tp-key="{safe_volume_key}" style="margin-top: 0; height: 100%;">
-        <div class="handover-header">
-            <div class="handover-title-row">
-                <span class="handover-title"><i class="far fa-comments" style="margin-right: 6px; color: #818cf8;"></i>{ "Comment:" if lang == "vi" else "コメント:" } <span class="handover-volume-name">{volume_key}</span></span>
-                {badge_html}
-            </div>
-        </div>
-        <div class="handover-body" id="handover_body_{index}">
-            <div class="quick-handover-actions">
-                <span class="quick-handover-label">{ "Mẫu nhanh:" if lang == "vi" else "定型文:" }</span>
-                <button type="button" class="btn-quick-tag done-retouch" onclick="sendQuickHandover('{index}', '{safe_volume_key}', '{ "✓ Đã xong Retouch ➔ Chuyển giao Lettering" if lang == "vi" else "✓ レタッチ完了 ➔ 写植へ引き継ぎ" }', 'handover')">{ "✓ Xong Retouch ➔ Lettering" if lang == "vi" else "✓ レタッチ完了 ➔ 写植へ" }</button>
-                <button type="button" class="btn-quick-tag in-progress" onclick="sendQuickHandover('{index}', '{safe_volume_key}', '{ "Đang xử lý khâu Retouch..." if lang == "vi" else "レタッチ作業中..." }', 'progress')">{ "Đang làm Retouch" if lang == "vi" else "レタッチ作業中" }</button>
-                <button type="button" class="btn-quick-tag in-progress" onclick="sendQuickHandover('{index}', '{safe_volume_key}', '{ "Đang xử lý khâu Lettering..." if lang == "vi" else "写植作業中..." }', 'progress')">{ "Đang làm Lettering" if lang == "vi" else "写植作業中" }</button>
-                <button type="button" class="btn-quick-tag in-progress" onclick="sendQuickHandover('{index}', '{safe_volume_key}', '{ "Đang làm dở trang..." if lang == "vi" else "作業中..." }', 'progress')">{ "Đang làm dở" if lang == "vi" else "作業中" }</button>
-                <button type="button" class="btn-quick-tag note" onclick="sendQuickHandover('{index}', '{safe_volume_key}', '{ "Lưu ý font / style đặc biệt" if lang == "vi" else "フォント・スタイルの注意事項あり" }', 'warning')">{ "Lưu ý font/style" if lang == "vi" else "注意事項" }</button>
-            </div>
-
-            <div class="handover-comments-list" id="comments_list_{index}">
-                <div class="handover-empty">{ "Chưa có ghi chú nào. Hãy để lại lời nhắn cho đồng đội!" if lang == "vi" else "メッセージはまだありません。" }</div>
-            </div>
-
-            <div class="handover-input-container">
-                <div class="handover-count-bar" id="count_bar_{index}" style="display: none;">
-                    <span class="count-badge"><i class="fas fa-layer-group"></i> <strong id="count_num_{index}">0</strong> PSD</span>
-                    <span class="count-hint">{ "Auto chèn dấu phẩy khi gửi" if lang == "vi" else "送信時に自動でカンマ挿入" }</span>
-                </div>
-                <div class="handover-input-group">
-                    <textarea id="handover_input_{index}" class="handover-input" rows="1" placeholder="{ "Nhập tin nhắn, ghi chú hoặc số trang PSD..." if lang == "vi" else "メッセージまたはPSDページ番号を入力..." }" oninput="handleCommentInput(this, '{index}')" onkeydown="handleCommentKeydown(event, '{index}', '{safe_volume_key}')"></textarea>
-                    <button type="button" class="btn-handover-send" id="btn_send_comment_{index}" onclick="sendTaskComment('{index}', '{safe_volume_key}')">{ "Gửi" if lang == "vi" else "送信" }</button>
-                </div>
-            </div>
-        </div>
-    </div>
-    '''
-
-    tracker_html = f'''<div class="time-tracker-box" id="tracker_{index}" data-tp-key="{tac_pham_key}" style="margin-top: 0; height: 100%;">
-        <div class="tracker-header">
-            <i class="fas fa-stopwatch" style="margin-right: 6px; color: var(--primary);"></i>{ "Theo dõi thời gian" if lang == "vi" else "タイムトラッカー" }
-            <label style="float: right; font-size: 0.8rem; font-weight: normal; cursor: pointer; color: var(--text-2);">
-                 <input type="checkbox" id="manual_time_cb_{index}" onchange="toggleManualTime('{index}')"> { "Nhập tay" if lang == "vi" else "手動入力" }
-            </label>
-        </div>
-        
-        <div class="tracker-controls" id="auto_controls_{index}">
-            <button class="btn-tracker start" id="btn_start_{index}" onclick="startTracker('{index}')"><i class="fas fa-play" style="margin-right: 5px;"></i>{ "Bắt đầu" if lang == "vi" else "開始" }</button>
-            <button class="btn-tracker end" id="btn_end_{index}" onclick="endTracker('{index}')" disabled><i class="fas fa-stop" style="margin-right: 5px;"></i>{ "Kết thúc" if lang == "vi" else "終了" }</button>
-            <span class="tracker-time" id="time_display_{index}">00:00:00</span>
-        </div>
-        
-        <div class="tracker-controls" id="manual_controls_{index}" style="display: none;">
-            <input type="text" id="manual_start_{index}" class="tracker-note" style="width: 140px;" placeholder="{ "Chọn Giờ Bắt Đầu" if lang == "vi" else "開始時刻" }">
-            <span style="color: var(--text-2);">→</span>
-            <input type="text" id="manual_end_{index}" class="tracker-note" style="width: 140px;" placeholder="{ "Chọn Giờ Kết Thúc" if lang == "vi" else "終了時刻" }">
-            <span style="color: var(--text-2);">{ "hoặc" if lang == "vi" else "または" }</span>
-            <input type="number" id="manual_duration_{index}" class="tracker-note" style="width: 80px;" step="0.01" placeholder="{ "Giờ (h)" if lang == "vi" else "時間 (h)" }" oninput="calcManualTime('{index}', 'dur')">
-        </div>
-
-        <div class="tracker-inputs">
-            <input type="text" id="tracker_note_{index}" placeholder="{ "Mô tả công việc..." if lang == "vi" else "備考..." }" class="tracker-note">
-            <button class="btn-tracker save" id="btn_save_{index}" onclick="saveTracker('{index}', '{tac_pham_key}')"><i class="fas fa-save" style="margin-right: 5px;"></i>{ "Lưu Log" if lang == "vi" else "保存" }</button>
-        </div>
-    </div>'''
+    def ch(tid):
+        return 'checked' if tid in checked_ids else ''
 
     return f'''
-    {links_html}
     <div class="checklist-grid" data-tp-key="{tac_pham_key}">
         <!-- GIAI ĐOẠN 1: CHUẨN BỊ -->
         <div class="step-col" data-step="1">
@@ -1267,7 +1187,99 @@ def render_checklist_html(tac_pham_key, index, lang, api_url, checked_ids=None, 
             </div>
         </div>
     </div>
-    <div style="display: grid; grid-template-columns: 3fr 2fr; gap: 16px; align-items: start; margin-top: 16px;">
+    '''
+
+def render_task_handover_html(tac_pham_key, index, lang, row_data=None):
+    is_combined = ('写植/ﾚﾀｯﾁ' in str(tac_pham_key) or '写植/レタッチ' in str(tac_pham_key) or 'Lettering/Retouch' in str(tac_pham_key) or 'lettering/retouch' in str(tac_pham_key).lower())
+    is_coop = is_combined or bool(row_data and row_data.get('is_coop'))
+    volume_key = (row_data and row_data.get('volume_key')) or (tac_pham_key.split(' - ')[1] if ' - ' in str(tac_pham_key) else str(tac_pham_key))
+    partner_worker = (row_data and row_data.get('partner_worker')) or ''
+    partner_cv = (row_data and row_data.get('partner_cv')) or ''
+
+    if partner_worker:
+        partner_info_text = f"Đồng đội: <strong>{partner_worker}</strong> ({partner_cv})" if partner_cv else f"Đồng đội: <strong>{partner_worker}</strong>"
+        badge_html = f'<span class="handover-partner-badge">{partner_info_text}</span>'
+    elif is_coop:
+        badge_html = '<span class="handover-partner-badge">Retouch ⇄ Lettering</span>'
+    else:
+        badge_html = f'<span class="handover-partner-badge" style="opacity: 0.85;"><i class="far fa-comment-dots" style="margin-right: 4px;"></i>{ "Ghi chú & Thảo luận" if lang == "vi" else "メモ・連絡" }</span>'
+
+    safe_volume_key = str(volume_key).replace('\\', '\\\\').replace("'", "\\'").replace('"', '&quot;')
+    return f'''
+    <div class="task-handover-box" id="handover_{index}" data-tp-key="{safe_volume_key}" style="margin-top: 0; height: 100%;">
+        <div class="handover-header">
+            <div class="handover-title-row">
+                <span class="handover-title"><i class="far fa-comments" style="margin-right: 6px; color: #818cf8;"></i>{ "Comment:" if lang == "vi" else "コメント:" } <span class="handover-volume-name">{volume_key}</span></span>
+                {badge_html}
+            </div>
+        </div>
+        <div class="handover-body" id="handover_body_{index}">
+            <div class="quick-handover-actions">
+                <span class="quick-handover-label">{ "Mẫu nhanh:" if lang == "vi" else "定型文:" }</span>
+                <button type="button" class="btn-quick-tag done-retouch" onclick="sendQuickHandover('{index}', '{safe_volume_key}', '{ "✓ Đã xong Retouch ➔ Chuyển giao Lettering" if lang == "vi" else "✓ レタッチ完了 ➔ 写植へ引き継ぎ" }', 'handover')">{ "✓ Xong Retouch ➔ Lettering" if lang == "vi" else "✓ レタッチ完了 ➔ 写植へ" }</button>
+                <button type="button" class="btn-quick-tag in-progress" onclick="sendQuickHandover('{index}', '{safe_volume_key}', '{ "Đang xử lý khâu Retouch..." if lang == "vi" else "レタッチ作業中..." }', 'progress')">{ "Đang làm Retouch" if lang == "vi" else "レタッチ作業中" }</button>
+                <button type="button" class="btn-quick-tag in-progress" onclick="sendQuickHandover('{index}', '{safe_volume_key}', '{ "Đang xử lý khâu Lettering..." if lang == "vi" else "写植作業中..." }', 'progress')">{ "Đang làm Lettering" if lang == "vi" else "写植作業中" }</button>
+                <button type="button" class="btn-quick-tag in-progress" onclick="sendQuickHandover('{index}', '{safe_volume_key}', '{ "Đang làm dở trang..." if lang == "vi" else "作業中..." }', 'progress')">{ "Đang làm dở" if lang == "vi" else "作業中" }</button>
+                <button type="button" class="btn-quick-tag note" onclick="sendQuickHandover('{index}', '{safe_volume_key}', '{ "Lưu ý font / style đặc biệt" if lang == "vi" else "フォント・スタイルの注意事項あり" }', 'warning')">{ "Lưu ý font/style" if lang == "vi" else "注意事項" }</button>
+            </div>
+
+            <div class="handover-comments-list" id="comments_list_{index}">
+                <div class="handover-empty">{ "Chưa có ghi chú nào. Hãy để lại lời nhắn cho đồng đội!" if lang == "vi" else "メッセージはまだありません。" }</div>
+            </div>
+
+            <div class="handover-input-container">
+                <div class="handover-count-bar" id="count_bar_{index}" style="display: none;">
+                    <span class="count-badge"><i class="fas fa-layer-group"></i> <strong id="count_num_{index}">0</strong> PSD</span>
+                    <span class="count-hint">{ "Auto chèn dấu phẩy khi gửi" if lang == "vi" else "送信時に自動でカンマ挿入" }</span>
+                </div>
+                <div class="handover-input-group">
+                    <textarea id="handover_input_{index}" class="handover-input" rows="1" placeholder="{ "Nhập tin nhắn, ghi chú hoặc số trang PSD..." if lang == "vi" else "メッセージまたはPSDページ番号を入力..." }" oninput="handleCommentInput(this, '{index}')" onkeydown="handleCommentKeydown(event, '{index}', '{safe_volume_key}')"></textarea>
+                    <button type="button" class="btn-handover-send" id="btn_send_comment_{index}" onclick="sendTaskComment('{index}', '{safe_volume_key}')">{ "Gửi" if lang == "vi" else "送信" }</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    '''
+
+def render_task_tracker_html(tac_pham_key, index, lang):
+    return f'''<div class="time-tracker-box" id="tracker_{index}" data-tp-key="{tac_pham_key}" style="margin-top: 0; height: 100%;">
+        <div class="tracker-header">
+            <span><i class="fas fa-stopwatch" style="margin-right: 6px; color: var(--primary);"></i>{ "Theo dõi thời gian" if lang == "vi" else "タイムトラッカー" }</span>
+            <label style="font-size: 0.8rem; font-weight: normal; cursor: pointer; color: var(--text-2);">
+                 <input type="checkbox" id="manual_time_cb_{index}" onchange="toggleManualTime('{index}')"> { "Nhập tay" if lang == "vi" else "手動入力" }
+            </label>
+        </div>
+        
+        <div class="tracker-controls" id="auto_controls_{index}">
+            <button class="btn-tracker start" id="btn_start_{index}" onclick="startTracker('{index}')"><i class="fas fa-play" style="margin-right: 5px;"></i>{ "Bắt đầu" if lang == "vi" else "開始" }</button>
+            <button class="btn-tracker end" id="btn_end_{index}" onclick="endTracker('{index}')" disabled><i class="fas fa-stop" style="margin-right: 5px;"></i>{ "Kết thúc" if lang == "vi" else "終了" }</button>
+            <span class="tracker-time" id="time_display_{index}">00:00:00</span>
+        </div>
+        
+        <div class="tracker-controls" id="manual_controls_{index}" style="display: none;">
+            <input type="text" id="manual_start_{index}" class="tracker-note" style="width: 140px;" placeholder="{ "Chọn Giờ Bắt Đầu" if lang == "vi" else "開始時刻" }">
+            <span style="color: var(--text-2);">→</span>
+            <input type="text" id="manual_end_{index}" class="tracker-note" style="width: 140px;" placeholder="{ "Chọn Giờ Kết Thúc" if lang == "vi" else "終了時刻" }">
+            <span style="color: var(--text-2);">{ "hoặc" if lang == "vi" else "または" }</span>
+            <input type="number" id="manual_duration_{index}" class="tracker-note" style="width: 80px;" step="0.01" placeholder="{ "Giờ (h)" if lang == "vi" else "時間 (h)" }" oninput="calcManualTime('{index}', 'dur')">
+        </div>
+
+        <div class="tracker-inputs">
+            <input type="text" id="tracker_note_{index}" placeholder="{ "Mô tả công việc..." if lang == "vi" else "備考..." }" class="tracker-note">
+            <button class="btn-tracker save" id="btn_save_{index}" onclick="saveTracker('{index}', '{tac_pham_key}')"><i class="fas fa-save" style="margin-right: 5px;"></i>{ "Lưu Log" if lang == "vi" else "保存" }</button>
+        </div>
+    </div>'''
+
+def render_checklist_html(tac_pham_key, index, lang, api_url, checked_ids=None, row_data=None, task_links_dict=None):
+    links_html = render_task_links_html(tac_pham_key, index, lang, task_links_dict)
+    steps_html = render_task_steps_html(tac_pham_key, index, lang, checked_ids)
+    handover_html = render_task_handover_html(tac_pham_key, index, lang, row_data)
+    tracker_html = render_task_tracker_html(tac_pham_key, index, lang)
+
+    return f'''
+    {links_html}
+    {steps_html}
+    <div class="task-chat-timer-grid">
         {handover_html}
         {tracker_html}
     </div>
@@ -1366,10 +1378,24 @@ def utility_processor():
         ids = (checked_ids_dict or {}).get(tp_key, [])
         links_db = task_links_dict if task_links_dict is not None else get_supabase_task_links()
         return Markup(render_checklist_html(tp_key, idx, lang, api_url, ids, row_data=row_data, task_links_dict=links_db))
+    def render_task_links(tp_key, idx, lang, row_data=None, task_links_dict=None):
+        links_db = task_links_dict if task_links_dict is not None else get_supabase_task_links()
+        return Markup(render_task_links_html(tp_key, idx, lang, links_db))
+    def render_task_steps(tp_key, idx, lang, api_url, checked_ids_dict=None):
+        ids = (checked_ids_dict or {}).get(tp_key, [])
+        return Markup(render_task_steps_html(tp_key, idx, lang, ids))
+    def render_task_handover(tp_key, idx, lang, row_data=None):
+        return Markup(render_task_handover_html(tp_key, idx, lang, row_data))
+    def render_task_tracker(tp_key, idx, lang):
+        return Markup(render_task_tracker_html(tp_key, idx, lang))
     def render_logtime_form(row, idx, t, users, lang):
         return Markup(render_logtime_form_html(row, idx, t, users, lang))
     return dict(
         render_checklist=render_checklist,
+        render_task_links=render_task_links,
+        render_task_steps=render_task_steps,
+        render_task_handover=render_task_handover,
+        render_task_tracker=render_task_tracker,
         render_logtime_form=render_logtime_form,
         app_version=get_current_app_version(),
         app_build_id=get_current_build_id()

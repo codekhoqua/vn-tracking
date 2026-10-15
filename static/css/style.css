@@ -1397,10 +1397,11 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
 }
 
 .task-page-container {
-    max-width: 1440px;
-    margin: 0 auto;
-    padding: 24px 36px 80px;
     width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 20px 32px 80px;
+    box-sizing: border-box;
 }
 
 /* Breadcrumb Navigation Bar */
@@ -1408,8 +1409,8 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding-bottom: 20px;
-    margin-bottom: 24px;
+    padding-bottom: 16px;
+    margin-bottom: 20px;
     border-bottom: 1px solid var(--border);
     gap: 16px;
 }
@@ -1514,15 +1515,15 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
 
 /* Task Page Hero Title */
 .task-page-header {
-    margin-bottom: 28px;
+    margin-bottom: 22px;
 }
 .task-page-main-title {
-    font-size: 1.85rem;
+    font-size: 1.95rem;
     font-weight: 800;
     color: var(--text);
     letter-spacing: -0.025em;
-    line-height: 1.3;
-    margin-bottom: 12px;
+    line-height: 1.25;
+    margin-bottom: 10px;
 }
 .task-page-worker-row {
     display: flex;
@@ -1536,41 +1537,240 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
     font-size: 0.95rem;
 }
 
-/* Logtime Card on Page */
-.task-page-logtime-card {
-    margin-top: 32px;
+/* ============ EXPANSIVE BOTTOM WORKSPACE (2-COLUMN GRID) ============ */
+.task-bottom-workspace {
+    display: grid;
+    grid-template-columns: 1.15fr 1fr;
+    gap: 20px;
+    align-items: stretch;
+    margin-top: 20px;
+}
+
+@media (max-width: 1200px) {
+    .task-bottom-workspace {
+        grid-template-columns: 1fr;
+    }
+}
+
+.task-bottom-col {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-width: 0;
+}
+
+/* Left Column: Collaboration / Comments */
+.task-col-collab .task-handover-box {
+    margin-top: 0;
+    height: 100%;
+    min-height: 520px;
     background: var(--surface-card);
     border: 1px solid var(--border);
-    border-radius: var(--radius-2xl);
-    padding: 28px 32px;
-    box-shadow: var(--shadow-sm);
+    border-radius: var(--radius-xl);
+    padding: 20px 22px;
+    box-shadow: var(--shadow-xs);
+    display: flex;
+    flex-direction: column;
 }
-.task-page-logtime-header {
+
+.task-col-collab .handover-body {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+.task-col-collab .handover-comments-list {
+    flex: 1;
+    min-height: 280px;
+    max-height: 400px;
+    overflow-y: auto;
+    margin: 12px 0;
+    padding-right: 6px;
+}
+
+/* Right Column: Time Tracker Box */
+.task-col-tracking .time-tracker-box {
+    margin-top: 0;
+    background: var(--surface-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xl);
+    padding: 18px 22px;
+    box-shadow: var(--shadow-xs);
+}
+
+.task-col-tracking .tracker-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 22px;
-    padding-bottom: 16px;
-    border-bottom: 1px solid var(--border-subtle);
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 12px;
 }
-.task-page-logtime-title {
+
+.task-col-tracking .tracker-controls {
     display: flex;
     align-items: center;
     gap: 12px;
-    font-size: 1.2rem;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+
+.task-col-tracking .tracker-time {
+    font-size: 1.35rem;
+    font-weight: 800;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    color: var(--primary);
+    background: var(--primary-bg);
+    padding: 4px 14px;
+    border-radius: var(--radius-md);
+    letter-spacing: 0.05em;
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    text-shadow: 0 0 12px rgba(99, 102, 241, 0.4);
+}
+
+.task-col-tracking .tracker-inputs {
+    display: flex;
+    gap: 10px;
+}
+
+.task-col-tracking .tracker-note {
+    flex: 1;
+    padding: 9px 14px;
+    background: var(--surface-hover);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    color: var(--text);
+    font-size: 0.88rem;
+    transition: all 0.2s ease;
+}
+.task-col-tracking .tracker-note:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-bg);
+}
+
+/* Right Column: Logtime Card */
+.task-col-tracking .task-page-logtime-card {
+    margin-top: 0;
+    background: var(--surface-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xl);
+    padding: 20px 22px;
+    box-shadow: var(--shadow-xs);
+    flex: 1;
+}
+
+.task-col-tracking .task-page-logtime-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.task-col-tracking .task-page-logtime-title {
+    font-size: 1.05rem;
     font-weight: 800;
     color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
+
+/* In the 2-col workspace, 2-col inputs fit naturally */
+.task-col-tracking .form-row.cols-4 {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px 14px;
+}
+
+@media (max-width: 640px) {
+    .task-col-tracking .form-row.cols-4 {
+        grid-template-columns: 1fr;
+    }
+}
+
+.task-col-tracking .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.task-col-tracking .form-group label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--text-2);
+}
+
+.task-col-tracking .form-group select,
+.task-col-tracking .form-group input {
+    width: 100%;
+    padding: 9px 12px;
+    background: var(--surface-hover);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    color: var(--text);
+    font-size: 0.88rem;
+    font-family: inherit;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+}
+
+.task-col-tracking .form-group select:focus,
+.task-col-tracking .form-group input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-bg);
+}
+
+.task-col-tracking .btn-primary {
+    width: 100%;
+    padding: 12px 20px;
+    border-radius: var(--radius-md);
+    font-size: 0.95rem;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);
+}
+
+.task-page-logtime-card .logtime-form {
+    border-top: none;
+    padding-top: 0;
+}
+.task-page-logtime-card .form-row {
+    margin-bottom: 12px;
+}
+
+/* Fallback generic Task Chat Timer Grid */
+.task-chat-timer-grid {
+    display: grid;
+    grid-template-columns: 3fr 2fr;
+    gap: 16px;
+    align-items: start;
+    margin-top: 16px;
+}
+@media (max-width: 1024px) {
+    .task-chat-timer-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
 .logtime-icon-circle {
-    width: 34px;
-    height: 34px;
-    border-radius: 10px;
+    width: 32px;
+    height: 32px;
+    border-radius: 9px;
     background: var(--primary-bg);
     color: var(--primary);
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 1rem;
+    font-size: 0.95rem;
 }
 
 .modal-content {
