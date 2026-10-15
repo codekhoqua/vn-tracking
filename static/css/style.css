@@ -1566,7 +1566,7 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
 /* 1. Compact Work Links Toolbar */
 .task-main-col .task-links-box {
     margin-bottom: 0;
-    padding: 12px 16px;
+    padding: 14px 18px;
     background: var(--surface-card);
     border: 1px solid var(--border);
     border-radius: var(--radius-xl);
@@ -1581,7 +1581,7 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
 }
 
 .task-main-col .task-links-title {
-    font-size: 0.8rem;
+    font-size: 0.88rem;
     font-weight: 800;
     color: var(--text-3);
     text-transform: uppercase;
@@ -1603,26 +1603,26 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
 }
 
 .task-main-col .task-link-card {
-    padding: 9px 12px;
+    padding: 10px 14px;
     border-radius: var(--radius-md);
-    min-height: 48px;
+    min-height: 52px;
     gap: 10px;
 }
 
 .task-main-col .task-link-icon {
-    width: 28px;
-    height: 28px;
-    font-size: 0.85rem;
-    border-radius: 6px;
+    width: 32px;
+    height: 32px;
+    font-size: 0.95rem;
+    border-radius: 7px;
 }
 
 .task-main-col .task-link-name {
-    font-size: 0.78rem;
+    font-size: 0.88rem;
     font-weight: 800;
 }
 
 .task-main-col .task-link-status {
-    font-size: 0.68rem;
+    font-size: 0.76rem;
 }
 
 /* 2. Checklist Grid: Balanced 3-Column Stepper */
@@ -1652,18 +1652,31 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
 }
 
 .task-main-col .step-header {
-    margin-bottom: 10px;
+    margin-bottom: 12px;
+}
+
+.task-main-col .step-title {
+    font-size: 0.96rem;
 }
 
 .task-main-col .step-items {
     display: flex;
     flex-direction: column;
-    gap: 7px;
+    gap: 8px;
     flex: 1 1 auto;
 }
 
 .task-main-col .task-row {
-    padding: 7px 10px;
+    padding: 8px 10px;
+}
+
+.task-main-col .platform-badge {
+    font-size: 0.74rem;
+    padding: 3px 8px;
+}
+
+.task-main-col .check-label {
+    font-size: 0.92rem;
 }
 
 .task-main-col .msg-template-card {
@@ -1674,15 +1687,23 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
     margin: 4px 0;
 }
 
+.task-main-col .msg-template-label {
+    font-size: 0.82rem;
+}
+
+.task-main-col .btn-copy-action {
+    font-size: 0.82rem;
+}
+
 .task-main-col .msg-template-body {
-    font-size: 0.78rem;
+    font-size: 0.88rem;
     line-height: 1.45;
 }
 
 .task-main-col .step-hint-box {
     margin-top: auto;
     padding: 10px 12px;
-    font-size: 0.74rem;
+    font-size: 0.82rem;
 }
 
 /* 3. Collaboration & Comments Timeline */
@@ -1700,6 +1721,23 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
     min-height: 380px;
 }
 
+.task-main-col .handover-title {
+    font-size: 1.02rem;
+}
+
+.task-main-col .handover-partner-badge {
+    font-size: 0.84rem;
+}
+
+.task-main-col .quick-handover-label {
+    font-size: 0.82rem;
+}
+
+.task-main-col .btn-quick-tag {
+    font-size: 0.82rem;
+    padding: 4px 10px;
+}
+
 .task-main-col .handover-body {
     display: flex;
     flex-direction: column;
@@ -1713,6 +1751,15 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
     overflow-y: auto;
     margin: 10px 0;
     padding-right: 6px;
+    font-size: 0.9rem;
+}
+
+.task-main-col .handover-input {
+    font-size: 0.92rem;
+}
+
+.task-main-col .btn-handover-send {
+    font-size: 0.92rem;
 }
 
 /* RIGHT SIDEBAR: Control Deck (Stopwatch + Logtime) */
@@ -1755,10 +1802,14 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    font-size: 0.9rem;
+    font-size: 0.98rem;
     font-weight: 800;
     color: var(--text);
     margin: 0;
+}
+
+.task-side-col .tracker-header label {
+    font-size: 0.88rem;
 }
 
 .task-side-col .tracker-controls {
@@ -1770,8 +1821,8 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
 }
 
 .task-side-col .btn-tracker {
-    padding: 9px 14px;
-    font-size: 0.85rem;
+    padding: 10px 16px;
+    font-size: 0.92rem;
     font-weight: 700;
     border-radius: var(--radius-md);
     cursor: pointer;
@@ -1810,13 +1861,13 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
 }
 
 .task-side-col .tracker-time {
-    font-size: 1.35rem;
+    font-size: 1.55rem;
     font-weight: 800;
     font-family: 'JetBrains Mono', 'Fira Code', monospace;
     letter-spacing: 0.05em;
     color: var(--primary);
     background: var(--primary-bg);
-    padding: 6px 12px;
+    padding: 7px 16px;
     border-radius: var(--radius-md);
     border: 1px solid rgba(99, 102, 241, 0.3);
     text-shadow: 0 0 10px rgba(99, 102, 241, 0.4);
@@ -1831,12 +1882,12 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
 
 .task-side-col .tracker-note {
     flex: 1;
-    padding: 8px 12px;
+    padding: 10px 14px;
     background: rgba(0, 0, 0, 0.3);
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: var(--radius-md);
     color: var(--text);
-    font-size: 0.82rem;
+    font-size: 0.92rem;
     transition: all 0.2s ease;
 }
 .task-side-col .tracker-note:focus {
@@ -1846,11 +1897,11 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
 }
 
 .task-side-col .btn-tracker.save {
-    padding: 8px 14px;
+    padding: 10px 18px;
     background: var(--surface-hover);
     border: 1px solid var(--border);
     color: var(--text-2);
-    font-size: 0.82rem;
+    font-size: 0.92rem;
 }
 .task-side-col .btn-tracker.save:hover {
     background: var(--primary);
@@ -1873,7 +1924,7 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    font-size: 0.72rem;
+    font-size: 0.82rem;
     font-weight: 700;
     color: var(--text-3);
     text-transform: uppercase;
@@ -1895,17 +1946,17 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 5px 9px;
+    padding: 6px 10px;
     background: rgba(0, 0, 0, 0.24);
     border: 1px solid rgba(255, 255, 255, 0.05);
     border-radius: var(--radius-sm);
-    font-size: 0.76rem;
+    font-size: 0.84rem;
 }
 
 .task-side-col .tracker-history-item-left {
     display: flex;
     flex-direction: column;
-    gap: 1px;
+    gap: 2px;
     min-width: 0;
     flex: 1;
     margin-right: 8px;
@@ -1914,6 +1965,7 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
 .task-side-col .tracker-history-note {
     color: var(--text);
     font-weight: 600;
+    font-size: 0.88rem;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1921,15 +1973,15 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
 
 .task-side-col .tracker-history-time {
     color: var(--text-3);
-    font-size: 0.68rem;
+    font-size: 0.78rem;
 }
 
 .task-side-col .tracker-history-dur {
     font-weight: 700;
     color: #34d399;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 0.76rem;
-    padding: 2px 6px;
+    font-size: 0.85rem;
+    padding: 3px 8px;
     border-radius: 4px;
     background: rgba(16, 185, 129, 0.12);
     white-space: nowrap;
@@ -1938,7 +1990,7 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
 .task-side-col .tracker-history-empty {
     margin: auto;
     color: var(--text-3);
-    font-size: 0.72rem;
+    font-size: 0.84rem;
     text-align: center;
     font-style: italic;
     opacity: 0.6;
@@ -1970,7 +2022,7 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
 }
 
 .task-side-col .task-page-logtime-title {
-    font-size: 1.02rem;
+    font-size: 1.15rem;
     font-weight: 800;
     color: var(--text);
     display: flex;
@@ -2011,21 +2063,21 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
 }
 
 .task-side-col .form-group label {
-    font-size: 0.76rem;
+    font-size: 0.86rem;
     font-weight: 700;
     color: var(--text-3);
-    margin-bottom: 2px;
+    margin-bottom: 3px;
 }
 
 .task-side-col .form-group select,
 .task-side-col .form-group input {
     width: 100%;
-    padding: 9px 12px;
+    padding: 10px 13px;
     background: rgba(0, 0, 0, 0.35);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: var(--radius-md);
     color: var(--text);
-    font-size: 0.86rem;
+    font-size: 0.95rem;
     font-family: inherit;
     transition: all 0.2s ease;
     box-sizing: border-box;
@@ -2046,9 +2098,9 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
 
 .task-side-col .btn-primary {
     width: 100%;
-    padding: 12px 20px;
+    padding: 13px 20px;
     border-radius: var(--radius-md);
-    font-size: 0.95rem;
+    font-size: 1.05rem;
     font-weight: 800;
     letter-spacing: 0.02em;
     display: flex;
