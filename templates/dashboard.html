@@ -453,16 +453,27 @@
                                         </div>
                                     </div>
 
-                                    <!-- File preview container -->
-                                    <div id="leave-file-preview-card" style="display: none; margin-top: 14px; padding: 12px; background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 10px; align-items: center; justify-content: space-between;">
-                                        <div style="display: flex; align-items: center; gap: 12px; overflow: hidden;">
-                                            <img id="leave-preview-img" src="" alt="Preview" style="width: 50px; height: 50px; border-radius: 8px; object-fit: cover; border: 1px solid var(--border);">
-                                            <div style="overflow: hidden;">
-                                                <div id="leave-preview-name" style="font-size: 0.85rem; font-weight: 600; color: #f8fafc; white-space: nowrap; text-overflow: ellipsis; overflow: hidden;">filename.png</div>
-                                                <div id="leave-preview-size" style="font-size: 0.75rem; color: var(--text-3);">0 KB</div>
+                                    <!-- File preview container with separate GDrive upload button -->
+                                    <div id="leave-file-preview-card" style="display: none; margin-top: 14px; padding: 14px 16px; background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 12px; flex-direction: column; gap: 12px;">
+                                        <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                                            <div style="display: flex; align-items: center; gap: 12px; overflow: hidden;">
+                                                <img id="leave-preview-img" src="" alt="Preview" style="width: 52px; height: 52px; border-radius: 8px; object-fit: cover; border: 1px solid var(--border);">
+                                                <div style="overflow: hidden;">
+                                                    <div id="leave-preview-name" style="font-size: 0.88rem; font-weight: 600; color: #f8fafc; white-space: nowrap; text-overflow: ellipsis; overflow: hidden;">filename.png</div>
+                                                    <div id="leave-preview-size" style="font-size: 0.75rem; color: var(--text-3); margin-top: 2px;">0 KB</div>
+                                                </div>
                                             </div>
+                                            <button type="button" onclick="removeLeaveSelectedFile()" title="Xóa ảnh" style="background: none; border: none; color: #ef4444; font-size: 1.2rem; cursor: pointer; padding: 4px 8px;">✕</button>
                                         </div>
-                                        <button type="button" onclick="removeLeaveSelectedFile()" style="background: none; border: none; color: #ef4444; font-size: 1.1rem; cursor: pointer; padding: 4px 8px;">✕</button>
+
+                                        <!-- Nút upload ảnh lên Google Drive riêng -->
+                                        <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 10px; border-top: 1px dashed rgba(255,255,255,0.1); width: 100%; flex-wrap: wrap;">
+                                            <button type="button" id="leave-btn-upload-gdrive" onclick="uploadAttachmentToGDriveDirectly()" style="background: #2563eb; color: #fff; border: 1px solid #3b82f6; padding: 7px 16px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; transition: all 0.2s ease; box-shadow: 0 2px 8px rgba(37,99,235,0.3);">
+                                                <i class="fab fa-google-drive"></i>
+                                                <span id="leave-btn-upload-gdrive-text">Tải ảnh lên Google Drive</span>
+                                            </button>
+                                            <div id="leave-gdrive-upload-status" style="font-size: 0.82rem; display: none;"></div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -726,7 +737,7 @@
     <div class="mobile-brand">
         <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" width="30" height="30" style="border-radius: 8px; object-fit: contain;">
         <span>VN-Tracking</span>
-        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.98</i></sup>
+        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.99</i></sup>
     </div>
     <div class="mobile-topbar-right">
         <button type="button" class="mobile-icon-btn" onclick="toggleNotificationPanel(event)" title="{{ 'Thông báo' if lang == 'vi' else '通知' }}">
@@ -878,7 +889,7 @@
             </div>
             <div class="sidebar-logo-text">
                 <span class="sidebar-brand-name">VN-Tracking</span>
-                <sup class="version-tag"><i>v1.9.98</i></sup>
+                <sup class="version-tag"><i>v1.9.99</i></sup>
             </div>
         </div>
     </div>
