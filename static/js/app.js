@@ -8638,22 +8638,25 @@ if (typeof document !== 'undefined') {
 })();
 
 // =====================================================================
-// LEAVE REQUEST (TEAM CALENDAR)
+// LEAVE REQUEST (TEAM CALENDAR) - 4-STEP WIZARD
 // =====================================================================
+let currentLeaveStep = 1;
 let isSubmittingLeave = false;
 let leaveStartPicker = null;
 let leaveEndPicker = null;
+let selectedLeaveFile = null;
 
 // Configurable entry mapping for Google Form
 window.GOOGLE_LEAVE_FORM_CONFIG = {
     formUrl: "https://docs.google.com/forms/d/e/1FAIpQLSdTN5OaUnud70UtSV9ygYJ8ob-nBk5VOFlfrJwaow9W-TcKJg/formResponse",
     entries: {
         fullname: "entry.1",
-        leaveType: "entry.2",
-        startDate: "entry.3",
-        endDate: "entry.4",
-        reason: "entry.5",
-        handover: "entry.6"
+        staffCode: "entry.2",
+        department: "entry.3",
+        startDate: "entry.4",
+        endDate: "entry.5",
+        totalDays: "entry.6",
+        leaveType: "entry.7"
     }
 };
 
@@ -8665,8 +8668,11 @@ function openLeaveModal() {
         return;
     }
 
+    currentLeaveStep = 1;
+    updateLeaveStepUI();
+
     overlay.style.display = 'block';
-    modal.style.display = 'block';
+    modal.style.display = 'flex';
     void modal.offsetWidth; // force reflow
     overlay.classList.add('active');
     modal.classList.add('active');
@@ -8687,6 +8693,7 @@ function openLeaveModal() {
                     if (leaveEndPicker && (!endInput.value || endInput.value < dateStr)) {
                         leaveEndPicker.setDate(dateStr);
                     }
+                    updateLeaveFilenamePreview();
                 }
             });
         }
@@ -8700,6 +8707,8 @@ function openLeaveModal() {
         if (startInput && !startInput.value) startInput.value = today;
         if (endInput && !endInput.value) endInput.value = today;
     }
+
+    updateLeaveFilenamePreview();
 }
 
 function closeLeaveModal() {
@@ -8719,6 +8728,221 @@ function closeLeaveModal() {
 window.openLeaveModal = openLeaveModal;
 window.closeLeaveModal = closeLeaveModal;
 
+function onLeaveAgreeChange() {
+    const chk = document.getElementById('leave-agree-checkbox');
+    const nextBtn = document.getElementById('leave-btn-next');
+    if (chk && nextBtn && currentLeaveStep === 1) {
+        if (chk.checked) {
+            nextBtn.style.opacity = '1';
+            nextBtn.disabled = false;
+        } else {
+            nextBtn.style.opacity = '0.5';
+        }
+    }
+}
+window.onLeaveAgreeChange = onLeaveAgreeChange;
+
+function toggleLeaveTypeOther(isOther) {
+    const otherInp = document.getElementById('leave-type-other-text');
+    if (otherInp) {
+        if (isOther) {
+            otherInp.focus();
+        } else {
+            otherInp.value = '';
+        }
+    }
+}
+window.toggleLeaveTypeOther = toggleLeaveTypeOther;
+
+function navigateLeaveStep(delta) {
+    if (delta > 0) {
+        // Validate current step before advancing
+        if (currentLeaveStep === 1) {
+            const agreed = document.getElementById('leave-agree-checkbox')?.checked;
+            if (!agreed) {
+                if (typeof showToast === 'function') {
+                    showToast('Vui lòng đọc và tích xác nhận tuân thủ quy định nghỉ phép!', 'warning');
+                } else {
+                    alert('Vui lòng đọc và tích xác nhận tuân thủ quy định nghỉ phép!');
+                }
+                return;
+            }
+        } else if (currentLeaveStep === 2) {
+            const fullname = (document.getElementById('leave-fullname')?.value || '').trim();
+            const staffCode = (document.getElementById('leave-staff-code')?.value || '').trim();
+            const dept = document.querySelector('input[name="leave_department"]:checked')?.value;
+
+            if (!fullname) {
+                if (typeof showToast === 'function') showToast('Vui lòng nhập Họ và tên!', 'warning');
+                else alert('Vui lòng nhập Họ và tên!');
+                document.getElementById('leave-fullname')?.focus();
+                return;
+            }
+            if (!staffCode || staffCode.length !== 10) {
+                if (typeof showToast === 'function') showToast('Mã số nhân viên phải gồm đúng 10 số!', 'warning');
+                else alert('Mã số nhân viên phải gồm đúng 10 số!');
+                document.getElementById('leave-staff-code')?.focus();
+                return;
+            }
+            if (!dept) {
+                if (typeof showToast === 'function') showToast('Vui lòng chọn phòng ban!', 'warning');
+                else alert('Vui lòng chọn phòng ban!');
+                return;
+            }
+        } else if (currentLeaveStep === 3) {
+            const startDate = (document.getElementById('leave-start-date')?.value || '').trim();
+            const endDate = (document.getElementById('leave-end-date')?.value || '').trim();
+            const totalDays = (document.getElementById('leave-total-days')?.value || '').trim();
+            const typeChoice = document.querySelector('input[name="leave_type_choice"]:checked')?.value;
+            const otherText = (document.getElementById('leave-type-other-text')?.value || '').trim();
+
+            if (!startDate || !endDate) {
+                if (typeof showToast === 'function') showToast('Vui lòng nhập ngày bắt đầu và kết thúc nghỉ!', 'warning');
+                else alert('Vui lòng nhập ngày bắt đầu và kết thúc nghỉ!');
+                return;
+            }
+            if (!totalDays) {
+                if (typeof showToast === 'function') showToast('Vui lòng nhập tổng thời gian nghỉ phép (vd: 1 hoặc 1.5)!', 'warning');
+                else alert('Vui lòng nhập tổng thời gian nghỉ phép (vd: 1 hoặc 1.5)!');
+                document.getElementById('leave-total-days')?.focus();
+                return;
+            }
+            if (typeChoice === 'OTHER' && !otherText) {
+                if (typeof showToast === 'function') showToast('Vui lòng nhập loại nghỉ khác!', 'warning');
+                else alert('Vui lòng nhập loại nghỉ khác!');
+                document.getElementById('leave-type-other-text')?.focus();
+                return;
+            }
+        }
+    }
+
+    currentLeaveStep = Math.max(1, Math.min(4, currentLeaveStep + delta));
+    updateLeaveStepUI();
+}
+window.navigateLeaveStep = navigateLeaveStep;
+
+function updateLeaveStepUI() {
+    // 1. Panes
+    for (let i = 1; i <= 4; i++) {
+        const pane = document.getElementById(`leave-step-${i}`);
+        if (pane) pane.classList.toggle('active', i === currentLeaveStep);
+
+        const ind = document.getElementById(`step-indicator-${i}`);
+        if (ind) {
+            ind.classList.toggle('active', i === currentLeaveStep);
+            ind.classList.toggle('completed', i < currentLeaveStep);
+        }
+
+        const sep = document.getElementById(`step-sep-${i}`);
+        if (sep) {
+            sep.classList.toggle('completed', i < currentLeaveStep);
+        }
+    }
+
+    // 2. Buttons
+    const prevBtn = document.getElementById('leave-btn-prev');
+    const cancelBtn = document.getElementById('leave-btn-cancel');
+    const nextBtn = document.getElementById('leave-btn-next');
+    const submitBtn = document.getElementById('leave-btn-submit');
+
+    if (currentLeaveStep === 1) {
+        if (prevBtn) prevBtn.style.display = 'none';
+        if (cancelBtn) cancelBtn.style.display = 'inline-block';
+        if (nextBtn) nextBtn.style.display = 'flex';
+        if (submitBtn) submitBtn.style.display = 'none';
+        onLeaveAgreeChange();
+    } else if (currentLeaveStep === 4) {
+        if (prevBtn) prevBtn.style.display = 'inline-block';
+        if (cancelBtn) cancelBtn.style.display = 'none';
+        if (nextBtn) nextBtn.style.display = 'none';
+        if (submitBtn) submitBtn.style.display = 'flex';
+        updateLeaveFilenamePreview();
+    } else {
+        if (prevBtn) prevBtn.style.display = 'inline-block';
+        if (cancelBtn) cancelBtn.style.display = 'none';
+        if (nextBtn) {
+            nextBtn.style.display = 'flex';
+            nextBtn.style.opacity = '1';
+            nextBtn.disabled = false;
+        }
+        if (submitBtn) submitBtn.style.display = 'none';
+    }
+
+    // Scroll top of modal body
+    const body = document.querySelector('.leave-modal-body');
+    if (body) body.scrollTop = 0;
+}
+
+function updateLeaveFilenamePreview() {
+    const rawDate = (document.getElementById('leave-start-date')?.value || '').trim();
+    const staffCode = (document.getElementById('leave-staff-code')?.value || '').trim() || 'MÃ_NV';
+
+    // Format YYMMDD
+    let yymmdd = 'YYMMDD';
+    if (rawDate) {
+        const parts = rawDate.split('-');
+        if (parts.length === 3) {
+            const yy = parts[0].slice(-2);
+            const mm = parts[1].padStart(2, '0');
+            const dd = parts[2].padStart(2, '0');
+            yymmdd = `${yy}${mm}${dd}`;
+        }
+    }
+
+    const filename = `HR - Leave Request - ${yymmdd} - ${staffCode}`;
+    const nameEl = document.getElementById('leave-suggested-filename');
+    if (nameEl) nameEl.textContent = filename;
+}
+window.updateLeaveFilenamePreview = updateLeaveFilenamePreview;
+
+function copySuggestedFilename() {
+    const nameEl = document.getElementById('leave-suggested-filename');
+    if (!nameEl) return;
+    const txt = nameEl.textContent;
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(txt).then(() => {
+            if (typeof showToast === 'function') showToast('Đã sao chép tên file mẫu!', 'success');
+            else alert('Đã sao chép: ' + txt);
+        });
+    }
+}
+window.copySuggestedFilename = copySuggestedFilename;
+
+function onLeaveFileSelected(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 10 * 1024 * 1024) {
+        if (typeof showToast === 'function') showToast('Kích thước ảnh vượt quá 10MB!', 'error');
+        else alert('Kích thước ảnh vượt quá 10MB!');
+        e.target.value = '';
+        return;
+    }
+
+    selectedLeaveFile = file;
+    const previewCard = document.getElementById('leave-file-preview-card');
+    const previewImg = document.getElementById('leave-preview-img');
+    const previewName = document.getElementById('leave-preview-name');
+    const previewSize = document.getElementById('leave-preview-size');
+
+    if (previewCard && previewImg && previewName && previewSize) {
+        previewImg.src = URL.createObjectURL(file);
+        previewName.textContent = file.name;
+        previewSize.textContent = (file.size / 1024).toFixed(1) + ' KB';
+        previewCard.style.display = 'flex';
+    }
+}
+window.onLeaveFileSelected = onLeaveFileSelected;
+
+function removeLeaveSelectedFile() {
+    selectedLeaveFile = null;
+    const fileInp = document.getElementById('leave-attachment-input');
+    if (fileInp) fileInp.value = '';
+    const previewCard = document.getElementById('leave-file-preview-card');
+    if (previewCard) previewCard.style.display = 'none';
+}
+window.removeLeaveSelectedFile = removeLeaveSelectedFile;
+
 function onLeaveIframeLoad() {
     if (isSubmittingLeave) {
         finishLeaveSubmission(true);
@@ -8727,7 +8951,7 @@ function onLeaveIframeLoad() {
 
 function finishLeaveSubmission(success) {
     isSubmittingLeave = false;
-    const btn = document.getElementById('btn-submit-leave');
+    const btn = document.getElementById('leave-btn-submit');
     if (btn) {
         btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-paper-plane"></i> <span>Gửi đơn nghỉ phép</span>';
@@ -8735,57 +8959,72 @@ function finishLeaveSubmission(success) {
     closeLeaveModal();
     if (success) {
         if (typeof showToast === 'function') {
-            showToast('✅ Đã gửi đơn nghỉ phép thành công!', 'success');
+            showToast('✅ Đã gửi đơn đăng ký nghỉ phép thành công!', 'success');
         } else {
-            alert('Đã gửi đơn nghỉ phép thành công!');
+            alert('Đã gửi đơn đăng ký nghỉ phép thành công!');
         }
     }
 }
 
-async function submitLeaveRequest(e) {
+async function submitMultiStepLeave(e) {
     if (e) e.preventDefault();
     if (isSubmittingLeave) return;
 
     const fullname = (document.getElementById('leave-fullname')?.value || '').trim();
-    const leaveType = (document.getElementById('leave-type')?.value || '').trim();
+    const staffCode = (document.getElementById('leave-staff-code')?.value || '').trim();
+    const dept = document.querySelector('input[name="leave_department"]:checked')?.value || 'DESIGN';
     const startDate = (document.getElementById('leave-start-date')?.value || '').trim();
+    const startTime = (document.getElementById('leave-start-time')?.value || '08:00').trim();
     const endDate = (document.getElementById('leave-end-date')?.value || '').trim();
-    const reason = (document.getElementById('leave-reason')?.value || '').trim();
-    const handover = (document.getElementById('leave-handover')?.value || '').trim();
+    const endTime = (document.getElementById('leave-end-time')?.value || '17:00').trim();
+    const totalDays = (document.getElementById('leave-total-days')?.value || '').trim();
+    
+    let leaveType = document.querySelector('input[name="leave_type_choice"]:checked')?.value || 'NGHỈ PHÉP - ANNUAL LEAVE';
+    if (leaveType === 'OTHER') {
+        leaveType = (document.getElementById('leave-type-other-text')?.value || '').trim() || 'Mục khác';
+    }
 
-    if (!fullname || !startDate || !endDate) {
+    if (!fullname || !staffCode || !startDate || !endDate || !totalDays) {
         if (typeof showToast === 'function') {
-            showToast('Vui lòng điền đầy đủ họ tên và thời gian nghỉ!', 'error');
+            showToast('Vui lòng điền đầy đủ thông tin bắt buộc!', 'error');
         } else {
-            alert('Vui lòng điền đầy đủ họ tên và thời gian nghỉ!');
+            alert('Vui lòng điền đầy đủ thông tin bắt buộc!');
         }
         return;
     }
 
     isSubmittingLeave = true;
-    const btn = document.getElementById('btn-submit-leave');
+    const btn = document.getElementById('leave-btn-submit');
     if (btn) {
         btn.disabled = true;
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Đang gửi đơn...</span>';
     }
 
-    // 1. Post to local API backup
+    // 1. Post to local API with FormData (supporting attachment file)
     try {
-        fetch('/api/submit_leave_request', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                fullname: fullname,
-                leave_type: leaveType,
-                start_date: startDate,
-                end_date: endDate,
-                reason: reason,
-                handover: handover
-            })
-        }).catch(() => {});
-    } catch (_) {}
+        const formData = new FormData();
+        formData.append('fullname', fullname);
+        formData.append('staff_code', staffCode);
+        formData.append('department', dept);
+        formData.append('start_date', startDate);
+        formData.append('start_time', startTime);
+        formData.append('end_date', endDate);
+        formData.append('end_time', endTime);
+        formData.append('total_days', totalDays);
+        formData.append('leave_type', leaveType);
+        if (selectedLeaveFile) {
+            formData.append('attachment', selectedLeaveFile);
+        }
 
-    // 2. Submit to Google Form via hidden form & iframe
+        await fetch('/api/submit_leave_request', {
+            method: 'POST',
+            body: formData
+        });
+    } catch (err) {
+        console.warn('Local submit error:', err);
+    }
+
+    // 2. Submit to Google Form via hidden form & iframe (if configured)
     try {
         const hiddenForm = document.getElementById('google-hidden-leave-form');
         if (hiddenForm) {
@@ -8802,11 +9041,12 @@ async function submitLeaveRequest(e) {
             };
 
             appendField(cfg.fullname, fullname);
+            appendField(cfg.staffCode, staffCode);
+            appendField(cfg.department, dept);
+            appendField(cfg.startDate, `${startDate} ${startTime}`);
+            appendField(cfg.endDate, `${endDate} ${endTime}`);
+            appendField(cfg.totalDays, totalDays);
             appendField(cfg.leaveType, leaveType);
-            appendField(cfg.startDate, startDate);
-            appendField(cfg.endDate, endDate);
-            appendField(cfg.reason, reason);
-            appendField(cfg.handover, handover);
 
             hiddenForm.submit();
         }
@@ -8814,13 +9054,14 @@ async function submitLeaveRequest(e) {
         console.warn('Google form hidden submit error:', err);
     }
 
-    // Fallback timer if iframe load event is blocked by cross-origin
+    // Complete submission
     setTimeout(() => {
         if (isSubmittingLeave) {
             finishLeaveSubmission(true);
         }
-    }, 1800);
+    }, 1500);
 }
+window.submitMultiStepLeave = submitMultiStepLeave;
 
 
 

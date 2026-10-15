@@ -2975,7 +2975,7 @@ def lsa_drive():
         filter_cv_sau=[],
         users=[],
         tasks=[],
-        app_version='v1.9.94',
+        app_version='v1.9.95',
     )
 
 # =====================================================================
@@ -3872,24 +3872,53 @@ def api_submit_leave_request():
     if not session.get('logged_in'):
         return jsonify({"ok": False, "error": "Unauthorized"}), 401
     try:
-        data = request.get_json() or {}
+        # Support both multipart form-data and JSON
+        if request.content_type and 'multipart/form-data' in request.content_type:
+            data = request.form.to_dict()
+        else:
+            data = request.get_json() or {}
+
         fullname = str(data.get('fullname') or session.get('user') or '').strip()
+        staff_code = str(data.get('staff_code') or '').strip()
+        department = str(data.get('department') or '').strip()
         leave_type = str(data.get('leave_type') or '').strip()
         start_date = str(data.get('start_date') or '').strip()
+        start_time = str(data.get('start_time') or '08:00').strip()
         end_date = str(data.get('end_date') or '').strip()
+        end_time = str(data.get('end_time') or '17:00').strip()
+        total_days = str(data.get('total_days') or '').strip()
         reason = str(data.get('reason') or '').strip()
         handover = str(data.get('handover') or '').strip()
         username = session.get('user', '')
+
+        # Handle attachment file if uploaded
+        attachment_filename = ''
+        if 'attachment' in request.files:
+            file = request.files['attachment']
+            if file and file.filename:
+                safe_name = re.sub(r'[^a-zA-Z0-9_.-]', '_', file.filename)
+                data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
+                attach_dir = os.path.join(data_dir, 'leave_attachments')
+                os.makedirs(attach_dir, exist_ok=True)
+                save_filename = f"{int(time.time())}_{safe_name}"
+                file.save(os.path.join(attach_dir, save_filename))
+                attachment_filename = save_filename
 
         rec = {
             "id": f"leave_{int(time.time())}_{uuid.uuid4().hex[:6]}",
             "username": username,
             "fullname": fullname,
+            "staff_code": staff_code,
+            "department": department,
             "leave_type": leave_type,
             "start_date": start_date,
+            "start_time": start_time,
             "end_date": end_date,
+            "end_time": end_time,
+            "total_days": total_days,
             "reason": reason,
             "handover": handover,
+            "attachment": attachment_filename,
             "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         }
 
