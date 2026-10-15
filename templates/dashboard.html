@@ -176,10 +176,10 @@
 </div>
 
 <!-- ============ ROLE MEMBERS FULL-PAGE VIEW ============ -->
-<div class="modal-overlay task-detail-page-view tool-page-view" id="page-view-role" role="region" aria-label="Role Members" data-lenis-prevent style="overflow-y: auto;">
-    <div class="task-page-container" style="max-width: 900px; margin: 0 auto; padding: 20px 24px 80px;">
+<div class="modal-overlay task-detail-page-view tool-page-view" id="page-view-role" role="region" aria-label="Role Members" data-lenis-prevent>
+    <div class="tool-page-container">
         <!-- Top Navigation / Breadcrumbs -->
-        <div class="task-page-nav-bar">
+        <div class="tool-page-nav-bar">
             <div class="task-page-breadcrumbs">
                 <button type="button" class="task-back-btn" onclick="closeToolPage('role')" title="{{ 'Trở về Dashboard' if lang == 'vi' else 'ダッシュボードに戻る' }}">
                     <i class="fas fa-chevron-left"></i>
@@ -201,51 +201,55 @@
             </div>
         </div>
 
-        <!-- Role Header Card -->
-        <div style="background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 22px 24px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; box-shadow: var(--shadow-sm);">
-            <div style="display: flex; align-items: center; gap: 16px;">
-                <div style="width: 44px; height: 44px; border-radius: 12px; background: rgba(99, 102, 241, 0.15); color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 1.25rem;">
-                    <i class="fas fa-users-cog"></i>
+        <div style="flex: 1; overflow-y: auto; padding: 10px 0 60px;">
+            <div style="max-width: 900px; margin: 0 auto; width: 100%;">
+                <!-- Role Header Card -->
+                <div style="background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 22px 24px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; box-shadow: var(--shadow-sm);">
+                    <div style="display: flex; align-items: center; gap: 16px;">
+                        <div style="width: 44px; height: 44px; border-radius: 12px; background: rgba(99, 102, 241, 0.15); color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 1.25rem;">
+                            <i class="fas fa-users-cog"></i>
+                        </div>
+                        <div>
+                            <h2 style="margin: 0; font-size: 1.25rem; font-weight: 700; color: var(--text);">{{ 'Quản lý Phân quyền Thành viên' if lang == 'vi' else 'メンバー権限管理' }}</h2>
+                            <p style="margin: 4px 0 0; font-size: 0.85rem; color: var(--text-2);">{{ 'Thay đổi quyền hạn (Admin, Leader, Member) cho các thành viên trong hệ thống' if lang == 'vi' else 'システムのメンバー権限（Admin、Leader、Member）を変更します' }}</p>
+                        </div>
+                    </div>
+                    <div style="background: var(--surface-2); padding: 6px 14px; border-radius: 20px; font-size: 0.82rem; font-weight: 600; color: var(--primary);">
+                        {{ user_profiles|length }} {{ 'Thành viên' if lang == 'vi' else 'メンバー' }}
+                    </div>
                 </div>
-                <div>
-                    <h2 style="margin: 0; font-size: 1.25rem; font-weight: 700; color: var(--text);">{{ 'Quản lý Phân quyền Thành viên' if lang == 'vi' else 'メンバー権限管理' }}</h2>
-                    <p style="margin: 4px 0 0; font-size: 0.85rem; color: var(--text-2);">{{ 'Thay đổi quyền hạn (Admin, Leader, Member) cho các thành viên trong hệ thống' if lang == 'vi' else 'システムのメンバー権限（Admin、Leader、Member）を変更します' }}</p>
-                </div>
-            </div>
-            <div style="background: var(--surface-2); padding: 6px 14px; border-radius: 20px; font-size: 0.82rem; font-weight: 600; color: var(--primary);">
-                {{ user_profiles|length }} {{ 'Thành viên' if lang == 'vi' else 'メンバー' }}
-            </div>
-        </div>
 
-        <!-- Role Members List -->
-        <div style="background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 8px 24px; box-shadow: var(--shadow-sm);">
-            {% for uname, info in user_profiles.items() %}
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--border);">
-                <div style="display: flex; align-items: center; gap: 12px;">
-                    <div style="width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(168, 85, 247, 0.2)); display: flex; align-items: center; justify-content: center; font-weight: 700; color: var(--text);">
-                        {{ (info.fullname or uname)[:1] | upper }}
+                <!-- Role Members List -->
+                <div style="background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 8px 24px; box-shadow: var(--shadow-sm);">
+                    {% for uname, info in user_profiles.items() %}
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--border);">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <div style="width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(168, 85, 247, 0.2)); display: flex; align-items: center; justify-content: center; font-weight: 700; color: var(--text);">
+                                {{ (info.fullname or uname)[:1] | upper }}
+                            </div>
+                            <div>
+                                <div style="font-weight: 600; font-size: 0.95rem; color: var(--text);">{{ info.fullname or uname }}</div>
+                                <div style="font-size: 0.82rem; color: var(--text-3);">@{{ uname }}</div>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <select id="role-select-{{ uname | replace(' ', '_') | replace('.', '_') }}"
+                                style="padding: 7px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-page); color: var(--text); font-size: 0.88rem; outline: none; cursor: pointer;">
+                                <option value="admin" {% if info.role=='admin' %}selected{% endif %}>Admin</option>
+                                <option value="leader" {% if info.role=='leader' %}selected{% endif %}>Leader</option>
+                                <option value="member" {% if info.role=='member' %}selected{% endif %}>Member</option>
+                            </select>
+                            <button class="btn btn-primary"
+                                style="padding: 7px 16px; font-size: 0.85rem; display: flex; align-items: center; gap: 5px; min-width: 65px; justify-content: center;"
+                                onclick="updateRole('{{ uname }}', this)">
+                                <i class="fas fa-save" style="font-size: 0.8rem;"></i>
+                                <span>{{ 'Lưu' if lang == 'vi' else '保存' }}</span>
+                            </button>
+                        </div>
                     </div>
-                    <div>
-                        <div style="font-weight: 600; font-size: 0.95rem; color: var(--text);">{{ info.fullname or uname }}</div>
-                        <div style="font-size: 0.82rem; color: var(--text-3);">@{{ uname }}</div>
-                    </div>
-                </div>
-                <div style="display: flex; gap: 10px; align-items: center;">
-                    <select id="role-select-{{ uname | replace(' ', '_') | replace('.', '_') }}"
-                        style="padding: 7px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-page); color: var(--text); font-size: 0.88rem; outline: none; cursor: pointer;">
-                        <option value="admin" {% if info.role=='admin' %}selected{% endif %}>Admin</option>
-                        <option value="leader" {% if info.role=='leader' %}selected{% endif %}>Leader</option>
-                        <option value="member" {% if info.role=='member' %}selected{% endif %}>Member</option>
-                    </select>
-                    <button class="btn btn-primary"
-                        style="padding: 7px 16px; font-size: 0.85rem; display: flex; align-items: center; gap: 5px; min-width: 65px; justify-content: center;"
-                        onclick="updateRole('{{ uname }}', this)">
-                        <i class="fas fa-save" style="font-size: 0.8rem;"></i>
-                        <span>{{ 'Lưu' if lang == 'vi' else '保存' }}</span>
-                    </button>
+                    {% endfor %}
                 </div>
             </div>
-            {% endfor %}
         </div>
     </div>
 </div>
@@ -325,7 +329,7 @@
     <div class="mobile-brand">
         <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" width="30" height="30" style="border-radius: 8px; object-fit: contain;">
         <span>VN-Tracking</span>
-        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.88</i></sup>
+        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.89</i></sup>
     </div>
     <div class="mobile-topbar-right">
         <button type="button" class="mobile-icon-btn" onclick="toggleNotificationPanel(event)" title="{{ 'Thông báo' if lang == 'vi' else '通知' }}">
@@ -477,7 +481,7 @@
             </div>
             <div class="sidebar-logo-text">
                 <span class="sidebar-brand-name">VN-Tracking</span>
-                <sup class="version-tag"><i>v1.9.88</i></sup>
+                <sup class="version-tag"><i>v1.9.89</i></sup>
             </div>
         </div>
     </div>
