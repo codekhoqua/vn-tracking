@@ -1541,14 +1541,16 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
 .task-master-layout {
     display: grid;
     grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
-    gap: 20px;
-    align-items: start;
+    gap: 22px;
+    align-items: stretch;
+    min-height: calc(100vh - 190px);
     margin-top: 16px;
 }
 
 @media (max-width: 1240px) {
     .task-master-layout {
         grid-template-columns: 1fr;
+        min-height: auto;
     }
 }
 
@@ -1556,14 +1558,15 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
 .task-main-col {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 18px;
     min-width: 0;
+    height: 100%;
 }
 
 /* 1. Compact Work Links Toolbar */
 .task-main-col .task-links-box {
     margin-bottom: 0;
-    padding: 10px 14px;
+    padding: 12px 16px;
     background: var(--surface-card);
     border: 1px solid var(--border);
     border-radius: var(--radius-xl);
@@ -1574,11 +1577,11 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
 }
 
 .task-main-col .task-links-title {
-    font-size: 0.78rem;
+    font-size: 0.8rem;
     font-weight: 800;
     color: var(--text-3);
     text-transform: uppercase;
@@ -1590,7 +1593,7 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
 .task-main-col .task-links-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 8px;
+    gap: 10px;
 }
 
 @media (max-width: 768px) {
@@ -1600,33 +1603,33 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
 }
 
 .task-main-col .task-link-card {
-    padding: 7px 10px;
+    padding: 9px 12px;
     border-radius: var(--radius-md);
-    min-height: 44px;
-    gap: 8px;
+    min-height: 48px;
+    gap: 10px;
 }
 
 .task-main-col .task-link-icon {
-    width: 26px;
-    height: 26px;
-    font-size: 0.82rem;
+    width: 28px;
+    height: 28px;
+    font-size: 0.85rem;
     border-radius: 6px;
 }
 
 .task-main-col .task-link-name {
-    font-size: 0.75rem;
+    font-size: 0.78rem;
     font-weight: 800;
 }
 
 .task-main-col .task-link-status {
-    font-size: 0.65rem;
+    font-size: 0.68rem;
 }
 
 /* 2. Checklist Grid: Balanced 3-Column Stepper */
 .task-main-col .checklist-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 12px;
+    gap: 14px;
     margin-bottom: 0;
     align-items: stretch;
 }
@@ -1641,7 +1644,7 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
     background: var(--surface-card);
     border: 1px solid var(--border);
     border-radius: var(--radius-xl);
-    padding: 14px 14px 12px;
+    padding: 18px 16px 16px;
     box-shadow: var(--shadow-xs);
     display: flex;
     flex-direction: column;
@@ -1649,37 +1652,37 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
 }
 
 .task-main-col .step-header {
-    margin-bottom: 8px;
+    margin-bottom: 10px;
 }
 
 .task-main-col .step-items {
     display: flex;
     flex-direction: column;
-    gap: 5px;
+    gap: 7px;
     flex: 1 1 auto;
 }
 
 .task-main-col .task-row {
-    padding: 5px 8px;
+    padding: 7px 10px;
 }
 
 .task-main-col .msg-template-card {
-    padding: 8px 10px;
+    padding: 10px 12px;
     border-radius: var(--radius-md);
     background: rgba(0, 0, 0, 0.28);
     border: 1px solid rgba(255, 255, 255, 0.06);
-    margin: 3px 0;
+    margin: 4px 0;
 }
 
 .task-main-col .msg-template-body {
-    font-size: 0.75rem;
-    line-height: 1.4;
+    font-size: 0.78rem;
+    line-height: 1.45;
 }
 
 .task-main-col .step-hint-box {
     margin-top: auto;
-    padding: 8px 10px;
-    font-size: 0.72rem;
+    padding: 10px 12px;
+    font-size: 0.74rem;
 }
 
 /* 3. Collaboration & Comments Timeline */
@@ -1688,18 +1691,27 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
     background: var(--surface-card);
     border: 1px solid var(--border);
     border-radius: var(--radius-xl);
-    padding: 16px 18px;
+    padding: 18px 20px;
     box-shadow: var(--shadow-xs);
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 12px;
+    flex: 1;
+    min-height: 380px;
+}
+
+.task-main-col .handover-body {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
 }
 
 .task-main-col .handover-comments-list {
-    min-height: 140px;
-    max-height: 260px;
+    flex: 1;
+    min-height: 220px;
+    max-height: none;
     overflow-y: auto;
-    margin: 8px 0;
+    margin: 10px 0;
     padding-right: 6px;
 }
 
@@ -1707,10 +1719,9 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
 .task-side-col {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 18px;
     min-width: 0;
-    position: sticky;
-    top: 16px;
+    height: 100%;
 }
 
 /* Time Tracker Card */
@@ -1719,11 +1730,11 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
     background: linear-gradient(145deg, rgba(30, 32, 48, 0.75), rgba(20, 22, 34, 0.85));
     border: 1px solid rgba(99, 102, 241, 0.22);
     border-radius: var(--radius-xl);
-    padding: 16px 18px;
+    padding: 18px 20px;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 14px;
     position: relative;
     overflow: hidden;
 }
@@ -1742,7 +1753,7 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    font-size: 0.88rem;
+    font-size: 0.92rem;
     font-weight: 800;
     color: var(--text);
 }
@@ -1751,12 +1762,12 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
     display: grid;
     grid-template-columns: 1fr 1fr auto;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
 }
 
 .task-side-col .btn-tracker {
-    padding: 9px 12px;
-    font-size: 0.82rem;
+    padding: 10px 14px;
+    font-size: 0.85rem;
     font-weight: 700;
     border-radius: var(--radius-md);
     cursor: pointer;
@@ -1795,13 +1806,13 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
 }
 
 .task-side-col .tracker-time {
-    font-size: 1.3rem;
+    font-size: 1.45rem;
     font-weight: 800;
     font-family: 'JetBrains Mono', 'Fira Code', monospace;
     letter-spacing: 0.05em;
     color: var(--primary);
     background: var(--primary-bg);
-    padding: 5px 10px;
+    padding: 6px 14px;
     border-radius: var(--radius-md);
     border: 1px solid rgba(99, 102, 241, 0.3);
     text-shadow: 0 0 10px rgba(99, 102, 241, 0.4);
@@ -1810,17 +1821,17 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
 
 .task-side-col .tracker-inputs {
     display: flex;
-    gap: 8px;
+    gap: 10px;
 }
 
 .task-side-col .tracker-note {
     flex: 1;
-    padding: 8px 11px;
+    padding: 9px 12px;
     background: rgba(0, 0, 0, 0.3);
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: var(--radius-md);
     color: var(--text);
-    font-size: 0.82rem;
+    font-size: 0.85rem;
     transition: all 0.2s ease;
 }
 .task-side-col .tracker-note:focus {
@@ -1830,11 +1841,11 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
 }
 
 .task-side-col .btn-tracker.save {
-    padding: 8px 14px;
+    padding: 9px 16px;
     background: var(--surface-hover);
     border: 1px solid var(--border);
     color: var(--text-2);
-    font-size: 0.82rem;
+    font-size: 0.85rem;
 }
 .task-side-col .btn-tracker.save:hover {
     background: var(--primary);
@@ -1848,23 +1859,25 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
     background: linear-gradient(145deg, rgba(30, 32, 48, 0.75), rgba(20, 22, 34, 0.85));
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: var(--radius-xl);
-    padding: 16px 18px;
+    padding: 20px 22px;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
     display: flex;
     flex-direction: column;
+    flex: 1;
+    justify-content: space-between;
 }
 
 .task-side-col .task-page-logtime-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 12px;
-    padding-bottom: 10px;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .task-side-col .task-page-logtime-title {
-    font-size: 0.95rem;
+    font-size: 1.05rem;
     font-weight: 800;
     color: var(--text);
     display: flex;
@@ -1875,23 +1888,27 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
 .task-side-col .task-page-logtime-card .logtime-form {
     border-top: none;
     padding-top: 0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
 }
 
 .task-side-col .form-row.cols-4 {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 8px 10px;
-    margin-bottom: 10px;
+    gap: 14px 14px;
+    margin-bottom: 14px;
 }
 
 .task-side-col .form-group {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 5px;
 }
 
 .task-side-col .form-group label {
-    font-size: 0.72rem;
+    font-size: 0.76rem;
     font-weight: 700;
     color: var(--text-3);
     margin-bottom: 2px;
@@ -1900,12 +1917,12 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
 .task-side-col .form-group select,
 .task-side-col .form-group input {
     width: 100%;
-    padding: 7px 10px;
+    padding: 9px 12px;
     background: rgba(0, 0, 0, 0.3);
     border: 1px solid rgba(255, 255, 255, 0.09);
     border-radius: var(--radius-md);
     color: var(--text);
-    font-size: 0.82rem;
+    font-size: 0.86rem;
     font-family: inherit;
     transition: all 0.2s ease;
     box-sizing: border-box;
@@ -1921,9 +1938,9 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
 
 .task-side-col .btn-primary {
     width: 100%;
-    padding: 10px 16px;
+    padding: 13px 20px;
     border-radius: var(--radius-md);
-    font-size: 0.9rem;
+    font-size: 0.96rem;
     font-weight: 800;
     letter-spacing: 0.02em;
     display: flex;
@@ -1931,7 +1948,7 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
     justify-content: center;
     gap: 8px;
     background: linear-gradient(135deg, #6366f1, #4f46e5);
-    box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);
+    box-shadow: 0 4px 16px rgba(99, 102, 241, 0.35);
     cursor: pointer;
     border: none;
     color: #fff;
@@ -1940,7 +1957,7 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
 .task-side-col .btn-primary:hover {
     background: linear-gradient(135deg, #4f46e5, #4338ca);
     transform: translateY(-1px);
-    box-shadow: 0 6px 18px rgba(99, 102, 241, 0.5);
+    box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5);
 }
 
 /* Fallback generic Task Chat Timer Grid */
