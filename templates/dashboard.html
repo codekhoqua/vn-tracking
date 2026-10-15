@@ -114,74 +114,339 @@
 
 <!-- ============ LEAVE REQUEST MODAL (TEAM CALENDAR) ============ -->
 <div id="leave-overlay" class="cp-overlay" onclick="closeLeaveModal()"></div>
-<div id="leave-modal" class="cp-modal" style="max-width: 520px; width: 92%; border-radius: 20px; background: var(--surface); border: 1px solid var(--border); box-shadow: 0 20px 50px rgba(0,0,0,0.5);">
-    <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; padding: 18px 24px; border-bottom: 1px solid var(--border);">
+<div id="leave-modal" class="cp-modal">
+    <!-- Header -->
+    <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; padding: 16px 24px; border-bottom: 1px solid var(--border); background: rgba(15, 23, 42, 0.9);">
         <div style="display: flex; align-items: center; gap: 12px;">
             <div style="width: 38px; height: 38px; border-radius: 10px; background: rgba(99, 102, 241, 0.15); color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 1.15rem;">
                 <i class="fas fa-file-signature"></i>
             </div>
             <div>
-                <h3 style="margin: 0; font-size: 1.1rem; font-weight: 700; color: var(--text);">{{ 'Đơn Đăng Ký Nghỉ Phép' if lang == 'vi' else '休暇申請フォーム' }}</h3>
-                <p style="margin: 2px 0 0; font-size: 0.8rem; color: var(--text-3);">{{ 'Gửi thông tin nghỉ phép vào Lịch Team' if lang == 'vi' else 'チームカレンダーに申請を送信' }}</p>
+                <h3 style="margin: 0; font-size: 1.05rem; font-weight: 700; color: var(--text);">{{ 'YÊU CẦU NGHỈ PHÉP | 欠席届' if lang == 'vi' else '欠席届 | Leave Request' }}</h3>
+                <p style="margin: 2px 0 0; font-size: 0.78rem; color: var(--text-3);">Request for Leave of Absence | 欠席届</p>
             </div>
         </div>
-        <button class="modal-close" onclick="closeLeaveModal()" style="background: none; border: none; font-size: 1.25rem; color: var(--text-3); cursor: pointer; padding: 4px 8px;">✕</button>
+        <button class="modal-close" onclick="closeLeaveModal()" style="background: none; border: none; font-size: 1.25rem; color: var(--text-3); cursor: pointer; padding: 4px 8px; border-radius: 6px;">✕</button>
     </div>
 
-    <form id="leave-request-form" onsubmit="submitLeaveRequest(event)" style="padding: 20px 24px;">
-        <!-- Fullname -->
-        <div style="margin-bottom: 14px;">
-            <label style="display: block; margin-bottom: 6px; font-size: 0.85rem; font-weight: 600; color: var(--text-2);">{{ 'Họ và tên nhân viên' if lang == 'vi' else '氏名' }}</label>
-            <input type="text" id="leave-fullname" required value="{{ user_profiles.get(user, {}).get('fullname') or user }}" style="width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-page); color: var(--text); font-size: 0.9rem; outline: none;">
+    <!-- Stepper Navigation -->
+    <div class="leave-stepper">
+        <div class="leave-step-item active" id="step-indicator-1">
+            <div class="leave-step-num">1</div>
+            <span>{{ 'Quy định' if lang == 'vi' else '規定' }}</span>
         </div>
-
-        <!-- Leave Type -->
-        <div style="margin-bottom: 14px;">
-            <label style="display: block; margin-bottom: 6px; font-size: 0.85rem; font-weight: 600; color: var(--text-2);">{{ 'Loại nghỉ phép' if lang == 'vi' else '休暇種別' }}</label>
-            <select id="leave-type" required style="width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-page); color: var(--text); font-size: 0.9rem; outline: none; cursor: pointer;">
-                <option value="Nghỉ cả ngày">{{ 'Nghỉ cả ngày' if lang == 'vi' else '終日休暇' }}</option>
-                <option value="Nghỉ nửa ngày (Sáng)">{{ 'Nghỉ nửa ngày (Buổi sáng)' if lang == 'vi' else '午前半休' }}</option>
-                <option value="Nghỉ nửa ngày (Chiều)">{{ 'Nghỉ nửa ngày (Buổi chiều)' if lang == 'vi' else '午後半休' }}</option>
-                <option value="Đi muộn">{{ 'Đi muộn' if lang == 'vi' else '遅刻' }}</option>
-                <option value="Về sớm">{{ 'Về sớm' if lang == 'vi' else '早退' }}</option>
-                <option value="Nghỉ ốm">{{ 'Nghỉ ốm' if lang == 'vi' else '病気休暇' }}</option>
-                <option value="Nghỉ việc riêng">{{ 'Nghỉ việc riêng' if lang == 'vi' else '私用休暇' }}</option>
-            </select>
+        <div class="leave-step-sep" id="step-sep-1"></div>
+        <div class="leave-step-item" id="step-indicator-2">
+            <div class="leave-step-num">2</div>
+            <span>{{ 'Nhân viên' if lang == 'vi' else '従業員' }}</span>
         </div>
+        <div class="leave-step-sep" id="step-sep-2"></div>
+        <div class="leave-step-item" id="step-indicator-3">
+            <div class="leave-step-num">3</div>
+            <span>{{ 'Thời gian' if lang == 'vi' else '期間' }}</span>
+        </div>
+        <div class="leave-step-sep" id="step-sep-3"></div>
+        <div class="leave-step-item" id="step-indicator-4">
+            <div class="leave-step-num">4</div>
+            <span>{{ 'Xác nhận' if lang == 'vi' else '確認書' }}</span>
+        </div>
+    </div>
 
-        <!-- Date Range -->
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
-            <div>
-                <label style="display: block; margin-bottom: 6px; font-size: 0.85rem; font-weight: 600; color: var(--text-2);">{{ 'Từ ngày' if lang == 'vi' else '開始日' }}</label>
-                <input type="text" id="leave-start-date" required class="leave-date-input" placeholder="YYYY-MM-DD" style="width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-page); color: var(--text); font-size: 0.9rem; outline: none;">
+    <!-- Body Scrollable -->
+    <div class="leave-modal-body">
+        <!-- B1: QUY ĐỊNH NGHỈ PHÉP -->
+        <div class="leave-step-pane active" id="leave-step-1">
+            <div class="leave-card" style="margin-bottom: 14px;">
+                <div class="leave-card-title">
+                    <i class="fas fa-book-open" style="color: #818cf8;"></i>
+                    <span>{{ 'QUY ĐỊNH VỀ NGHỈ PHÉP | 休暇規定' if lang == 'vi' else '休暇規定' }}</span>
+                </div>
+                <div class="leave-card-sub">{{ 'Vui lòng đọc kỹ quy định nghỉ phép trước khi tạo đơn' if lang == 'vi' else '申請前に休暇規定をご確認ください' }}</div>
+
+                <div class="leave-policy-content">
+                    <h4 style="color: #818cf8; margin-top: 0;">A. NGHỈ PHÉP</h4>
+                    <p><strong>1. NGHỈ CÓ KẾ HOẠCH TRƯỚC</strong><br>
+                    • Bước 1: Thông báo cho PM/Leader về ngày nghỉ phép và Lấy xác nhận.<br>
+                    • Bước 2: Yêu cầu nghỉ phép tại <em>&lt;HR - Leave of Absence Requests&gt;</em> (Đính kèm Xác nhận của PM/Leader).</p>
+
+                    <p><strong>*Thời gian yêu cầu nghỉ phép:</strong><br>
+                    • Nghỉ từ 0.5 - 2.0 ngày: Thực hiện yêu cầu nghỉ phép trước ít nhất <strong>05 ngày làm việc</strong><br>
+                    • Nghỉ từ 2.5 - 4.0 ngày: Thực hiện yêu cầu nghỉ phép trước ít nhất <strong>07 ngày làm việc</strong><br>
+                    • Nghỉ từ 4.5 ngày trở lên: Thực hiện yêu cầu nghỉ phép trước ít nhất <strong>10 ngày làm việc</strong></p>
+
+                    <p><strong>2. NGHỈ KHÔNG CÓ KẾ HOẠCH TRƯỚC (Nghỉ Bệnh hoặc đột xuất)</strong><br>
+                    • Bước 1: Thông báo cho PM/Leader hoặc Nhân sự về việc Nghỉ việc không có kế hoạch trước chậm nhất vào <strong>10h sáng ngày nghỉ</strong> hoặc cho đến khi có thể.<br>
+                    • Bước 2: Yêu cầu nghỉ phép tại <em>&lt;HR - Leave of Absence Requests&gt;</em> (Đính kèm Xác nhận của PM/Leader) chậm nhất vào <strong>12h ngày đầu tiên quay trở lại làm việc</strong>.</p>
+
+                    <h4 style="color: #818cf8;">B. NGHỈ VIỆC RIÊNG HƯỞNG LƯƠNG</h4>
+                    <p>Trừ các trường hợp người thân mất, các trường hợp còn lại Người lao động phải thực hiện thủ tục báo nghỉ trước ít nhất <strong>07 (bảy) ngày làm việc</strong>.</p>
+
+                    <h4 style="color: #818cf8;">C. NGHỈ BỆNH CÓ GIẤY BÁC SĨ</h4>
+                    <p>Người sử dụng lao động không có nhiệm vụ chi trả đối với trường hợp Người lao động nghỉ để khám bệnh và có giấy chứng nhận Nghỉ việc hưởng bảo hiểm xã hội. Khoản này sẽ do bảo hiểm xã hội chi trả cho Người lao động theo tỷ lệ quy định.</p>
+
+                    <h4 style="color: #f59e0b;">*NGHỈ NỬA NGÀY</h4>
+                    <p>“Nghỉ nửa ngày” được quy định như sau:<br>
+                    • <strong>Nghỉ nửa buổi sáng:</strong> được tính từ 08:00 đến 12:00 của ngày hôm đó.<br>
+                    • <strong>Nghỉ nửa buổi chiều:</strong> được tính từ 12:00 đến 17:00.<br>
+                    <em>Lưu ý: Nếu người lao động nghỉ “nửa buổi chiều” hoặc ngược lại nhưng rời văn phòng trước thời gian quy định sẽ không được tính nghỉ nửa ngày.</em></p>
+
+                    <hr style="border: 0; border-top: 1px dashed rgba(255,255,255,0.15); margin: 16px 0;">
+
+                    <h4 style="color: #818cf8;">A. 休暇申請手順</h4>
+                    <p><strong>1. 事前計画された休暇</strong><br>
+                    • ステップ1: PMまたはリーダーに休暇希望日を通知し、承認を得る<br>
+                    • ステップ2: &lt;HR - Leave of Absence Requests&gt;に休暇申請を行う (※PM/リーダーの承認証明を添付)</p>
+
+                    <p><strong>*休暇申請期限:</strong><br>
+                    • 0.5～2日間の休暇: 申請は最低 <strong>5営業日前</strong> までに行う<br>
+                    • 2.5～4日間の休暇: 申請は最低 <strong>7営業日前</strong> までに行う<br>
+                    • 4.5日以上の休暇: 申請は最低 <strong>10営業日前</strong> までに行う</p>
+
+                    <p><strong>2. 事前計画されていない休暇</strong><br>
+                    • ステップ1: PM/リーダーまたは人事に通知（最遅で休暇当日の午前10時まで、または可能な限り早く）<br>
+                    • ステップ2: &lt;HR - Leave of Absence Requests&gt;に申請を行う (※PM/リーダーの承認証明を添付) 申請期限: 業務復帰初日の正午まで</p>
+
+                    <h4 style="color: #818cf8;">B. 有給特別休暇</h4>
+                    <p>身内の不幸を除くその他の理由による有給特別休暇の場合、従業員は最低7営業日前までに申請手続きを完了する必要がある。</p>
+
+                    <h4 style="color: #818cf8;">C. 医師の診断書による病気休暇</h4>
+                    <p>従業員が診療のために休暇を取り、社会保険による休暇証明書がある場合、雇用主は給与を支払う義務はない。この場合の費用は、規定の割合に基づき社会保険から支給される。</p>
+
+                    <h4 style="color: #f59e0b;">半日休暇</h4>
+                    <p>「半日休暇」は以下の通りに規定される:<br>
+                    • 午前半休: 当日の8:00～12:00<br>
+                    • 午後半休: 当日の12:00～17:00<br>
+                    <em>※従業員が「午後半休」を申請したが、規定時間より前にオフィスを離れた場合、半日休暇として認められない。</em></p>
+                </div>
+
+                <!-- Checkbox Confirm -->
+                <div style="background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: 12px; padding: 14px 16px;">
+                    <div style="font-weight: 700; font-size: 0.88rem; color: #e0e7ff; margin-bottom: 8px;">
+                        XÁC NHẬN QUY ĐỊNH VỀ NGÀY NGHỈ | 休暇規定の確認 <span style="color: #ef4444;">*</span>
+                    </div>
+                    <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer; user-select: none;">
+                        <input type="checkbox" id="leave-agree-checkbox" onchange="onLeaveAgreeChange()" style="accent-color: #6366f1; width: 18px; height: 18px; margin-top: 2px;">
+                        <span style="font-size: 0.85rem; color: #f8fafc; line-height: 1.45; font-weight: 500;">
+                            Tôi đã hiểu <strong>QUY ĐỊNH VỀ NGÀY NGHỈ</strong> và xác nhận <strong>TUÂN THỦ</strong> | 休暇規定について理解し、遵守することを確認いたします。
+                        </span>
+                    </label>
+                </div>
             </div>
-            <div>
-                <label style="display: block; margin-bottom: 6px; font-size: 0.85rem; font-weight: 600; color: var(--text-2);">{{ 'Đến ngày' if lang == 'vi' else '終了日' }}</label>
-                <input type="text" id="leave-end-date" required class="leave-date-input" placeholder="YYYY-MM-DD" style="width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-page); color: var(--text); font-size: 0.9rem; outline: none;">
+        </div>
+
+        <!-- B2 / B3: THÔNG TIN NHÂN VIÊN -->
+        <div class="leave-step-pane" id="leave-step-2">
+            <!-- Fullname -->
+            <div class="leave-card">
+                <div class="leave-card-title">HỌ VÀ TÊN <span style="color: #ef4444;">*</span></div>
+                <div class="leave-card-sub">氏名</div>
+                <div class="leave-card-guide">
+                    Viết <strong>IN HOA</strong> đầy đủ Họ, Tên lót và Tên<br>
+                    フルネームをすべて大文字で記入してください。<br>
+                    <strong>*Ví dụ: NGUYỄN VĂN A</strong>
+                </div>
+                <input type="text" id="leave-fullname" required value="{{ user_profiles.get(user, {}).get('fullname') or user }}" placeholder="NGUYỄN VĂN A" style="width: 100%; padding: 11px 14px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-page); color: var(--text); font-size: 0.92rem; outline: none; text-transform: uppercase;" oninput="this.value = this.value.toUpperCase(); updateLeaveFilenamePreview();">
+            </div>
+
+            <!-- Staff Code -->
+            <div class="leave-card">
+                <div class="leave-card-title">MÃ SỐ NHÂN VIÊN <span style="color: #ef4444;">*</span></div>
+                <div class="leave-card-sub">スタッフコード</div>
+                <div class="leave-card-guide">
+                    Mã số nhân viên mặc định <strong>gồm có 10 SỐ</strong> - Không có chữ cái<br>
+                    社員番号はデフォルトで <strong>10桁の数字</strong> で構成され、アルファベットは含まれません。<br>
+                    <strong>*Ví dụ: 1911190011</strong>
+                </div>
+                <input type="text" id="leave-staff-code" maxlength="10" placeholder="1911190011" oninput="this.value = this.value.replace(/[^0-9]/g, ''); updateLeaveFilenamePreview();" style="width: 100%; padding: 11px 14px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-page); color: var(--text); font-size: 0.92rem; outline: none; letter-spacing: 1px;">
+            </div>
+
+            <!-- Department -->
+            <div class="leave-card">
+                <div class="leave-card-title">PHÒNG BAN <span style="color: #ef4444;">*</span></div>
+                <div class="leave-card-sub">部分</div>
+                <div>
+                    <label class="leave-radio-option">
+                        <input type="radio" name="leave_department" value="BOD">
+                        <span>BOD</span>
+                    </label>
+                    <label class="leave-radio-option">
+                        <input type="radio" name="leave_department" value="GA">
+                        <span>GA</span>
+                    </label>
+                    <label class="leave-radio-option">
+                        <input type="radio" name="leave_department" value="TECH">
+                        <span>TECH</span>
+                    </label>
+                    <label class="leave-radio-option">
+                        <input type="radio" name="leave_department" value="BD (MKT & Sales)">
+                        <span>BD (MKT & Sales)</span>
+                    </label>
+                    <label class="leave-radio-option">
+                        <input type="radio" name="leave_department" value="DESIGN" checked>
+                        <span>DESIGN</span>
+                    </label>
+                </div>
             </div>
         </div>
 
-        <!-- Reason -->
-        <div style="margin-bottom: 14px;">
-            <label style="display: block; margin-bottom: 6px; font-size: 0.85rem; font-weight: 600; color: var(--text-2);">{{ 'Lý do xin nghỉ' if lang == 'vi' else '理由' }}</label>
-            <textarea id="leave-reason" rows="2" placeholder="{{ 'Nhập lý do vắng mặt / nghỉ phép...' if lang == 'vi' else '理由を入力...' }}" style="width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-page); color: var(--text); font-size: 0.9rem; outline: none; resize: vertical;"></textarea>
+        <!-- B4: THỜI GIAN YÊU CẦU NGÀY PHÉP -->
+        <div class="leave-step-pane" id="leave-step-3">
+            <!-- Start Date & Time -->
+            <div class="leave-card">
+                <div class="leave-card-title">NGHỈ TỪ <span style="color: #ef4444;">*</span></div>
+                <div class="leave-card-sub">〜日から</div>
+                <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 12px;">
+                    <div>
+                        <label style="display: block; font-size: 0.78rem; color: var(--text-3); margin-bottom: 4px;">Ngày (yyyy-mm-dd)</label>
+                        <input type="text" id="leave-start-date" class="leave-date-input" placeholder="yyyy-mm-dd" onchange="updateLeaveFilenamePreview()" style="width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-page); color: var(--text); font-size: 0.9rem; outline: none;">
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 0.78rem; color: var(--text-3); margin-bottom: 4px;">Giờ (hh:mm)</label>
+                        <input type="time" id="leave-start-time" value="08:00" style="width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-page); color: var(--text); font-size: 0.9rem; outline: none;">
+                    </div>
+                </div>
+            </div>
+
+            <!-- End Date & Time -->
+            <div class="leave-card">
+                <div class="leave-card-title">NGHỈ ĐẾN <span style="color: #ef4444;">*</span></div>
+                <div class="leave-card-sub">〜日まで</div>
+                <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 12px;">
+                    <div>
+                        <label style="display: block; font-size: 0.78rem; color: var(--text-3); margin-bottom: 4px;">Ngày (yyyy-mm-dd)</label>
+                        <input type="text" id="leave-end-date" class="leave-date-input" placeholder="yyyy-mm-dd" style="width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-page); color: var(--text); font-size: 0.9rem; outline: none;">
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 0.78rem; color: var(--text-3); margin-bottom: 4px;">Giờ (hh:mm)</label>
+                        <input type="time" id="leave-end-time" value="17:00" style="width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-page); color: var(--text); font-size: 0.9rem; outline: none;">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Total Days -->
+            <div class="leave-card">
+                <div class="leave-card-title">TỔNG THỜI GIAN NGHỈ PHÉP <span style="color: #ef4444;">*</span></div>
+                <div class="leave-card-sub">総休暇時間</div>
+                <div class="leave-card-guide">
+                    Tổng thời gian nghỉ phép là 01 (một) ngày thì ghi là <strong>1</strong><br>
+                    Tương tự <strong>1.5 - 2 - 2.5...</strong><br>
+                    総休暇時間が01日（1日）の場合、「1」と記入します。<br>
+                    同様に「1.5」「2」「2.5」などと記入します。
+                </div>
+                <input type="text" id="leave-total-days" placeholder="Ví dụ: 1 hoặc 1.5" style="width: 100%; padding: 11px 14px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-page); color: var(--text); font-size: 0.92rem; outline: none;">
+            </div>
+
+            <!-- Leave Type -->
+            <div class="leave-card">
+                <div class="leave-card-title">LOẠI NGÀY NGHỈ PHÉP <span style="color: #ef4444;">*</span></div>
+                <div class="leave-card-sub">休暇種類</div>
+                <div>
+                    <label class="leave-radio-option">
+                        <input type="radio" name="leave_type_choice" value="NGHỈ PHÉP - ANNUAL LEAVE" checked onchange="toggleLeaveTypeOther(false)">
+                        <span>NGHỈ PHÉP - ANNUAL LEAVE</span>
+                    </label>
+                    <label class="leave-radio-option">
+                        <input type="radio" name="leave_type_choice" value="NGHỈ KHÔNG HƯỞNG LƯƠNG - UNPAID LEAVE" onchange="toggleLeaveTypeOther(false)">
+                        <span>NGHỈ KHÔNG HƯỞNG LƯƠNG - UNPAID LEAVE</span>
+                    </label>
+                    <label class="leave-radio-option">
+                        <input type="radio" name="leave_type_choice" value="NGHỈ KHÁM BHYT - PAID LEAVE" onchange="toggleLeaveTypeOther(false)">
+                        <span>NGHỈ KHÁM BHYT - PAID LEAVE</span>
+                    </label>
+                    <label class="leave-radio-option">
+                        <input type="radio" name="leave_type_choice" value="OTHER" id="leave-type-choice-other" onchange="toggleLeaveTypeOther(true)">
+                        <div style="flex: 1; display: flex; align-items: center; gap: 8px;">
+                            <span>Mục khác:</span>
+                            <input type="text" id="leave-type-other-text" placeholder="Ghi rõ loại nghỉ khác..." style="flex: 1; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-page); color: var(--text); font-size: 0.85rem; outline: none;" onfocus="document.getElementById('leave-type-choice-other').checked = true; toggleLeaveTypeOther(true);">
+                        </div>
+                    </label>
+                </div>
+            </div>
         </div>
 
-        <!-- Handover / Note -->
-        <div style="margin-bottom: 18px;">
-            <label style="display: block; margin-bottom: 6px; font-size: 0.85rem; font-weight: 600; color: var(--text-2);">{{ 'Bàn giao công việc (Tùy chọn)' if lang == 'vi' else '業務引き継ぎ（任意）' }}</label>
-            <input type="text" id="leave-handover" placeholder="{{ 'Tên người hỗ trợ hoặc ghi chú...' if lang == 'vi' else '担当者またはメモ...' }}" style="width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-page); color: var(--text); font-size: 0.9rem; outline: none;">
-        </div>
+        <!-- B5: XÁC NHẬN CỦA QUẢN LÍ -->
+        <div class="leave-step-pane" id="leave-step-4">
+            <!-- File naming rule card -->
+            <div class="leave-card" style="border-left: 4px solid #f59e0b;">
+                <div class="leave-card-title">XÁC NHẬN CỦA QUẢN LÍ | 管理人の確認書</div>
+                <div class="leave-card-guide" style="border-left: none; background: rgba(245, 158, 11, 0.1); color: #fde68a;">
+                    <strong>XÁC NHẬN CỦA QUẢN LÍ ĐƯỢC ĐẶT TÊN THEO QUY ĐỊNH SAU:</strong><br>
+                    <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; color: #fbbf24;">&lt;HR - Leave Request - YYMMDD - MÃ SỐ NHÂN VIÊN&gt;</code><br><br>
+                    *<strong>YYMMDD</strong> là ngày bắt đầu nghỉ, không phải ngày đăng ký<br>
+                    *<strong>Ví dụ:</strong> Ngày bắt đầu nghỉ là ngày 31 tháng 12 năm 2024<br>
+                    <strong style="color: #6ee7b7;">HR - Leave Request - 241231 - 1911190011</strong>
+                </div>
 
-        <!-- Modal Footer -->
-        <div style="display: flex; gap: 10px; justify-content: flex-end; padding-top: 10px; border-top: 1px solid var(--border);">
-            <button type="button" class="btn btn-outline" onclick="closeLeaveModal()" style="padding: 9px 18px; border-radius: 10px; font-size: 0.9rem;">{{ 'Hủy' if lang == 'vi' else 'キャンセル' }}</button>
-            <button type="submit" id="btn-submit-leave" class="btn btn-primary" style="padding: 9px 22px; border-radius: 10px; font-size: 0.9rem; display: flex; align-items: center; gap: 8px; font-weight: 600;">
+                <!-- Live Suggested Filename -->
+                <div id="leave-suggested-filename-box" style="margin-top: 10px; padding: 10px 14px; background: rgba(99, 102, 241, 0.12); border-radius: 8px; border: 1px solid rgba(99, 102, 241, 0.25); display: flex; align-items: center; justify-content: space-between;">
+                    <div style="font-size: 0.82rem; color: #c7d2fe;">
+                        <span>Tên file đề xuất:</span>
+                        <strong id="leave-suggested-filename" style="margin-left: 6px; color: #fff; font-family: monospace;">HR - Leave Request - YYMMDD - STAFFCODE</strong>
+                    </div>
+                    <button type="button" class="btn btn-sm" onclick="copySuggestedFilename()" style="padding: 3px 10px; font-size: 0.75rem; background: rgba(255,255,255,0.1); color: #fff; border: none; border-radius: 6px; cursor: pointer;">Copy tên</button>
+                </div>
+            </div>
+
+            <!-- Upload card -->
+            <div class="leave-card">
+                <div class="leave-card-title">HR - Leave of Absence Requests</div>
+                <div class="leave-card-sub">Tải 1 tệp được hỗ trợ lên: image. Kích thước tối đa 10 MB.</div>
+
+                <input type="file" id="leave-attachment-input" accept="image/*" style="display: none;" onchange="onLeaveFileSelected(event)">
+
+                <div class="leave-upload-box" onclick="document.getElementById('leave-attachment-input').click()">
+                    <div style="font-size: 2.2rem; color: #818cf8; margin-bottom: 8px;">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                    </div>
+                    <div style="font-size: 0.92rem; font-weight: 600; color: #f8fafc; margin-bottom: 4px;">
+                        {{ 'Thêm tệp ảnh xác nhận' if lang == 'vi' else '確認書画像を追加' }}
+                    </div>
+                    <div style="font-size: 0.78rem; color: var(--text-3);">
+                        {{ 'Nhấp để chọn ảnh từ thiết bị (Hỗ trợ PNG, JPG, JPEG tối đa 10MB)' if lang == 'vi' else '画像ファイルを選択してください' }}
+                    </div>
+                </div>
+
+                <!-- File preview container -->
+                <div id="leave-file-preview-card" style="display: none; margin-top: 14px; padding: 12px; background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 10px; align-items: center; justify-content: space-between;">
+                    <div style="display: flex; align-items: center; gap: 12px; overflow: hidden;">
+                        <img id="leave-preview-img" src="" alt="Preview" style="width: 50px; height: 50px; border-radius: 8px; object-fit: cover; border: 1px solid var(--border);">
+                        <div style="overflow: hidden;">
+                            <div id="leave-preview-name" style="font-size: 0.85rem; font-weight: 600; color: #f8fafc; white-space: nowrap; text-overflow: ellipsis; overflow: hidden;">filename.png</div>
+                            <div id="leave-preview-size" style="font-size: 0.75rem; color: var(--text-3);">0 KB</div>
+                        </div>
+                    </div>
+                    <button type="button" onclick="removeLeaveSelectedFile()" style="background: none; border: none; color: #ef4444; font-size: 1.1rem; cursor: pointer; padding: 4px 8px;">✕</button>
+                </div>
+            </div>
+
+            <div style="font-size: 0.78rem; color: var(--text-3); text-align: center; margin-top: 8px;">
+                Bản sao đơn đăng ký nghỉ phép của bạn sẽ được gửi và lưu trữ trong hệ thống Team Calendar.
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Footer Navigation -->
+    <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; padding: 14px 24px; border-top: 1px solid var(--border); background: rgba(15, 23, 42, 0.9);">
+        <div>
+            <button type="button" class="btn btn-outline" id="leave-btn-prev" onclick="navigateLeaveStep(-1)" style="padding: 9px 18px; border-radius: 10px; font-size: 0.9rem; display: none;">
+                <i class="fas fa-arrow-left" style="margin-right: 6px;"></i>
+                <span>{{ 'Quay lại' if lang == 'vi' else '戻る' }}</span>
+            </button>
+            <button type="button" class="btn btn-outline" id="leave-btn-cancel" onclick="closeLeaveModal()" style="padding: 9px 18px; border-radius: 10px; font-size: 0.9rem;">
+                <span>{{ 'Hủy' if lang == 'vi' else 'キャンセル' }}</span>
+            </button>
+        </div>
+        <div>
+            <button type="button" id="leave-btn-next" class="btn btn-primary" onclick="navigateLeaveStep(1)" style="padding: 9px 24px; border-radius: 10px; font-size: 0.9rem; display: flex; align-items: center; gap: 8px; font-weight: 600;">
+                <span>{{ 'Tiếp theo' if lang == 'vi' else '次へ' }}</span>
+                <i class="fas fa-arrow-right"></i>
+            </button>
+            <button type="button" id="leave-btn-submit" class="btn btn-primary" onclick="submitMultiStepLeave(event)" style="padding: 9px 24px; border-radius: 10px; font-size: 0.9rem; display: none; align-items: center; gap: 8px; font-weight: 600; background: #10b981; border-color: #10b981;">
                 <i class="fas fa-paper-plane"></i>
                 <span>{{ 'Gửi đơn nghỉ phép' if lang == 'vi' else '申請を送信' }}</span>
             </button>
         </div>
-    </form>
+    </div>
 </div>
 
 <!-- Hidden iframe and form for posting to Google Form with user cookies -->
@@ -409,7 +674,7 @@
     <div class="mobile-brand">
         <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" width="30" height="30" style="border-radius: 8px; object-fit: contain;">
         <span>VN-Tracking</span>
-        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.94</i></sup>
+        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.95</i></sup>
     </div>
     <div class="mobile-topbar-right">
         <button type="button" class="mobile-icon-btn" onclick="toggleNotificationPanel(event)" title="{{ 'Thông báo' if lang == 'vi' else '通知' }}">
@@ -561,7 +826,7 @@
             </div>
             <div class="sidebar-logo-text">
                 <span class="sidebar-brand-name">VN-Tracking</span>
-                <sup class="version-tag"><i>v1.9.94</i></sup>
+                <sup class="version-tag"><i>v1.9.95</i></sup>
             </div>
         </div>
     </div>
