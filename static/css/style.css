@@ -1404,6 +1404,55 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
     box-sizing: border-box;
 }
 
+/* ======================== TOOL FULL-PAGE VIEWS (LIKE TASK DETAIL) ======================== */
+.modal-overlay.task-detail-page-view.tool-page-view {
+    overflow: hidden;
+}
+
+.tool-page-view .tool-page-container {
+    width: 100%;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    padding: 16px 28px 24px;
+    box-sizing: border-box;
+}
+
+.tool-page-view .tool-page-nav-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 12px;
+    margin-bottom: 14px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+}
+
+.tool-page-view .tool-iframe-wrapper {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+}
+
+.tool-page-view .tool-iframe-wrapper iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    display: block;
+}
+
+@media (max-width: 1024px) {
+    .tool-page-view .tool-page-container {
+        height: calc(100vh - 56px);
+        padding: 12px 14px 18px;
+    }
+}
+
 /* Breadcrumb Navigation Bar */
 .task-page-nav-bar {
     display: flex;
