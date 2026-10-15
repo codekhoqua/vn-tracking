@@ -2975,7 +2975,7 @@ def lsa_drive():
         filter_cv_sau=[],
         users=[],
         tasks=[],
-        app_version='v1.9.85',
+        app_version='v1.9.86',
     )
 
 # =====================================================================
@@ -3016,6 +3016,8 @@ def is_protected_system_path(path):
             return True
     return False
 
+
+_sb_session = requests.Session()
 
 def _sb_headers(extra=None):
     h = {
@@ -3093,7 +3095,7 @@ def sb_list(prefix):
 
 def sb_upload(path, data, content_type='application/octet-stream'):
     sb_ensure_bucket()
-    r = requests.post(
+    r = _sb_session.post(
         f'{SUPABASE_URL}/storage/v1/object/{SUPABASE_BUCKET}/{path}',
         headers=_sb_headers({'Content-Type': content_type, 'x-upsert': 'true'}),
         data=data, timeout=120,
@@ -3197,6 +3199,68 @@ def drive_list():
         return jsonify({'success': True, 'items': items, 'current_path': req_path.strip('/')})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@app.route('/api/drive/request_upload', methods=['POST'])
+def drive_request_upload():
+    if not session.get('logged_in'):
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    data = request.json or {}
+    req_path = data.get('path', '')
+    filename = data.get('filename', '')
+
+    if not filename:
+        return jsonify({'error': 'Thiếu tên file'}), 400
+
+    if is_protected_system_path(req_path) or is_protected_system_path(filename):
+        return jsonify({'error': 'Không thể tải lên thư mục hệ thống!'}), 400
+
+    if not USE_SUPABASE:
+        return jsonify({'direct': False})
+
+    clean = _sb_clean(req_path)
+    if clean is None:
+        return jsonify({'error': 'Đường dẫn không hợp lệ'}), 400
+
+    safe_filename = os.path.basename(filename.replace('\\', '/'))
+    if not safe_filename:
+        return jsonify({'error': 'Tên file không hợp lệ'}), 400
+
+    obj_path = f'{clean}/{safe_filename}'.strip('/')
+    try:
+        sb_ensure_bucket()
+        r = _sb_session.post(
+            f'{SUPABASE_URL}/storage/v1/object/upload/sign/{SUPABASE_BUCKET}/{obj_path}',
+            headers=_sb_headers({'Content-Type': 'application/json'}),
+            json={'upsert': True},
+            timeout=15,
+        )
+        if not r.ok:
+            return jsonify({'direct': False})
+        res_data = r.json()
+        upload_url = f"{SUPABASE_URL}/storage/v1{res_data['url']}"
+        return jsonify({
+            'direct': True,
+            'upload_url': upload_url,
+            'object_path': obj_path,
+            'path': clean,
+            'filename': safe_filename
+        })
+    except Exception as e:
+        return jsonify({'direct': False, 'error': str(e)})
+
+
+@app.route('/api/drive/upload_completed', methods=['POST'])
+def drive_upload_completed():
+    if not session.get('logged_in'):
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    data = request.json or {}
+    path = data.get('path', '')
+    clean = _sb_clean(path) if USE_SUPABASE else str(path).strip('/')
+    socketio.emit('drive_updated', {'path': clean})
+    return jsonify({'success': True})
+
 
 @app.route('/api/drive/upload', methods=['POST'])
 def drive_upload():

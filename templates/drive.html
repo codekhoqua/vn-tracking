@@ -1722,12 +1722,17 @@
         const bar = document.getElementById('drive-upload-bar-fill');
         const percentEl = document.getElementById('drive-upload-percent');
         const bytesEl = document.getElementById('drive-upload-bytes');
+        const statusEl = document.getElementById('drive-upload-status');
+        
         if (bar) bar.style.width = percent + '%';
         if (percentEl) percentEl.textContent = percent + '%';
         if (bytesEl) bytesEl.textContent = formatSize(loaded) + ' / ' + formatSize(total);
-        if (percent >= 100) {
-            const statusEl = document.getElementById('drive-upload-status');
-            if (statusEl) statusEl.textContent = "{{ 'Đang xử lý trên máy chủ...' if lang == 'vi' else 'サーバーで処理中...' }}";
+        if (statusEl) {
+            if (percent >= 100) {
+                statusEl.textContent = "{{ 'Đang lưu vào Drive...' if lang == 'vi' else '保存中...' }}";
+            } else {
+                statusEl.textContent = "{{ 'Đang tải lên...' if lang == 'vi' else 'アップロード中...' }}";
+            }
         }
     }
 
@@ -1759,14 +1764,72 @@
         if (widget) widget.style.display = 'none';
     }
 
-    function handleFileUpload(event) {
+    async function handleFileUpload(event) {
         const files = Array.from(event.target.files || []);
         if (files.length === 0) return;
+        event.target.value = '';
         
         const fileNames = files.map(f => f.name).join(', ');
         const totalBytes = files.reduce((acc, f) => acc + f.size, 0);
         showUploadWidget(fileNames, totalBytes);
         
+        // Direct signed upload for single file (fastest, bypasses server bottleneck)
+        if (files.length === 1) {
+            const file = files[0];
+            try {
+                const reqRes = await fetch('/api/drive/request_upload', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ path: currentPath, filename: file.name })
+                });
+                const reqData = await reqRes.json();
+                
+                if (reqData.direct && reqData.upload_url) {
+                    const xhr = new XMLHttpRequest();
+                    xhr.open('PUT', reqData.upload_url, true);
+                    xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+                    
+                    xhr.upload.onprogress = (e) => {
+                        if (e.lengthComputable) {
+                            const percent = Math.min(100, Math.round((e.loaded / e.total) * 100));
+                            updateUploadProgress(percent, e.loaded, e.total);
+                        }
+                    };
+                    
+                    xhr.onload = async () => {
+                        if (xhr.status >= 200 && xhr.status < 300) {
+                            try {
+                                await fetch('/api/drive/upload_completed', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ path: currentPath, filename: file.name })
+                                });
+                            } catch (_) {}
+                            finishUploadWidget(true, "{{ 'Tải lên thành công!' if lang == 'vi' else 'アップロード成功！' }}");
+                            showToast("{{ 'Tải lên thành công!' if lang == 'vi' else 'アップロード成功！' }}", "success");
+                            driveCache.delete(currentPath);
+                            await loadDrive(currentPath, false);
+                        } else {
+                            uploadViaServer(files);
+                        }
+                    };
+                    
+                    xhr.onerror = () => {
+                        uploadViaServer(files);
+                    };
+                    
+                    xhr.send(file);
+                    return;
+                }
+            } catch (err) {
+                console.warn("Direct upload error, falling back to server:", err);
+            }
+        }
+        
+        uploadViaServer(files);
+    }
+
+    function uploadViaServer(files) {
         const formData = new FormData();
         formData.append('path', currentPath);
         for (let i = 0; i < files.length; i++) {
@@ -1778,13 +1841,12 @@
         
         xhr.upload.onprogress = (e) => {
             if (e.lengthComputable) {
-                const percent = Math.min(99, Math.round((e.loaded / e.total) * 100));
+                const percent = Math.min(100, Math.round((e.loaded / e.total) * 100));
                 updateUploadProgress(percent, e.loaded, e.total);
             }
         };
         
         xhr.onload = async () => {
-            event.target.value = '';
             if (xhr.status >= 200 && xhr.status < 300) {
                 try {
                     const data = JSON.parse(xhr.responseText);
@@ -1812,7 +1874,6 @@
         };
         
         xhr.onerror = () => {
-            event.target.value = '';
             finishUploadWidget(false, "{{ 'Lỗi mạng khi tải lên' if lang == 'vi' else 'ネットワークエラー' }}");
             showToast("{{ 'Lỗi mạng khi tải lên' if lang == 'vi' else 'ネットワークエラー' }}", "error");
         };
