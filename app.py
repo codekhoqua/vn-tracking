@@ -2995,7 +2995,7 @@ USE_SUPABASE = bool(SUPABASE_URL and SUPABASE_SERVICE_KEY)
 # File placeholder để "giả lập" thư mục rỗng trên object storage.
 SB_KEEP = '.keep'
 
-HIDDEN_DRIVE_NAMES = {'system file', '_system', '.system', '.keep'}
+HIDDEN_DRIVE_NAMES = {'system file', '_system', '.system', '.keep', 'weather_album'}
 
 def is_hidden_drive_item(name):
     if not name:
@@ -3003,7 +3003,7 @@ def is_hidden_drive_item(name):
     s = str(name).strip().lower()
     if s in HIDDEN_DRIVE_NAMES:
         return True
-    if s.startswith('.') or s.startswith('_system') or s.startswith('system file'):
+    if s.startswith('.') or s.startswith('_system') or s.startswith('system file') or s.startswith('weather_album'):
         return True
     return False
 
@@ -3012,7 +3012,7 @@ def is_protected_system_path(path):
         return False
     parts = [p.strip().lower() for p in str(path).replace('\\', '/').split('/') if p.strip()]
     for p in parts:
-        if p in HIDDEN_DRIVE_NAMES or p.startswith('.') or p.startswith('_system') or p.startswith('system file'):
+        if p in HIDDEN_DRIVE_NAMES or p.startswith('.') or p.startswith('_system') or p.startswith('system file') or p.startswith('weather_album'):
             return True
     return False
 
