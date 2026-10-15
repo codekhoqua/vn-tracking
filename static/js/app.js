@@ -2495,7 +2495,15 @@ function closeToolPage(toolKey) {
 
 // Backward-compatible wrappers for tools
 function openDriveModal() { openToolPage('drive'); }
-function closeDriveModal() { closeToolPage('drive'); }
+function closeDriveModal() { 
+    if (typeof closeDriveDialog === 'function') {
+        closeDriveDialog();
+    }
+    const pageEl = document.getElementById('page-view-drive');
+    if (pageEl) {
+        closeToolPage('drive');
+    }
+}
 function openCalendarModal() { openToolPage('calendar'); }
 function closeCalendarModal() { closeToolPage('calendar'); }
 function openPsdToolPage() { openToolPage('psd'); }
