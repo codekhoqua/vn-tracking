@@ -8674,6 +8674,7 @@ function initLeaveDatePickers() {
                     if (leaveEndPicker && (!endInput.value || endInput.value < dateStr)) {
                         leaveEndPicker.setDate(dateStr);
                     }
+                    calculateLeaveDuration();
                     updateLeaveFilenamePreview();
                 }
             });
@@ -8681,7 +8682,11 @@ function initLeaveDatePickers() {
         if (!leaveEndPicker && endInput) {
             leaveEndPicker = flatpickr(endInput, {
                 defaultDate: today,
-                dateFormat: "Y-m-d"
+                dateFormat: "Y-m-d",
+                onChange: function(selectedDates, dateStr) {
+                    calculateLeaveDuration();
+                    updateLeaveFilenamePreview();
+                }
             });
         }
     } else {
@@ -8689,8 +8694,84 @@ function initLeaveDatePickers() {
         if (endInput && !endInput.value) endInput.value = today;
     }
 
+    calculateLeaveDuration();
     updateLeaveFilenamePreview();
 }
+
+function calculateLeaveDuration() {
+    const startDateStr = (document.getElementById('leave-start-date')?.value || '').trim();
+    const startTimeStr = (document.getElementById('leave-start-time')?.value || '08:00').trim();
+    const endDateStr = (document.getElementById('leave-end-date')?.value || '').trim();
+    const endTimeStr = (document.getElementById('leave-end-time')?.value || '17:00').trim();
+    const totalDaysInput = document.getElementById('leave-total-days');
+
+    if (!startDateStr || !endDateStr || !totalDaysInput) return;
+
+    const startDate = new Date(startDateStr + 'T00:00:00');
+    const endDate = new Date(endDateStr + 'T00:00:00');
+
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return;
+    if (endDate < startDate) {
+        totalDaysInput.value = '0';
+        return;
+    }
+
+    const parseTime = (tStr, defaultH) => {
+        if (!tStr) return defaultH;
+        const parts = tStr.split(':').map(Number);
+        return (parts[0] || 0) + (parts[1] || 0) / 60;
+    };
+
+    const startH = parseTime(startTimeStr, 8);
+    const endH = parseTime(endTimeStr, 17);
+
+    // Giờ làm việc trong ngày (8h - 12h = 4h sáng, 13h - 17h = 4h chiều, tối đa 8h)
+    const getWorkHoursInDay = (fromH, toH) => {
+        const morning = Math.max(0, Math.min(12, toH) - Math.max(8, fromH));
+        const afternoon = Math.max(0, Math.min(17, toH) - Math.max(13, fromH));
+        return Math.min(8, morning + afternoon);
+    };
+
+    let totalLeaveDays = 0;
+    let curr = new Date(startDate);
+
+    while (curr <= endDate) {
+        const dayOfWeek = curr.getDay(); // 0 là CN, 6 là T7
+        // Chỉ tính ngày làm việc (Thứ 2 đến Thứ 6)
+        if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+            const isStartDay = (curr.getTime() === startDate.getTime());
+            const isEndDay = (curr.getTime() === endDate.getTime());
+
+            if (isStartDay && isEndDay) {
+                const hours = getWorkHoursInDay(startH, endH);
+                if (hours >= 6.5) {
+                    totalLeaveDays += 1;
+                } else if (hours >= 3) {
+                    totalLeaveDays += 0.5;
+                } else if (hours > 0) {
+                    totalLeaveDays += Math.round((hours / 4)) * 0.5 || 0.5;
+                }
+            } else if (isStartDay) {
+                const hours = getWorkHoursInDay(startH, 17);
+                if (hours >= 6.5) totalLeaveDays += 1;
+                else if (hours >= 3) totalLeaveDays += 0.5;
+                else if (hours > 0) totalLeaveDays += Math.round((hours / 4)) * 0.5 || 0.5;
+            } else if (isEndDay) {
+                const hours = getWorkHoursInDay(8, endH);
+                if (hours >= 6.5) totalLeaveDays += 1;
+                else if (hours >= 3) totalLeaveDays += 0.5;
+                else if (hours > 0) totalLeaveDays += Math.round((hours / 4)) * 0.5 || 0.5;
+            } else {
+                totalLeaveDays += 1;
+            }
+        }
+        curr.setDate(curr.getDate() + 1);
+    }
+
+    if (totalLeaveDays <= 0) totalLeaveDays = 1;
+    totalDaysInput.value = (totalLeaveDays % 1 === 0) ? String(totalLeaveDays) : String(totalLeaveDays.toFixed(1)).replace('.0', '');
+}
+window.calculateLeaveDuration = calculateLeaveDuration;
 
 function switchCalendarSubpage(subpage) {
     const isAttendance = (subpage === 'attendance');
@@ -8875,11 +8956,11 @@ function updateLeaveStepUI() {
     if (body) body.scrollTop = 0;
 }
 
-function updateLeaveFilenamePreview() {
+function getLeaveGeneratedFilename(extension = '') {
     const rawDate = (document.getElementById('leave-start-date')?.value || '').trim();
     const staffCode = (document.getElementById('leave-staff-code')?.value || '').trim() || 'MÃ_NV';
+    const fullname = (document.getElementById('leave-fullname')?.value || '').trim().toUpperCase() || 'HỌ_VÀ_TÊN';
 
-    // Format YYMMDD
     let yymmdd = 'YYMMDD';
     if (rawDate) {
         const parts = rawDate.split('-');
@@ -8891,9 +8972,26 @@ function updateLeaveFilenamePreview() {
         }
     }
 
-    const filename = `HR - Leave Request - ${yymmdd} - ${staffCode}`;
+    let base = `HR - Leave Request - ${yymmdd} - ${staffCode} - ${fullname}`;
+    if (extension) {
+        if (!extension.startsWith('.')) extension = '.' + extension;
+        return base + extension;
+    }
+    return base;
+}
+window.getLeaveGeneratedFilename = getLeaveGeneratedFilename;
+
+function updateLeaveFilenamePreview() {
+    const filename = getLeaveGeneratedFilename();
     const nameEl = document.getElementById('leave-suggested-filename');
     if (nameEl) nameEl.textContent = filename;
+
+    if (selectedLeaveFile) {
+        const ext = selectedLeaveFile.name.includes('.') ? selectedLeaveFile.name.split('.').pop() : 'png';
+        const targetName = getLeaveGeneratedFilename(ext);
+        const previewName = document.getElementById('leave-preview-name');
+        if (previewName) previewName.textContent = targetName;
+    }
 }
 window.updateLeaveFilenamePreview = updateLeaveFilenamePreview;
 
@@ -8922,6 +9020,9 @@ function onLeaveFileSelected(e) {
     }
 
     selectedLeaveFile = file;
+    const ext = file.name.includes('.') ? file.name.split('.').pop() : 'png';
+    const targetName = getLeaveGeneratedFilename(ext);
+
     const previewCard = document.getElementById('leave-file-preview-card');
     const previewImg = document.getElementById('leave-preview-img');
     const previewName = document.getElementById('leave-preview-name');
@@ -8929,7 +9030,8 @@ function onLeaveFileSelected(e) {
 
     if (previewCard && previewImg && previewName && previewSize) {
         previewImg.src = URL.createObjectURL(file);
-        previewName.textContent = file.name;
+        // Tự động đổi tên lại chuẩn theo quy định
+        previewName.textContent = targetName;
         previewSize.textContent = (file.size / 1024).toFixed(1) + ' KB';
         previewCard.style.display = 'flex';
     }
@@ -9003,7 +9105,7 @@ async function submitMultiStepLeave(e) {
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Đang gửi đơn...</span>';
     }
 
-    // 1. Post to local API with FormData (supporting attachment file)
+    // 1. Post to local API with FormData (supporting attachment file and Google Drive upload)
     try {
         const formData = new FormData();
         formData.append('fullname', fullname);
@@ -9017,13 +9119,22 @@ async function submitMultiStepLeave(e) {
         formData.append('total_days', totalDays);
         formData.append('leave_type', leaveType);
         if (selectedLeaveFile) {
-            formData.append('attachment', selectedLeaveFile);
+            const ext = selectedLeaveFile.name.includes('.') ? selectedLeaveFile.name.split('.').pop() : 'png';
+            const targetFilename = getLeaveGeneratedFilename(ext);
+            formData.append('attachment', selectedLeaveFile, targetFilename);
+            formData.append('target_filename', targetFilename);
         }
 
-        await fetch('/api/submit_leave_request', {
+        const res = await fetch('/api/submit_leave_request', {
             method: 'POST',
             body: formData
         });
+        const resJson = await res.json().catch(() => ({}));
+        if (resJson && resJson.gdrive_uploaded) {
+            console.log('[Leave] Uploaded to GDrive:', resJson.gdrive_link);
+        } else if (resJson && resJson.gdrive_error) {
+            console.warn('[Leave] GDrive note:', resJson.gdrive_error);
+        }
     } catch (err) {
         console.warn('Local submit error:', err);
     }
