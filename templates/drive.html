@@ -1431,7 +1431,7 @@
             // Filter out system and hidden files
             const visibleItems = (data.items || []).filter(item => {
                 const n = (item.name || '').toLowerCase().trim();
-                return n !== 'system file' && n !== '_system' && !n.startsWith('.') && !n.startsWith('_system') && !n.startsWith('system file');
+                return n !== 'system file' && n !== '_system' && n !== 'weather_album' && !n.startsWith('.') && !n.startsWith('_system') && !n.startsWith('system file') && !n.startsWith('weather_album');
             });
             
             grid.innerHTML = '';
