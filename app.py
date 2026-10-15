@@ -2975,7 +2975,7 @@ def lsa_drive():
         filter_cv_sau=[],
         users=[],
         tasks=[],
-        app_version='v1.9.86',
+        app_version='v1.9.87',
     )
 
 # =====================================================================
@@ -3409,6 +3409,28 @@ def drive_delete():
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@app.route('/api/drive/get_download_url')
+def drive_get_download_url():
+    if not session.get('logged_in'):
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    req_path = request.args.get('path', '')
+    if not req_path:
+        return jsonify({'error': 'Path required'}), 400
+
+    if USE_SUPABASE:
+        clean = _sb_clean(req_path)
+        if not clean:
+            return jsonify({'error': 'Invalid path'}), 400
+        try:
+            url = sb_sign_url(clean, expires=300)
+            return jsonify({'success': True, 'url': url})
+        except Exception as e:
+            return jsonify({'error': str(e)}), 404
+
+    import urllib.parse
+    return jsonify({'success': True, 'url': f'/api/drive/download?path={urllib.parse.quote(req_path)}'})
 
 @app.route('/api/drive/download')
 def drive_download():

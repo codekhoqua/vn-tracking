@@ -2432,8 +2432,17 @@ function openToolPage(toolKey) {
 
     if (toolKey === 'drive') {
         const iframe = document.getElementById('drive-page-iframe') || document.getElementById('drive-iframe');
-        if (iframe && (!iframe.src || iframe.src === window.location.href || iframe.src.endsWith('/'))) {
-            iframe.src = '/drive?modal=1';
+        if (iframe) {
+            let needsReset = false;
+            try {
+                const cur = iframe.contentWindow.location.pathname;
+                if (!cur || !cur.startsWith('/drive')) needsReset = true;
+            } catch (_) {
+                needsReset = true;
+            }
+            if (needsReset || !iframe.src || iframe.src === window.location.href || iframe.src.endsWith('/')) {
+                iframe.src = '/drive?modal=1';
+            }
         }
     } else if (toolKey === 'calendar') {
         const iframe = document.getElementById('calendar-page-iframe') || document.getElementById('calendar-iframe');
@@ -2473,6 +2482,18 @@ function closeToolPage(toolKey) {
     }
     const navItem = document.getElementById(`nav-${toolKey}`);
     if (navItem) navItem.classList.remove('active');
+
+    if (toolKey === 'drive') {
+        const iframe = document.getElementById('drive-page-iframe') || document.getElementById('drive-iframe');
+        if (iframe) {
+            try {
+                const cur = iframe.contentWindow.location.pathname;
+                if (!cur || !cur.startsWith('/drive')) iframe.src = '/drive?modal=1';
+            } catch (_) {
+                iframe.src = '/drive?modal=1';
+            }
+        }
+    }
 
     // Hide tools highlight pill
     const toolsHl = document.getElementById('sidebar-tools-hl');
