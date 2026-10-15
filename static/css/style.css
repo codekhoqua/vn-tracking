@@ -1218,14 +1218,21 @@ body.sidebar-collapsed .custom-lang-select {
 .drawer-overlay.open { opacity: 1; visibility: visible; }
 
 .filter-drawer {
-    position: fixed; top: 0; right: -420px;
+    position: fixed; top: 0; right: 0;
     width: 400px; max-width: 100vw; height: 100vh;
     background: var(--surface); z-index: 2001;
     padding: 32px; border-left: 1px solid var(--border);
-    transition: right var(--t-smooth); overflow-y: auto;
+    transform: translateX(105%) translateZ(0);
+    transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    will-change: transform;
+    overflow-y: auto;
     box-shadow: -10px 0 30px rgba(0,0,0,0.1);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
 }
-.filter-drawer.open { right: 0; }
+.filter-drawer.open {
+    transform: translateX(0) translateZ(0);
+}
 
 .drawer-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 32px; }
 .drawer-header h2 { font-size: 1.25rem; font-weight: 800; display: flex; align-items: center; gap: 12px; }
@@ -2961,14 +2968,22 @@ body.sidebar-collapsed .custom-lang-select {
     max-width: calc(100vw - 32px);
     z-index: 100005;
     opacity: 0;
+    visibility: hidden;
     pointer-events: none;
-    transform: translateX(-12px) scale(0.96);
-    transition: opacity 0.25s var(--ux-ease), transform 0.35s var(--ux-spring), left 0.4s var(--ux-spring);
+    transform: translateX(-10px) scale(0.96) translateZ(0);
+    transition: opacity 0.26s cubic-bezier(0.16, 1, 0.3, 1),
+                transform 0.32s cubic-bezier(0.16, 1, 0.3, 1),
+                visibility 0.26s cubic-bezier(0.16, 1, 0.3, 1),
+                left 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    will-change: transform, opacity;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
 }
 .profile-panel.open {
     opacity: 1;
+    visibility: visible;
     pointer-events: auto;
-    transform: translateX(0) scale(1);
+    transform: translateX(0) scale(1) translateZ(0);
 }
 
 /* Little triangle indicator pointing to user card on desktop */
@@ -3219,27 +3234,31 @@ body.sidebar-collapsed .custom-lang-select {
 .pet-flyout-popover {
     position: fixed;
     left: calc(var(--sidebar-w) + 14px);
-    bottom: 80px;
     width: 320px;
     max-width: calc(100vw - 32px);
     z-index: 100005;
     opacity: 0;
+    visibility: hidden;
     pointer-events: none;
-    transform: translateX(-12px) scale(0.96);
-    transition: opacity 0.25s var(--ux-ease), transform 0.35s var(--ux-spring), left 0.4s var(--ux-spring);
-    display: none;
+    transform: translateX(-10px) scale(0.96) translateZ(0);
+    transition: opacity 0.26s cubic-bezier(0.16, 1, 0.3, 1),
+                transform 0.32s cubic-bezier(0.16, 1, 0.3, 1),
+                visibility 0.26s cubic-bezier(0.16, 1, 0.3, 1);
+    will-change: transform, opacity;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
 }
 .pet-flyout-popover.open {
-    display: block !important;
     opacity: 1;
+    visibility: visible;
     pointer-events: auto;
-    transform: translateX(0) scale(1);
+    transform: translateX(0) scale(1) translateZ(0);
 }
 .pet-flyout-popover::before {
     content: "";
     position: absolute;
     left: -7px;
-    bottom: 30px;
+    top: var(--pet-arrow-top, 28px);
     width: 14px;
     height: 14px;
     background: var(--surface);
@@ -3248,6 +3267,7 @@ body.sidebar-collapsed .custom-lang-select {
     transform: rotate(45deg);
     border-bottom-left-radius: 3px;
     z-index: 3;
+    transition: top 0.15s ease;
 }
 .pet-flyout-inner {
     position: relative;
