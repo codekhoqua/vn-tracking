@@ -1237,6 +1237,150 @@
         font-size: 0.75rem;
         color: var(--text-3);
     }
+    /* Image Preview Lightbox Modal */
+    .drive-preview-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(0, 0, 0, 0.88);
+        backdrop-filter: blur(10px);
+        z-index: 10000;
+        display: none;
+        opacity: 0;
+        transition: opacity 0.25s ease;
+    }
+    .drive-preview-overlay.active {
+        display: block;
+        opacity: 1;
+    }
+
+    .drive-preview-modal {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) scale(0.96);
+        max-width: 95vw;
+        max-height: 95vh;
+        z-index: 10001;
+        display: none;
+        opacity: 0;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        pointer-events: none;
+    }
+    .drive-preview-modal.active {
+        display: flex;
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+        pointer-events: auto;
+    }
+
+    .drive-preview-header {
+        width: 100%;
+        max-width: 900px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 20px;
+        margin-bottom: 14px;
+        background: rgba(18, 22, 34, 0.95);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+    }
+
+    .drive-preview-title {
+        color: #fff;
+        font-size: 0.95rem;
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 65%;
+        display: flex;
+        align-items: center;
+    }
+
+    .drive-preview-actions {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .btn-preview-action {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: #3b82f6;
+        color: white;
+        border: none;
+        border-radius: 10px;
+        padding: 8px 14px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .btn-preview-action:hover {
+        background: #2563eb;
+        transform: translateY(-1px);
+    }
+
+    .btn-preview-close {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.1);
+        color: #fff;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 10px;
+        width: 38px;
+        height: 38px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .btn-preview-close:hover {
+        background: #ef4444;
+        border-color: #ef4444;
+        transform: scale(1.08);
+    }
+
+    .drive-preview-body {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        max-width: 92vw;
+        max-height: 82vh;
+        position: relative;
+    }
+
+    .drive-preview-img {
+        max-width: 92vw;
+        max-height: 82vh;
+        object-fit: contain;
+        border-radius: 12px;
+        box-shadow: 0 15px 50px rgba(0,0,0,0.85);
+        border: 1px solid rgba(255,255,255,0.15);
+        background: #000;
+    }
+
+    .drive-preview-loading {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        color: #94a3b8;
+        font-size: 0.95rem;
+        padding: 40px;
+    }
+    .drive-preview-loading i {
+        font-size: 2rem;
+        color: #3b82f6;
+    }
 </style>
 
 <main class="main-area drive-container" {% if is_modal %}style="margin-left: 0 !important; border-radius: 0; box-shadow: none;"{% endif %}>
@@ -1310,6 +1454,33 @@
         <div class="modal-footer" style="display: flex; gap: 12px; justify-content: flex-end;">
             <button class="btn-drive btn-secondary" onclick="closeDriveDialog()">{{ 'Hủy' if lang == 'vi' else 'キャンセル' }}</button>
             <button class="btn-drive btn-primary" id="drive-modal-confirm">{{ 'Xác nhận' if lang == 'vi' else '確認' }}</button>
+        </div>
+    </div>
+
+    <!-- Image Preview Lightbox Modal -->
+    <div id="drive-preview-overlay" class="drive-preview-overlay" onclick="closeImagePreview()"></div>
+    <div id="drive-preview-modal" class="drive-preview-modal">
+        <div class="drive-preview-header">
+            <div class="drive-preview-title">
+                <i class="far fa-image" style="color: #3b82f6; margin-right: 8px;"></i>
+                <span id="drive-preview-filename"></span>
+            </div>
+            <div class="drive-preview-actions">
+                <button class="btn-preview-action" onclick="downloadPreviewImage()" title="{{ 'Tải xuống' if lang == 'vi' else 'ダウンロード' }}">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                    <span>{{ 'Tải xuống' if lang == 'vi' else 'ダウンロード' }}</span>
+                </button>
+                <button class="btn-preview-close" onclick="closeImagePreview()" title="{{ 'Đóng (Esc)' if lang == 'vi' else '閉じる (Esc)' }}">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+        </div>
+        <div class="drive-preview-body">
+            <div id="drive-preview-loading" class="drive-preview-loading">
+                <i class="fas fa-spinner fa-spin"></i>
+                <span>{{ 'Đang tải ảnh...' if lang == 'vi' else '画像を読み込み中...' }}</span>
+            </div>
+            <img id="drive-preview-img" class="drive-preview-img" src="" alt="Preview" style="display: none;" onload="this.style.display='block'; document.getElementById('drive-preview-loading').style.display='none';" onerror="document.getElementById('drive-preview-loading').innerHTML='<span>Không thể hiển thị ảnh</span>';">
         </div>
     </div>
 
@@ -1652,14 +1823,14 @@
                 <div class="drive-checkbox ${isSelected ? 'checked' : ''}" onclick="toggleSelection(event, '${item.path.replace(/'/g, "\'")}')">
                     ${isSelected ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>' : ''}
                 </div>
-                <div class="drive-item-icon" onclick="handleItemClick(${item.is_dir}, '${item.path.replace(/'/g, "\'")}')">
+                <div class="drive-item-icon" onclick="handleItemClick(${item.is_dir}, '${item.path.replace(/'/g, "\'")}', '${item.name.replace(/'/g, "\'")}')">
                     ${iconHtml}
                 </div>
-                <div class="drive-item-name" title="${item.name}">${item.name}</div>
+                <div class="drive-item-name" title="${item.name}" onclick="handleItemClick(${item.is_dir}, '${item.path.replace(/'/g, "\'")}', '${item.name.replace(/'/g, "\'")}')" style="cursor: pointer;">${item.name}</div>
                 ${sizeHtml}
                 
                 <div class="drive-item-actions">
-                    ${!item.is_dir ? `<button class="action-icon" title="{{ 'Tải xuống' if lang == 'vi' else 'ダウンロード' }}" onclick="event.stopPropagation(); downloadItem('${item.path.replace(/'/g, "\'")}')">
+                    ${!item.is_dir ? `<button class="action-icon" title="{{ 'Tải xuống' if lang == 'vi' else 'ダウンロード' }}" onclick="event.stopPropagation(); downloadItem('${item.path.replace(/'/g, "\'")}', '${item.name.replace(/'/g, "\'")}')">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                     </button>` : ''}
                     <button class="action-icon danger" title="{{ 'Xóa' if lang == 'vi' else '削除' }}" onclick="event.stopPropagation(); deleteItem('${item.path.replace(/'/g, "\'")}', ${item.is_dir})">
@@ -1672,11 +1843,99 @@
         });
     }
 
-    function handleItemClick(isDir, path) {
+    function isImageFile(name) {
+        if (!name) return false;
+        return /\.(png|jpe?g|gif|webp|svg|bmp|ico)$/i.test(name);
+    }
+
+    let currentPreviewUrl = '';
+    let currentPreviewFilename = '';
+
+    async function openImagePreview(path, filename) {
+        const overlay = document.getElementById('drive-preview-overlay');
+        const modal = document.getElementById('drive-preview-modal');
+        const img = document.getElementById('drive-preview-img');
+        const loading = document.getElementById('drive-preview-loading');
+        const title = document.getElementById('drive-preview-filename');
+        
+        currentPreviewFilename = filename || path.split('/').pop() || 'image';
+        if (title) {
+            title.textContent = currentPreviewFilename;
+            title.title = currentPreviewFilename;
+        }
+        
+        if (img) {
+            img.style.display = 'none';
+            img.src = '';
+        }
+        if (loading) {
+            loading.style.display = 'flex';
+            loading.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>{{ "Đang tải ảnh..." if lang == "vi" else "画像を読み込み中..." }}</span>';
+        }
+        
+        if (overlay) {
+            overlay.style.display = 'block';
+            overlay.classList.add('active');
+        }
+        if (modal) {
+            modal.style.display = 'flex';
+            modal.classList.add('active');
+        }
+        
+        try {
+            const res = await fetch(`/api/drive/get_download_url?path=${encodeURIComponent(path)}`);
+            const data = await res.json();
+            if (data.success && data.url) {
+                currentPreviewUrl = data.url;
+                if (img) img.src = data.url;
+            } else {
+                showToast("Lỗi mở ảnh: " + (data.error || "Không tìm thấy"), "error");
+                closeImagePreview();
+            }
+        } catch (e) {
+            showToast("Lỗi tải ảnh: " + e.message, "error");
+            closeImagePreview();
+        }
+    }
+
+    function closeImagePreview() {
+        const overlay = document.getElementById('drive-preview-overlay');
+        const modal = document.getElementById('drive-preview-modal');
+        const img = document.getElementById('drive-preview-img');
+        
+        if (overlay) {
+            overlay.classList.remove('active');
+            overlay.style.display = 'none';
+        }
+        if (modal) {
+            modal.classList.remove('active');
+            modal.style.display = 'none';
+        }
+        if (img) {
+            img.src = '';
+            img.style.display = 'none';
+        }
+        currentPreviewUrl = '';
+    }
+
+    function downloadPreviewImage() {
+        if (!currentPreviewUrl) return;
+        const link = document.createElement('a');
+        link.href = currentPreviewUrl;
+        link.download = currentPreviewFilename || 'download';
+        link.target = '_blank';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    function handleItemClick(isDir, path, name) {
         if (isDir) {
             loadDrive(path);
+        } else if (isImageFile(name || path)) {
+            openImagePreview(path, name);
         } else {
-            downloadItem(path);
+            downloadItem(path, name);
         }
     }
 
@@ -1881,8 +2140,22 @@
         xhr.send(formData);
     }
 
-    function downloadItem(path) {
-        window.location.href = `/api/drive/download?path=${encodeURIComponent(path)}`;
+    async function downloadItem(path, filename) {
+        try {
+            const res = await fetch(`/api/drive/get_download_url?path=${encodeURIComponent(path)}`);
+            const data = await res.json();
+            const downloadUrl = (data && data.url) ? data.url : `/api/drive/download?path=${encodeURIComponent(path)}`;
+            
+            const link = document.createElement('a');
+            link.href = downloadUrl;
+            link.download = filename || path.split('/').pop() || 'download';
+            link.target = '_blank';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        } catch (_) {
+            window.open(`/api/drive/download?path=${encodeURIComponent(path)}`, '_blank');
+        }
     }
 
     function deleteItem(path, isDir) {
@@ -1923,9 +2196,15 @@
                 if (!data || data.path === undefined || data.path === null || changed === cur) {
                     driveCache.delete(currentPath);
                     loadDrive(currentPath, false);
-                    showToast("{{ 'Đã làm mới dữ liệu' if lang == 'vi' else 'データを更新しました' }}", "info");
                 }
             });
+        }
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            closeImagePreview();
+            closeDriveDialog();
         }
     });
 
