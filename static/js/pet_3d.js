@@ -852,10 +852,11 @@ window.Pet3DEngine = (function () {
         }
 
         if (vp === roaming) {
+            if (vp.petContainer) vp.petContainer.position.y = 0.16;
             vp.camera.position.x = (cfg.camPosX !== undefined ? cfg.camPosX : 1.15);
             vp.camera.position.z = (cfg.camPosZ !== undefined ? cfg.camPosZ + 0.15 : 2.65);
             vp.camera.position.y = (cfg.camPosY ? cfg.camPosY + 0.05 : 1.14);
-            vp.camera.lookAt(0, (cfg.camY ? cfg.camY + 0.02 : 0.50), 0);
+            vp.camera.lookAt(0, (cfg.camY ? cfg.camY + 0.06 : 0.54), 0);
         } else if (vp === switchPreview || vp === adoptPreview) {
             vp.camera.position.x = (cfg.camPosX !== undefined ? cfg.camPosX : 1.15);
             vp.camera.position.z = (cfg.camPosZ !== undefined ? cfg.camPosZ : 2.45);
@@ -945,12 +946,13 @@ window.Pet3DEngine = (function () {
         const foodGeo = new THREE.DodecahedronGeometry(0.10);
         const food = new THREE.Mesh(foodGeo, foodMat);
         food.name = 'petFoodTreat';
-        food.position.set(0, 0.95, 0.22); // Start nicely above head, well within 185px canvas
+        const treatOffsetY = (vp && vp.petContainer) ? (vp.petContainer.position.y || 0) : 0;
+        food.position.set(0, 0.95 + treatOffsetY, 0.22); // Start nicely above head, well within 185px canvas
         vp.scene.add(food);
         vp.foodMesh = food;
 
-        const startY = 0.95;
-        const targetY = 0.32;
+        const startY = 0.95 + treatOffsetY;
+        const targetY = 0.32 + treatOffsetY;
         const startTime = performance.now();
         const dropDuration = 450;
 

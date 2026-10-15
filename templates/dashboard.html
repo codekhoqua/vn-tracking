@@ -244,7 +244,7 @@
     <div class="mobile-brand">
         <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" width="30" height="30" style="border-radius: 8px; object-fit: contain;">
         <span>VN-Tracking</span>
-        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.79</i></sup>
+        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.80</i></sup>
     </div>
     <div class="mobile-topbar-right">
         <button type="button" class="mobile-icon-btn" onclick="toggleNotificationPanel(event)" title="{{ 'Thông báo' if lang == 'vi' else '通知' }}">
@@ -396,7 +396,7 @@
             </div>
             <div class="sidebar-logo-text">
                 <span class="sidebar-brand-name">VN-Tracking</span>
-                <sup class="version-tag"><i>v1.9.79</i></sup>
+                <sup class="version-tag"><i>v1.9.80</i></sup>
             </div>
         </div>
     </div>
@@ -548,13 +548,8 @@
                         </svg>
                     </button>
                     <button id="sidebar-pet-expand-btn" onclick="toggleSidebarPetDetails()" class="sidebar-pet-action-btn"
-                        title="{{ 'Chi tiết / Bảng xếp hạng' if lang == 'vi' else '詳細 / ランキング' }}">
-                        <svg id="sidebar-pet-chevron"
-                            style="transition: transform 0.25s ease;" width="11" height="11"
-                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-                            stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="6 9 12 15 18 9"></polyline>
-                        </svg>
+                        title="{{ 'Bảng xếp hạng' if lang == 'vi' else 'ランキング' }}">
+                        <i class="fas fa-trophy" id="sidebar-pet-trophy" style="font-size: 11px; transition: all 0.2s ease;"></i>
                     </button>
                 </div>
             </div>
@@ -4471,6 +4466,11 @@
         justify-content: center;
         cursor: pointer;
         background: radial-gradient(ellipse at center bottom, rgba(139, 92, 246, 0.18) 0%, transparent 70%);
+        margin-bottom: 2px;
+    }
+
+    .roaming-pet-3d-wrapper .stage-shadow-pedestal {
+        bottom: 20px;
     }
 
     .pet-3d-canvas-box {
@@ -4627,7 +4627,7 @@
     }
 
     .sidebar-pet-progress {
-        padding: 2px 12px 6px;
+        padding: 8px 12px 6px;
     }
 
     .sidebar-pet-status-row {
@@ -6051,30 +6051,36 @@
         // Position panel horizontally right next to sidebar
         details.style.left = `${Math.round(sidebarRect.right + 12)}px`;
 
-        // Position vertically so the popover arrow points directly at the expand button center
-        const panelHeight = details.offsetHeight || 420;
         const btnCenterY = btnRect.top + btnRect.height / 2;
+        const panelHeight = details.offsetHeight || 380;
 
-        let targetTop = btnCenterY - 32;
-        const maxTop = window.innerHeight - panelHeight - 16;
-        if (targetTop > maxTop) targetTop = Math.max(16, maxTop);
-        if (targetTop < 16) targetTop = 16;
+        // Position menu lower, aligning right at the arrow / trophy button
+        let targetTop = Math.round(btnRect.top - 8);
+        const availableBelow = window.innerHeight - targetTop - 16;
+        if (availableBelow < 280) {
+            targetTop = Math.max(16, window.innerHeight - panelHeight - 16);
+        }
 
-        details.style.top = `${Math.round(targetTop)}px`;
+        details.style.top = `${targetTop}px`;
         details.style.bottom = 'auto';
 
-        const arrowOffset = Math.max(18, Math.min(panelHeight - 24, btnCenterY - targetTop));
+        const arrowOffset = Math.max(16, Math.min(panelHeight - 20, btnCenterY - targetTop));
         details.style.setProperty('--pet-arrow-top', `${Math.round(arrowOffset)}px`);
     }
 
     function toggleSidebarPetDetails() {
         const details = document.getElementById('pet-panel');
         const backdrop = document.getElementById('pet-popover-backdrop');
+        const trophy = document.getElementById('sidebar-pet-trophy');
         const chevron = document.getElementById('sidebar-pet-chevron');
         if (!details) return;
 
         const isOpen = details.classList.toggle('open');
         if (backdrop) backdrop.classList.toggle('open', isOpen);
+        if (trophy) {
+            trophy.style.color = isOpen ? '#f59e0b' : '';
+            trophy.style.transform = isOpen ? 'scale(1.18)' : 'scale(1)';
+        }
         if (chevron) chevron.style.transform = isOpen ? 'rotate(180deg)' : 'rotate(0deg)';
         if (isOpen) {
             updatePetPanelPosition();
