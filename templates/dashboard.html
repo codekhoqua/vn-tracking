@@ -244,7 +244,7 @@
     <div class="mobile-brand">
         <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" width="30" height="30" style="border-radius: 8px; object-fit: contain;">
         <span>VN-Tracking</span>
-        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.61</i></sup>
+        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.62</i></sup>
     </div>
     <div class="mobile-topbar-right">
         <button type="button" class="mobile-icon-btn" onclick="toggleNotificationPanel(event)" title="{{ 'Thông báo' if lang == 'vi' else '通知' }}">
@@ -396,7 +396,7 @@
             </div>
             <div class="sidebar-logo-text">
                 <span class="sidebar-brand-name">VN-Tracking</span>
-                <sup class="version-tag"><i>v1.9.61</i></sup>
+                <sup class="version-tag"><i>v1.9.62</i></sup>
             </div>
         </div>
     </div>
@@ -521,18 +521,6 @@
     <div style="flex-grow: 1;"></div>
 
     <div class="sidebar-footer">
-        <!-- Segmented Widget Switcher (Pet 🐾 | Music 🎵) -->
-        <div class="sidebar-widget-tabs" id="sidebar-widget-tabs">
-            <button type="button" class="widget-tab-btn active" id="tab-btn-pet" onclick="switchSidebarWidget('pet')">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 5.172a2 2 0 0 0-3.414 1.414l.828 2.828A2 2 0 0 1 7.172 11H4a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h3.172a2 2 0 0 1 1.414.586l.828 2.828A2 2 0 0 0 12 21a2 2 0 0 0 1.414-3.414l-.828-2.828A2 2 0 0 1 13 13.172V10a2 2 0 0 0-2-2h-.172z"/></svg>
-                <span>Pet 3D</span>
-            </button>
-            <button type="button" class="widget-tab-btn" id="tab-btn-music" onclick="switchSidebarWidget('music')">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
-                <span>LSA Music</span>
-            </button>
-        </div>
-
         <!-- 🐾 3D VIRTUAL PET SIDEBAR PANEL (TRÊN LSA MUSIC) -->
         <div id="sidebar-pet-panel" class="sidebar-pet-panel">
             <!-- Header: Pet Name & Level (Left) | Quick Actions (Right) -->
@@ -637,7 +625,7 @@
 
         <!-- LOFI RADIO WIDGET (Apple Music Style) -->
         <div id="lofi-radio-widget"
-            style="position: relative; width: 100%; margin-bottom: 6px; border-radius: 16px; overflow: hidden; box-shadow: 0 8px 24px rgba(0,0,0,0.2); background: #1c1c1e; color: #fff; transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); display: none;">
+            style="position: relative; width: 100%; margin-bottom: 6px; border-radius: 16px; overflow: hidden; box-shadow: 0 8px 24px rgba(0,0,0,0.2); background: #1c1c1e; color: #fff; transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);">
 
             <!-- Blurred Background Cover -->
             <div id="radio-bg-blur"
@@ -6029,39 +6017,6 @@
             loadInlineLeaderboard();
         }
     }
-
-    function switchSidebarWidget(tab) {
-        const petPanel = document.getElementById('sidebar-pet-panel');
-        const musicPanel = document.getElementById('lofi-radio-widget');
-        const marquee = document.getElementById('radio-participants-marquee');
-        const tabPet = document.getElementById('tab-btn-pet');
-        const tabMusic = document.getElementById('tab-btn-music');
-
-        if (tab === 'music') {
-            if (petPanel) petPanel.style.display = 'none';
-            if (musicPanel) musicPanel.style.display = 'block';
-            if (marquee) marquee.style.display = 'flex';
-            if (tabPet) tabPet.classList.remove('active');
-            if (tabMusic) tabMusic.classList.add('active');
-            try { localStorage.setItem('sidebar_active_widget', 'music'); } catch (e) {}
-        } else {
-            if (petPanel) petPanel.style.display = 'block';
-            if (musicPanel) musicPanel.style.display = 'none';
-            if (marquee) marquee.style.display = 'none';
-            if (tabPet) tabPet.classList.add('active');
-            if (tabMusic) tabMusic.classList.remove('active');
-            try { localStorage.setItem('sidebar_active_widget', 'pet'); } catch (e) {}
-            window.dispatchEvent(new Event('resize'));
-        }
-    }
-
-    // Restore active widget tab on boot
-    (function initActiveWidgetTab() {
-        try {
-            const saved = localStorage.getItem('sidebar_active_widget') || 'pet';
-            switchSidebarWidget(saved);
-        } catch (e) {}
-    })();
 
     // Close pet details flyout on Escape key
     document.addEventListener('keydown', function (e) {
