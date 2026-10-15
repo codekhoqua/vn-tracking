@@ -2992,7 +2992,7 @@ def lsa_drive():
         filter_cv_sau=[],
         users=[],
         tasks=[],
-        app_version='v1.9.99',
+        app_version='v1.9.100',
     )
 
 # =====================================================================
@@ -3887,9 +3887,47 @@ def calendar_view():
 LEAVE_GDRIVE_FOLDER_ID = '1rcBkd1l_JZvXx_9m5uIITnj1qNzPNR81Zj5OldGQcVcqSpYafh3d3KU_-R8ZXsI7nOQKL4Sr'
 LEAVE_RESPONSES_SPREADSHEET_ID = os.environ.get('LEAVE_RESPONSES_SPREADSHEET_ID', '1Mhky2YxG4do3fHS-6bIeultwibqaj1Tf-WcVFiNicY')
 LEAVE_RESPONSES_SHEET_TAB = os.environ.get('LEAVE_RESPONSES_SHEET_TAB', 'Form Responses 1')
+LEAVE_GDRIVE_SCRIPT_URL = os.environ.get('LEAVE_GDRIVE_SCRIPT_URL', '').strip()
 
 def upload_leave_file_to_gdrive(file_bytes, filename, mime_type=None, folder_id=LEAVE_GDRIVE_FOLDER_ID):
-    """Tải file xác nhận nghỉ phép lên thư mục Google Drive của công ty."""
+    """Tải file xác nhận nghỉ phép lên thư mục Google Drive của công ty.
+    Hỗ trợ qua Google Apps Script Web App (không lo lỗi quota) hoặc Google Drive API v3 (với Shared Drive).
+    """
+    import base64
+
+    if not mime_type:
+        ext = os.path.splitext(filename)[1].lower()
+        mime_map = {
+            '.png': 'image/png',
+            '.jpg': 'image/jpeg',
+            '.jpeg': 'image/jpeg',
+            '.webp': 'image/webp',
+            '.pdf': 'application/pdf'
+        }
+        mime_type = mime_map.get(ext, 'image/jpeg')
+
+    # Ưu tiên 1: Nếu cấu hình Google Apps Script Web App (chạy dưới quyền user, không bao giờ bị lỗi quota Service Account)
+    if LEAVE_GDRIVE_SCRIPT_URL:
+        try:
+            b64_content = base64.b64encode(file_bytes).decode('utf-8')
+            payload = {
+                'filename': filename,
+                'base64': b64_content,
+                'mimeType': mime_type,
+                'folderId': folder_id
+            }
+            r = requests.post(LEAVE_GDRIVE_SCRIPT_URL, json=payload, timeout=45)
+            if r.status_code == 200:
+                res_data = r.json()
+                if res_data.get('success') and res_data.get('url'):
+                    print(f"[AppsScript GDrive Upload Success] {res_data.get('url')}")
+                    return True, res_data.get('url')
+                elif res_data.get('error'):
+                    return False, f"Apps Script lỗi: {res_data.get('error')}"
+        except Exception as e:
+            print(f"[AppsScript GDrive Upload Exception] {e}")
+
+    # Ưu tiên 2: Dùng Service Account Drive v3 API (yêu cầu thư mục nằm trong Bộ nhớ dùng chung / Shared Drive)
     try:
         creds_dict = load_credentials_dict()
         if not creds_dict:
@@ -3907,17 +3945,6 @@ def upload_leave_file_to_gdrive(file_bytes, filename, mime_type=None, folder_id=
         token = creds.token
         if not token:
             return False, "Không lấy được access token Google"
-
-        if not mime_type:
-            ext = os.path.splitext(filename)[1].lower()
-            mime_map = {
-                '.png': 'image/png',
-                '.jpg': 'image/jpeg',
-                '.jpeg': 'image/jpeg',
-                '.webp': 'image/webp',
-                '.pdf': 'application/pdf'
-            }
-            mime_type = mime_map.get(ext, 'image/jpeg')
 
         metadata = {
             'name': filename,
@@ -3942,6 +3969,14 @@ def upload_leave_file_to_gdrive(file_bytes, filename, mime_type=None, folder_id=
         elif r.status_code == 404:
             err_msg = "Thư mục Google Drive chưa được chia sẻ với email bot (logtime-sa@logtime-app-3366.iam.gserviceaccount.com)"
             print(f"[GDrive Upload Error 404] {err_msg}")
+            return False, err_msg
+        elif r.status_code == 403 and 'storageQuotaExceeded' in r.text:
+            err_msg = (
+                "Google chặn Service Account: Thư mục này đang nằm trong 'Drive của tôi' cá nhân (Service Account có 0MB dung lượng). "
+                "Giải pháp: Chuyển thư mục vào 'Bộ nhớ dùng chung' (Shared Drive) của công ty và thêm bot làm thành viên, "
+                "HOẶC tạo Google Apps Script Web App để tải ảnh."
+            )
+            print(f"[GDrive Upload Error 403] {err_msg}")
             return False, err_msg
         else:
             err_msg = f"HTTP {r.status_code}: {r.text}"

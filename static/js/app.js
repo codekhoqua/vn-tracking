@@ -8938,7 +8938,10 @@ function updateLeaveStepUI() {
         if (prevBtn) prevBtn.style.display = 'inline-block';
         if (cancelBtn) cancelBtn.style.display = 'none';
         if (nextBtn) nextBtn.style.display = 'none';
-        if (submitBtn) submitBtn.style.display = 'flex';
+        if (submitBtn) {
+            submitBtn.style.display = 'flex';
+            updateLeaveSubmitButtonState();
+        }
         updateLeaveFilenamePreview();
     } else {
         if (prevBtn) prevBtn.style.display = 'inline-block';
@@ -8955,6 +8958,37 @@ function updateLeaveStepUI() {
     const body = document.querySelector('.leave-modal-body');
     if (body) body.scrollTop = 0;
 }
+
+function updateLeaveSubmitButtonState() {
+    const submitBtn = document.getElementById('leave-btn-submit');
+    const notice = document.getElementById('leave-upload-required-notice');
+    if (!submitBtn) return;
+
+    if (uploadedGDriveLink) {
+        submitBtn.disabled = false;
+        submitBtn.style.opacity = '1';
+        submitBtn.style.cursor = 'pointer';
+        submitBtn.title = 'Nhấn để gửi đơn nghỉ phép';
+        if (notice) {
+            notice.style.background = 'rgba(16, 185, 129, 0.1)';
+            notice.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+            notice.style.color = '#34d399';
+            notice.innerHTML = '<i class="fas fa-check-circle"></i> <span><strong>Đã tải ảnh lên Drive thành công:</strong> Nút gửi đơn đã được mở khóa!</span>';
+        }
+    } else {
+        submitBtn.disabled = true;
+        submitBtn.style.opacity = '0.5';
+        submitBtn.style.cursor = 'not-allowed';
+        submitBtn.title = 'Vui lòng chọn ảnh và tải lên Google Drive thành công trước khi gửi đơn';
+        if (notice) {
+            notice.style.background = 'rgba(245, 158, 11, 0.1)';
+            notice.style.borderColor = 'rgba(245, 158, 11, 0.3)';
+            notice.style.color = '#fbbf24';
+            notice.innerHTML = '<i class="fas fa-exclamation-triangle"></i> <span><strong>Bắt buộc:</strong> Bạn cần chọn ảnh xác nhận và bấm <strong>Tải ảnh lên Google Drive</strong> thành công trước khi gửi đơn.</span>';
+        }
+    }
+}
+window.updateLeaveSubmitButtonState = updateLeaveSubmitButtonState;
 
 function getLeaveGeneratedFilename(extension = '') {
     const rawDate = (document.getElementById('leave-start-date')?.value || '').trim();
@@ -9052,6 +9086,7 @@ function onLeaveFileSelected(e) {
         statusBox.style.display = 'none';
         statusBox.innerHTML = '';
     }
+    updateLeaveSubmitButtonState();
 }
 window.onLeaveFileSelected = onLeaveFileSelected;
 
@@ -9067,6 +9102,7 @@ function removeLeaveSelectedFile() {
         statusBox.style.display = 'none';
         statusBox.innerHTML = '';
     }
+    updateLeaveSubmitButtonState();
 }
 window.removeLeaveSelectedFile = removeLeaveSelectedFile;
 
@@ -9112,22 +9148,27 @@ async function uploadAttachmentToGDriveDirectly() {
             if (statusBox) {
                 statusBox.innerHTML = `<span style="color: #34d399; font-weight: 600;"><i class="fas fa-check-circle"></i> Đã lưu vào Drive</span> <a href="${data.gdrive_link}" target="_blank" style="color: #60a5fa; text-decoration: underline; margin-left: 8px; font-weight: 500;">Mở xem trên Drive <i class="fas fa-external-link-alt" style="font-size: 0.72rem;"></i></a>`;
             }
+            updateLeaveSubmitButtonState();
             if (typeof showToast === 'function') showToast('✅ Tải ảnh lên Google Drive thành công!', 'success');
         } else {
+            uploadedGDriveLink = '';
             if (btn) btn.disabled = false;
             if (btnTxt) btnTxt.innerHTML = '<i class="fas fa-redo"></i> Thử lại tải lên Drive';
             const note = data.gdrive_error || 'Thư mục Drive chưa cấp quyền cho bot';
             if (statusBox) {
                 statusBox.innerHTML = `<span style="color: #f87171;"><i class="fas fa-exclamation-triangle"></i> ${note}</span>`;
             }
+            updateLeaveSubmitButtonState();
             if (typeof showToast === 'function') showToast(`⚠️ ${note}`, 'warning');
         }
     } catch (err) {
+        uploadedGDriveLink = '';
         if (btn) btn.disabled = false;
         if (btnTxt) btnTxt.innerHTML = '<i class="fas fa-redo"></i> Thử lại tải lên Drive';
         if (statusBox) {
             statusBox.innerHTML = `<span style="color: #f87171;">Lỗi kết nối: ${err.message}</span>`;
         }
+        updateLeaveSubmitButtonState();
     }
 }
 window.uploadAttachmentToGDriveDirectly = uploadAttachmentToGDriveDirectly;
@@ -9180,6 +9221,16 @@ async function submitMultiStepLeave(e) {
             showToast('Vui lòng điền đầy đủ thông tin bắt buộc!', 'error');
         } else {
             alert('Vui lòng điền đầy đủ thông tin bắt buộc!');
+        }
+        return;
+    }
+
+    if (!uploadedGDriveLink) {
+        const msg = '⚠️ Bạn cần tải ảnh xác nhận lên Google Drive thành công trước khi gửi đơn!';
+        if (typeof showToast === 'function') {
+            showToast(msg, 'warning');
+        } else {
+            alert(msg);
         }
         return;
     }
