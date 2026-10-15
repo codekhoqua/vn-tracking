@@ -838,6 +838,147 @@ def save_logtime(data):
             print("Lỗi khi lưu logtime vào sheet 日報:", repr(ex), flush=True)
             return False
 
+# ==================== CẤU HÌNH THEO DÕI THỜI GIAN (JP-Tracking) ====================
+TRACKER_SPREADSHEET_ID = '1EvTrNJx7dBO5pK58sc25WXkKPMTCJogzpMRz_e-Tr0k'
+TRACKER_SHEET_NAME = 'JPメンバー用'
+tracker_submit_lock = threading.Lock()
+_tracker_ws_cache = {}
+_tracker_history_cache = {'time': 0, 'rows': []}
+
+def _get_tracker_ws():
+    target = (TRACKER_SPREADSHEET_ID, TRACKER_SHEET_NAME)
+    ws = _tracker_ws_cache.get(target)
+    if ws is not None:
+        return ws
+    client = get_gspread_client()
+    if not client:
+        raise RuntimeError("Không lấy được gspread client cho Tracker: " + str(last_sheet_error))
+    ws = client.open_by_key(TRACKER_SPREADSHEET_ID).worksheet(TRACKER_SHEET_NAME)
+    _tracker_ws_cache[target] = ws
+    return ws
+
+def _load_all_tracker_rows(force_refresh=False):
+    global _tracker_history_cache
+    now = time.time()
+    if not force_refresh and (now - _tracker_history_cache.get('time', 0) < 60) and _tracker_history_cache.get('rows'):
+        return _tracker_history_cache['rows']
+    try:
+        ws = _get_tracker_ws()
+        raw_values = ws.get_all_values()
+        parsed_rows = []
+        for row in raw_values[3:]:
+            if not any(row):
+                continue
+            def _get_c(idx):
+                return str(row[idx]).strip() if len(row) > idx else ''
+            
+            dur = _get_c(1)
+            st_time = _get_c(2)
+            end_time = _get_c(3)
+            note = _get_c(4)
+            task_name = _get_c(5)
+            user = _get_c(6)
+            st_date = _get_c(7)
+            end_date = _get_c(8)
+            session = _get_c(9)
+            
+            parsed_rows.append({
+                'duration': dur,
+                'start_time': st_time,
+                'end_time': end_time,
+                'note': note,
+                'task_name': task_name,
+                'user': user,
+                'start_date': st_date,
+                'end_date': end_date,
+                'session': session
+            })
+        _tracker_history_cache = {'time': now, 'rows': parsed_rows}
+        return parsed_rows
+    except Exception as e:
+        print("Lỗi load tracker rows:", e)
+        return _tracker_history_cache.get('rows', [])
+
+def get_tracker_history_for_session(session_code, task_name=""):
+    rows = _load_all_tracker_rows()
+    matched = []
+    s_clean = str(session_code or '').strip().lower()
+    t_clean = str(task_name or '').strip().lower()
+    
+    def _matches(target, val):
+        if not target or not val:
+            return False
+        return target == val or target in val or val in target
+
+    for r in rows:
+        r_session = str(r.get('session', '')).strip().lower()
+        r_task = str(r.get('task_name', '')).strip().lower()
+        if (s_clean and _matches(s_clean, r_session)) or \
+           (t_clean and _matches(t_clean, r_task)) or \
+           (s_clean and _matches(s_clean, r_task)):
+            matched.append(r)
+    return matched
+
+def save_tracker_time_gspread(data):
+    def parse_num(val):
+        if val is None or str(val).strip() == '':
+            return ''
+        try:
+            f = float(val)
+            return int(f) if f.is_integer() else f
+        except ValueError:
+            return str(val)
+
+    duration = parse_num(data.get('duration', '0'))
+    start_time = str(data.get('start_time', '')).strip()
+    end_time = str(data.get('end_time', '')).strip()
+    note = str(data.get('note', '')).strip()
+    task_name = str(data.get('task_name', '')).strip()
+    username = str(data.get('username', '')).strip()
+    start_date = str(data.get('start_date', '')).strip()
+    end_date = str(data.get('end_date', '')).strip()
+    session = str(data.get('session', '') or task_name).strip()
+
+    row_data = [
+        '',             # A: 合計時間
+        duration,       # B: 時間
+        start_time,     # C: 開始
+        end_time,       # D: 終了
+        note,           # E: 備考
+        task_name,      # F: 作品名
+        username,       # G: 担当者
+        start_date,     # H: 開始日
+        end_date,       # I: 終了日
+        session         # J: Session
+    ]
+
+    with tracker_submit_lock:
+        try:
+            ws = _get_tracker_ws()
+            ws.append_row(row_data, value_input_option='USER_ENTERED')
+        except Exception:
+            _tracker_ws_cache.pop((TRACKER_SPREADSHEET_ID, TRACKER_SHEET_NAME), None)
+            ws = _get_tracker_ws()
+            ws.append_row(row_data, value_input_option='USER_ENTERED')
+            
+        new_record = {
+            'duration': str(duration),
+            'start_time': start_time,
+            'end_time': end_time,
+            'note': note,
+            'task_name': task_name,
+            'user': username,
+            'start_date': start_date,
+            'end_date': end_date,
+            'session': session
+        }
+        if not _tracker_history_cache.get('rows'):
+            _load_all_tracker_rows()
+        if 'rows' in _tracker_history_cache and isinstance(_tracker_history_cache['rows'], list):
+            _tracker_history_cache['rows'].append(new_record)
+        print(f"==> [Service Account Tracker] Đã lưu tracker vào JPメンバー用 cho: {task_name} ({username}) Session: {session}", flush=True)
+        return True
+
 
 
 # =====================================================================
@@ -1242,7 +1383,8 @@ def render_task_handover_html(tac_pham_key, index, lang, row_data=None):
     '''
 
 def render_task_tracker_html(tac_pham_key, index, lang):
-    return f'''<div class="time-tracker-box" id="tracker_{index}" data-tp-key="{tac_pham_key}" style="margin-top: 0;">
+    safe_tp = str(tac_pham_key).replace('"', '&quot;')
+    return f'''<div class="time-tracker-box" id="tracker_{index}" data-tp-key="{safe_tp}" data-session="{safe_tp}" style="margin-top: 0;">
         <div class="tracker-header">
             <span><i class="fas fa-stopwatch" style="margin-right: 6px; color: var(--primary);"></i>{ "Theo dõi thời gian" if lang == "vi" else "タイムトラッカー" }</span>
             <label style="font-size: 0.8rem; font-weight: normal; cursor: pointer; color: var(--text-2);">
@@ -3291,28 +3433,30 @@ def api_log_member_time():
     if not session.get('logged_in'):
         return jsonify({"status": "error", "message": "Unauthorized"}), 401
     
-    data = request.get_json()
+    data = request.get_json() or {}
     username = session.get('user', '')
-    payload = {
-        "action": "log_member_time",
-        "username": username,
-        "task_name": data.get('task_name', ''),
-        "duration": data.get('duration', '0'),
-        "start_time": data.get('start_time', ''),
-        "end_time": data.get('end_time', ''),
-        "start_date": data.get('start_date', ''),
-        "end_date": data.get('end_date', ''),
-        "note": data.get('note', '')
-    }
-    
+    data['username'] = username
+    session_code = data.get('session', '') or data.get('task_name', '')
+    task_name = data.get('task_name', '')
+
     try:
-        res = requests.post(LOGTIME_API_URL, json=payload)
-        if res.status_code == 200 and res.json().get('status') == 'success':
-            return jsonify({"status": "success"})
-        return jsonify({"status": "error", "message": "Apps Script error"})
+        ok = save_tracker_time_gspread(data)
+        if ok:
+            history = get_tracker_history_for_session(session_code, task_name)
+            return jsonify({"status": "success", "history": history})
+        return jsonify({"status": "error", "message": "Không thể lưu vào Google Sheet"}), 500
     except Exception as e:
         print("Log member time error:", e)
-        return jsonify({"status": "error", "message": "Server error"}), 500
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route('/api/tracker_history', methods=['GET'])
+def api_tracker_history():
+    if not session.get('logged_in'):
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+    session_code = request.args.get('session', '').strip()
+    task_name = request.args.get('task_name', '').strip()
+    history = get_tracker_history_for_session(session_code, task_name)
+    return jsonify({"status": "success", "history": history})
 
 @app.route('/api/change-password', methods=['POST'])
 def api_change_password():
