@@ -9008,6 +9008,8 @@ function copySuggestedFilename() {
 }
 window.copySuggestedFilename = copySuggestedFilename;
 
+let uploadedGDriveLink = '';
+
 function onLeaveFileSelected(e) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -9020,6 +9022,7 @@ function onLeaveFileSelected(e) {
     }
 
     selectedLeaveFile = file;
+    uploadedGDriveLink = '';
     const ext = file.name.includes('.') ? file.name.split('.').pop() : 'png';
     const targetName = getLeaveGeneratedFilename(ext);
 
@@ -9027,6 +9030,9 @@ function onLeaveFileSelected(e) {
     const previewImg = document.getElementById('leave-preview-img');
     const previewName = document.getElementById('leave-preview-name');
     const previewSize = document.getElementById('leave-preview-size');
+    const gdriveBtn = document.getElementById('leave-btn-upload-gdrive');
+    const gdriveBtnTxt = document.getElementById('leave-btn-upload-gdrive-text');
+    const statusBox = document.getElementById('leave-gdrive-upload-status');
 
     if (previewCard && previewImg && previewName && previewSize) {
         previewImg.src = URL.createObjectURL(file);
@@ -9035,17 +9041,96 @@ function onLeaveFileSelected(e) {
         previewSize.textContent = (file.size / 1024).toFixed(1) + ' KB';
         previewCard.style.display = 'flex';
     }
+
+    if (gdriveBtn && gdriveBtnTxt) {
+        gdriveBtn.disabled = false;
+        gdriveBtn.style.background = '#2563eb';
+        gdriveBtn.style.borderColor = '#3b82f6';
+        gdriveBtnTxt.textContent = 'Tải ảnh lên Google Drive';
+    }
+    if (statusBox) {
+        statusBox.style.display = 'none';
+        statusBox.innerHTML = '';
+    }
 }
 window.onLeaveFileSelected = onLeaveFileSelected;
 
 function removeLeaveSelectedFile() {
     selectedLeaveFile = null;
+    uploadedGDriveLink = '';
     const fileInp = document.getElementById('leave-attachment-input');
     if (fileInp) fileInp.value = '';
     const previewCard = document.getElementById('leave-file-preview-card');
     if (previewCard) previewCard.style.display = 'none';
+    const statusBox = document.getElementById('leave-gdrive-upload-status');
+    if (statusBox) {
+        statusBox.style.display = 'none';
+        statusBox.innerHTML = '';
+    }
 }
 window.removeLeaveSelectedFile = removeLeaveSelectedFile;
+
+async function uploadAttachmentToGDriveDirectly() {
+    if (!selectedLeaveFile) {
+        if (typeof showToast === 'function') showToast('Vui lòng chọn ảnh trước!', 'warning');
+        else alert('Vui lòng chọn ảnh trước!');
+        return;
+    }
+
+    const btn = document.getElementById('leave-btn-upload-gdrive');
+    const btnTxt = document.getElementById('leave-btn-upload-gdrive-text');
+    const statusBox = document.getElementById('leave-gdrive-upload-status');
+
+    const ext = selectedLeaveFile.name.includes('.') ? selectedLeaveFile.name.split('.').pop() : 'png';
+    const targetFilename = getLeaveGeneratedFilename(ext);
+
+    if (btn) btn.disabled = true;
+    if (btnTxt) btnTxt.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang tải lên Drive...';
+    if (statusBox) {
+        statusBox.style.display = 'block';
+        statusBox.innerHTML = '<span style="color: #94a3b8;"><i class="fas fa-spinner fa-spin"></i> Đang kết nối Google Drive...</span>';
+    }
+
+    try {
+        const formData = new FormData();
+        formData.append('attachment', selectedLeaveFile, targetFilename);
+        formData.append('target_filename', targetFilename);
+
+        const res = await fetch('/api/upload_leave_attachment', {
+            method: 'POST',
+            body: formData
+        });
+        const data = await res.json().catch(() => ({}));
+
+        if (data && data.gdrive_uploaded && data.gdrive_link) {
+            uploadedGDriveLink = data.gdrive_link;
+            if (btnTxt) btnTxt.innerHTML = '<i class="fas fa-check"></i> Đã tải lên';
+            if (btn) {
+                btn.style.background = '#10b981';
+                btn.style.borderColor = '#10b981';
+            }
+            if (statusBox) {
+                statusBox.innerHTML = `<span style="color: #34d399; font-weight: 600;"><i class="fas fa-check-circle"></i> Đã lưu vào Drive</span> <a href="${data.gdrive_link}" target="_blank" style="color: #60a5fa; text-decoration: underline; margin-left: 8px; font-weight: 500;">Mở xem trên Drive <i class="fas fa-external-link-alt" style="font-size: 0.72rem;"></i></a>`;
+            }
+            if (typeof showToast === 'function') showToast('✅ Tải ảnh lên Google Drive thành công!', 'success');
+        } else {
+            if (btn) btn.disabled = false;
+            if (btnTxt) btnTxt.innerHTML = '<i class="fas fa-redo"></i> Thử lại tải lên Drive';
+            const note = data.gdrive_error || 'Thư mục Drive chưa cấp quyền cho bot';
+            if (statusBox) {
+                statusBox.innerHTML = `<span style="color: #f87171;"><i class="fas fa-exclamation-triangle"></i> ${note}</span>`;
+            }
+            if (typeof showToast === 'function') showToast(`⚠️ ${note}`, 'warning');
+        }
+    } catch (err) {
+        if (btn) btn.disabled = false;
+        if (btnTxt) btnTxt.innerHTML = '<i class="fas fa-redo"></i> Thử lại tải lên Drive';
+        if (statusBox) {
+            statusBox.innerHTML = `<span style="color: #f87171;">Lỗi kết nối: ${err.message}</span>`;
+        }
+    }
+}
+window.uploadAttachmentToGDriveDirectly = uploadAttachmentToGDriveDirectly;
 
 function onLeaveIframeLoad() {
     if (isSubmittingLeave) {
@@ -9053,7 +9138,7 @@ function onLeaveIframeLoad() {
     }
 }
 
-function finishLeaveSubmission(success) {
+function finishLeaveSubmission(success, msg) {
     isSubmittingLeave = false;
     const btn = document.getElementById('leave-btn-submit');
     if (btn) {
@@ -9062,10 +9147,11 @@ function finishLeaveSubmission(success) {
     }
     closeLeaveModal();
     if (success) {
+        const text = msg || '✅ Đã gửi đơn đăng ký nghỉ phép thành công!';
         if (typeof showToast === 'function') {
-            showToast('✅ Đã gửi đơn đăng ký nghỉ phép thành công!', 'success');
+            showToast(text, 'success');
         } else {
-            alert('Đã gửi đơn đăng ký nghỉ phép thành công!');
+            alert(text);
         }
     }
 }
@@ -9106,6 +9192,7 @@ async function submitMultiStepLeave(e) {
     }
 
     // 1. Post to local API with FormData (supporting attachment file and Google Drive upload)
+    let submitSuccessMsg = '✅ Đã gửi đơn nghỉ phép thành công!';
     try {
         const formData = new FormData();
         formData.append('fullname', fullname);
@@ -9118,6 +9205,9 @@ async function submitMultiStepLeave(e) {
         formData.append('end_time', endTime);
         formData.append('total_days', totalDays);
         formData.append('leave_type', leaveType);
+        if (uploadedGDriveLink) {
+            formData.append('gdrive_link', uploadedGDriveLink);
+        }
         if (selectedLeaveFile) {
             const ext = selectedLeaveFile.name.includes('.') ? selectedLeaveFile.name.split('.').pop() : 'png';
             const targetFilename = getLeaveGeneratedFilename(ext);
@@ -9130,6 +9220,9 @@ async function submitMultiStepLeave(e) {
             body: formData
         });
         const resJson = await res.json().catch(() => ({}));
+        if (resJson && resJson.sheet_appended) {
+            submitSuccessMsg = '✅ Đã gửi đơn nghỉ phép & ghi vào Google Sheet thành công!';
+        }
         if (resJson && resJson.gdrive_uploaded) {
             console.log('[Leave] Uploaded to GDrive:', resJson.gdrive_link);
         } else if (resJson && resJson.gdrive_error) {
@@ -9172,7 +9265,7 @@ async function submitMultiStepLeave(e) {
     // Complete submission
     setTimeout(() => {
         if (isSubmittingLeave) {
-            finishLeaveSubmission(true);
+            finishLeaveSubmission(true, submitSuccessMsg);
         }
     }, 1500);
 }

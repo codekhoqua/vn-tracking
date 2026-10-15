@@ -2992,7 +2992,7 @@ def lsa_drive():
         filter_cv_sau=[],
         users=[],
         tasks=[],
-        app_version='v1.9.98',
+        app_version='v1.9.99',
     )
 
 # =====================================================================
@@ -3885,6 +3885,8 @@ def calendar_view():
     return "<h3 style='color: #cbd5e1; font-family: sans-serif; text-align: center; margin-top: 50px;'>Vui lòng dán mã nhúng vào biến GOOGLE_CALENDAR_EMBED_URL trong file .env.local</h3>", 200
 
 LEAVE_GDRIVE_FOLDER_ID = '1rcBkd1l_JZvXx_9m5uIITnj1qNzPNR81Zj5OldGQcVcqSpYafh3d3KU_-R8ZXsI7nOQKL4Sr'
+LEAVE_RESPONSES_SPREADSHEET_ID = os.environ.get('LEAVE_RESPONSES_SPREADSHEET_ID', '1Mhky2YxG4do3fHS-6bIeultwibqaj1Tf-WcVFiNicY')
+LEAVE_RESPONSES_SHEET_TAB = os.environ.get('LEAVE_RESPONSES_SHEET_TAB', 'Form Responses 1')
 
 def upload_leave_file_to_gdrive(file_bytes, filename, mime_type=None, folder_id=LEAVE_GDRIVE_FOLDER_ID):
     """Tải file xác nhận nghỉ phép lên thư mục Google Drive của công ty."""
@@ -3934,7 +3936,7 @@ def upload_leave_file_to_gdrive(file_bytes, filename, mime_type=None, folder_id=
         if r.status_code in [200, 201]:
             res = r.json()
             file_id = res.get('id')
-            web_link = f"https://drive.google.com/file/d/{file_id}/view"
+            web_link = f"https://drive.google.com/open?id={file_id}"
             print(f"[GDrive Upload Success] id={file_id}, file={filename}")
             return True, web_link
         elif r.status_code == 404:
@@ -3948,6 +3950,111 @@ def upload_leave_file_to_gdrive(file_bytes, filename, mime_type=None, folder_id=
     except Exception as e:
         print(f"[GDrive Upload Exception] {e}")
         return False, str(e)
+
+def append_leave_to_google_sheet(rec):
+    """Ghi thêm một dòng đơn nghỉ phép vào Google Sheet biểu lưu trữ (Form Responses 1)."""
+    try:
+        client = get_gspread_client()
+        if not client:
+            return False, "Chưa xác thực được Google Service Account"
+
+        sh = client.open_by_key(LEAVE_RESPONSES_SPREADSHEET_ID)
+        try:
+            ws = sh.worksheet(LEAVE_RESPONSES_SHEET_TAB)
+        except Exception:
+            ws = sh.sheet1
+
+        now = datetime.now()
+        timestamp_str = f"{now.month}/{now.day}/{now.year} {now.hour}:{now.minute:02d}:{now.second:02d}"
+
+        def format_sheet_dt(d_str, t_str):
+            if not d_str:
+                return ""
+            try:
+                parts = d_str.strip().split('-')
+                if len(parts) == 3:
+                    y, m, d = int(parts[0]), int(parts[1]), int(parts[2])
+                    time_part = (t_str or "08:00").strip()
+                    t_parts = time_part.split(':')
+                    th = int(t_parts[0]) if len(t_parts) > 0 else 8
+                    tm = int(t_parts[1]) if len(t_parts) > 1 else 0
+                    return f"{m}/{d}/{y} {th}:{tm:02d}:00"
+            except Exception:
+                pass
+            return f"{d_str} {t_str}"
+
+        start_dt_str = format_sheet_dt(rec.get('start_date'), rec.get('start_time'))
+        end_dt_str = format_sheet_dt(rec.get('end_date'), rec.get('end_time'))
+
+        policy_text = "Tôi đã hiểu QUY ĐỊNH VỀ NGÀY NGHỈ và xác nhận TUÂN THỦ | 休暇規定について理解し、遵守することを確認いたします。"
+
+        row_values = [
+            timestamp_str,
+            rec.get('gmail', ''),
+            policy_text,
+            rec.get('fullname', ''),
+            rec.get('staff_code', ''),
+            rec.get('department', ''),
+            start_dt_str,
+            end_dt_str,
+            rec.get('total_days', ''),
+            rec.get('gdrive_link', ''),
+            rec.get('leave_type', '')
+        ]
+
+        ws.append_row(row_values, value_input_option='USER_ENTERED')
+        print(f"[Sheet Append Success] Appended leave for {rec.get('fullname')}")
+        return True, "Thành công"
+    except Exception as e:
+        err_msg = str(e)
+        print(f"[Sheet Append Error] {err_msg}")
+        return False, err_msg
+
+@app.route('/api/upload_leave_attachment', methods=['POST'])
+def api_upload_leave_attachment():
+    """Upload ảnh xác nhận trực tiếp lên Google Drive qua nút gửi riêng."""
+    if not session.get('logged_in'):
+        return jsonify({"ok": False, "error": "Unauthorized"}), 401
+    try:
+        if 'attachment' not in request.files:
+            return jsonify({"ok": False, "error": "Không tìm thấy file ảnh"}), 400
+
+        file = request.files['attachment']
+        if not file or not file.filename:
+            return jsonify({"ok": False, "error": "Tên file không hợp lệ"}), 400
+
+        target_filename = str(request.form.get('target_filename') or file.filename).strip()
+        ext = os.path.splitext(file.filename)[1] or '.png'
+        if not os.path.splitext(target_filename)[1]:
+            target_filename += ext
+
+        file_bytes = file.read()
+
+        # Lưu local
+        data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
+        attach_dir = os.path.join(data_dir, 'leave_attachments')
+        os.makedirs(attach_dir, exist_ok=True)
+        local_path = os.path.join(attach_dir, target_filename)
+        with open(local_path, 'wb') as lf:
+            lf.write(file_bytes)
+
+        # Upload lên Google Drive folder
+        ok, res_link = upload_leave_file_to_gdrive(
+            file_bytes=file_bytes,
+            filename=target_filename,
+            mime_type=file.content_type,
+            folder_id=LEAVE_GDRIVE_FOLDER_ID
+        )
+
+        return jsonify({
+            "ok": True,
+            "filename": target_filename,
+            "gdrive_uploaded": ok,
+            "gdrive_link": res_link if ok else '',
+            "gdrive_error": res_link if not ok else ''
+        })
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
 
 @app.route('/api/submit_leave_request', methods=['POST'])
 def api_submit_leave_request():
@@ -3977,8 +4084,11 @@ def api_submit_leave_request():
         # Handle attachment file if uploaded
         attachment_filename = ''
         gdrive_uploaded = False
-        gdrive_link = ''
+        gdrive_link = str(data.get('gdrive_link') or '').strip()
         gdrive_err = ''
+
+        if gdrive_link:
+            gdrive_uploaded = True
 
         if 'attachment' in request.files:
             file = request.files['attachment']
@@ -4006,18 +4116,19 @@ def api_submit_leave_request():
                     lf.write(file_bytes)
                 attachment_filename = target_filename
 
-                # Upload lên Google Drive
-                ok, res_link = upload_leave_file_to_gdrive(
-                    file_bytes=file_bytes,
-                    filename=target_filename,
-                    mime_type=file.content_type,
-                    folder_id=LEAVE_GDRIVE_FOLDER_ID
-                )
-                if ok:
-                    gdrive_uploaded = True
-                    gdrive_link = res_link
-                else:
-                    gdrive_err = res_link
+                # Upload lên Google Drive nếu chưa có link từ trước
+                if not gdrive_link:
+                    ok, res_link = upload_leave_file_to_gdrive(
+                        file_bytes=file_bytes,
+                        filename=target_filename,
+                        mime_type=file.content_type,
+                        folder_id=LEAVE_GDRIVE_FOLDER_ID
+                    )
+                    if ok:
+                        gdrive_uploaded = True
+                        gdrive_link = res_link
+                    else:
+                        gdrive_err = res_link
 
         rec = {
             "id": f"leave_{int(time.time())}_{uuid.uuid4().hex[:6]}",
@@ -4040,7 +4151,10 @@ def api_submit_leave_request():
             "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         }
 
-        # Save to data/leave_requests.json
+        # 1. Ghi vào Google Sheet biểu lưu trữ
+        sheet_ok, sheet_msg = append_leave_to_google_sheet(rec)
+
+        # 2. Save to data/leave_requests.json
         data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
         os.makedirs(data_dir, exist_ok=True)
         file_path = os.path.join(data_dir, 'leave_requests.json')
@@ -4060,6 +4174,8 @@ def api_submit_leave_request():
         return jsonify({
             "ok": True,
             "record": rec,
+            "sheet_appended": sheet_ok,
+            "sheet_error": sheet_msg if not sheet_ok else "",
             "gdrive_uploaded": gdrive_uploaded,
             "gdrive_link": gdrive_link,
             "gdrive_error": gdrive_err
