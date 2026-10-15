@@ -8660,13 +8660,16 @@ window.GOOGLE_LEAVE_FORM_CONFIG = {
 function openLeaveModal() {
     const modal = document.getElementById('leave-modal');
     const overlay = document.getElementById('leave-overlay');
-    if (!modal || !overlay) return;
+    if (!modal || !overlay) {
+        console.error("Leave modal or overlay not found!");
+        return;
+    }
 
-    modal.style.display = 'block';
     overlay.style.display = 'block';
-    requestAnimationFrame(() => {
-        overlay.classList.add('open');
-    });
+    modal.style.display = 'block';
+    void modal.offsetWidth; // force reflow
+    overlay.classList.add('active');
+    modal.classList.add('active');
 
     if (window.pauseWeatherEffect) window.pauseWeatherEffect();
 
@@ -8702,13 +8705,19 @@ function openLeaveModal() {
 function closeLeaveModal() {
     const modal = document.getElementById('leave-modal');
     const overlay = document.getElementById('leave-overlay');
-    if (modal) modal.style.display = 'none';
+    if (modal) {
+        modal.classList.remove('active');
+        setTimeout(() => { modal.style.display = 'none'; }, 250);
+    }
     if (overlay) {
-        overlay.classList.remove('open');
-        overlay.style.display = 'none';
+        overlay.classList.remove('active');
+        setTimeout(() => { overlay.style.display = 'none'; }, 250);
     }
     if (window.resumeWeatherEffect) window.resumeWeatherEffect();
 }
+
+window.openLeaveModal = openLeaveModal;
+window.closeLeaveModal = closeLeaveModal;
 
 function onLeaveIframeLoad() {
     if (isSubmittingLeave) {

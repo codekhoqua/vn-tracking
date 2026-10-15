@@ -114,7 +114,7 @@
 
 <!-- ============ LEAVE REQUEST MODAL (TEAM CALENDAR) ============ -->
 <div id="leave-overlay" class="cp-overlay" onclick="closeLeaveModal()"></div>
-<div id="leave-modal" class="cp-modal" style="max-width: 520px; width: 92%; border-radius: 20px; background: var(--surface); border: 1px solid var(--border); box-shadow: 0 20px 50px rgba(0,0,0,0.5); z-index: 60000; display: none;">
+<div id="leave-modal" class="cp-modal" style="max-width: 520px; width: 92%; border-radius: 20px; background: var(--surface); border: 1px solid var(--border); box-shadow: 0 20px 50px rgba(0,0,0,0.5);">
     <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; padding: 18px 24px; border-bottom: 1px solid var(--border);">
         <div style="display: flex; align-items: center; gap: 12px;">
             <div style="width: 38px; height: 38px; border-radius: 10px; background: rgba(99, 102, 241, 0.15); color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 1.15rem;">
@@ -409,7 +409,7 @@
     <div class="mobile-brand">
         <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" width="30" height="30" style="border-radius: 8px; object-fit: contain;">
         <span>VN-Tracking</span>
-        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.92</i></sup>
+        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.93</i></sup>
     </div>
     <div class="mobile-topbar-right">
         <button type="button" class="mobile-icon-btn" onclick="toggleNotificationPanel(event)" title="{{ 'Thông báo' if lang == 'vi' else '通知' }}">
@@ -561,7 +561,7 @@
             </div>
             <div class="sidebar-logo-text">
                 <span class="sidebar-brand-name">VN-Tracking</span>
-                <sup class="version-tag"><i>v1.9.92</i></sup>
+                <sup class="version-tag"><i>v1.9.93</i></sup>
             </div>
         </div>
     </div>
