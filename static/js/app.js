@@ -2367,8 +2367,8 @@ function updateTaskLinksUI(tpKey, links) {
     });
 }
 
-// ===================== MODAL =====================
 function openModal(tabKey, cardName) {
+    if (typeof window.pauseWeatherEffect === 'function') window.pauseWeatherEffect();
     if (typeof modalMap === 'undefined') return;
     const modalId = modalMap[tabKey] && modalMap[tabKey][cardName];
     if (modalId) {
@@ -2411,6 +2411,9 @@ function closeModal(modalId) {
         modal.classList.remove('open');
         document.body.style.overflow = '';
         if (window.lenis) window.lenis.start();
+    }
+    if (typeof window.resumeWeatherEffect === 'function') {
+        window.resumeWeatherEffect();
     }
     if (window._taskFinishedPendingReload) {
         window._taskFinishedPendingReload = false;
@@ -2473,8 +2476,12 @@ function openToolPage(toolKey) {
     pageEl.scrollTop = 0;
     pageEl.classList.add('open');
 
-    const weatherCanvas = document.getElementById('weather-canvas') || document.getElementById('rain-canvas');
-    if (weatherCanvas) weatherCanvas.style.display = 'none';
+    if (typeof window.pauseWeatherEffect === 'function') {
+        window.pauseWeatherEffect();
+    } else {
+        const weatherCanvas = document.getElementById('weather-canvas') || document.getElementById('rain-canvas');
+        if (weatherCanvas) weatherCanvas.style.display = 'none';
+    }
 }
 
 function closeToolPage(toolKey) {
@@ -2486,8 +2493,12 @@ function closeToolPage(toolKey) {
     const navItem = document.getElementById(`nav-${toolKey}`);
     if (navItem) navItem.classList.remove('active');
 
-    const weatherCanvas = document.getElementById('weather-canvas') || document.getElementById('rain-canvas');
-    if (weatherCanvas) weatherCanvas.style.display = '';
+    if (typeof window.resumeWeatherEffect === 'function') {
+        window.resumeWeatherEffect();
+    } else {
+        const weatherCanvas = document.getElementById('weather-canvas') || document.getElementById('rain-canvas');
+        if (weatherCanvas) weatherCanvas.style.display = '';
+    }
 
     if (toolKey === 'drive') {
         const iframe = document.getElementById('drive-page-iframe') || document.getElementById('drive-iframe');
@@ -6676,8 +6687,62 @@ function setInputStatus(id, state) {
     }
 
     // MAIN ANIMATION LOOP
+    function isAnyOverlayOrToolOpen() {
+        return !!(
+            document.querySelector('.tool-page-view.open') ||
+            document.querySelector('.task-detail-page-view.open') ||
+            document.querySelector('.modal-overlay.open') ||
+            document.querySelector('.filter-drawer.open') ||
+            document.querySelector('.drawer-overlay.open') ||
+            (document.getElementById('changepass-modal') && document.getElementById('changepass-modal').style.display === 'block')
+        );
+    }
+
+    let isWeatherSuspended = false;
+
+    window.pauseWeatherEffect = function() {
+        isWeatherSuspended = true;
+        if (weatherAnimId) {
+            cancelAnimationFrame(weatherAnimId);
+            weatherAnimId = null;
+        }
+        if (weatherCanvas) {
+            weatherCanvas.style.display = 'none';
+        }
+        if (weatherCtx && weatherCanvas) {
+            weatherCtx.clearRect(0, 0, weatherCanvas.width, weatherCanvas.height);
+        }
+    };
+
+    window.resumeWeatherEffect = function() {
+        isWeatherSuspended = false;
+        if (!currentWeatherMode || isAnyOverlayOrToolOpen() || document.hidden) return;
+        if (weatherCanvas) {
+            weatherCanvas.style.display = 'block';
+        }
+        if (!weatherAnimId) {
+            lastRectUpdate = 0;
+            weatherAnimId = requestAnimationFrame(updateWeatherParticles);
+        }
+    };
+
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            if (typeof window.pauseWeatherEffect === 'function') window.pauseWeatherEffect();
+        } else {
+            if (typeof window.resumeWeatherEffect === 'function') window.resumeWeatherEffect();
+        }
+    });
+
     function updateWeatherParticles() {
-        if (!currentWeatherMode || !weatherCtx) return;
+        if (!currentWeatherMode || !weatherCtx || isWeatherSuspended || isAnyOverlayOrToolOpen() || document.hidden) {
+            if (weatherCanvas) weatherCanvas.style.display = 'none';
+            if (weatherCtx && weatherCanvas) {
+                weatherCtx.clearRect(0, 0, weatherCanvas.width, weatherCanvas.height);
+            }
+            weatherAnimId = null;
+            return;
+        }
 
         const w = window.innerWidth;
         const h = window.innerHeight;
@@ -6870,6 +6935,14 @@ function setInputStatus(id, state) {
         }
 
         currentWeatherMode = mode;
+        if (isAnyOverlayOrToolOpen() || isWeatherSuspended || document.hidden) {
+            if (weatherCanvas) weatherCanvas.style.display = 'none';
+            if (weatherAnimId) {
+                cancelAnimationFrame(weatherAnimId);
+                weatherAnimId = null;
+            }
+            return;
+        }
         if (weatherCanvas) weatherCanvas.style.display = 'block';
 
         if (mode === 'rain' || mode === 'thunder') {
