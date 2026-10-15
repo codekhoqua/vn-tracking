@@ -1152,6 +1152,91 @@
         border-radius: 20px;
     }
 
+    /* Floating Upload Progress Card */
+    .drive-upload-card {
+        position: fixed;
+        bottom: 28px;
+        right: 28px;
+        width: 320px;
+        max-width: calc(100vw - 40px);
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 16px 18px;
+        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+        z-index: 1000;
+        backdrop-filter: blur(16px);
+        transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        box-sizing: border-box;
+    }
+    .drive-upload-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+    }
+    .drive-upload-card-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.88rem;
+        font-weight: 700;
+        color: var(--text);
+    }
+    .drive-upload-spinner {
+        width: 14px;
+        height: 14px;
+        border: 2px solid rgba(99, 102, 241, 0.25);
+        border-top-color: var(--primary);
+        border-radius: 50%;
+        animation: driveSpin 0.7s linear infinite;
+        flex-shrink: 0;
+    }
+    @keyframes driveSpin {
+        to { transform: rotate(360deg); }
+    }
+    .drive-upload-card-close {
+        background: none;
+        border: none;
+        color: var(--text-3);
+        font-size: 1.25rem;
+        cursor: pointer;
+        padding: 0 4px;
+        line-height: 1;
+    }
+    .drive-upload-card-close:hover {
+        color: var(--text);
+    }
+    .drive-upload-card-filename {
+        font-size: 0.82rem;
+        color: var(--text-2);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        margin-bottom: 10px;
+    }
+    .drive-upload-bar-track {
+        width: 100%;
+        height: 6px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 4px;
+        overflow: hidden;
+        margin-bottom: 8px;
+    }
+    .drive-upload-bar-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #6366f1, #3b82f6);
+        border-radius: 4px;
+        transition: width 0.2s ease;
+        box-shadow: 0 0 8px rgba(99, 102, 241, 0.5);
+    }
+    .drive-upload-card-meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.75rem;
+        color: var(--text-3);
+    }
 </style>
 
 <main class="main-area drive-container" {% if is_modal %}style="margin-left: 0 !important; border-radius: 0; box-shadow: none;"{% endif %}>
@@ -1176,7 +1261,6 @@
         <!-- Items injected by JS -->
     </div>
     
-    
     <div class="floating-action-bar" id="fab-multi-select">
         <div class="fab-count" id="fab-count">0 {{ 'mục' if lang == 'vi' else 'アイテム' }}</div>
         <div style="display: flex; gap: 10px;">
@@ -1192,22 +1276,39 @@
         </div>
     </div>
 
-    
+    <!-- Upload Progress Toast Widget -->
+    <div class="drive-upload-card" id="drive-upload-card" style="display: none;">
+        <div class="drive-upload-card-header">
+            <div class="drive-upload-card-title">
+                <div class="drive-upload-spinner" id="drive-upload-spinner"></div>
+                <span id="drive-upload-status">{{ 'Đang tải lên...' if lang == 'vi' else 'アップロード中...' }}</span>
+            </div>
+            <button type="button" class="drive-upload-card-close" onclick="hideUploadWidget()">×</button>
+        </div>
+        <div class="drive-upload-card-filename" id="drive-upload-filename">photo.jpg</div>
+        <div class="drive-upload-bar-track">
+            <div class="drive-upload-bar-fill" id="drive-upload-bar-fill" style="width: 0%;"></div>
+        </div>
+        <div class="drive-upload-card-meta">
+            <span id="drive-upload-bytes">0 / 0 MB</span>
+            <span id="drive-upload-percent" style="font-weight: 700;">0%</span>
+        </div>
+    </div>
 </main>
 
 
     
     <!-- Custom Modals -->
-    <div id="drive-modal-overlay" class="cp-overlay" onclick="closeDriveModal()"></div>
+    <div id="drive-modal-overlay" class="cp-overlay" onclick="closeDriveDialog()"></div>
     <div id="drive-modal" class="cp-modal" style="max-width: 400px; width: 90%;">
         <div class="modal-header">
             <h3 id="drive-modal-title"></h3>
-            <button class="modal-close" onclick="closeDriveModal()">×</button>
+            <button class="modal-close" onclick="closeDriveDialog()">×</button>
         </div>
         <div class="modal-body" id="drive-modal-body">
         </div>
         <div class="modal-footer" style="display: flex; gap: 12px; justify-content: flex-end;">
-            <button class="btn-drive btn-secondary" onclick="closeDriveModal()">{{ 'Hủy' if lang == 'vi' else 'キャンセル' }}</button>
+            <button class="btn-drive btn-secondary" onclick="closeDriveDialog()">{{ 'Hủy' if lang == 'vi' else 'キャンセル' }}</button>
             <button class="btn-drive btn-primary" id="drive-modal-confirm">{{ 'Xác nhận' if lang == 'vi' else '確認' }}</button>
         </div>
     </div>
@@ -1215,9 +1316,10 @@
     
 
 <script>
-    
+    const driveCache = new Map();
+
     function formatSize(bytes) {
-        if (bytes === 0) return '0 B';
+        if (!bytes || bytes === 0) return '0 B';
         const k = 1024;
         const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
         const i = Math.floor(Math.log(bytes) / Math.log(k));
@@ -1225,35 +1327,51 @@
     }
 
     let selectedItems = new Set();
-
     let currentPath = '';
 
-    function closeDriveModal() {
-        document.getElementById('drive-modal-overlay').classList.remove('active');
-        document.getElementById('drive-modal').classList.remove('active');
+    function closeDriveDialog() {
+        const overlay = document.getElementById('drive-modal-overlay');
+        const modal = document.getElementById('drive-modal');
+        if (overlay) {
+            overlay.classList.remove('active');
+            overlay.style.display = 'none';
+        }
+        if (modal) {
+            modal.classList.remove('active');
+            modal.style.display = 'none';
+        }
     }
+    window.closeDriveDialog = closeDriveDialog;
+    window.closeDriveModal = closeDriveDialog;
 
     function showDrivePrompt(title, inputPlaceholder, onConfirm) {
         document.getElementById('drive-modal-title').innerText = title;
         document.getElementById('drive-modal-body').innerHTML = `<input type="text" id="drive-prompt-input" placeholder="${inputPlaceholder}" style="width: 100%; padding: 12px 16px; border-radius: 12px; border: 1px solid var(--border); background: var(--bg-page); color: var(--text); font-size: 0.95rem; outline: none; margin-top: 10px;">`;
-        document.getElementById('drive-modal-overlay').classList.add('active');
-        document.getElementById('drive-modal').classList.add('active');
+        
+        const overlay = document.getElementById('drive-modal-overlay');
+        const modal = document.getElementById('drive-modal');
+        if (overlay) { overlay.style.display = 'block'; overlay.classList.add('active'); }
+        if (modal) { modal.style.display = 'block'; modal.classList.add('active'); }
         
         const input = document.getElementById('drive-prompt-input');
         input.focus();
         
         const confirmBtn = document.getElementById('drive-modal-confirm');
-        confirmBtn.className = 'btn-drive btn-primary'; // reset class
+        confirmBtn.className = 'btn-drive btn-primary';
+        confirmBtn.style.background = '';
         
-        // Remove old event listeners by cloning
         const newConfirmBtn = confirmBtn.cloneNode(true);
         confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
         
-        newConfirmBtn.onclick = () => {
+        newConfirmBtn.onclick = async () => {
             const val = document.getElementById('drive-prompt-input').value.trim();
             if (val) {
-                closeDriveModal();
-                onConfirm(val);
+                closeDriveDialog();
+                try {
+                    await onConfirm(val);
+                } finally {
+                    closeDriveDialog();
+                }
             } else {
                 showToast("Vui lòng nhập giá trị hợp lệ!", 'error');
             }
@@ -1267,24 +1385,29 @@
     function showDriveConfirm(title, message, onConfirm) {
         document.getElementById('drive-modal-title').innerText = title;
         document.getElementById('drive-modal-body').innerHTML = `<div style="color: var(--text-2);">${message}</div>`;
-        document.getElementById('drive-modal-overlay').classList.add('active');
-        document.getElementById('drive-modal').classList.add('active');
+        
+        const overlay = document.getElementById('drive-modal-overlay');
+        const modal = document.getElementById('drive-modal');
+        if (overlay) { overlay.style.display = 'block'; overlay.classList.add('active'); }
+        if (modal) { modal.style.display = 'block'; modal.classList.add('active'); }
         
         const confirmBtn = document.getElementById('drive-modal-confirm');
-        confirmBtn.className = 'btn-drive btn-primary'; // reset class
-        confirmBtn.style.background = '#ef4444'; // Make it red for delete
+        confirmBtn.className = 'btn-drive btn-primary';
+        confirmBtn.style.background = '#ef4444';
         
         const newConfirmBtn = confirmBtn.cloneNode(true);
         confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
         
-        newConfirmBtn.onclick = () => {
-            closeDriveModal();
-            onConfirm();
+        newConfirmBtn.onclick = async () => {
+            closeDriveDialog();
+            try {
+                await onConfirm();
+            } finally {
+                closeDriveDialog();
+            }
         };
     }
 
-
-    
     function toggleSelection(event, path) {
         event.stopPropagation();
         if (selectedItems.has(path)) {
@@ -1311,7 +1434,6 @@
             fab.classList.remove('visible');
         }
         
-        // Update DOM elements manually instead of full re-render for performance
         document.querySelectorAll('.drive-item').forEach(el => {
             const path = el.getAttribute('data-path');
             const checkbox = el.querySelector('.drive-checkbox');
@@ -1347,7 +1469,6 @@
                 a.style.display = 'none';
                 a.href = url;
                 
-                // Get filename from Content-Disposition if possible, else fallback
                 let filename = "LSA_Drive_Download.zip";
                 const disposition = res.headers.get('Content-Disposition');
                 if (disposition && disposition.indexOf('filename=') !== -1) {
@@ -1373,6 +1494,7 @@
         if (selectedItems.size === 0) return;
         
         showDriveConfirm("{{ 'Xác nhận xóa hàng loạt' if lang == 'vi' else '一括削除の確認' }}", `{{ 'Bạn có chắc chắn muốn xóa vĩnh viễn' if lang == 'vi' else '完全に削除してもよろしいですか？' }} ${selectedItems.size} {{ 'mục đã chọn không?' if lang == 'vi' else '個の選択されたアイテム' }}`, async () => {
+            closeDriveDialog();
             const paths = Array.from(selectedItems);
             try {
                 const res = await fetch('/api/drive/delete_multiple', {
@@ -1384,12 +1506,15 @@
                 if (data.success) {
                     showToast(data.warning || "{{ 'Đã xóa thành công các mục!' if lang == 'vi' else '削除に成功しました！' }}", "success");
                     clearSelection();
-                    loadDrive(currentPath);
+                    driveCache.delete(currentPath);
+                    await loadDrive(currentPath, false);
                 } else {
                     showToast("{{ 'Lỗi xóa: ' if lang == 'vi' else '削除エラー: ' }}" + (data.error || "{{ 'Không xác định' if lang == 'vi' else '不明' }}"), "error");
                 }
             } catch (e) {
                 showToast("{{ 'Lỗi mạng: ' if lang == 'vi' else 'ネットワークエラー: ' }}" + e.message, "error");
+            } finally {
+                closeDriveDialog();
             }
         });
     }
@@ -1412,12 +1537,20 @@
         document.getElementById('breadcrumbs').innerHTML = html;
     }
 
-    async function loadDrive(path = '') {
+    async function loadDrive(path = '', useCache = true) {
         currentPath = path;
         clearSelection();
         renderBreadcrumbs();
         const grid = document.getElementById('drive-grid');
-        grid.innerHTML = '<div style="color: var(--text-3); text-align: center; grid-column: 1 / -1;">Đang tải...</div>';
+
+        // Instant render from cache (SWR) with zero delay and no loading flash!
+        if (useCache && driveCache.has(path)) {
+            renderGrid(driveCache.get(path));
+            fetchDriveQuietly(path);
+            return;
+        }
+
+        grid.innerHTML = '<div style="color: var(--text-3); text-align: center; grid-column: 1 / -1; padding: 40px 0;"><i class="fas fa-spinner fa-spin" style="margin-right: 8px;"></i>{{ "Đang tải dữ liệu..." if lang == "vi" else "読み込み中..." }}</div>';
         
         try {
             const res = await fetch(`/api/drive/list?path=${encodeURIComponent(path)}`);
@@ -1428,94 +1561,122 @@
                 return;
             }
             
-            // Filter out system and hidden files
             const visibleItems = (data.items || []).filter(item => {
                 const n = (item.name || '').toLowerCase().trim();
                 return n !== 'system file' && n !== '_system' && n !== 'weather_album' && !n.startsWith('.') && !n.startsWith('_system') && !n.startsWith('system file') && !n.startsWith('weather_album');
             });
             
-            grid.innerHTML = '';
-            if (visibleItems.length === 0) {
-                grid.innerHTML = `
-                <div class="empty-state">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <line x1="12" y1="8" x2="12" y2="12"></line>
-                        <line x1="12" y1="16" x2="12.01" y2="16"></line>
-                    </svg>
-                    <h3 style="margin-top: 0; color: var(--text-2);">{{ 'Thư mục trống' if lang == 'vi' else '空のフォルダ' }}</h3>
-                    <p style="margin-top: 8px;">{{ 'Chưa có file hoặc thư mục nào ở đây' if lang == 'vi' else 'ここにファイルやフォルダはありません' }}</p>
-                </div>
-            `;
-                return;
-            }
-            
-            // Sort folders first
             visibleItems.sort((a, b) => {
                 if (a.is_dir === b.is_dir) return a.name.localeCompare(b.name);
                 return a.is_dir ? -1 : 1;
             });
             
-            visibleItems.forEach((item, idx) => {
-                const el = document.createElement('div');
-                el.className = 'drive-item';
-                el.style.animationDelay = `${idx * 0.05}s`; // Staggered animation
-                
-                // Beautiful multi-tone SVG icons
-                const folderSVG = `<svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M52 18H29.13l-4-6H12C8.69 12 6 14.69 6 18v28c0 3.31 2.69 6 6 6h40c3.31 0 6-2.69 6-6V24c0-3.31-2.69-6-6-6z" fill="#93C5FD"/>
-                    <path d="M52 22H12c-3.31 0-6 2.69-6 6v18c0 3.31 2.69 6 6 6h40c3.31 0 6-2.69 6-6V28c0-3.31-2.69-6-6-6z" fill="#3B82F6"/>
-                </svg>`;
-                
-                const fileSVG = `<svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M46 56H18c-3.31 0-6-2.69-6-6V14c0-3.31 2.69-6 6-6h16l18 18v24c0 3.31-2.69 6-6 6z" fill="#E2E8F0"/>
-                    <path d="M34 8v18h18L34 8z" fill="#CBD5E1"/>
-                    <path d="M22 36h20M22 44h12" stroke="#94A3B8" stroke-width="4" stroke-linecap="round"/>
-                </svg>`;
-
-                const iconHtml = item.is_dir ? folderSVG : fileSVG;
-                const sizeHtml = item.is_dir ? '' : `<div class="drive-item-size">${formatSize(item.size)}</div>`;
-                
-                el.setAttribute('data-path', item.path);
-                const isSelected = selectedItems.has(item.path);
-                if (isSelected) {
-                    el.classList.add('selected');
-                }
-                
-                el.innerHTML = `
-                    <div class="drive-checkbox ${isSelected ? 'checked' : ''}" onclick="toggleSelection(event, '${item.path.replace(/'/g, "\'")}')">
-                        ${isSelected ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>' : ''}
-                    </div>
-                    <div class="drive-item-icon" onclick="handleItemClick(${item.is_dir}, '${item.path.replace(/'/g, "\'")}')">
-                        ${iconHtml}
-                    </div>
-                    <div class="drive-item-name" title="${item.name}">${item.name}</div>
-                    ${sizeHtml}
-                    
-                    <div class="drive-item-actions">
-                        ${!item.is_dir ? `<button class="action-icon" title="{{ 'Tải xuống' if lang == 'vi' else 'ダウンロード' }}" onclick="event.stopPropagation(); downloadItem('${item.path.replace(/'/g, "\'")}')">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                        </button>` : ''}
-                        <button class="action-icon danger" title="{{ 'Xóa' if lang == 'vi' else '削除' }}" onclick="event.stopPropagation(); deleteItem('${item.path.replace(/'/g, "\'")}', ${item.is_dir})">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                        </button>
-                    </div>
-                `;
-                
-                grid.appendChild(el);
-            });
-            
+            driveCache.set(path, visibleItems);
+            renderGrid(visibleItems);
         } catch (e) {
             grid.innerHTML = `<div style="color: #ef4444; grid-column: 1 / -1;">{{ 'Lỗi mạng: ' if lang == 'vi' else 'ネットワークエラー: ' }}${e.message}</div>`;
         }
+    }
+
+    async function fetchDriveQuietly(path) {
+        try {
+            const res = await fetch(`/api/drive/list?path=${encodeURIComponent(path)}`);
+            const data = await res.json();
+            if (!data.error && data.items) {
+                const visibleItems = data.items.filter(item => {
+                    const n = (item.name || '').toLowerCase().trim();
+                    return n !== 'system file' && n !== '_system' && n !== 'weather_album' && !n.startsWith('.') && !n.startsWith('_system') && !n.startsWith('system file') && !n.startsWith('weather_album');
+                });
+                visibleItems.sort((a, b) => {
+                    if (a.is_dir === b.is_dir) return a.name.localeCompare(b.name);
+                    return a.is_dir ? -1 : 1;
+                });
+                
+                const old = driveCache.get(path) || [];
+                const oldSig = old.map(x => `${x.path}-${x.size}-${x.modified}`).join('|');
+                const newSig = visibleItems.map(x => `${x.path}-${x.size}-${x.modified}`).join('|');
+                if (oldSig !== newSig) {
+                    driveCache.set(path, visibleItems);
+                    if (currentPath === path) {
+                        renderGrid(visibleItems);
+                    }
+                }
+            }
+        } catch (_) {}
+    }
+
+    function renderGrid(items) {
+        const grid = document.getElementById('drive-grid');
+        grid.innerHTML = '';
+        if (!items || items.length === 0) {
+            grid.innerHTML = `
+            <div class="empty-state">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                </svg>
+                <h3 style="margin-top: 0; color: var(--text-2);">{{ 'Thư mục trống' if lang == 'vi' else '空のフォルダ' }}</h3>
+                <p style="margin-top: 8px;">{{ 'Chưa có file hoặc thư mục nào ở đây' if lang == 'vi' else 'ここにファイルやフォルダはありません' }}</p>
+            </div>
+            `;
+            return;
+        }
+
+        items.forEach((item, idx) => {
+            const el = document.createElement('div');
+            el.className = 'drive-item';
+            el.style.animationDelay = `${idx * 0.03}s`;
+            
+            const folderSVG = `<svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M52 18H29.13l-4-6H12C8.69 12 6 14.69 6 18v28c0 3.31 2.69 6 6 6h40c3.31 0 6-2.69 6-6V24c0-3.31-2.69-6-6-6z" fill="#93C5FD"/>
+                <path d="M52 22H12c-3.31 0-6 2.69-6 6v18c0 3.31 2.69 6 6 6h40c3.31 0 6-2.69 6-6V28c0-3.31-2.69-6-6-6z" fill="#3B82F6"/>
+            </svg>`;
+            
+            const fileSVG = `<svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M46 56H18c-3.31 0-6-2.69-6-6V14c0-3.31 2.69-6 6-6h16l18 18v24c0 3.31-2.69 6-6 6z" fill="#E2E8F0"/>
+                <path d="M34 8v18h18L34 8z" fill="#CBD5E1"/>
+                <path d="M22 36h20M22 44h12" stroke="#94A3B8" stroke-width="4" stroke-linecap="round"/>
+            </svg>`;
+
+            const iconHtml = item.is_dir ? folderSVG : fileSVG;
+            const sizeHtml = item.is_dir ? '' : `<div class="drive-item-size">${formatSize(item.size)}</div>`;
+            
+            el.setAttribute('data-path', item.path);
+            const isSelected = selectedItems.has(item.path);
+            if (isSelected) {
+                el.classList.add('selected');
+            }
+            
+            el.innerHTML = `
+                <div class="drive-checkbox ${isSelected ? 'checked' : ''}" onclick="toggleSelection(event, '${item.path.replace(/'/g, "\'")}')">
+                    ${isSelected ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>' : ''}
+                </div>
+                <div class="drive-item-icon" onclick="handleItemClick(${item.is_dir}, '${item.path.replace(/'/g, "\'")}')">
+                    ${iconHtml}
+                </div>
+                <div class="drive-item-name" title="${item.name}">${item.name}</div>
+                ${sizeHtml}
+                
+                <div class="drive-item-actions">
+                    ${!item.is_dir ? `<button class="action-icon" title="{{ 'Tải xuống' if lang == 'vi' else 'ダウンロード' }}" onclick="event.stopPropagation(); downloadItem('${item.path.replace(/'/g, "\'")}')">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                    </button>` : ''}
+                    <button class="action-icon danger" title="{{ 'Xóa' if lang == 'vi' else '削除' }}" onclick="event.stopPropagation(); deleteItem('${item.path.replace(/'/g, "\'")}', ${item.is_dir})">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                    </button>
+                </div>
+            `;
+            
+            grid.appendChild(el);
+        });
     }
 
     function handleItemClick(isDir, path) {
         if (isDir) {
             loadDrive(path);
         } else {
-            // For files, download or preview? For now download.
-            // downloadItem(path); // Tắt tải trực tiếp theo yêu cầu
+            downloadItem(path);
         }
     }
 
@@ -1530,19 +1691,81 @@
                 const data = await res.json();
                 if (data.success) {
                     showToast("{{ 'Tạo thư mục thành công' if lang == 'vi' else 'フォルダ作成成功' }}!", "success");
-                    loadDrive(currentPath);
+                    driveCache.delete(currentPath);
+                    await loadDrive(currentPath, false);
                 } else {
                     showToast("Lỗi: " + data.error, "error");
                 }
             } catch (e) {
                 showToast("{{ 'Lỗi mạng: ' if lang == 'vi' else 'ネットワークエラー: ' }}" + e.message, "error");
+            } finally {
+                closeDriveDialog();
             }
         });
     }
 
-    async function handleFileUpload(event) {
-        const files = event.target.files;
+    function showUploadWidget(filename, totalBytes) {
+        const widget = document.getElementById('drive-upload-card');
+        if (!widget) return;
+        document.getElementById('drive-upload-filename').textContent = filename;
+        document.getElementById('drive-upload-status').textContent = "{{ 'Đang tải lên...' if lang == 'vi' else 'アップロード中...' }}";
+        const spinner = document.getElementById('drive-upload-spinner');
+        if (spinner) spinner.style.display = 'block';
+        const bar = document.getElementById('drive-upload-bar-fill');
+        if (bar) { bar.style.width = '0%'; bar.style.background = ''; }
+        document.getElementById('drive-upload-percent').textContent = '0%';
+        document.getElementById('drive-upload-bytes').textContent = '0 / ' + formatSize(totalBytes);
+        widget.style.display = 'block';
+    }
+
+    function updateUploadProgress(percent, loaded, total) {
+        const bar = document.getElementById('drive-upload-bar-fill');
+        const percentEl = document.getElementById('drive-upload-percent');
+        const bytesEl = document.getElementById('drive-upload-bytes');
+        if (bar) bar.style.width = percent + '%';
+        if (percentEl) percentEl.textContent = percent + '%';
+        if (bytesEl) bytesEl.textContent = formatSize(loaded) + ' / ' + formatSize(total);
+        if (percent >= 100) {
+            const statusEl = document.getElementById('drive-upload-status');
+            if (statusEl) statusEl.textContent = "{{ 'Đang xử lý trên máy chủ...' if lang == 'vi' else 'サーバーで処理中...' }}";
+        }
+    }
+
+    function finishUploadWidget(isSuccess, message) {
+        const spinner = document.getElementById('drive-upload-spinner');
+        const statusEl = document.getElementById('drive-upload-status');
+        const bar = document.getElementById('drive-upload-bar-fill');
+        const percentEl = document.getElementById('drive-upload-percent');
+        
+        if (spinner) spinner.style.display = 'none';
+        if (statusEl) {
+            statusEl.textContent = message;
+            statusEl.style.color = isSuccess ? '#22c55e' : '#ef4444';
+        }
+        if (isSuccess && bar) {
+            bar.style.width = '100%';
+            bar.style.background = '#22c55e';
+            if (percentEl) percentEl.textContent = '100%';
+        }
+        setTimeout(() => {
+            hideUploadWidget();
+            if (statusEl) statusEl.style.color = '';
+            if (bar) bar.style.background = '';
+        }, 2500);
+    }
+
+    function hideUploadWidget() {
+        const widget = document.getElementById('drive-upload-card');
+        if (widget) widget.style.display = 'none';
+    }
+
+    function handleFileUpload(event) {
+        const files = Array.from(event.target.files || []);
         if (files.length === 0) return;
+        
+        const fileNames = files.map(f => f.name).join(', ');
+        const totalBytes = files.reduce((acc, f) => acc + f.size, 0);
+        showUploadWidget(fileNames, totalBytes);
         
         const formData = new FormData();
         formData.append('path', currentPath);
@@ -1550,25 +1773,51 @@
             formData.append('file', files[i]);
         }
         
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '/api/drive/upload', true);
         
-        
-        try {
-            const res = await fetch('/api/drive/upload', {
-                method: 'POST',
-                body: formData
-            });
-            const data = await res.json();
-            if (data.success) {
-                showToast("{{ 'Tải lên thành công' if lang == 'vi' else 'アップロード成功' }}!", "success");
-                await loadDrive(currentPath);
-            } else {
-                showToast("{{ 'Lỗi tải lên: ' if lang == 'vi' else 'アップロードエラー: ' }}" + data.error, "error");
+        xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable) {
+                const percent = Math.min(99, Math.round((e.loaded / e.total) * 100));
+                updateUploadProgress(percent, e.loaded, e.total);
             }
-        } catch (e) {
-            showToast("{{ 'Lỗi mạng: ' if lang == 'vi' else 'ネットワークエラー: ' }}" + e.message, "error");
-        } finally {
+        };
+        
+        xhr.onload = async () => {
             event.target.value = '';
-        }
+            if (xhr.status >= 200 && xhr.status < 300) {
+                try {
+                    const data = JSON.parse(xhr.responseText);
+                    if (data.success) {
+                        finishUploadWidget(true, "{{ 'Tải lên thành công!' if lang == 'vi' else 'アップロード成功！' }}");
+                        showToast("{{ 'Tải lên thành công!' if lang == 'vi' else 'アップロード成功！' }}", "success");
+                        driveCache.delete(currentPath);
+                        await loadDrive(currentPath, false);
+                    } else {
+                        finishUploadWidget(false, "Lỗi: " + (data.error || "{{ 'Không xác định' if lang == 'vi' else '不明' }}"));
+                        showToast("{{ 'Lỗi tải lên: ' if lang == 'vi' else 'アップロードエラー: ' }}" + data.error, "error");
+                    }
+                } catch (err) {
+                    finishUploadWidget(false, "Lỗi phản hồi máy chủ");
+                }
+            } else {
+                let errMsg = "{{ 'Lỗi tải lên máy chủ' if lang == 'vi' else 'サーバーエラー' }}";
+                try {
+                    const data = JSON.parse(xhr.responseText);
+                    if (data.error) errMsg = data.error;
+                } catch (_) {}
+                finishUploadWidget(false, errMsg);
+                showToast(errMsg, "error");
+            }
+        };
+        
+        xhr.onerror = () => {
+            event.target.value = '';
+            finishUploadWidget(false, "{{ 'Lỗi mạng khi tải lên' if lang == 'vi' else 'ネットワークエラー' }}");
+            showToast("{{ 'Lỗi mạng khi tải lên' if lang == 'vi' else 'ネットワークエラー' }}", "error");
+        };
+        
+        xhr.send(formData);
     }
 
     function downloadItem(path) {
@@ -1580,6 +1829,7 @@
             ? "{{ 'Bạn có chắc chắn muốn xóa vĩnh viễn thư mục này không?' if lang == 'vi' else 'このフォルダを完全に削除してもよろしいですか？' }}"
             : "{{ 'Bạn có chắc chắn muốn xóa vĩnh viễn file này không?' if lang == 'vi' else 'このファイルを完全に削除してもよろしいですか？' }}";
         showDriveConfirm("{{ 'Xác nhận xóa' if lang == 'vi' else '削除の確認' }}", confirmMsg, async () => {
+            closeDriveDialog();
             try {
                 const res = await fetch('/api/drive/delete', {
                     method: 'POST',
@@ -1589,29 +1839,29 @@
                 const data = await res.json();
                 if (data.success) {
                     showToast("{{ 'Xóa thành công!' if lang == 'vi' else '削除しました！' }}", "success");
-                    loadDrive(currentPath);
+                    driveCache.delete(currentPath);
+                    await loadDrive(currentPath, false);
                 } else {
                     showToast("{{ 'Lỗi xóa: ' if lang == 'vi' else '削除エラー: ' }}" + data.error, "error");
                 }
             } catch (e) {
                 showToast("{{ 'Lỗi mạng: ' if lang == 'vi' else 'ネットワークエラー: ' }}" + e.message, "error");
+            } finally {
+                closeDriveDialog();
             }
         });
     }
 
-    
     // Initialize SocketIO listeners for real-time drive updates
     window.addEventListener('DOMContentLoaded', () => {
         if (window.socket) {
             window.socket.on('drive_updated', (data) => {
-                // Chuẩn hóa path để so sánh (bỏ dấu / thừa hai đầu).
                 const norm = (p) => (p || '').replace(/^\/+|\/+$/g, '');
                 const cur = norm(currentPath);
                 const changed = data ? norm(data.path) : null;
-                // Reload khi: update chung (không kèm path), hoặc thư mục thay đổi
-                // chính là thư mục ta đang xem.
                 if (!data || data.path === undefined || data.path === null || changed === cur) {
-                    loadDrive(currentPath);
+                    driveCache.delete(currentPath);
+                    loadDrive(currentPath, false);
                     showToast("{{ 'Đã làm mới dữ liệu' if lang == 'vi' else 'データを更新しました' }}", "info");
                 }
             });
@@ -1620,7 +1870,7 @@
 
     // Initialize
     window.addEventListener('DOMContentLoaded', () => {
-        loadDrive('');
+        loadDrive('', true);
     });
 </script>
 
@@ -1879,22 +2129,6 @@
 {% endblock %}
 
 {% block scripts %}
-
-    
-    <!-- Custom Modals -->
-    <div id="drive-modal-overlay" class="cp-overlay" onclick="closeDriveModal()"></div>
-    <div id="drive-modal" class="cp-modal" style="max-width: 400px; width: 90%;">
-        <div class="modal-header">
-            <h3 id="drive-modal-title"></h3>
-            <button class="modal-close" onclick="closeDriveModal()">×</button>
-        </div>
-        <div class="modal-body" id="drive-modal-body">
-        </div>
-        <div class="modal-footer" style="display: flex; gap: 12px; justify-content: flex-end;">
-            <button class="btn-drive btn-secondary" onclick="closeDriveModal()">{{ 'Hủy' if lang == 'vi' else 'キャンセル' }}</button>
-            <button class="btn-drive btn-primary" id="drive-modal-confirm">{{ 'Xác nhận' if lang == 'vi' else '確認' }}</button>
-        </div>
-    </div>
 
     
 
