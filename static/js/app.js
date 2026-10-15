@@ -182,8 +182,27 @@ function filterSection(tabKey, cvFilter, workerFilter) {
 // ===================== LUCIAN #040 SIDEBAR RAIL & NAVIGATION =====================
 function placeSidebarHighlight(it) {
     const hl = document.getElementById('sidebar-hl');
-    if (!hl) return;
-    const activeItem = it || document.querySelector('#sidebar-nav .nav-item.active') || document.querySelector('.sidebar .nav-item.active');
+    const nav = document.getElementById('sidebar-nav');
+    if (!hl || !nav) return;
+    let activeItem = it;
+    if (activeItem && !nav.contains(activeItem)) activeItem = null;
+    if (!activeItem) activeItem = nav.querySelector('.nav-item.active');
+    if (!activeItem) {
+        hl.style.opacity = '0';
+        return;
+    }
+    hl.style.setProperty('--y', activeItem.offsetTop + 'px');
+    hl.style.height = activeItem.offsetHeight + 'px';
+    hl.style.opacity = '1';
+}
+
+function placeToolsHighlight(it) {
+    const hl = document.getElementById('sidebar-tools-hl');
+    const nav = document.getElementById('sidebar-tools');
+    if (!hl || !nav) return;
+    let activeItem = it;
+    if (activeItem && !nav.contains(activeItem)) activeItem = null;
+    if (!activeItem) activeItem = nav.querySelector('.nav-item.active');
     if (!activeItem) {
         hl.style.opacity = '0';
         return;
@@ -204,9 +223,10 @@ function toggleSidebarRail() {
         localStorage.setItem('vn_sidebar_collapsed', isCollapsed ? 'true' : 'false');
     } catch (e) {}
     placeSidebarHighlight();
-    setTimeout(placeSidebarHighlight, 150);
-    setTimeout(placeSidebarHighlight, 350);
-    setTimeout(placeSidebarHighlight, 600);
+    placeToolsHighlight();
+    setTimeout(() => { placeSidebarHighlight(); placeToolsHighlight(); }, 150);
+    setTimeout(() => { placeSidebarHighlight(); placeToolsHighlight(); }, 350);
+    setTimeout(() => { placeSidebarHighlight(); placeToolsHighlight(); }, 600);
 }
 
 // Restore saved sidebar collapsed state on load
@@ -224,6 +244,7 @@ function toggleSidebarRail() {
 })();
 
 function updateSidebarActiveState(isTableVisible) {
+    if (document.querySelector('.tool-page-view.open')) return;
     const navItems = document.querySelectorAll('#sidebar-nav .nav-item');
     if (navItems.length < 2) return;
 
@@ -267,10 +288,15 @@ document.addEventListener('DOMContentLoaded', () => {
         observer.observe(tableSection);
     }
 
-    // Nav click handlers & sliding highlight
-    const navItems = document.querySelectorAll('.sidebar-nav .nav-item');
-    navItems.forEach((item, index) => {
+    // Nav click handlers & sliding highlight (Main navigation only)
+    const mainNavItems = document.querySelectorAll('#sidebar-nav .nav-item');
+    mainNavItems.forEach((item, index) => {
         item.addEventListener('click', () => {
+            // Close any open tool page views when navigating main dashboard/table
+            ['drive', 'calendar', 'psd', 'role'].forEach(t => {
+                const el = document.getElementById(`page-view-${t}`);
+                if (el && el.classList.contains('open')) closeToolPage(t);
+            });
             if (index === 0) {
                 if (window.lenis) {
                     window.lenis.scrollTo(0, { duration: 1.15 });
@@ -280,17 +306,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateSidebarActiveState(false);
             } else if (index === 1) {
                 // scrollToTable handled by onclick
-            } else {
-                navItems.forEach(x => x.classList.remove('active'));
-                item.classList.add('active');
-                placeSidebarHighlight(item);
             }
         });
+    });
+
+    // Keyboard navigation across all sidebar items
+    const allNavItems = document.querySelectorAll('.sidebar .nav-item:not(.nav-item-settings)');
+    allNavItems.forEach((item, index) => {
         item.addEventListener('keydown', (e) => {
             const dir = e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0;
             if (dir) {
                 e.preventDefault();
-                navItems[(index + dir + navItems.length) % navItems.length].focus();
+                allNavItems[(index + dir + allNavItems.length) % allNavItems.length].focus();
             }
         });
     });
@@ -298,10 +325,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initial highlight position after DOM paint
     setTimeout(() => {
         placeSidebarHighlight();
+        placeToolsHighlight();
     }, 150);
 
     window.addEventListener('resize', () => {
         placeSidebarHighlight();
+        placeToolsHighlight();
     });
 });
 
@@ -2401,8 +2430,17 @@ function openToolPage(toolKey) {
         }
     }
 
+    // Hide main menu highlight pill while tool page is open
+    document.querySelectorAll('#sidebar-nav .nav-item').forEach(n => n.classList.remove('active'));
+    const mainHl = document.getElementById('sidebar-hl');
+    if (mainHl) mainHl.style.opacity = '0';
+
+    // Highlight the active tool in sidebar-tools
     const navItem = document.getElementById(`nav-${toolKey}`);
-    if (navItem) navItem.classList.add('active');
+    if (navItem) {
+        navItem.classList.add('active');
+        placeToolsHighlight(navItem);
+    }
 
     if (window.lenis) window.lenis.stop();
     document.body.style.overflow = 'hidden';
@@ -2418,6 +2456,19 @@ function closeToolPage(toolKey) {
     }
     const navItem = document.getElementById(`nav-${toolKey}`);
     if (navItem) navItem.classList.remove('active');
+
+    // Hide tools highlight pill
+    const toolsHl = document.getElementById('sidebar-tools-hl');
+    if (toolsHl) toolsHl.style.opacity = '0';
+
+    // Restore main nav highlight (Dashboard or Data Table)
+    const tableSection = document.querySelector('.table-section');
+    let isTable = false;
+    if (tableSection) {
+        const rect = tableSection.getBoundingClientRect();
+        isTable = rect.top < window.innerHeight * 0.5 && rect.bottom > 0;
+    }
+    updateSidebarActiveState(isTable);
 
     if (!document.querySelector('.modal-overlay.open')) {
         document.body.style.overflow = '';
@@ -2439,6 +2490,9 @@ document.addEventListener('keydown', (e) => {
             m.classList.remove('open');
         });
         document.querySelectorAll('#sidebar-tools .nav-item').forEach(n => n.classList.remove('active'));
+        const toolsHl = document.getElementById('sidebar-tools-hl');
+        if (toolsHl) toolsHl.style.opacity = '0';
+        updateSidebarActiveState(false);
         document.querySelectorAll('.cp-overlay.active, .cp-modal.active').forEach(m => {
             m.classList.remove('active');
         });
