@@ -244,7 +244,7 @@
     <div class="mobile-brand">
         <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" width="30" height="30" style="border-radius: 8px; object-fit: contain;">
         <span>VN-Tracking</span>
-        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.67</i></sup>
+        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.68</i></sup>
     </div>
     <div class="mobile-topbar-right">
         <button type="button" class="mobile-icon-btn" onclick="toggleNotificationPanel(event)" title="{{ 'Thông báo' if lang == 'vi' else '通知' }}">
@@ -396,7 +396,7 @@
             </div>
             <div class="sidebar-logo-text">
                 <span class="sidebar-brand-name">VN-Tracking</span>
-                <sup class="version-tag"><i>v1.9.67</i></sup>
+                <sup class="version-tag"><i>v1.9.68</i></sup>
             </div>
         </div>
     </div>
@@ -3311,27 +3311,27 @@
             </div>
         </div>
 
-        <!-- Task Page Body Content -->
-        <div class="task-page-body">
-            {{ render_task_links(tp_key, tab_key ~ '_' ~ loop.index0, lang, row) }}
-            {{ render_task_steps(tp_key, tab_key ~ '_' ~ loop.index0, lang, checklist_api, checked_ids_dict) }}
-            
-            <div class="task-bottom-workspace">
-                <div class="task-bottom-col task-col-collab">
-                    {{ render_task_handover(tp_key, tab_key ~ '_' ~ loop.index0, lang, row) }}
-                </div>
-                <div class="task-bottom-col task-col-tracking">
-                    {{ render_task_tracker(tp_key, tab_key ~ '_' ~ loop.index0, lang) }}
-                    
-                    <div class="task-page-logtime-card">
-                        <div class="task-page-logtime-header">
-                            <div class="task-page-logtime-title">
-                                <span class="logtime-icon-circle"><i class="fas fa-clock"></i></span>
-                                <span>{{ 'Nhập Logtime' if lang == 'vi' else 'Logtime入力' }}</span>
-                            </div>
+        <!-- Task Page Master Layout -->
+        <div class="task-master-layout">
+            <!-- LEFT MAIN STAGE: Workflow & Collaboration -->
+            <div class="task-main-col">
+                {{ render_task_links(tp_key, tab_key ~ '_' ~ loop.index0, lang, row) }}
+                {{ render_task_steps(tp_key, tab_key ~ '_' ~ loop.index0, lang, checklist_api, checked_ids_dict) }}
+                {{ render_task_handover(tp_key, tab_key ~ '_' ~ loop.index0, lang, row) }}
+            </div>
+
+            <!-- RIGHT SIDEBAR: Time Tracking & Logtime Control Deck -->
+            <div class="task-side-col">
+                {{ render_task_tracker(tp_key, tab_key ~ '_' ~ loop.index0, lang) }}
+                
+                <div class="task-page-logtime-card">
+                    <div class="task-page-logtime-header">
+                        <div class="task-page-logtime-title">
+                            <span class="logtime-icon-circle"><i class="fas fa-clock"></i></span>
+                            <span>{{ 'Nhập Logtime' if lang == 'vi' else 'Logtime入力' }}</span>
                         </div>
-                        {{ render_logtime_form(row, tab_key ~ '_' ~ loop.index0, t, users, lang) }}
                     </div>
+                    {{ render_logtime_form(row, tab_key ~ '_' ~ loop.index0, t, users, lang) }}
                 </div>
             </div>
         </div>
