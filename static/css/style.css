@@ -1732,11 +1732,11 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
     background: linear-gradient(145deg, rgba(30, 32, 48, 0.75), rgba(20, 22, 34, 0.85));
     border: 1px solid rgba(99, 102, 241, 0.22);
     border-radius: var(--radius-xl);
-    padding: 18px 20px;
+    padding: 16px 18px;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
+    gap: 10px;
     position: relative;
     overflow: hidden;
 }
@@ -1755,23 +1755,23 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    font-size: 0.92rem;
+    font-size: 0.9rem;
     font-weight: 800;
     color: var(--text);
-    margin-bottom: 4px;
+    margin: 0;
 }
 
 .task-side-col .tracker-controls {
     display: grid;
     grid-template-columns: 1fr 1fr auto;
     align-items: center;
-    gap: 12px;
-    margin: auto 0;
+    gap: 10px;
+    margin: 0;
 }
 
 .task-side-col .btn-tracker {
-    padding: 11px 16px;
-    font-size: 0.88rem;
+    padding: 9px 14px;
+    font-size: 0.85rem;
     font-weight: 700;
     border-radius: var(--radius-md);
     cursor: pointer;
@@ -1810,13 +1810,13 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
 }
 
 .task-side-col .tracker-time {
-    font-size: 1.55rem;
+    font-size: 1.35rem;
     font-weight: 800;
     font-family: 'JetBrains Mono', 'Fira Code', monospace;
     letter-spacing: 0.05em;
     color: var(--primary);
     background: var(--primary-bg);
-    padding: 7px 16px;
+    padding: 6px 12px;
     border-radius: var(--radius-md);
     border: 1px solid rgba(99, 102, 241, 0.3);
     text-shadow: 0 0 10px rgba(99, 102, 241, 0.4);
@@ -1825,18 +1825,18 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
 
 .task-side-col .tracker-inputs {
     display: flex;
-    gap: 10px;
-    margin-top: 4px;
+    gap: 8px;
+    margin: 0;
 }
 
 .task-side-col .tracker-note {
     flex: 1;
-    padding: 10px 13px;
+    padding: 8px 12px;
     background: rgba(0, 0, 0, 0.3);
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: var(--radius-md);
     color: var(--text);
-    font-size: 0.85rem;
+    font-size: 0.82rem;
     transition: all 0.2s ease;
 }
 .task-side-col .tracker-note:focus {
@@ -1846,16 +1846,103 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
 }
 
 .task-side-col .btn-tracker.save {
-    padding: 10px 18px;
+    padding: 8px 14px;
     background: var(--surface-hover);
     border: 1px solid var(--border);
     color: var(--text-2);
-    font-size: 0.85rem;
+    font-size: 0.82rem;
 }
 .task-side-col .btn-tracker.save:hover {
     background: var(--primary);
     color: #fff;
     border-color: var(--primary);
+}
+
+/* Tracker History Section (Below Controls) */
+.task-side-col .tracker-history-section {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    margin-top: 2px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.task-side-col .tracker-history-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--text-3);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 6px;
+}
+
+.task-side-col .tracker-history-list {
+    flex: 1;
+    min-height: 50px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding-right: 4px;
+}
+
+.task-side-col .tracker-history-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 5px 9px;
+    background: rgba(0, 0, 0, 0.24);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: var(--radius-sm);
+    font-size: 0.76rem;
+}
+
+.task-side-col .tracker-history-item-left {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+    flex: 1;
+    margin-right: 8px;
+}
+
+.task-side-col .tracker-history-note {
+    color: var(--text);
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.task-side-col .tracker-history-time {
+    color: var(--text-3);
+    font-size: 0.68rem;
+}
+
+.task-side-col .tracker-history-dur {
+    font-weight: 700;
+    color: #34d399;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.76rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(16, 185, 129, 0.12);
+    white-space: nowrap;
+}
+
+.task-side-col .tracker-history-empty {
+    margin: auto;
+    color: var(--text-3);
+    font-size: 0.72rem;
+    text-align: center;
+    font-style: italic;
+    opacity: 0.6;
+    padding: 6px 0;
 }
 
 /* Logtime Card (3/5 height) */

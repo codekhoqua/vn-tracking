@@ -1268,6 +1268,16 @@ def render_task_tracker_html(tac_pham_key, index, lang):
             <input type="text" id="tracker_note_{index}" placeholder="{ "Mô tả công việc..." if lang == "vi" else "備考..." }" class="tracker-note">
             <button class="btn-tracker save" id="btn_save_{index}" onclick="saveTracker('{index}', '{tac_pham_key}')"><i class="fas fa-save" style="margin-right: 5px;"></i>{ "Lưu Log" if lang == "vi" else "保存" }</button>
         </div>
+
+        <div class="tracker-history-section" id="tracker_history_section_{index}">
+            <div class="tracker-history-header">
+                <span><i class="fas fa-history" style="margin-right: 5px; color: var(--primary);"></i>{ "Lịch sử bấm giờ" if lang == "vi" else "計測履歴" }</span>
+                <span class="tracker-history-count" id="tracker_history_count_{index}" style="font-size: 0.72rem; color: var(--text-3);"></span>
+            </div>
+            <div class="tracker-history-list" id="tracker_history_list_{index}">
+                <div class="tracker-history-empty">{ "Chưa có lượt bấm giờ nào" if lang == "vi" else "履歴はありません" }</div>
+            </div>
+        </div>
     </div>'''
 
 def render_checklist_html(tac_pham_key, index, lang, api_url, checked_ids=None, row_data=None, task_links_dict=None):
