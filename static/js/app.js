@@ -2,6 +2,77 @@
    VN-TRACKING DASHBOARD — FRONTEND LOGIC v3 (Kanban)
    ================================================================ */
 
+// ===================== 120Hz APPLE-STYLE SMOOTH SCROLL (LENIS) =====================
+(function initSmoothScroll() {
+    if (typeof Lenis === 'undefined') return;
+
+    try {
+        const lenis = new Lenis({
+            duration: 1.15,
+            easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)), // Apple exponential ease-out
+            orientation: 'vertical',
+            gestureOrientation: 'vertical',
+            smoothWheel: true,
+            wheelMultiplier: 1.0,
+            touchMultiplier: 1.6,
+            infinite: false,
+        });
+
+        window.lenis = lenis;
+
+        function raf(time) {
+            lenis.raf(time);
+            requestAnimationFrame(raf);
+        }
+        requestAnimationFrame(raf);
+
+        // Mark internal scroll containers with data-lenis-prevent so their nested scrolling remains native and unblocked
+        const markPreventContainers = () => {
+            const selectors = [
+                '.sidebar',
+                '.kanban-column',
+                '.kanban-board',
+                '.profile-panel',
+                '#profile-panel',
+                '.pet-flyout-panel',
+                '#pet-panel',
+                '.modal',
+                '.modal-dialog',
+                '.modal-content',
+                '.table-responsive',
+                '.table-container',
+                '.flatpickr-calendar',
+                '.dropdown-menu',
+                '.notification-panel'
+            ];
+            document.querySelectorAll(selectors.join(', ')).forEach(el => {
+                if (!el.hasAttribute('data-lenis-prevent')) {
+                    el.setAttribute('data-lenis-prevent', '');
+                }
+            });
+        };
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', markPreventContainers);
+        } else {
+            markPreventContainers();
+        }
+
+        const observer = new MutationObserver((mutations) => {
+            for (const m of mutations) {
+                if (m.addedNodes.length > 0) {
+                    markPreventContainers();
+                    break;
+                }
+            }
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
+
+    } catch (e) {
+        console.warn('[Lenis] Smooth scroll init failed:', e);
+    }
+})();
+
 // ===================== TOAST =====================
 function showToast(message, type = 'info') {
     let container = document.getElementById('toast-container');
@@ -173,7 +244,11 @@ function scrollToTable() {
         if (!tableWrapper.classList.contains('open')) {
             toggleTable();
         }
-        tableSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        if (window.lenis) {
+            window.lenis.scrollTo(tableSection, { offset: -24, duration: 1.15 });
+        } else {
+            tableSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
         updateSidebarActiveState(true);
     }
 }
@@ -197,7 +272,11 @@ document.addEventListener('DOMContentLoaded', () => {
     navItems.forEach((item, index) => {
         item.addEventListener('click', () => {
             if (index === 0) {
-                window.scrollTo({ top: 0, behavior: 'smooth' });
+                if (window.lenis) {
+                    window.lenis.scrollTo(0, { duration: 1.15 });
+                } else {
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                }
                 updateSidebarActiveState(false);
             } else if (index === 1) {
                 // scrollToTable handled by onclick
@@ -269,7 +348,11 @@ function scrollToTable() {
             const arrow = document.getElementById('table-arrow');
             if (arrow) arrow.textContent = '▲';
         }
-        wrapper.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        if (window.lenis) {
+            window.lenis.scrollTo(wrapper, { offset: -24, duration: 1.15 });
+        } else {
+            wrapper.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
         updateSidebarActiveState(true);
     }
 }
