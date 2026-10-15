@@ -1924,10 +1924,11 @@ function navigateToTask(tpKey) {
         // Open modal
         const modal = document.getElementById(`modal-${targetModalId}`);
         if (modal) {
+            modal.scrollTop = 0;
             modal.classList.add('open');
             document.body.style.overflow = 'hidden';
             if (typeof initChecklistInContainer === 'function') {
-                initChecklistInContainer(modal.querySelector('.modal-body'));
+                initChecklistInContainer(modal.querySelector('.task-page-body') || modal.querySelector('.modal-body') || modal);
             }
 
             const handoverBox = modal.querySelector('.task-handover-box');
@@ -2329,10 +2330,11 @@ function openModal(tabKey, cardName) {
         if (modal) {
             if (window.lenis) window.lenis.stop();
             document.body.style.overflow = 'hidden';
+            modal.scrollTop = 0;
             modal.classList.add('open');
 
             requestAnimationFrame(() => {
-                initChecklistInContainer(modal.querySelector('.modal-body'));
+                initChecklistInContainer(modal.querySelector('.task-page-body') || modal.querySelector('.modal-body') || modal);
 
                 // Load Task Handover Comments if combined task
                 const handoverBox = modal.querySelector('.task-handover-box');
@@ -2417,9 +2419,9 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
-// Close modal when clicking overlay
+// Close modal when clicking overlay (skip if clicking inside a full-page task view)
 document.addEventListener('click', (e) => {
-    if (e.target.classList.contains('modal-overlay')) {
+    if (e.target.classList.contains('modal-overlay') && !e.target.classList.contains('task-detail-page-view')) {
         e.target.classList.remove('open');
         document.body.style.overflow = '';
         if (window.lenis) window.lenis.start();

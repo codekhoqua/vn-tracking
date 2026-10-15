@@ -244,7 +244,7 @@
     <div class="mobile-brand">
         <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" width="30" height="30" style="border-radius: 8px; object-fit: contain;">
         <span>VN-Tracking</span>
-        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.65</i></sup>
+        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.66</i></sup>
     </div>
     <div class="mobile-topbar-right">
         <button type="button" class="mobile-icon-btn" onclick="toggleNotificationPanel(event)" title="{{ 'Thông báo' if lang == 'vi' else '通知' }}">
@@ -396,7 +396,7 @@
             </div>
             <div class="sidebar-logo-text">
                 <span class="sidebar-brand-name">VN-Tracking</span>
-                <sup class="version-tag"><i>v1.9.65</i></sup>
+                <sup class="version-tag"><i>v1.9.66</i></sup>
             </div>
         </div>
     </div>
@@ -3218,18 +3218,55 @@
 
 </main>
 
-<!-- ============ MODALS FOR LOGTIME / CHECKLIST ============ -->
+<!-- ============ TASK DETAIL FULL-PAGE VIEWS (DASHBOARD / TASK) ============ -->
 {% for tab_key in ['truoc', 'nay', 'sau'] %}
 {% for row in weeks[tab_key].tasks %}
 {% set tp_key = row['tp_key'] %}
 {% set tp_name_display = row['tp_name'] %}
 {% set worker = row['Người thực hiện']|string|trim %}
-<div class="modal-overlay" id="modal-{{ tab_key }}-{{ loop.index0 }}">
-    <div class="modal-content">
-        <div class="modal-header">
-            <div>
-                <div class="modal-title">{{ tp_name_display }}</div>
-                <div class="modal-worker" style="display: flex; align-items: center;">
+<div class="modal-overlay task-detail-page-view" id="modal-{{ tab_key }}-{{ loop.index0 }}" role="region" aria-label="{{ tp_name_display }}" data-lenis-prevent>
+    <div class="task-page-container">
+        <!-- Top Navigation / Breadcrumbs -->
+        <div class="task-page-nav-bar">
+            <div class="task-page-breadcrumbs">
+                <button type="button" class="task-back-btn" onclick="closeModal('{{ tab_key }}-{{ loop.index0 }}', '{{ tp_key }}')" title="{{ 'Trở về Dashboard' if lang == 'vi' else 'ダッシュボードに戻る' }}">
+                    <i class="fas fa-chevron-left"></i>
+                    <span>{{ 'Trở về Dashboard' if lang == 'vi' else 'ダッシュボードに戻る' }}</span>
+                </button>
+                <span class="task-crumb-sep">/</span>
+                <span class="task-crumb-root" onclick="closeModal('{{ tab_key }}-{{ loop.index0 }}', '{{ tp_key }}')">Dashboard</span>
+                <span class="task-crumb-sep">/</span>
+                <span class="task-crumb-current">Task</span>
+            </div>
+
+            <div class="task-page-top-actions">
+                <button class="export-project-btn" title="Export Project (DB_作品管理)" onclick="exportProjectNotionCSV('{{ tp_key }}')">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                    </svg>
+                </button>
+                <button class="export-btn" title="Export Task (DB_工程管理)" onclick="exportSingleNotionCSV('{{ tp_key }}')">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7 10 12 15 17 10"></polyline>
+                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                    </svg>
+                </button>
+                <button class="task-page-close-btn" onclick="closeModal('{{ tab_key }}-{{ loop.index0 }}', '{{ tp_key }}')" title="{{ 'Đóng trang' if lang == 'vi' else '閉じる' }} (Esc)">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Task Page Hero Title & Worker Header -->
+        <div class="task-page-header">
+            <div class="task-page-title-block">
+                <h1 class="task-page-main-title">{{ tp_name_display }}</h1>
+                <div class="task-page-worker-row">
                     <div class="worker-avatars-group" style="display: flex;">
                         {% set workers = worker.split(',') if worker else [] %}
                         {% for w in workers %}
@@ -3243,68 +3280,49 @@
                         {% endfor %}
                         {% endif %}
                         <span class="worker-avatar"
-                            style="{% if not loop.first %}margin-left: -8px;{% endif %} border: 2px solid var(--bg-card); position: relative; z-index: {{ 10 - loop.index0 }};"
+                            style="{% if not loop.first %}margin-left: -8px;{% endif %} border: 2px solid var(--surface-card); position: relative; z-index: {{ 10 - loop.index0 }};"
                             title="{{ w_trim }}">
                             {% if ns.found_avatar %}
                             <img src="{{ ns.found_avatar }}" alt="Avatar" class="avatar-img"
                                 referrerpolicy="no-referrer"
                                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                            <span class="avatar-fallback" style="display:none;">{{ w_trim[0]|upper if w_trim else 'U'
-                                }}</span>
+                            <span class="avatar-fallback" style="display:none;">{{ w_trim[0]|upper if w_trim else 'U' }}</span>
                             {% else %}
                             {{ w_trim[0]|upper if w_trim else 'U' }}
                             {% endif %}
                         </span>
                         {% endfor %}
                     </div>
-                    <span style="margin-left: 8px;">{{ worker }}</span>
+                    <span class="task-page-worker-name">{{ worker }}</span>
                     {% if row.get('QC Nội bộ') and row.get('QC Nội bộ')|string|trim|lower not in ['nan', 'none', ''] %}
                     <div class="qc-badge"
-                        style="font-size: 0.8rem; color: var(--warning); background: rgba(255, 167, 38, 0.1); border: 1px solid rgba(255, 167, 38, 0.3); padding: 2px 8px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px; margin-left: 12px;"
+                        style="font-size: 0.82rem; color: #f59e0b; background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.35); padding: 3px 10px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; font-weight: 700;"
                         title="QC Nội bộ">
-                        QC: {{ row.get('QC Nội bộ') }}
+                        <i class="fas fa-clipboard-check"></i> QC: {{ row.get('QC Nội bộ') }}
                     </div>
                     {% endif %}
+
+                    <!-- GHOST AVATARS CONTAINER -->
+                    <div class="ghost-avatars" data-tp-key="{{ tp_key }}"
+                        style="display: flex; gap: -5px; align-items: center; margin-left: 10px;">
+                        <!-- Avatars injected by JS -->
+                    </div>
                 </div>
             </div>
-
-            <!-- GHOST AVATARS CONTAINER -->
-            <div class="ghost-avatars" data-tp-key="{{ tp_key }}"
-                style="display: flex; gap: -5px; align-items: center; margin-right: 10px;">
-                <!-- Avatars injected by JS -->
-            </div>
-
-            <div style="display: flex; align-items: center; gap: 8px;">
-                <button class="export-project-btn" title="Export Project (DB_作品管理)" onclick="exportProjectNotionCSV('{{ tp_key }}')" style="background: none; border: none; cursor: pointer; color: var(--text-2); padding: 4px; display: flex; align-items: center; justify-content: center; transition: color 0.2s;" onmouseover="this.style.color='#10b981'" onmouseout="this.style.color='var(--text-2)'">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
-                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
-                    </svg>
-                </button>
-                <button class="export-btn" title="Export Task (DB_工程管理)" onclick="exportSingleNotionCSV('{{ tp_key }}')" style="background: none; border: none; cursor: pointer; color: var(--text-2); padding: 4px; display: flex; align-items: center; justify-content: center; transition: color 0.2s;" onmouseover="this.style.color='var(--primary)'" onmouseout="this.style.color='var(--text-2)'">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                        <polyline points="7 10 12 15 17 10"></polyline>
-                        <line x1="12" y1="15" x2="12" y2="3"></line>
-                    </svg>
-                </button>
-                <button class="close-btn" onclick="closeModal('{{ tab_key }}-{{ loop.index0 }}', '{{ tp_key }}')">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                        stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                    </svg>
-                </button>
-            </div>
         </div>
-        <div class="modal-body" style="padding: 24px;">
+
+        <!-- Task Page Body Content -->
+        <div class="task-page-body">
             {{ render_checklist(tp_key, tab_key ~ '_' ~ loop.index0, lang, checklist_api, checked_ids_dict, row) }}
             
-            <!-- Logtime form section with a visual separator -->
-            <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border);">
-                <h4 style="margin-top: 0; margin-bottom: 20px; color: var(--primary); display: flex; align-items: center; gap: 8px; font-size: 1.1rem;">
-                    <i class="fas fa-clock"></i> {{ 'Nhập Logtime' if lang == 'vi' else 'Logtime入力' }}
-                </h4>
+            <!-- Logtime form section styled as a premium card -->
+            <div class="task-page-logtime-card">
+                <div class="task-page-logtime-header">
+                    <div class="task-page-logtime-title">
+                        <span class="logtime-icon-circle"><i class="fas fa-clock"></i></span>
+                        <span>{{ 'Nhập Logtime' if lang == 'vi' else 'Logtime入力' }}</span>
+                    </div>
+                </div>
                 {{ render_logtime_form(row, tab_key ~ '_' ~ loop.index0, t, users, lang) }}
             </div>
         </div>
