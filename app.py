@@ -1242,7 +1242,7 @@ def render_task_handover_html(tac_pham_key, index, lang, row_data=None):
     '''
 
 def render_task_tracker_html(tac_pham_key, index, lang):
-    return f'''<div class="time-tracker-box" id="tracker_{index}" data-tp-key="{tac_pham_key}" style="margin-top: 0; height: 100%;">
+    return f'''<div class="time-tracker-box" id="tracker_{index}" data-tp-key="{tac_pham_key}" style="margin-top: 0;">
         <div class="tracker-header">
             <span><i class="fas fa-stopwatch" style="margin-right: 6px; color: var(--primary);"></i>{ "Theo dõi thời gian" if lang == "vi" else "タイムトラッカー" }</span>
             <label style="font-size: 0.8rem; font-weight: normal; cursor: pointer; color: var(--text-2);">
