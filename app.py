@@ -1355,7 +1355,7 @@ def render_logtime_form_html(row, index, t, users, lang):
                     <input type="text" name="ghi_chu" placeholder="...">
                 </div>
             </div>
-            <div style="margin-top: 20px; text-align: right;">
+            <div class="logtime-submit-row" style="margin-top: 16px; text-align: right;">
                 <button type="submit" class="btn btn-primary" style="min-width: 160px; padding: 12px 24px;">{t['f_btn']}</button>
             </div>
             <div class="logtime-progress" id="progress-{index}" style="display:none; margin-top: 10px;">
