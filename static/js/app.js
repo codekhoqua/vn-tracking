@@ -2327,18 +2327,22 @@ function openModal(tabKey, cardName) {
     if (modalId) {
         const modal = document.getElementById(`modal-${modalId}`);
         if (modal) {
-            modal.classList.add('open');
+            if (window.lenis) window.lenis.stop();
             document.body.style.overflow = 'hidden';
-            initChecklistInContainer(modal.querySelector('.modal-body'));
+            modal.classList.add('open');
 
-            // Load Task Handover Comments if combined task
-            const handoverBox = modal.querySelector('.task-handover-box');
-            if (handoverBox) {
-                setupTaskCommentsSocket();
-                const index = handoverBox.id.replace('handover_', '');
-                const tpKey = handoverBox.getAttribute('data-tp-key');
-                loadTaskComments(index, tpKey);
-            }
+            requestAnimationFrame(() => {
+                initChecklistInContainer(modal.querySelector('.modal-body'));
+
+                // Load Task Handover Comments if combined task
+                const handoverBox = modal.querySelector('.task-handover-box');
+                if (handoverBox) {
+                    setupTaskCommentsSocket();
+                    const index = handoverBox.id.replace('handover_', '');
+                    const tpKey = handoverBox.getAttribute('data-tp-key');
+                    loadTaskComments(index, tpKey);
+                }
+            });
         }
     }
 }
@@ -2348,6 +2352,7 @@ function closeModal(modalId) {
     if (modal) {
         modal.classList.remove('open');
         document.body.style.overflow = '';
+        if (window.lenis) window.lenis.start();
     }
 }
 
@@ -2399,10 +2404,14 @@ function openDriveModal() {
 
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
+        document.querySelectorAll('.modal-overlay.open').forEach(m => {
+            m.classList.remove('open');
+        });
         document.querySelectorAll('.cp-overlay.active, .cp-modal.active').forEach(m => {
             m.classList.remove('active');
-            document.body.style.overflow = '';
         });
+        document.body.style.overflow = '';
+        if (window.lenis) window.lenis.start();
         const drawer = document.getElementById('filter-drawer');
         if (drawer && drawer.classList.contains('open')) toggleFilters();
     }
@@ -2413,6 +2422,7 @@ document.addEventListener('click', (e) => {
     if (e.target.classList.contains('modal-overlay')) {
         e.target.classList.remove('open');
         document.body.style.overflow = '';
+        if (window.lenis) window.lenis.start();
     }
 });
 

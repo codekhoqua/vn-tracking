@@ -186,6 +186,7 @@ html {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
+    scrollbar-gutter: stable;
 }
 body { 
     font-family: var(--font); 
@@ -233,6 +234,7 @@ html.lenis, html.lenis body {
 /* GPU Hardware Acceleration for 120fps Silky Rendering */
 .kanban-board,
 .kanban-column,
+.progress-card,
 .task-card,
 .stat-card,
 .info-banner,
@@ -240,7 +242,9 @@ html.lenis, html.lenis body {
 .sidebar,
 .profile-panel,
 .pet-flyout-panel,
-.table-section {
+.table-section,
+.modal-overlay,
+.modal-content {
     transform: translateZ(0);
     backface-visibility: hidden;
     -webkit-backface-visibility: hidden;
@@ -1060,31 +1064,50 @@ body.sidebar-collapsed .custom-lang-select {
     background: var(--border);
 }
 
-/* Premium Card Styles */
+/* Premium Card Styles (Apple 120Hz ProMotion Tactile Feel) */
 .progress-card {
     border-radius: var(--radius-lg); padding: 18px;
-    cursor: pointer; transition: all var(--t-smooth);
+    cursor: pointer;
     box-shadow: var(--shadow-sm);
     border: 1px solid var(--border);
     position: relative;
     background: var(--surface-card);
-    backdrop-filter: blur(12px);
     overflow: hidden;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    will-change: transform, box-shadow;
+    user-select: none;
+    -webkit-user-select: none;
+    transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+                box-shadow 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+                border-color 0.2s ease,
+                background-color 0.2s ease;
 }
 
-
 .progress-card:hover { 
-    transform: translateY(-4px); 
+    transform: translateY(-4px) translateZ(0); 
     box-shadow: var(--shadow-lg); 
     border-color: var(--primary);
+}
+.progress-card:active {
+    transform: translateY(-1px) scale(0.978) translateZ(0);
+    box-shadow: var(--shadow-xs);
+    transition-duration: 0.08s;
 }
 .progress-card.status-in-progress:hover {
     box-shadow: var(--shadow-lg), 0 0 20px var(--card-in-progress-glow);
     border-color: rgba(245, 158, 11, 0.5);
 }
+.progress-card.status-in-progress:active {
+    box-shadow: var(--shadow-xs), 0 0 10px var(--card-in-progress-glow);
+}
 .progress-card.status-delivered:hover {
     box-shadow: var(--shadow-lg), 0 0 20px var(--card-delivered-glow);
     border-color: rgba(16, 185, 129, 0.5);
+}
+.progress-card.status-delivered:active {
+    box-shadow: var(--shadow-xs), 0 0 10px var(--card-delivered-glow);
 }
 
 .progress-card.status-not-started { background: var(--card-not-started-bg); border-color: var(--card-not-started-border); color: var(--card-not-started-text); }
@@ -1298,13 +1321,24 @@ body.sidebar-collapsed .custom-lang-select {
 /* ======================== 9. MODALS & CHECKLISTS ======================== */
 .modal-overlay {
     position: fixed; inset: 0;
-    background: rgba(8, 12, 20, 0.8);
-    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
-    z-index: 50000; display: none;
+    background: rgba(8, 12, 20, 0.72);
+    backdrop-filter: blur(10px) saturate(140%);
+    -webkit-backdrop-filter: blur(10px) saturate(140%);
+    z-index: 50000;
+    display: flex;
     align-items: center; justify-content: center; padding: 24px;
-    animation: fadeIn 0.2s ease;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.26s cubic-bezier(0.16, 1, 0.3, 1),
+                visibility 0.26s cubic-bezier(0.16, 1, 0.3, 1);
+    transform: translateZ(0);
 }
-.modal-overlay.open { display: flex; }
+.modal-overlay.open {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
 .modal-content {
     background: var(--surface);
     border-radius: var(--radius-2xl);
@@ -1312,12 +1346,17 @@ body.sidebar-collapsed .custom-lang-select {
     overflow-y: auto;
     box-shadow: var(--shadow-xl), 0 0 0 1px var(--border);
     border: 1px solid var(--border);
-    animation: modalFadeSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-    contain: layout paint;
+    transform: scale(0.955) translateY(12px) translateZ(0);
+    opacity: 0;
+    transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1),
+                opacity 0.26s cubic-bezier(0.16, 1, 0.3, 1);
+    will-change: transform, opacity;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
 }
-@keyframes modalFadeSlideIn {
-    from { opacity: 0; transform: scale(0.96) translateY(12px); }
-    to { opacity: 1; transform: scale(1) translateY(0); }
+.modal-overlay.open .modal-content {
+    transform: scale(1) translateY(0) translateZ(0);
+    opacity: 1;
 }
 
 .modal-header {
