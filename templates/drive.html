@@ -811,12 +811,18 @@
 <!-- ============ MAIN AREA ============ -->
 <style>
     /* Premium Drive Redesign */
+    html, body, .drive-container {
+        background: #0b0f19 !important;
+        background-image: none !important;
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+    }
+    
     .drive-container {
         display: flex;
         flex-direction: column;
         height: 100vh;
         padding: 30px;
-        background: var(--bg-body);
         color: var(--text);
         font-family: inherit;
         overflow: hidden;
@@ -859,7 +865,7 @@
     
     .breadcrumb-item.active {
         color: #fff;
-        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        background: #3b82f6 !important;
         box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
     }
     
@@ -887,7 +893,7 @@
     }
     
     .btn-primary {
-        background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+        background: #3b82f6 !important;
         color: white;
         box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
     }
@@ -1016,7 +1022,8 @@
         height: 32px;
         border-radius: 10px;
         background: rgba(30, 41, 59, 0.8);
-        backdrop-filter: blur(4px);
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -1165,7 +1172,8 @@
         padding: 16px 18px;
         box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
         z-index: 1000;
-        backdrop-filter: blur(16px);
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
         transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
         box-sizing: border-box;
     }
@@ -1225,7 +1233,7 @@
     }
     .drive-upload-bar-fill {
         height: 100%;
-        background: linear-gradient(90deg, #6366f1, #3b82f6);
+        background: #3b82f6 !important;
         border-radius: 4px;
         transition: width 0.2s ease;
         box-shadow: 0 0 8px rgba(99, 102, 241, 0.5);
@@ -1245,7 +1253,8 @@
         width: 100vw;
         height: 100vh;
         background: rgba(0, 0, 0, 0.88);
-        backdrop-filter: blur(10px);
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
         z-index: 10000;
         display: none;
         opacity: 0;

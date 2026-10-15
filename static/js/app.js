@@ -2472,6 +2472,9 @@ function openToolPage(toolKey) {
     document.body.style.overflow = 'hidden';
     pageEl.scrollTop = 0;
     pageEl.classList.add('open');
+
+    const weatherCanvas = document.getElementById('weather-canvas') || document.getElementById('rain-canvas');
+    if (weatherCanvas) weatherCanvas.style.display = 'none';
 }
 
 function closeToolPage(toolKey) {
@@ -2482,6 +2485,9 @@ function closeToolPage(toolKey) {
     }
     const navItem = document.getElementById(`nav-${toolKey}`);
     if (navItem) navItem.classList.remove('active');
+
+    const weatherCanvas = document.getElementById('weather-canvas') || document.getElementById('rain-canvas');
+    if (weatherCanvas) weatherCanvas.style.display = '';
 
     if (toolKey === 'drive') {
         const iframe = document.getElementById('drive-page-iframe') || document.getElementById('drive-iframe');
