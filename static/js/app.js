@@ -7639,12 +7639,78 @@ async function saveTracker(index, tpKey) {
     executeSaveTracker(index, tpKey, durationHours, finalStartTime, finalEndTime, finalStartDate, finalEndDate, isManual);
 }
 
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function renderTrackerHistoryList(index, items) {
+    const listEl = document.getElementById(`tracker_history_list_${index}`);
+    const countEl = document.getElementById(`tracker_history_count_${index}`);
+    if (!listEl) return;
+
+    items = Array.isArray(items) ? items : [];
+    const isVi = typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi';
+    
+    if (countEl) countEl.textContent = items.length ? `${items.length} LOG` : '';
+
+    if (!items.length) {
+        listEl.innerHTML = `<div class="tracker-history-empty">${isVi ? 'Chưa có lượt bấm giờ nào' : '履歴はありません'}</div>`;
+        return;
+    }
+
+    listEl.innerHTML = items.slice().reverse().map(item => {
+        const note = item.note || (isVi ? 'Không có mô tả' : '備考なし');
+        const timeStr = (item.start_time && item.end_time) 
+            ? `${item.start_time} - ${item.end_time}` 
+            : (item.time || '');
+        const dateStr = item.start_date || item.date || '';
+        const dur = item.duration !== undefined ? item.duration : '0';
+        const user = item.user || '';
+        return `
+            <div class="tracker-history-item">
+                <div class="tracker-history-item-left">
+                    <span class="tracker-history-note" title="${escapeHtml(item.note || '')}">${escapeHtml(note)}</span>
+                    <span class="tracker-history-time">${escapeHtml(timeStr)}${dateStr ? ' • ' + escapeHtml(dateStr) : ''}${user ? ' • ' + escapeHtml(user) : ''}</span>
+                </div>
+                <span class="tracker-history-dur">${escapeHtml(dur)}h</span>
+            </div>
+        `;
+    }).join('');
+}
+
+async function loadTrackerHistory(index, tpKey) {
+    const listEl = document.getElementById(`tracker_history_list_${index}`);
+    if (!listEl) return;
+
+    const trackerBox = document.getElementById(`tracker_${index}`);
+    const sessionCode = trackerBox?.getAttribute('data-session') || tpKey || '';
+
+    try {
+        const res = await fetch(`/api/tracker_history?session=${encodeURIComponent(sessionCode)}&task_name=${encodeURIComponent(tpKey || '')}`);
+        const data = await res.json();
+        if (data.status === 'success' && Array.isArray(data.history)) {
+            renderTrackerHistoryList(index, data.history);
+        }
+    } catch (e) {
+        console.error('Failed to load tracker history:', e);
+    }
+}
+
 async function executeSaveTracker(index, tpKey, durationHours, finalStartTime, finalEndTime, finalStartDate, finalEndDate, isManual) {
+    const trackerBox = document.getElementById(`tracker_${index}`);
+    const sessionCode = trackerBox?.getAttribute('data-session') || tpKey || '';
     const note = document.getElementById(`tracker_note_${index}`)?.value || '';
     
     const payload = {
         action: 'log_member_time',
         task_name: tpKey,
+        session: sessionCode,
         duration: durationHours.toFixed(2),
         start_time: finalStartTime,
         end_time: finalEndTime,
@@ -7669,10 +7735,15 @@ async function executeSaveTracker(index, tpKey, durationHours, finalStartTime, f
         const data = await res.json();
         if (data.status === 'success') {
             showToast((typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi') ? 'Đã lưu thời gian!' : '時間を保存しました！', 'success');
-            if (typeof addTrackerHistoryItem === 'function') {
-                addTrackerHistoryItem(index, tpKey, durationHours.toFixed(2), note, finalStartTime, finalEndTime, finalStartDate);
+            
+            // Render history immediately returned from server
+            if (Array.isArray(data.history)) {
+                renderTrackerHistoryList(index, data.history);
+            } else {
+                loadTrackerHistory(index, tpKey);
             }
-            // Reset
+
+            // Reset inputs
             if (!isManual) {
                 localStorage.removeItem(`tracker_start_${index}`);
                 localStorage.removeItem(`tracker_end_${index}`);
@@ -7697,6 +7768,7 @@ async function executeSaveTracker(index, tpKey, durationHours, finalStartTime, f
             showToast('Error: ' + (data.message || 'Server error'), 'error');
         }
     } catch (e) {
+        console.error('Tracker save error:', e);
         showToast('Lỗi kết nối!', 'error');
     } finally {
         if (btn) {
@@ -7706,53 +7778,7 @@ async function executeSaveTracker(index, tpKey, durationHours, finalStartTime, f
     }
 }
 
-// Tracker History Helpers
-function loadTrackerHistory(index, tpKey) {
-    const listEl = document.getElementById(`tracker_history_list_${index}`);
-    const countEl = document.getElementById(`tracker_history_count_${index}`);
-    if (!listEl) return;
-    
-    let key = `tracker_hist_${tpKey || index}`;
-    let items = [];
-    try {
-        items = JSON.parse(localStorage.getItem(key) || '[]');
-    } catch(e) { items = []; }
-    
-    if (countEl) countEl.textContent = items.length ? `${items.length} log` : '';
-    
-    if (!items.length) {
-        listEl.innerHTML = `<div class="tracker-history-empty">${(typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi') ? 'Chưa có lượt bấm giờ nào' : '履歴はありません'}</div>`;
-        return;
-    }
-    
-    listEl.innerHTML = items.slice().reverse().map(item => `
-        <div class="tracker-history-item">
-            <div class="tracker-history-item-left">
-                <span class="tracker-history-note" title="${escapeHtml(item.note || '')}">${escapeHtml(item.note || ((typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi') ? 'Không có mô tả' : '備考なし'))}</span>
-                <span class="tracker-history-time">${escapeHtml(item.time || '')}${item.date ? ' • ' + escapeHtml(item.date) : ''}</span>
-            </div>
-            <span class="tracker-history-dur">${item.duration || 0}h</span>
-        </div>
-    `).join('');
-}
-
 function addTrackerHistoryItem(index, tpKey, duration, note, startTime, endTime, startDate) {
-    let key = `tracker_hist_${tpKey || index}`;
-    let items = [];
-    try {
-        items = JSON.parse(localStorage.getItem(key) || '[]');
-    } catch(e) { items = []; }
-    
-    let timeStr = (startTime && endTime) ? `${startTime} - ${endTime}` : '';
-    items.push({
-        duration: duration,
-        note: note,
-        time: timeStr,
-        date: startDate || new Date().toISOString().slice(0, 10),
-        ts: Date.now()
-    });
-    if (items.length > 40) items = items.slice(-40);
-    localStorage.setItem(key, JSON.stringify(items));
     loadTrackerHistory(index, tpKey);
 }
 
