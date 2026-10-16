@@ -8982,7 +8982,7 @@ function updateLeaveSubmitButtonState() {
     const notice = document.getElementById('leave-upload-required-notice');
     if (!submitBtn) return;
 
-    if (uploadedGDriveLink) {
+    if (selectedLeaveFile || uploadedGDriveLink) {
         submitBtn.disabled = false;
         submitBtn.style.opacity = '1';
         submitBtn.style.cursor = 'pointer';
@@ -8991,18 +8991,18 @@ function updateLeaveSubmitButtonState() {
             notice.style.background = 'rgba(16, 185, 129, 0.1)';
             notice.style.borderColor = 'rgba(16, 185, 129, 0.3)';
             notice.style.color = '#34d399';
-            notice.innerHTML = '<i class="fas fa-check-circle"></i> <span><strong>Đã tải ảnh lên Drive thành công:</strong> Nút gửi đơn đã được mở khóa!</span>';
+            notice.innerHTML = '<i class="fas fa-check-circle"></i> <span><strong>Ảnh xác nhận đã sẵn sàng:</strong> Bạn có thể nhấn <strong>Gửi đơn</strong> ngay!</span>';
         }
     } else {
         submitBtn.disabled = true;
         submitBtn.style.opacity = '0.5';
         submitBtn.style.cursor = 'not-allowed';
-        submitBtn.title = 'Vui lòng chọn ảnh và tải lên Google Drive thành công trước khi gửi đơn';
+        submitBtn.title = 'Vui lòng chọn ảnh xác nhận trước khi gửi đơn';
         if (notice) {
             notice.style.background = 'rgba(245, 158, 11, 0.1)';
             notice.style.borderColor = 'rgba(245, 158, 11, 0.3)';
             notice.style.color = '#fbbf24';
-            notice.innerHTML = '<i class="fas fa-exclamation-triangle"></i> <span><strong>Bắt buộc:</strong> Bạn cần chọn ảnh xác nhận và bấm <strong>Tải ảnh lên Google Drive</strong> thành công trước khi gửi đơn.</span>';
+            notice.innerHTML = '<i class="fas fa-exclamation-triangle"></i> <span><strong>Bắt buộc:</strong> Bạn cần chọn ảnh xác nhận của PM/Leader trước khi gửi đơn.</span>';
         }
     }
 }
@@ -9062,17 +9062,61 @@ window.copySuggestedFilename = copySuggestedFilename;
 
 let uploadedGDriveLink = '';
 
-function onLeaveFileSelected(e) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+async function compressImageFile(file, maxWidth = 1400, quality = 0.82) {
+    if (!file || !file.type || !file.type.startsWith('image/')) return file;
+    if (file.size < 200 * 1024) return file; // Ảnh nhỏ hơn 200KB giữ nguyên
 
-    if (file.size > 10 * 1024 * 1024) {
-        if (typeof showToast === 'function') showToast('Kích thước ảnh vượt quá 10MB!', 'error');
-        else alert('Kích thước ảnh vượt quá 10MB!');
+    return new Promise((resolve) => {
+        const img = new Image();
+        const objUrl = URL.createObjectURL(file);
+        img.onload = () => {
+            URL.revokeObjectURL(objUrl);
+            let w = img.width;
+            let h = img.height;
+            if (w > maxWidth || h > maxWidth) {
+                if (w > h) {
+                    h = Math.round((h * maxWidth) / w);
+                    w = maxWidth;
+                } else {
+                    w = Math.round((w * maxWidth) / h);
+                    h = maxWidth;
+                }
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, w, h);
+            canvas.toBlob((blob) => {
+                if (blob && blob.size < file.size) {
+                    const compressed = new File([blob], file.name, { type: 'image/jpeg' });
+                    resolve(compressed);
+                } else {
+                    resolve(file);
+                }
+            }, 'image/jpeg', quality);
+        };
+        img.onerror = () => {
+            URL.revokeObjectURL(objUrl);
+            resolve(file);
+        };
+        img.src = objUrl;
+    });
+}
+
+async function onLeaveFileSelected(e) {
+    const rawFile = e.target.files?.[0];
+    if (!rawFile) return;
+
+    if (rawFile.size > 15 * 1024 * 1024) {
+        if (typeof showToast === 'function') showToast('Kích thước ảnh vượt quá 15MB!', 'error');
+        else alert('Kích thước ảnh vượt quá 15MB!');
         e.target.value = '';
         return;
     }
 
+    // Tự động nén ảnh nhanh nếu dung lượng lớn
+    const file = await compressImageFile(rawFile, 1400, 0.82);
     selectedLeaveFile = file;
     uploadedGDriveLink = '';
     const ext = file.name.includes('.') ? file.name.split('.').pop() : 'png';
@@ -9088,7 +9132,6 @@ function onLeaveFileSelected(e) {
 
     if (previewCard && previewImg && previewName && previewSize) {
         previewImg.src = URL.createObjectURL(file);
-        // Tự động đổi tên lại chuẩn theo quy định
         previewName.textContent = targetName;
         previewSize.textContent = (file.size / 1024).toFixed(1) + ' KB';
         previewCard.style.display = 'flex';
@@ -9104,11 +9147,12 @@ function onLeaveFileSelected(e) {
         statusBox.style.display = 'none';
         statusBox.innerHTML = '';
     }
+    // Mở khóa nút gửi đơn ngay
     updateLeaveSubmitButtonState();
     // Tự động tải ảnh lên Google Drive ngay khi chọn file
     setTimeout(() => {
         uploadAttachmentToGDriveDirectly();
-    }, 120);
+    }, 80);
 }
 window.onLeaveFileSelected = onLeaveFileSelected;
 
@@ -9252,8 +9296,8 @@ async function submitMultiStepLeave(e) {
         return;
     }
 
-    if (!uploadedGDriveLink) {
-        const msg = '⚠️ Bạn cần tải ảnh xác nhận lên Google Drive thành công trước khi gửi đơn!';
+    if (!selectedLeaveFile && !uploadedGDriveLink) {
+        const msg = '⚠️ Bạn cần chọn ảnh xác nhận trước khi gửi đơn!';
         if (typeof showToast === 'function') {
             showToast(msg, 'warning');
         } else {
@@ -9334,17 +9378,22 @@ async function submitMultiStepLeave(e) {
             }
         } catch (_) {}
 
-        // Hoàn tất lưu ngay lập tức (sub-100ms)
+        // Hoàn tất lưu và tải lại lịch ngay
         if (res.ok && resJson && resJson.ok) {
             finishLeaveSubmission(true, submitSuccessMsg);
-            const calIframe = document.getElementById('calendar-page-iframe') || document.getElementById('calendar-iframe');
-            if (calIframe && calIframe.src) {
-                try {
-                    calIframe.contentWindow.location.reload();
-                } catch (_) {
-                    calIframe.src = calIframe.src;
+            const reloadCalendar = () => {
+                const calIframe = document.getElementById('calendar-page-iframe') || document.getElementById('calendar-iframe');
+                if (calIframe) {
+                    const currentSrc = calIframe.src || '/calendar';
+                    const base = currentSrc.split(/[?#]/)[0];
+                    const search = currentSrc.includes('?') ? currentSrc.split('?')[1].split('#')[0] : '';
+                    const params = new URLSearchParams(search);
+                    params.set('_t', Date.now());
+                    calIframe.src = base + '?' + params.toString();
                 }
-            }
+            };
+            reloadCalendar();
+            setTimeout(reloadCalendar, 1800);
             return;
         } else {
             finishLeaveSubmission(false, (resJson && resJson.error) || 'Lỗi gửi đơn');
