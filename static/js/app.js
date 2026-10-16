@@ -5807,7 +5807,7 @@ let isRadioDJ = false;
 let isListening = false;
 let radioState = {
     is_playing: false,
-    youtube_id: 'jfKfPfyJRdk', // Lofi Girl Synthwave
+    youtube_id: '4xDzrIxC4Dk', // Lofi Girl Synthwave
     current_time: 0,
     allow_requests: true,
     is_automix_enabled: false,
@@ -7232,8 +7232,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (coverImg && coverImg.src !== coverUrl) coverImg.src = coverUrl;
                 if (bgBlur) bgBlur.style.backgroundImage = `url('${coverUrl}')`;
             } else if (!isListening && !isRadioDJ) {
-                const coverUrl = 'https://img.youtube.com/vi/jfKfPfyJRdk/hqdefault.jpg';
-                if (coverImg && !coverImg.src.includes('jfKfPfyJRdk')) coverImg.src = coverUrl;
+                const coverUrl = 'https://img.youtube.com/vi/4xDzrIxC4Dk/hqdefault.jpg';
+                if (coverImg && !coverImg.src.includes('4xDzrIxC4Dk')) coverImg.src = coverUrl;
                 if (bgBlur) bgBlur.style.backgroundImage = `url('${coverUrl}')`;
             }
         } else {
@@ -7585,62 +7585,8 @@ function setInputStatus(id, state) {
     }
 
     // MAIN ANIMATION LOOP
-    function isAnyOverlayOrToolOpen() {
-        return !!(
-            document.querySelector('.tool-page-view.open') ||
-            document.querySelector('.task-detail-page-view.open') ||
-            document.querySelector('.modal-overlay.open') ||
-            document.querySelector('.filter-drawer.open') ||
-            document.querySelector('.drawer-overlay.open') ||
-            (document.getElementById('changepass-modal') && document.getElementById('changepass-modal').style.display === 'block')
-        );
-    }
-
-    let isWeatherSuspended = false;
-
-    window.pauseWeatherEffect = function() {
-        isWeatherSuspended = true;
-        if (weatherAnimId) {
-            cancelAnimationFrame(weatherAnimId);
-            weatherAnimId = null;
-        }
-        if (weatherCanvas) {
-            weatherCanvas.style.display = 'none';
-        }
-        if (weatherCtx && weatherCanvas) {
-            weatherCtx.clearRect(0, 0, weatherCanvas.width, weatherCanvas.height);
-        }
-    };
-
-    window.resumeWeatherEffect = function() {
-        isWeatherSuspended = false;
-        if (!currentWeatherMode || isAnyOverlayOrToolOpen() || document.hidden) return;
-        if (weatherCanvas) {
-            weatherCanvas.style.display = 'block';
-        }
-        if (!weatherAnimId) {
-            lastRectUpdate = 0;
-            weatherAnimId = requestAnimationFrame(updateWeatherParticles);
-        }
-    };
-
-    document.addEventListener('visibilitychange', () => {
-        if (document.hidden) {
-            if (typeof window.pauseWeatherEffect === 'function') window.pauseWeatherEffect();
-        } else {
-            if (typeof window.resumeWeatherEffect === 'function') window.resumeWeatherEffect();
-        }
-    });
-
     function updateWeatherParticles() {
-        if (!currentWeatherMode || !weatherCtx || isWeatherSuspended || isAnyOverlayOrToolOpen() || document.hidden) {
-            if (weatherCanvas) weatherCanvas.style.display = 'none';
-            if (weatherCtx && weatherCanvas) {
-                weatherCtx.clearRect(0, 0, weatherCanvas.width, weatherCanvas.height);
-            }
-            weatherAnimId = null;
-            return;
-        }
+        if (!currentWeatherMode || !weatherCtx) return;
 
         const w = window.innerWidth;
         const h = window.innerHeight;
@@ -7833,14 +7779,6 @@ function setInputStatus(id, state) {
         }
 
         currentWeatherMode = mode;
-        if (isAnyOverlayOrToolOpen() || isWeatherSuspended || document.hidden) {
-            if (weatherCanvas) weatherCanvas.style.display = 'none';
-            if (weatherAnimId) {
-                cancelAnimationFrame(weatherAnimId);
-                weatherAnimId = null;
-            }
-            return;
-        }
         if (weatherCanvas) weatherCanvas.style.display = 'block';
 
         if (mode === 'rain' || mode === 'thunder') {
