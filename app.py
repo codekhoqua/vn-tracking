@@ -2992,7 +2992,7 @@ def lsa_drive():
         filter_cv_sau=[],
         users=[],
         tasks=[],
-        app_version='v1.9.114',
+        app_version='v1.9.115',
     )
 
 # =====================================================================
@@ -4328,7 +4328,7 @@ def api_admin_leave_email_config():
 
     user = session.get('user', '')
     user_role = str(session.get('role', '')).lower()
-    is_admin = (user_role in ['admin', 'manager']) or (user and 'tan' in user.lower())
+    is_admin = (user_role == 'admin') or (user in ['Admin', 'Manager'])
 
     if request.method == 'GET':
         cfg = get_leave_admin_email_config()
