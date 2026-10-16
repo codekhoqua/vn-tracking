@@ -811,12 +811,78 @@
 <!-- ============ MAIN AREA ============ -->
 <style>
     /* Premium Drive Redesign */
-    html, body, .main-area, .drive-container, #app {
+    body.dark-theme,
+    html.dark-theme,
+    body.dark-theme .main-area,
+    body.dark-theme .drive-container,
+    body.dark-theme #app {
         background: #0b0f19 !important;
         background-color: #0b0f19 !important;
         background-image: none !important;
         backdrop-filter: none !important;
         -webkit-backdrop-filter: none !important;
+    }
+
+    body:not(.dark-theme),
+    html:not(.dark-theme),
+    body:not(.dark-theme) .main-area,
+    body:not(.dark-theme) .drive-container,
+    body:not(.dark-theme) #app {
+        background: #f8fafc !important;
+        background-color: #f8fafc !important;
+        background-image: none !important;
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+        color: #0f172a !important;
+    }
+
+    body:not(.dark-theme) .drive-toolbar {
+        background: #ffffff !important;
+        border: 1px solid rgba(0, 0, 0, 0.08) !important;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05) !important;
+    }
+
+    body:not(.dark-theme) .drive-item {
+        background: #ffffff !important;
+        border: 1px solid rgba(0, 0, 0, 0.08) !important;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04) !important;
+    }
+
+    body:not(.dark-theme) .drive-item:hover {
+        background: #f8fafc !important;
+        border-color: #3b82f6 !important;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08) !important;
+    }
+
+    body:not(.dark-theme) .drive-item-name {
+        color: #0f172a !important;
+    }
+
+    body:not(.dark-theme) .drive-item-size {
+        color: #64748b !important;
+    }
+
+    body:not(.dark-theme) .btn-secondary {
+        background: #ffffff !important;
+        border: 1px solid rgba(0, 0, 0, 0.12) !important;
+        color: #0f172a !important;
+    }
+
+    body:not(.dark-theme) .btn-secondary:hover {
+        background: #f1f5f9 !important;
+    }
+
+    body:not(.dark-theme) .breadcrumb-item {
+        color: #475569 !important;
+    }
+
+    body:not(.dark-theme) .breadcrumb-item:hover {
+        background: rgba(0, 0, 0, 0.05) !important;
+        color: #0f172a !important;
+    }
+
+    body:not(.dark-theme) .breadcrumb-separator {
+        color: #94a3b8 !important;
     }
     
     .drive-container {
@@ -2302,15 +2368,6 @@
 <script src="https://npmcdn.com/flatpickr/dist/l10n/vn.js"></script>
 <script src="https://npmcdn.com/flatpickr/dist/l10n/ja.js"></script>
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-<style>
-    html, body, .main-area, .drive-container, #app {
-        background: #0b0f19 !important;
-        background-color: #0b0f19 !important;
-        background-image: none !important;
-        backdrop-filter: none !important;
-        -webkit-backdrop-filter: none !important;
-    }
-
     .flatpickr-calendar {
         background: transparent !important;
         box-shadow: none !important;
@@ -2513,5 +2570,14 @@
 </script>
 <!-- Confetti Library for Celebration Effects -->
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+<script>
+    window.addEventListener('message', function(e) {
+        if (e.data && e.data.type === 'theme_change') {
+            const isDark = e.data.theme === 'dark';
+            document.documentElement.classList.toggle('dark-theme', isDark);
+            document.body.classList.toggle('dark-theme', isDark);
+        }
+    });
+</script>
 
 {% endblock %}

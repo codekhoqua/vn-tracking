@@ -8,10 +8,59 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="icon" href="/static/logo.png" type="image/png">
+    <script>
+        (function() {
+            var savedTheme = localStorage.getItem('vn_tracking_theme');
+            if (savedTheme === 'dark') {
+                document.documentElement.classList.add('dark-theme');
+            }
+            window.addEventListener('message', function(e) {
+                if (e.data && e.data.type === 'theme_change') {
+                    var isDark = e.data.theme === 'dark';
+                    document.documentElement.classList.toggle('dark-theme', isDark);
+                    if (document.body) document.body.classList.toggle('dark-theme', isDark);
+                }
+            });
+        })();
+    </script>
     <style>
         /* ======================== VARIABLES ======================== */
         :root {
+            --bg-page: #f8fafc;
+            --surface: #ffffff;
+            --surface-2: #f1f5f9;
+            --surface-hover: #e2e8f0;
+            --border: rgba(0, 0, 0, 0.08);
+            --border-active: rgba(99, 102, 241, 0.5);
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --primary-bg: rgba(99, 102, 241, 0.1);
+            --secondary: #f59e0b;
+            --secondary-hover: #d97706;
+            --success: #10b981;
+            --success-bg: rgba(16, 185, 129, 0.1);
+            --danger: #ef4444;
+            --danger-bg: rgba(239, 68, 68, 0.1);
+            --warning: #f59e0b;
+            --warning-bg: rgba(245, 158, 11, 0.1);
+            --text: #0f172a;
+            --text-2: #475569;
+            --text-3: #94a3b8;
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --radius-xl: 24px;
+            --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+            --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.1);
+            --shadow-glow: 0 0 30px rgba(99, 102, 241, 0.08);
+            --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            --t-fast: 150ms ease;
+            --t-base: 250ms ease;
+            --t-smooth: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        html.dark-theme, body.dark-theme {
             --bg-page: #0b0f1a;
             --surface: #141926;
             --surface-2: #1c2236;
@@ -32,18 +81,10 @@
             --text: #f1f5f9;
             --text-2: #94a3b8;
             --text-3: #64748b;
-            --radius-sm: 8px;
-            --radius-md: 12px;
-            --radius-lg: 16px;
-            --radius-xl: 24px;
             --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
             --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
             --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.5);
             --shadow-glow: 0 0 30px rgba(99, 102, 241, 0.15);
-            --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-            --t-fast: 150ms ease;
-            --t-base: 250ms ease;
-            --t-smooth: 300ms cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         /* ======================== RESET ======================== */
