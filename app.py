@@ -2992,7 +2992,7 @@ def lsa_drive():
         filter_cv_sau=[],
         users=[],
         tasks=[],
-        app_version='v1.9.103',
+        app_version='v1.9.104',
     )
 
 # =====================================================================
@@ -3885,7 +3885,7 @@ def calendar_view():
     return "<h3 style='color: #cbd5e1; font-family: sans-serif; text-align: center; margin-top: 50px;'>Vui lòng dán mã nhúng vào biến GOOGLE_CALENDAR_EMBED_URL trong file .env.local</h3>", 200
 
 LEAVE_GDRIVE_FOLDER_ID = '1rcBkd1l_JZvXx_9m5uIITnj1qNzPNR81Zj5OldGQcVcqSpYafh3d3KU_-R8ZXsI7nOQKL4Sr'
-LEAVE_RESPONSES_SPREADSHEET_ID = os.environ.get('LEAVE_RESPONSES_SPREADSHEET_ID', '1Mhky2YxG4do3fHS-6bIeultwibqaj1Tf-WcVFiNicY')
+LEAVE_RESPONSES_SPREADSHEET_ID = os.environ.get('LEAVE_RESPONSES_SPREADSHEET_ID', '1Mhky2YkG4do3fHG-6bleuBwkbqajI7lF-WcfvFiNicY')
 LEAVE_RESPONSES_SHEET_TAB = os.environ.get('LEAVE_RESPONSES_SHEET_TAB', 'Form Responses 1')
 LEAVE_GDRIVE_SCRIPT_URL = os.environ.get('LEAVE_GDRIVE_SCRIPT_URL', 'https://script.google.com/macros/s/AKfycbwMr93FoB5MUMmaR3k66768Gat3wVSwFRZhBZCQQreeFhGcYmYsT_7v8QQ1KqbpQQPO1w/exec').strip()
 
