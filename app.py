@@ -2992,7 +2992,7 @@ def lsa_drive():
         filter_cv_sau=[],
         users=[],
         tasks=[],
-        app_version='v1.9.102',
+        app_version='v1.9.103',
     )
 
 # =====================================================================
@@ -3933,13 +3933,49 @@ def warmup_leave_connections():
         except Exception as e:
             print(f"[Warmup] Google Sheets warmup notice: {e}", flush=True)
 
-    threading.Thread(target=_warm, daemon=True, name="LeaveWarmupThread").start()
+def optimize_image_for_upload(file_bytes, max_dim=1920, quality=85):
+    """Nén ảnh trước khi upload: giảm từ 6-8MB xuống ~200-300KB giúp truyền và phản hồi trong chớp mắt."""
+    if not file_bytes or len(file_bytes) < 300 * 1024:
+        return file_bytes, None
+    try:
+        from PIL import Image
+        import io
+        img = Image.open(io.BytesIO(file_bytes))
+        if img.mode in ('RGBA', 'LA', 'P'):
+            bg = Image.new('RGB', img.size, (255, 255, 255))
+            if img.mode == 'P':
+                img = img.convert('RGBA')
+            bg.paste(img, mask=img.split()[3] if len(img.split()) == 4 else None)
+            img = bg
+        elif img.mode != 'RGB':
+            img = img.convert('RGB')
+
+        w, h = img.size
+        if w > max_dim or h > max_dim:
+            img.thumbnail((max_dim, max_dim), Image.Resampling.LANCZOS)
+
+        buf = io.BytesIO()
+        img.save(buf, format='JPEG', quality=quality, optimize=True)
+        opt_data = buf.getvalue()
+        if len(opt_data) < len(file_bytes):
+            return opt_data, 'image/jpeg'
+    except Exception as e:
+        print("[Image Optimization Notice]", e)
+    return file_bytes, None
 
 def upload_leave_file_to_gdrive(file_bytes, filename, mime_type=None, folder_id=LEAVE_GDRIVE_FOLDER_ID):
     """Tải file xác nhận nghỉ phép lên thư mục Google Drive của công ty.
     Hỗ trợ qua Google Apps Script Web App (không lo lỗi quota) hoặc Google Drive API v3 (với Shared Drive).
     """
     import base64
+
+    # Tự động nén ảnh nếu dung lượng lớn (>300KB) để upload và phản hồi ngay lập tức
+    opt_bytes, opt_mime = optimize_image_for_upload(file_bytes)
+    if opt_bytes and len(opt_bytes) < len(file_bytes):
+        file_bytes = opt_bytes
+        mime_type = opt_mime or mime_type
+        base, _ = os.path.splitext(filename)
+        filename = base + '.jpg'
 
     if not mime_type:
         ext = os.path.splitext(filename)[1].lower()
