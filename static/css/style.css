@@ -7640,16 +7640,10 @@ body:not(.dark-theme) .theme-toggle:hover {
     border-color: #cbd5e1 !important;
     transform: translateY(-2px);
 }
-
-body:not(.dark-theme) #inline-weather-container {
-    background: rgba(255, 255, 255, 0.88) !important;
-    border: 1px solid rgba(226, 232, 240, 0.95) !important;
-    color: #0f172a !important;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05) !important;
-}
-body:not(.dark-theme) #inline-weather-container span,
-body:not(.dark-theme) #inline-weather-container div {
-    color: #334155 !important;
+#inline-weather-container {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
 }
 
 body:not(.dark-theme) .hero-album-btn {
