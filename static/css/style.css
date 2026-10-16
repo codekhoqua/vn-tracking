@@ -7602,14 +7602,22 @@ body.dark-theme #hero-weather-bg {
     background: #0b1120 !important;
 }
 
-/* Hero Typography */
+/* Hero Scrim and Typography */
+body:not(.dark-theme) .hero-left-focus-scrim {
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.78) 0%, rgba(255, 255, 255, 0.52) 55%, rgba(255, 255, 255, 0.15) 85%, transparent 100%) !important;
+    backdrop-filter: blur(10px) !important;
+    -webkit-backdrop-filter: blur(10px) !important;
+}
+
 body:not(.dark-theme) .hero-brand-title {
     color: #0f172a !important;
-    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8) !important;
+    font-weight: 900 !important;
+    text-shadow: 0 1px 3px rgba(255, 255, 255, 0.9), 0 0 16px rgba(255, 255, 255, 0.8) !important;
 }
 body:not(.dark-theme) .hero-welcome-text {
-    color: #475569 !important;
-    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8) !important;
+    color: #1e293b !important;
+    font-weight: 800 !important;
+    text-shadow: 0 1px 3px rgba(255, 255, 255, 0.9) !important;
 }
 body.dark-theme .hero-brand-title {
     color: #ffffff !important;
@@ -7624,7 +7632,7 @@ body.dark-theme .hero-welcome-text {
 body:not(.dark-theme) .online-users-cluster,
 body:not(.dark-theme) #notification-bell-btn,
 body:not(.dark-theme) .theme-toggle {
-    background: rgba(255, 255, 255, 0.88) !important;
+    background: rgba(255, 255, 255, 0.92) !important;
     border: 1px solid rgba(226, 232, 240, 0.95) !important;
     color: #1e293b !important;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05) !important;
@@ -7646,6 +7654,46 @@ body:not(.dark-theme) .theme-toggle:hover {
     box-shadow: none !important;
 }
 
+/* Weather Typography & Pills in Light Mode */
+body:not(.dark-theme) .weather-mockup-temp {
+    color: #0f172a !important;
+    font-weight: 900 !important;
+    text-shadow: 0 1px 3px rgba(255, 255, 255, 0.9) !important;
+}
+body:not(.dark-theme) .weather-mockup-temp sup {
+    color: #334155 !important;
+    font-weight: 700 !important;
+}
+body:not(.dark-theme) .weather-mockup-condition,
+body:not(.dark-theme) .weather-mockup-condition span {
+    color: #0f172a !important;
+    font-weight: 800 !important;
+    text-shadow: 0 1px 3px rgba(255, 255, 255, 0.9) !important;
+}
+body:not(.dark-theme) #weather-sync-icon {
+    color: #475569 !important;
+}
+body:not(.dark-theme) .weather-mockup-range {
+    color: #334155 !important;
+    font-weight: 700 !important;
+    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8) !important;
+}
+body:not(.dark-theme) .weather-mockup-pill {
+    background: rgba(255, 255, 255, 0.88) !important;
+    border: 1px solid rgba(203, 213, 225, 0.95) !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+}
+body:not(.dark-theme) .weather-mockup-pill span {
+    color: #475569 !important;
+    font-weight: 700 !important;
+}
+body:not(.dark-theme) .weather-mockup-pill strong {
+    color: #0f172a !important;
+    font-weight: 900 !important;
+}
+
 body:not(.dark-theme) .hero-album-btn {
     background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%) !important;
     border: 1px solid rgba(245, 158, 11, 0.5) !important;
@@ -7656,19 +7704,29 @@ body:not(.dark-theme) .hero-album-btn i {
     color: #d97706 !important;
 }
 
-/* 3. AI Insights Bar */
+/* 3. AI Insights Bar in Light Mode */
 body:not(.dark-theme) .ai-insights-bar {
-    background: rgba(255, 255, 255, 0.9) !important;
-    border-top: 1px solid rgba(226, 232, 240, 0.9) !important;
+    background: rgba(255, 255, 255, 0.96) !important;
+    border-top: 1px solid #e2e8f0 !important;
+}
+body:not(.dark-theme) .ai-insights-track {
+    mask-image: linear-gradient(to right, transparent 0%, black 1.5%, black 98.5%, transparent 100%) !important;
+    -webkit-mask-image: linear-gradient(to right, transparent 0%, black 1.5%, black 98.5%, transparent 100%) !important;
 }
 body:not(.dark-theme) .ai-insight-item {
-    color: #1e293b !important;
+    color: #0f172a !important;
+    font-weight: 700 !important;
+}
+body:not(.dark-theme) .ai-insight-dot {
+    background: #0284c7 !important;
+    box-shadow: 0 0 6px #0284c7 !important;
 }
 body:not(.dark-theme) .ai-insights-label {
-    background: linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(245, 158, 11, 0.25)) !important;
-    border: 1px solid rgba(245, 158, 11, 0.45) !important;
-    color: #b45309 !important;
-    box-shadow: 0 0 10px rgba(245, 158, 11, 0.12) !important;
+    background: linear-gradient(135deg, rgba(251, 191, 36, 0.25), rgba(245, 158, 11, 0.35)) !important;
+    border: 1.5px solid rgba(217, 119, 6, 0.6) !important;
+    color: #92400e !important;
+    font-weight: 900 !important;
+    box-shadow: 0 0 12px rgba(245, 158, 11, 0.2) !important;
 }
 
 /* 4. Notification Dropdown Panel */
