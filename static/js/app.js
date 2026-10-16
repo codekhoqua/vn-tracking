@@ -9308,49 +9308,52 @@ async function submitMultiStepLeave(e) {
         } else if (resJson && resJson.gdrive_error) {
             console.warn('[Leave] GDrive note:', resJson.gdrive_error);
         }
-    } catch (err) {
-        console.warn('Local submit error:', err);
-    }
 
-    // 2. Submit to Google Form via hidden form & iframe (if configured)
-    try {
-        const hiddenForm = document.getElementById('google-hidden-leave-form');
-        if (hiddenForm) {
-            hiddenForm.innerHTML = '';
-            const cfg = window.GOOGLE_LEAVE_FORM_CONFIG.entries;
-
-            const appendField = (name, val) => {
-                if (!name) return;
-                const inp = document.createElement('input');
-                inp.type = 'hidden';
-                inp.name = name;
-                inp.value = val;
-                hiddenForm.appendChild(inp);
-            };
-
-            appendField(cfg.fullname, fullname);
-            appendField(cfg.staffCode, staffCode);
-            appendField(cfg.department, dept);
-            appendField(cfg.startDate, `${startDate} ${startTime}`);
-            appendField(cfg.endDate, `${endDate} ${endTime}`);
-            appendField(cfg.totalDays, totalDays);
-            appendField(cfg.leaveType, leaveType);
-
-            hiddenForm.submit();
-        }
-    } catch (err) {
-        console.warn('Google form hidden submit error:', err);
-    }
-
-    // Complete submission
-    setTimeout(() => {
-        if (isSubmittingLeave) {
-            finishLeaveSubmission(true, submitSuccessMsg);
-            if (typeof loadTeamLeaveSchedule === 'function') {
-                loadTeamLeaveSchedule();
+        // Submit to Google Form via hidden form in background (fire-and-forget)
+        try {
+            const hiddenForm = document.getElementById('google-hidden-leave-form');
+            if (hiddenForm) {
+                hiddenForm.innerHTML = '';
+                const cfg = window.GOOGLE_LEAVE_FORM_CONFIG.entries;
+                const appendField = (name, val) => {
+                    if (!name) return;
+                    const inp = document.createElement('input');
+                    inp.type = 'hidden';
+                    inp.name = name;
+                    inp.value = val;
+                    hiddenForm.appendChild(inp);
+                };
+                appendField(cfg.fullname, fullname);
+                appendField(cfg.staffCode, staffCode);
+                appendField(cfg.department, dept);
+                appendField(cfg.startDate, `${startDate} ${startTime}`);
+                appendField(cfg.endDate, `${endDate} ${endTime}`);
+                appendField(cfg.totalDays, totalDays);
+                appendField(cfg.leaveType, leaveType);
+                hiddenForm.submit();
             }
+        } catch (_) {}
+
+        // Hoàn tất lưu ngay lập tức (sub-100ms)
+        if (res.ok && resJson && resJson.ok) {
+            finishLeaveSubmission(true, submitSuccessMsg);
+            const calIframe = document.getElementById('calendar-page-iframe') || document.getElementById('calendar-iframe');
+            if (calIframe && calIframe.src) {
+                try {
+                    calIframe.contentWindow.location.reload();
+                } catch (_) {
+                    calIframe.src = calIframe.src;
+                }
+            }
+            return;
+        } else {
+            finishLeaveSubmission(false, (resJson && resJson.error) || 'Lỗi gửi đơn');
+            return;
         }
-    }, 1500);
+    } catch (err) {
+        console.warn('Submit error:', err);
+        finishLeaveSubmission(false, err.message || 'Lỗi kết nối khi gửi đơn');
+    }
 }
 window.submitMultiStepLeave = submitMultiStepLeave;
 

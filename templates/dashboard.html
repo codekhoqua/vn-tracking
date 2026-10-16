@@ -122,47 +122,8 @@
         <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative;">
             <!-- Subview 1: Calendar View -->
             <div id="calendar-subview-main" class="calendar-subview-panel active" style="position: relative; display: flex; flex-direction: column; width: 100%; height: 100%; overflow: hidden;">
-                <!-- Top Strip: Thành viên nghỉ phép (Avatar + Lý do) -->
-                <div id="team-leave-strip" style="background: rgba(15, 23, 42, 0.95); border-bottom: 1px solid var(--border); padding: 8px 18px; display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-shrink: 0; z-index: 5;">
-                    <div style="display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; overflow-x: auto;">
-                        <div style="display: flex; align-items: center; gap: 6px; color: #818cf8; font-weight: 700; font-size: 0.82rem; white-space: nowrap;">
-                            <i class="fas fa-user-clock"></i>
-                            <span>{{ 'Nghỉ phép:' if lang == 'vi' else '休暇:' }}</span>
-                        </div>
-                        <div id="team-leave-pills-container" style="display: flex; align-items: center; gap: 8px; flex-wrap: nowrap;">
-                            <span style="font-size: 0.78rem; color: var(--text-3); font-style: italic;">Đang tải...</span>
-                        </div>
-                    </div>
-                    <button type="button" id="btn-toggle-leave-drawer" class="btn btn-outline" onclick="toggleLeaveDrawer()" style="padding: 5px 12px; font-size: 0.8rem; border-radius: 8px; display: flex; align-items: center; gap: 6px; white-space: nowrap; flex-shrink: 0; background: rgba(99, 102, 241, 0.1); border-color: rgba(99, 102, 241, 0.3); color: #c7d2fe;">
-                        <i class="fas fa-list-ul"></i>
-                        <span>{{ 'Danh sách nghỉ phép' if lang == 'vi' else '休暇リスト' }} (<span id="leave-total-count">0</span>)</span>
-                    </button>
-                </div>
-
-                <!-- Calendar Iframe Wrapper with Drawer -->
-                <div class="tool-iframe-wrapper" style="width: 100%; flex: 1; min-height: 0; border: none; position: relative;">
+                <div class="tool-iframe-wrapper" style="width: 100%; height: 100%; flex: 1; min-height: 0; border: none; position: relative;">
                     <iframe id="calendar-page-iframe" src="" style="width: 100%; height: 100%; border: none; display: block;"></iframe>
-
-                    <!-- Drawer: Slide-over details panel of all leave requests -->
-                    <div id="team-leave-drawer" style="position: absolute; top: 0; right: 0; width: 380px; max-width: 90%; height: 100%; background: #0f172a; border-left: 1px solid var(--border); box-shadow: -8px 0 24px rgba(0,0,0,0.4); transform: translateX(100%); transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1); z-index: 20; display: flex; flex-direction: column;">
-                        <div style="padding: 14px 18px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: rgba(30, 41, 59, 0.6);">
-                            <div style="display: flex; align-items: center; gap: 10px;">
-                                <div style="width: 32px; height: 32px; border-radius: 8px; background: rgba(99, 102, 241, 0.2); color: #818cf8; display: flex; align-items: center; justify-content: center; font-size: 0.95rem;">
-                                    <i class="fas fa-calendar-check"></i>
-                                </div>
-                                <div>
-                                    <h4 style="margin: 0; font-size: 0.95rem; font-weight: 700; color: #f8fafc;">{{ 'Lịch Nghỉ Phép Team' if lang == 'vi' else 'チーム休暇スケジュール' }}</h4>
-                                    <p style="margin: 2px 0 0; font-size: 0.74rem; color: #94a3b8;">{{ 'Danh sách đơn xin nghỉ' if lang == 'vi' else '申請済みリスト' }}</p>
-                                </div>
-                            </div>
-                            <button type="button" onclick="toggleLeaveDrawer(false)" style="background: none; border: none; color: #94a3b8; font-size: 1.3rem; cursor: pointer; padding: 2px 6px;">&times;</button>
-                        </div>
-
-                        <!-- Drawer List -->
-                        <div id="team-leave-drawer-list" style="flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px;">
-                            <!-- Cards will be populated dynamically -->
-                        </div>
-                    </div>
                 </div>
             </div>
 
@@ -789,7 +750,7 @@
     <div class="mobile-brand">
         <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" width="30" height="30" style="border-radius: 8px; object-fit: contain;">
         <span>VN-Tracking</span>
-        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.105</i></sup>
+        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.106</i></sup>
     </div>
     <div class="mobile-topbar-right">
         <button type="button" class="mobile-icon-btn" onclick="toggleNotificationPanel(event)" title="{{ 'Thông báo' if lang == 'vi' else '通知' }}">
@@ -941,7 +902,7 @@
             </div>
             <div class="sidebar-logo-text">
                 <span class="sidebar-brand-name">VN-Tracking</span>
-                <sup class="version-tag"><i>v1.9.105</i></sup>
+                <sup class="version-tag"><i>v1.9.106</i></sup>
             </div>
         </div>
     </div>
