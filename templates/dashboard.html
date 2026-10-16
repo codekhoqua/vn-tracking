@@ -137,7 +137,7 @@
             <div id="calendar-subview-attendance" class="calendar-subview-panel" style="width: 100%; height: 100%; flex: 1; min-height: 0; overflow: hidden; padding: 0;">
                 <div class="leave-subpage-container">
                     <!-- Subpage Header -->
-                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 18px 24px; border-bottom: 1px solid var(--border); background: rgba(15, 23, 42, 0.9);">
+                    <div class="leave-subpage-header" style="display: flex; justify-content: space-between; align-items: center; padding: 18px 24px; border-bottom: 1px solid var(--border); background: var(--surface);">
                         <div style="display: flex; align-items: center; gap: 12px;">
                             <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(99, 102, 241, 0.15); color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">
                                 <i class="fas fa-file-signature"></i>
@@ -244,13 +244,13 @@
                                 </div>
 
                                 <!-- Checkbox Confirm -->
-                                <div style="background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: 12px; padding: 14px 16px;">
-                                    <div style="font-weight: 700; font-size: 0.88rem; color: #e0e7ff; margin-bottom: 8px;">
+                                <div class="leave-confirm-box" style="background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: 12px; padding: 14px 16px;">
+                                    <div class="leave-confirm-title" style="font-weight: 700; font-size: 0.88rem; color: var(--text); margin-bottom: 8px;">
                                         XÁC NHẬN QUY ĐỊNH VỀ NGÀY NGHỈ | 休暇規定の確認 <span style="color: #ef4444;">*</span>
                                     </div>
                                     <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer; user-select: none;">
                                         <input type="checkbox" id="leave-agree-checkbox" onchange="onLeaveAgreeChange()" style="accent-color: #6366f1; width: 18px; height: 18px; margin-top: 2px;">
-                                        <span style="font-size: 0.85rem; color: #f8fafc; line-height: 1.45; font-weight: 500;">
+                                        <span class="leave-confirm-text" style="font-size: 0.85rem; color: var(--text-2); line-height: 1.45; font-weight: 500;">
                                             Tôi đã hiểu <strong>QUY ĐỊNH VỀ NGÀY NGHỈ</strong> và xác nhận <strong>TUÂN THỦ</strong> | 休暇規定について理解し、遵守することを確認いたします。
                                         </span>
                                     </label>
@@ -504,7 +504,7 @@
                     </div>
 
                     <!-- Footer Navigation -->
-                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 28px; border-top: 1px solid var(--border); background: rgba(15, 23, 42, 0.9);">
+                    <div class="leave-subpage-footer" style="display: flex; justify-content: space-between; align-items: center; padding: 16px 28px; border-top: 1px solid var(--border); background: var(--surface);">
                         <div>
                             <button type="button" class="btn btn-outline" id="leave-btn-prev" onclick="navigateLeaveStep(-1)" style="padding: 9px 18px; border-radius: 10px; font-size: 0.9rem; display: none;">
                                 <i class="fas fa-arrow-left" style="margin-right: 6px;"></i>
@@ -808,7 +808,7 @@
     <div class="mobile-brand">
         <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" width="30" height="30" style="border-radius: 8px; object-fit: contain;">
         <span>VN-Tracking</span>
-        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.130</i></sup>
+        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.131</i></sup>
     </div>
     <div class="mobile-topbar-right">
         <button type="button" class="mobile-icon-btn" onclick="toggleNotificationPanel(event)" title="{{ 'Thông báo' if lang == 'vi' else '通知' }}">
@@ -960,7 +960,7 @@
             </div>
             <div class="sidebar-logo-text">
                 <span class="sidebar-brand-name">VN-Tracking</span>
-                <sup class="version-tag"><i>v1.9.130</i></sup>
+                <sup class="version-tag"><i>v1.9.131</i></sup>
             </div>
         </div>
     </div>

@@ -3377,6 +3377,18 @@ function openToolPage(toolKey) {
         const weatherCanvas = document.getElementById('weather-canvas') || document.getElementById('rain-canvas');
         if (weatherCanvas) weatherCanvas.style.display = 'none';
     }
+
+    // Sync theme to tool iframe
+    const isDarkTheme = document.body.classList.contains('dark-theme');
+    const toolIframe = pageEl.querySelector('iframe');
+    if (toolIframe && toolIframe.contentWindow) {
+        try {
+            toolIframe.contentWindow.postMessage({
+                type: 'theme_change',
+                theme: isDarkTheme ? 'dark' : 'light'
+            }, '*');
+        } catch (e) {}
+    }
 }
 
 function closeToolPage(toolKey) {
@@ -4181,6 +4193,18 @@ function toggleTheme() {
     if (typeof window.syncGrassBannerTheme === 'function') {
         window.syncGrassBannerTheme();
     }
+
+    // Broadcast theme change to all child iframes (LSA Drive, PSD Tool, etc.)
+    document.querySelectorAll('iframe').forEach(ifr => {
+        try {
+            if (ifr.contentWindow) {
+                ifr.contentWindow.postMessage({
+                    type: 'theme_change',
+                    theme: isDark ? 'dark' : 'light'
+                }, '*');
+            }
+        } catch (e) {}
+    });
 
     // Defer heavy chart redraw until after the 220ms CSS theme transition completes
     // This completely eliminates any frame drops or stutter during theme switch!

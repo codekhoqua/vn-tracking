@@ -7833,4 +7833,224 @@ body:not(.dark-theme) .flatpickr-calendar .flatpickr-time input {
     background: #f1f5f9 !important;
 }
 
+/* 8. Task Detail Page Right Column (Time Tracker & Logtime Card) */
+body:not(.dark-theme) .task-side-col .time-tracker-box,
+body:not(.dark-theme) .task-side-col .task-page-logtime-card {
+    background: #ffffff !important;
+    border: 1px solid rgba(99, 102, 241, 0.18) !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05) !important;
+}
+body:not(.dark-theme) .task-side-col .time-tracker-box::before {
+    background: linear-gradient(90deg, transparent, #6366f1, #818cf8, transparent) !important;
+}
+body:not(.dark-theme) .task-side-col .tracker-header,
+body:not(.dark-theme) .task-side-col .task-page-logtime-title {
+    color: #0f172a !important;
+}
+body:not(.dark-theme) .task-side-col .tracker-time {
+    background: rgba(99, 102, 241, 0.08) !important;
+    color: #4f46e5 !important;
+    border: 1px solid rgba(99, 102, 241, 0.22) !important;
+    text-shadow: none !important;
+}
+body:not(.dark-theme) .task-side-col .tracker-note,
+body:not(.dark-theme) .task-side-col .form-group select,
+body:not(.dark-theme) .task-side-col .form-group input {
+    background: #f8fafc !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #0f172a !important;
+}
+body:not(.dark-theme) .task-side-col .tracker-note:focus,
+body:not(.dark-theme) .task-side-col .form-group select:focus,
+body:not(.dark-theme) .task-side-col .form-group input:focus {
+    background: #ffffff !important;
+    border-color: #6366f1 !important;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15) !important;
+    color: #0f172a !important;
+}
+body:not(.dark-theme) .task-side-col .form-group label {
+    color: #475569 !important;
+}
+body:not(.dark-theme) .task-side-col .task-page-logtime-header {
+    border-bottom: 1px solid #e2e8f0 !important;
+}
+body:not(.dark-theme) .task-side-col .tracker-history-section {
+    border-top: 1px solid #e2e8f0 !important;
+}
+body:not(.dark-theme) .task-side-col .tracker-history-header {
+    color: #64748b !important;
+}
+body:not(.dark-theme) .task-side-col .tracker-history-item {
+    background: #f8fafc !important;
+    border: 1px solid #e2e8f0 !important;
+}
+body:not(.dark-theme) .task-side-col .tracker-history-note {
+    color: #1e293b !important;
+}
+body:not(.dark-theme) .task-side-col .tracker-history-time {
+    color: #64748b !important;
+}
+body:not(.dark-theme) .task-side-col .tracker-history-dur {
+    background: rgba(16, 185, 129, 0.1) !important;
+    color: #059669 !important;
+}
+body:not(.dark-theme) .task-side-col .tracker-history-empty {
+    color: #94a3b8 !important;
+}
+body:not(.dark-theme) .task-side-col .btn-tracker.start {
+    background: rgba(16, 185, 129, 0.12) !important;
+    border: 1px solid rgba(16, 185, 129, 0.35) !important;
+    color: #059669 !important;
+}
+body:not(.dark-theme) .task-side-col .btn-tracker.start:hover {
+    background: rgba(16, 185, 129, 0.22) !important;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2) !important;
+}
+body:not(.dark-theme) .task-side-col .btn-tracker.end {
+    background: rgba(239, 68, 68, 0.1) !important;
+    border: 1px solid rgba(239, 68, 68, 0.3) !important;
+    color: #dc2626 !important;
+}
+body:not(.dark-theme) .task-side-col .btn-tracker.end:hover:not(:disabled) {
+    background: rgba(239, 68, 68, 0.2) !important;
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2) !important;
+}
+body:not(.dark-theme) .task-side-col .btn-tracker.save {
+    background: #f1f5f9 !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #334155 !important;
+}
+body:not(.dark-theme) .task-side-col .btn-tracker.save:hover {
+    background: #6366f1 !important;
+    border-color: #6366f1 !important;
+    color: #ffffff !important;
+}
 
+/* 9. Sidebar Virtual Pet Panel */
+body:not(.dark-theme) .sidebar-pet-panel {
+    background: linear-gradient(165deg, #ffffff, #f8fafc) !important;
+    border: 1px solid rgba(139, 92, 246, 0.25) !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06), 0 0 16px rgba(139, 92, 246, 0.05) !important;
+    color: #0f172a !important;
+}
+body:not(.dark-theme) .sidebar-pet-header {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06) !important;
+}
+body:not(.dark-theme) .sidebar-pet-name {
+    color: #1e293b !important;
+}
+body:not(.dark-theme) .sidebar-pet-name:hover {
+    color: #7c3aed !important;
+}
+body:not(.dark-theme) .sidebar-pet-action-btn {
+    background: rgba(0, 0, 0, 0.04) !important;
+    border: 1px solid rgba(0, 0, 0, 0.08) !important;
+    color: #64748b !important;
+}
+body:not(.dark-theme) .sidebar-pet-action-btn:hover {
+    background: rgba(139, 92, 246, 0.15) !important;
+    border-color: rgba(139, 92, 246, 0.35) !important;
+    color: #7c3aed !important;
+}
+body:not(.dark-theme) .sidebar-pet-status-row {
+    color: #64748b !important;
+}
+body:not(.dark-theme) .sidebar-pet-action-bar {
+    border-top: 1px solid rgba(0, 0, 0, 0.05) !important;
+}
+body:not(.dark-theme) .pet-stat-item {
+    color: #334155 !important;
+}
+body:not(.dark-theme) #pet-speech-bubble,
+body:not(.dark-theme) .pet-speech-bubble {
+    background: rgba(255, 255, 255, 0.98) !important;
+    border-color: rgba(168, 85, 247, 0.5) !important;
+    color: #0f172a !important;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1) !important;
+}
+body:not(.dark-theme) #pet-speech-bubble::before,
+body:not(.dark-theme) .pet-speech-bubble::before {
+    border-color: transparent rgba(255, 255, 255, 0.98) transparent transparent !important;
+}
+body:not(.dark-theme) #pet-speech-text,
+body:not(.dark-theme) .pet-speech-text {
+    color: #0f172a !important;
+}
+
+/* 10. Team Calendar - Attendance Subpage */
+body:not(.dark-theme) .leave-subpage-container {
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08) !important;
+}
+body:not(.dark-theme) .leave-stepper {
+    background: #f8fafc !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+}
+body:not(.dark-theme) .leave-step-item {
+    color: #64748b !important;
+}
+body:not(.dark-theme) .leave-step-item.active {
+    color: #4f46e5 !important;
+}
+body:not(.dark-theme) .leave-step-num {
+    background: #e2e8f0 !important;
+    color: #64748b !important;
+}
+body:not(.dark-theme) .leave-step-sep {
+    background: #e2e8f0 !important;
+}
+body:not(.dark-theme) .leave-card {
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04) !important;
+}
+body:not(.dark-theme) .leave-card-title {
+    color: #0f172a !important;
+}
+body:not(.dark-theme) .leave-card-sub {
+    color: #64748b !important;
+}
+body:not(.dark-theme) .leave-policy-content {
+    background: #f8fafc !important;
+    border: 1px solid #e2e8f0 !important;
+    color: #334155 !important;
+}
+body:not(.dark-theme) .leave-policy-content h4 {
+    color: #4338ca !important;
+}
+body:not(.dark-theme) .leave-radio-option {
+    background: #f8fafc !important;
+    border: 1px solid #e2e8f0 !important;
+    color: #0f172a !important;
+}
+body:not(.dark-theme) .leave-radio-option:hover {
+    background: rgba(99, 102, 241, 0.08) !important;
+    border-color: rgba(99, 102, 241, 0.4) !important;
+}
+body:not(.dark-theme) .leave-subpage-header,
+body:not(.dark-theme) .leave-subpage-footer {
+    background: #ffffff !important;
+    border-color: #e2e8f0 !important;
+}
+body:not(.dark-theme) .leave-confirm-box {
+    background: rgba(99, 102, 241, 0.06) !important;
+    border: 1px solid rgba(99, 102, 241, 0.22) !important;
+}
+body:not(.dark-theme) .leave-confirm-title {
+    color: #312e81 !important;
+}
+body:not(.dark-theme) .leave-confirm-text {
+    color: #1e293b !important;
+}
+
+/* 11. Global Card Variable Mapping */
+:root {
+    --bg-card: var(--surface);
+}
+body:not(.dark-theme) {
+    --bg-card: #ffffff;
+}
+body.dark-theme {
+    --bg-card: #141926;
+}
