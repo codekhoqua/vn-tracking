@@ -2992,7 +2992,7 @@ def lsa_drive():
         filter_cv_sau=[],
         users=[],
         tasks=[],
-        app_version='v1.9.113',
+        app_version='v1.9.114',
     )
 
 # =====================================================================
@@ -4304,8 +4304,7 @@ def create_leave_calendar_event(rec):
             "gdriveLink": gdrive_link,
             "description": "\n".join(desc_lines),
             "notifyEmail": notify_email_str,
-            "notifyEmails": notify_emails,
-            "guests": notify_email_str
+            "notifyEmails": notify_emails
         }
 
         s = get_gdrive_http_session()
@@ -4380,8 +4379,7 @@ def api_admin_leave_email_test():
         payload = {
             "action": "send_test_email",
             "notifyEmail": ", ".join(emails),
-            "notifyEmails": emails,
-            "guests": ", ".join(emails)
+            "notifyEmails": emails
         }
         s = get_gdrive_http_session()
         r = s.post(LEAVE_GDRIVE_SCRIPT_URL, json=payload, timeout=20)
