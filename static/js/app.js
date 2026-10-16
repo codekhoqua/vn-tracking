@@ -8982,7 +8982,8 @@ function updateLeaveSubmitButtonState() {
     const notice = document.getElementById('leave-upload-required-notice');
     if (!submitBtn) return;
 
-    if (selectedLeaveFile || uploadedGDriveLink) {
+    if (uploadedGDriveLink) {
+        // Chỉ khi có uploadedGDriveLink từ Drive mới cho phép bấm gửi đơn
         submitBtn.disabled = false;
         submitBtn.style.opacity = '1';
         submitBtn.style.cursor = 'pointer';
@@ -8991,18 +8992,43 @@ function updateLeaveSubmitButtonState() {
             notice.style.background = 'rgba(16, 185, 129, 0.1)';
             notice.style.borderColor = 'rgba(16, 185, 129, 0.3)';
             notice.style.color = '#34d399';
-            notice.innerHTML = '<i class="fas fa-check-circle"></i> <span><strong>Ảnh xác nhận đã sẵn sàng:</strong> Bạn có thể nhấn <strong>Gửi đơn</strong> ngay!</span>';
+            notice.innerHTML = '<i class="fas fa-check-circle"></i> <span><strong>Ảnh xác nhận đã tải lên Google Drive thành công:</strong> Bạn có thể nhấn <strong>Gửi đơn</strong> ngay!</span>';
         }
-    } else {
+    } else if (isUploadingGDrive) {
+        // Đang tải ảnh lên Drive -> khóa nút gửi đơn và hiện trạng thái chờ
         submitBtn.disabled = true;
         submitBtn.style.opacity = '0.5';
         submitBtn.style.cursor = 'not-allowed';
-        submitBtn.title = 'Vui lòng chọn ảnh xác nhận trước khi gửi đơn';
+        submitBtn.title = 'Đang tải ảnh lên Google Drive, vui lòng chờ trong giây lát...';
+        if (notice) {
+            notice.style.background = 'rgba(59, 130, 246, 0.1)';
+            notice.style.borderColor = 'rgba(59, 130, 246, 0.3)';
+            notice.style.color = '#60a5fa';
+            notice.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span><strong>Đang tải ảnh lên Google Drive...</strong> Nút gửi đơn sẽ tự động mở khi tải ảnh xong.</span>';
+        }
+    } else if (selectedLeaveFile) {
+        // Đã chọn ảnh nhưng chưa có link Drive (hoặc upload bị lỗi)
+        submitBtn.disabled = true;
+        submitBtn.style.opacity = '0.5';
+        submitBtn.style.cursor = 'not-allowed';
+        submitBtn.title = 'Vui lòng nhấn Tải ảnh lên Google Drive trước khi gửi đơn';
         if (notice) {
             notice.style.background = 'rgba(245, 158, 11, 0.1)';
             notice.style.borderColor = 'rgba(245, 158, 11, 0.3)';
             notice.style.color = '#fbbf24';
-            notice.innerHTML = '<i class="fas fa-exclamation-triangle"></i> <span><strong>Bắt buộc:</strong> Bạn cần chọn ảnh xác nhận của PM/Leader trước khi gửi đơn.</span>';
+            notice.innerHTML = '<i class="fas fa-exclamation-triangle"></i> <span><strong>Bắt buộc:</strong> Bạn cần nhấn <strong>Tải ảnh lên Google Drive</strong> thành công mới có thể gửi đơn.</span>';
+        }
+    } else {
+        // Chưa chọn ảnh
+        submitBtn.disabled = true;
+        submitBtn.style.opacity = '0.5';
+        submitBtn.style.cursor = 'not-allowed';
+        submitBtn.title = 'Vui lòng chọn ảnh xác nhận và tải lên Google Drive trước khi gửi đơn';
+        if (notice) {
+            notice.style.background = 'rgba(245, 158, 11, 0.1)';
+            notice.style.borderColor = 'rgba(245, 158, 11, 0.3)';
+            notice.style.color = '#fbbf24';
+            notice.innerHTML = '<i class="fas fa-exclamation-triangle"></i> <span><strong>Bắt buộc:</strong> Bạn cần chọn ảnh xác nhận của Quản lý và tải lên Google Drive trước khi gửi đơn.</span>';
         }
     }
 }
@@ -9147,7 +9173,7 @@ async function onLeaveFileSelected(e) {
         statusBox.style.display = 'none';
         statusBox.innerHTML = '';
     }
-    // Mở khóa nút gửi đơn ngay
+    // Khóa nút gửi đơn cho đến khi ảnh upload Drive xong
     updateLeaveSubmitButtonState();
     // Tự động tải ảnh lên Google Drive ngay khi chọn file
     setTimeout(() => {
@@ -9159,6 +9185,7 @@ window.onLeaveFileSelected = onLeaveFileSelected;
 function removeLeaveSelectedFile() {
     selectedLeaveFile = null;
     uploadedGDriveLink = '';
+    isUploadingGDrive = false;
     const fileInp = document.getElementById('leave-attachment-input');
     if (fileInp) fileInp.value = '';
     const previewCard = document.getElementById('leave-file-preview-card');
@@ -9167,6 +9194,14 @@ function removeLeaveSelectedFile() {
     if (statusBox) {
         statusBox.style.display = 'none';
         statusBox.innerHTML = '';
+    }
+    const gdriveBtn = document.getElementById('leave-btn-upload-gdrive');
+    const gdriveBtnTxt = document.getElementById('leave-btn-upload-gdrive-text');
+    if (gdriveBtn && gdriveBtnTxt) {
+        gdriveBtn.disabled = false;
+        gdriveBtn.style.background = '#2563eb';
+        gdriveBtn.style.borderColor = '#3b82f6';
+        gdriveBtnTxt.textContent = 'Tải ảnh lên Google Drive';
     }
     updateLeaveSubmitButtonState();
 }
@@ -9182,6 +9217,8 @@ async function uploadAttachmentToGDriveDirectly() {
     }
 
     isUploadingGDrive = true;
+    updateLeaveSubmitButtonState();
+
     const btn = document.getElementById('leave-btn-upload-gdrive');
     const btnTxt = document.getElementById('leave-btn-upload-gdrive-text');
     const statusBox = document.getElementById('leave-gdrive-upload-status');
@@ -9213,6 +9250,7 @@ async function uploadAttachmentToGDriveDirectly() {
             if (btn) {
                 btn.style.background = '#10b981';
                 btn.style.borderColor = '#10b981';
+                btn.disabled = true;
             }
             if (statusBox) {
                 statusBox.innerHTML = `<span style="color: #34d399; font-weight: 600;"><i class="fas fa-check-circle"></i> Đã lưu vào Drive</span> <a href="${data.gdrive_link}" target="_blank" style="color: #60a5fa; text-decoration: underline; margin-left: 8px; font-weight: 500;">Mở xem trên Drive <i class="fas fa-external-link-alt" style="font-size: 0.72rem;"></i></a>`;
@@ -9240,6 +9278,7 @@ async function uploadAttachmentToGDriveDirectly() {
         updateLeaveSubmitButtonState();
     } finally {
         isUploadingGDrive = false;
+        updateLeaveSubmitButtonState();
     }
 }
 window.uploadAttachmentToGDriveDirectly = uploadAttachmentToGDriveDirectly;
@@ -9250,6 +9289,64 @@ function onLeaveIframeLoad() {
     }
 }
 
+function resetLeaveForm() {
+    selectedLeaveFile = null;
+    uploadedGDriveLink = '';
+    isUploadingGDrive = false;
+    isSubmittingLeave = false;
+
+    // Reset file input & preview
+    const fileInp = document.getElementById('leave-attachment-input');
+    if (fileInp) fileInp.value = '';
+    const previewCard = document.getElementById('leave-file-preview-card');
+    if (previewCard) previewCard.style.display = 'none';
+    const previewImg = document.getElementById('leave-preview-img');
+    if (previewImg) previewImg.src = '';
+    const statusBox = document.getElementById('leave-gdrive-upload-status');
+    if (statusBox) {
+        statusBox.style.display = 'none';
+        statusBox.innerHTML = '';
+    }
+    const gdriveBtn = document.getElementById('leave-btn-upload-gdrive');
+    const gdriveBtnTxt = document.getElementById('leave-btn-upload-gdrive-text');
+    if (gdriveBtn && gdriveBtnTxt) {
+        gdriveBtn.disabled = false;
+        gdriveBtn.style.background = '#2563eb';
+        gdriveBtn.style.borderColor = '#3b82f6';
+        gdriveBtnTxt.textContent = 'Tải ảnh lên Google Drive';
+    }
+
+    // Reset form fields (tránh lưu cache từ session trước)
+    const startDateInp = document.getElementById('leave-start-date');
+    const startTimeInp = document.getElementById('leave-start-time');
+    const endDateInp = document.getElementById('leave-end-date');
+    const endTimeInp = document.getElementById('leave-end-time');
+    const totalDaysInp = document.getElementById('leave-total-days');
+    const reasonInp = document.getElementById('leave-reason');
+    const otherInp = document.getElementById('leave-type-other-text');
+    if (startDateInp) startDateInp.value = '';
+    if (startTimeInp) startTimeInp.value = '08:00';
+    if (endDateInp) endDateInp.value = '';
+    if (endTimeInp) endTimeInp.value = '17:00';
+    if (totalDaysInp) totalDaysInp.value = '';
+    if (reasonInp) reasonInp.value = '';
+    if (otherInp) otherInp.value = '';
+
+    // Reset loại nghỉ về mặc định
+    const firstRadio = document.querySelector('input[name="leave_type_choice"][value="NGHỈ PHÉP - ANNUAL LEAVE"]');
+    if (firstRadio) firstRadio.checked = true;
+
+    // Reset xác nhận quy định
+    const agreeChk = document.getElementById('leave-agree-checkbox');
+    if (agreeChk) agreeChk.checked = false;
+
+    // Đưa stepper về Bước 1
+    currentLeaveStep = 1;
+    updateLeaveStepUI();
+    updateLeaveSubmitButtonState();
+}
+window.resetLeaveForm = resetLeaveForm;
+
 function finishLeaveSubmission(success, msg) {
     isSubmittingLeave = false;
     const btn = document.getElementById('leave-btn-submit');
@@ -9259,6 +9356,7 @@ function finishLeaveSubmission(success, msg) {
     }
     closeLeaveModal();
     if (success) {
+        resetLeaveForm(); // Reset toàn bộ form và cache để tránh double đơn hoặc sót ảnh phiên trước
         const text = msg || '✅ Đã gửi đơn đăng ký nghỉ phép thành công!';
         if (typeof showToast === 'function') {
             showToast(text, 'success');
@@ -9296,8 +9394,8 @@ async function submitMultiStepLeave(e) {
         return;
     }
 
-    if (!selectedLeaveFile && !uploadedGDriveLink) {
-        const msg = '⚠️ Bạn cần chọn ảnh xác nhận trước khi gửi đơn!';
+    if (!uploadedGDriveLink) {
+        const msg = '⚠️ Bạn cần chờ ảnh tải lên Google Drive thành công trước khi gửi đơn!';
         if (typeof showToast === 'function') {
             showToast(msg, 'warning');
         } else {
@@ -9332,12 +9430,10 @@ async function submitMultiStepLeave(e) {
         if (uploadedGDriveLink) {
             formData.append('gdrive_link', uploadedGDriveLink);
         }
-        if (selectedLeaveFile) {
-            const ext = selectedLeaveFile.name.includes('.') ? selectedLeaveFile.name.split('.').pop() : 'png';
-            const targetFilename = getLeaveGeneratedFilename(ext);
-            formData.append('attachment', selectedLeaveFile, targetFilename);
-            formData.append('target_filename', targetFilename);
-        }
+        const ext = selectedLeaveFile?.name?.includes('.') ? selectedLeaveFile.name.split('.').pop() : 'png';
+        const targetFilename = getLeaveGeneratedFilename(ext);
+        formData.append('target_filename', targetFilename);
+        // KHÔNG gửi lại binary raw attachment nếu đã có uploadedGDriveLink để tránh double upload trên Drive!
 
         const res = await fetch('/api/submit_leave_request', {
             method: 'POST',
@@ -9509,25 +9605,31 @@ window.loadTeamLeaveSchedule = loadTeamLeaveSchedule;
 // =========================================================================
 // ADMIN LEAVE EMAIL NOTIFICATION SETTINGS
 // =========================================================================
-async function openAdminLeaveEmailModal() {
+function openAdminLeaveEmailModal() {
     const overlay = document.getElementById('admin-leave-email-overlay');
     const modal = document.getElementById('admin-leave-email-modal');
-    if (!modal) return;
-    overlay.style.display = 'block';
-    modal.style.display = 'block';
-
-    try {
-        const res = await fetch('/api/admin/leave_email_config');
-        const data = await res.json().catch(() => ({}));
-        if (data && data.ok) {
-            const input = document.getElementById('admin-leave-email-input');
-            const chk = document.getElementById('admin-leave-email-enabled');
-            if (input && data.notify_email) input.value = data.notify_email;
-            if (chk) chk.checked = !!data.enabled;
-        }
-    } catch (e) {
-        console.warn('Load admin email config error:', e);
+    if (!modal || !overlay) {
+        console.warn('Admin email modal elements not found');
+        return;
     }
+    overlay.style.display = 'block';
+    overlay.style.opacity = '1';
+    overlay.style.pointerEvents = 'auto';
+    modal.style.display = 'block';
+    modal.style.opacity = '1';
+    modal.style.pointerEvents = 'auto';
+
+    fetch('/api/admin/leave_email_config')
+        .then(res => res.json())
+        .then(data => {
+            if (data && data.ok) {
+                const input = document.getElementById('admin-leave-email-input');
+                const chk = document.getElementById('admin-leave-email-enabled');
+                if (input && data.notify_email) input.value = data.notify_email;
+                if (chk) chk.checked = !!data.enabled;
+            }
+        })
+        .catch(e => console.warn('Load admin email config error:', e));
 }
 window.openAdminLeaveEmailModal = openAdminLeaveEmailModal;
 
