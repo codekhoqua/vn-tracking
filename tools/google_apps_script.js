@@ -101,17 +101,12 @@ function doPost(e) {
       var desc = data.description || "";
       var toEmails = data.notifyEmail || (data.notifyEmails ? data.notifyEmails.join(",") : "");
 
-      var eventOptions = {
+      // Tạo sự kiện trên lịch mà KHÔNG gửi thư mời Calendar (tránh gửi email trùng)
+      var event = cal.createEvent(title, start, end, {
         description: desc
-      };
-      if (toEmails) {
-        eventOptions.guests = toEmails;
-        eventOptions.sendInvites = true;
-      }
+      });
 
-      var event = cal.createEvent(title, start, end, eventOptions);
-
-      // Gửi email báo cáo chi tiết đến danh sách Admin/Quản lý
+      // Chỉ gửi 1 email báo cáo chi tiết duy nhất tới Admin
       if (toEmails) {
         try {
           var leaveHtml = [
