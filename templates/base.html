@@ -18,6 +18,14 @@
     <script src="https://npmcdn.com/flatpickr/dist/l10n/vn.js"></script>
     <script src="https://npmcdn.com/flatpickr/dist/l10n/ja.js"></script>
     <script src="{{ url_for('static', filename='js/lenis.min.js') }}"></script>
+    <script>
+        (function() {
+            var savedTheme = localStorage.getItem('vn_tracking_theme');
+            if (savedTheme === 'dark') {
+                document.documentElement.classList.add('dark-theme');
+            }
+        })();
+    </script>
     {% block head %}{% endblock %}
 </head>
 <body>
