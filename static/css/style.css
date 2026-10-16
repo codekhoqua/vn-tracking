@@ -752,9 +752,7 @@ body.sidebar-collapsed .profile-chevron {
     overflow: hidden;
     white-space: nowrap;
 }
-body.sidebar-collapsed .sidebar-pet-panel,
-body.sidebar-collapsed #lofi-radio-widget,
-body.sidebar-collapsed #radio-participants-marquee {
+body.sidebar-collapsed .sidebar-pet-panel {
     opacity: 0;
     pointer-events: none;
     max-height: 0 !important;
@@ -772,11 +770,6 @@ body.sidebar-collapsed .custom-lang-select {
     pointer-events: none;
     width: 0;
     overflow: hidden;
-}
-
-#lofi-radio-widget,
-#radio-participants-marquee {
-    transition: opacity 0.22s ease, transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), max-height 0.3s cubic-bezier(0.16, 1, 0.3, 1), margin 0.28s ease, padding 0.28s ease;
 }
 
 /* Animation lock: disable pointer events & isolate layout during sidebar toggle for 60fps smoothness */
