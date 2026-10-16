@@ -774,10 +774,23 @@ body.sidebar-collapsed .custom-lang-select {
     overflow: hidden;
 }
 
-/* Animation lock: disable pointer events during sidebar toggle for 60fps smoothness */
+#lofi-radio-widget,
+#radio-participants-marquee {
+    transition: opacity 0.22s ease, transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), max-height 0.3s cubic-bezier(0.16, 1, 0.3, 1), margin 0.28s ease, padding 0.28s ease;
+}
+
+/* Animation lock: disable pointer events & isolate layout during sidebar toggle for 60fps smoothness */
 body.sidebar-is-animating .sidebar,
 body.sidebar-is-animating .main-area {
     pointer-events: none !important;
+}
+body.sidebar-is-animating .main-area {
+    contain: layout paint !important;
+}
+body.sidebar-is-animating #tasks-table,
+body.sidebar-is-animating .table-responsive,
+body.sidebar-is-animating .tasks-table-container {
+    contain: strict !important;
 }
 body.sidebar-is-animating * {
     user-select: none !important;
@@ -788,8 +801,9 @@ body.sidebar-is-animating * {
     margin-left: var(--sidebar-w);
     padding: 32px 40px;
     min-height: 100vh;
-    transition: margin-left 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: margin-left 0.28s cubic-bezier(0.16, 1, 0.3, 1);
     will-change: margin-left;
+    transform: translateZ(0);
 }
 
 .top-header {

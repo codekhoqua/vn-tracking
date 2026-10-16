@@ -5404,6 +5404,11 @@ function handleRadioStateFromPolling(state) {
         if (window.renderRadioQueue) window.renderRadioQueue();
     }
 
+    // Luôn cập nhật listener avatars cho cả DJ lẫn listener khi có dữ liệu từ server
+    if (state.listeners) {
+        handleRadioListenersUpdate(state.listeners);
+    }
+
     if (isRadioDJ) return;
 
     // Nếu DJ tắt, các máy đang nghe (listener) tự động bị văng khỏi chế độ nghe
@@ -5467,11 +5472,6 @@ function handleRadioStateFromPolling(state) {
         }
     }
 
-    // Cập nhật listener avatars từ REST response
-    if (state.listeners) {
-        handleRadioListenersUpdate(state.listeners);
-    }
-
     updateRadioUI();
     const statusText = document.getElementById('radio-status');
     if (statusText) statusText.innerHTML = `DJ: ${state.dj_username || 'Ai đó'}`;
@@ -5516,10 +5516,10 @@ function handleRadioListenersUpdate(listeners) {
         img.style.width = '18px';
         img.style.height = '18px';
         img.style.borderRadius = '50%';
-        img.style.border = '1px solid rgba(255,255,255,0.2)';
+        img.style.border = '1px solid rgba(255,255,255,0.25)';
         img.style.marginLeft = index === 0 ? '0' : '-6px';
         img.style.objectFit = 'cover';
-        img.title = user.fullname;
+        img.title = user.fullname + (user.username === radioState.dj_username ? ' (DJ)' : ' (Đang nghe)');
         container.appendChild(img);
     });
 
@@ -5528,10 +5528,10 @@ function handleRadioListenersUpdate(listeners) {
         extra.textContent = `+${listeners.length - MAX_SHOW}`;
         Object.assign(extra.style, {
             width: '18px', height: '18px', borderRadius: '50%',
-            background: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.9)',
+            background: 'rgba(255,255,255,0.18)', color: 'rgba(255,255,255,0.95)',
             fontSize: '9px', fontWeight: '700', display: 'flex',
             alignItems: 'center', justifyContent: 'center',
-            marginLeft: '-6px', border: '1px solid rgba(255,255,255,0.2)',
+            marginLeft: '-6px', border: '1px solid rgba(255,255,255,0.25)',
             flexShrink: '0'
         });
         extra.title = listeners.slice(MAX_SHOW).map(u => u.fullname).join(', ');
@@ -5546,35 +5546,41 @@ function handleRadioListenersUpdate(listeners) {
             marqueeTrack.innerHTML = '';
             for (let copy = 0; copy < 2; copy++) {
                 var containerItem = document.createElement('span');
-                containerItem.style.cssText = 'display:inline-flex;align-items:center;flex-shrink:0;';
+                containerItem.style.cssText = 'display:inline-flex;align-items:center;flex-shrink:0;height:100%;';
                 
                 listeners.forEach(function(user, i) {
                     var img = document.createElement('img');
                     img.src = user.avatar || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(user.fullname) + '&background=random&color=fff&size=16');
-                    img.style.cssText = 'width:16px;height:16px;border-radius:50%;object-fit:cover;flex-shrink:0;border:1px solid var(--border);';
-                    if (i > 0) img.style.marginLeft = '-6px';
+                    img.style.cssText = 'width:16px;height:16px;border-radius:50%;object-fit:cover;flex-shrink:0;border:1px solid rgba(255,255,255,0.3);';
+                    if (i > 0) img.style.marginLeft = '-5px';
                     img.referrerPolicy = 'no-referrer';
+                    img.title = user.fullname;
                     img.onerror = function() { this.style.display='none'; };
                     containerItem.appendChild(img);
                 });
                 
                 var desc = document.createElement('span');
-                desc.style.cssText = 'font-size:10px;color:var(--text);font-weight:500;white-space:nowrap;margin-left:6px;';
-                desc.textContent = (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi') ? 'đang tham gia phát nhạc 🎵' : 'が再生に参加しています 🎵';
+                desc.style.cssText = 'font-size:10.5px;color:rgba(255,255,255,0.95);font-weight:600;white-space:nowrap;margin-left:6px;';
+                var isVi = (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi');
+                if (listeners.length === 1) {
+                    desc.textContent = isVi ? (listeners[0].fullname + ' đang phát nhạc 🎵') : (listeners[0].fullname + ' が再生中 🎵');
+                } else {
+                    desc.textContent = isVi ? (listeners.length + ' người đang cùng nghe nhạc 🎵') : (listeners.length + ' 人が音楽を聴いています 🎵');
+                }
                 containerItem.appendChild(desc);
                 marqueeTrack.appendChild(containerItem);
                 
                 if (copy === 0) {
                     var dot = document.createElement('span');
-                    dot.style.cssText = 'color:var(--text-3);font-size:8px;flex-shrink:0;margin:0 12px;';
-                    dot.textContent = '\u2022';
+                    dot.style.cssText = 'color:rgba(255,255,255,0.4);font-size:10px;flex-shrink:0;margin:0 12px;';
+                    dot.textContent = '•';
                     marqueeTrack.appendChild(dot);
                 }
             }
             marqueeEl.style.display = 'flex';
             requestAnimationFrame(function() {
                 var halfWidth = marqueeTrack.scrollWidth / 2;
-                var duration = Math.max(8, halfWidth / 30);
+                var duration = Math.max(8, halfWidth / 28);
                 marqueeTrack.style.animation = 'radioMarquee ' + duration + 's linear infinite';
             });
         } else {
