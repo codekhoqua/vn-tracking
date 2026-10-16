@@ -214,6 +214,7 @@ function placeToolsHighlight(it) {
 
 function toggleSidebarRail() {
     const isCollapsed = document.body.classList.toggle('sidebar-collapsed');
+    document.body.classList.add('sidebar-is-animating');
     const tog = document.getElementById('sidebar-rail-tog');
     if (tog) {
         tog.setAttribute('aria-expanded', String(!isCollapsed));
@@ -222,12 +223,12 @@ function toggleSidebarRail() {
     try {
         localStorage.setItem('vn_sidebar_collapsed', isCollapsed ? 'true' : 'false');
     } catch (e) {}
-    placeSidebarHighlight();
-    placeToolsHighlight();
+
     setTimeout(() => {
+        document.body.classList.remove('sidebar-is-animating');
         placeSidebarHighlight();
         placeToolsHighlight();
-    }, 310);
+    }, 320);
 }
 
 // Restore saved sidebar collapsed state on load

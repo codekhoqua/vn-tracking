@@ -808,7 +808,7 @@
     <div class="mobile-brand">
         <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" width="30" height="30" style="border-radius: 8px; object-fit: contain;">
         <span>VN-Tracking</span>
-        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.117</i></sup>
+        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.118</i></sup>
     </div>
     <div class="mobile-topbar-right">
         <button type="button" class="mobile-icon-btn" onclick="toggleNotificationPanel(event)" title="{{ 'Thông báo' if lang == 'vi' else '通知' }}">
@@ -960,7 +960,7 @@
             </div>
             <div class="sidebar-logo-text">
                 <span class="sidebar-brand-name">VN-Tracking</span>
-                <sup class="version-tag"><i>v1.9.117</i></sup>
+                <sup class="version-tag"><i>v1.9.118</i></sup>
             </div>
         </div>
     </div>
@@ -4911,13 +4911,12 @@
         margin-bottom: 8px;
         border-radius: 16px;
         overflow: hidden;
-        background: linear-gradient(165deg, rgba(30, 27, 75, 0.75), rgba(15, 23, 42, 0.92));
+        background: linear-gradient(165deg, rgba(30, 27, 75, 0.90), rgba(15, 23, 42, 0.96));
         border: 1px solid rgba(139, 92, 246, 0.25);
         box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3), 0 0 20px rgba(139, 92, 246, 0.08);
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
         color: #fff;
-        transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+        max-height: 420px;
+        transition: opacity 0.22s ease, transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), max-height 0.3s cubic-bezier(0.16, 1, 0.3, 1), margin 0.28s ease, padding 0.28s ease;
     }
 
     .sidebar-pet-panel:hover {
