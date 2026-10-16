@@ -5807,7 +5807,7 @@ let isRadioDJ = false;
 let isListening = false;
 let radioState = {
     is_playing: false,
-    youtube_id: '4xDzrIxC4Dk', // Lofi Girl Synthwave
+    youtube_id: 'jfKfPfyJRdk', // Lofi Girl Synthwave
     current_time: 0,
     allow_requests: true,
     is_automix_enabled: false,
@@ -7232,8 +7232,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (coverImg && coverImg.src !== coverUrl) coverImg.src = coverUrl;
                 if (bgBlur) bgBlur.style.backgroundImage = `url('${coverUrl}')`;
             } else if (!isListening && !isRadioDJ) {
-                const coverUrl = 'https://img.youtube.com/vi/4xDzrIxC4Dk/hqdefault.jpg';
-                if (coverImg && !coverImg.src.includes('4xDzrIxC4Dk')) coverImg.src = coverUrl;
+                const coverUrl = 'https://img.youtube.com/vi/jfKfPfyJRdk/hqdefault.jpg';
+                if (coverImg && !coverImg.src.includes('jfKfPfyJRdk')) coverImg.src = coverUrl;
                 if (bgBlur) bgBlur.style.backgroundImage = `url('${coverUrl}')`;
             }
         } else {

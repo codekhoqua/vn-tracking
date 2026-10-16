@@ -5368,17 +5368,19 @@ def api_pet_cheat_food():
 # Trên Vercel, Socket.IO không hoạt động vì serverless không giữ persistent
 # connection. Các endpoint REST này cho phép client polling để đồng bộ DJ state.
 # State được lưu dưới dạng file JSON trên Supabase Storage.
+IS_PRODUCTION = bool(os.environ.get('VERCEL') or os.environ.get('VERCEL_ENV') == 'production')
+SYSTEM_PREFIX = '_system' if IS_PRODUCTION else '_system_dev'
 
-RADIO_STATE_FILE = '_system/radio_state.json'
+RADIO_STATE_FILE = f'{SYSTEM_PREFIX}/radio_state.json'
 # Mỗi listener/user online là MỘT file riêng trong folder (tránh race khi
 # nhiều người ghi chung 1 file -> trước đây bị "kẹt ở 3 người").
-RADIO_LISTENERS_DIR = '_system/radio_listeners'
-ONLINE_USERS_DIR = '_system/online_users'
+RADIO_LISTENERS_DIR = f'{SYSTEM_PREFIX}/radio_listeners'
+ONLINE_USERS_DIR = f'{SYSTEM_PREFIX}/online_users'
 PRESENCE_TTL = 45  # giây: quá hạn không heartbeat coi như offline
 
 _DEFAULT_RADIO_STATE = {
     'is_playing': False,
-    'youtube_id': '4xDzrIxC4Dk',
+    'youtube_id': 'jfKfPfyJRdk',
     'current_time': 0,
     'last_update': 0,
     'dj_username': None,
@@ -5408,13 +5410,18 @@ def _radio_read_state():
 
 def _radio_write_state(state):
     """Ghi radio state vào Supabase Storage."""
+    state['last_update'] = time.time()
     if not USE_SUPABASE:
+        global radio_state
+        radio_state = state.copy()
         return
     try:
-        state['last_update'] = time.time()
         sb_upload(RADIO_STATE_FILE, json.dumps(state).encode('utf-8'), 'application/json')
     except Exception:
         pass
+
+
+_local_presence = {}
 
 
 def _presence_key(username):
@@ -5428,11 +5435,19 @@ def _presence_read_dir(dir_path):
 
     Mỗi user = 1 file nên nhiều người join/heartbeat song song không ghi đè
     lên nhau. Entry quá hạn (>PRESENCE_TTL) được coi là offline (lười xóa)."""
-    if not USE_SUPABASE:
-        return []
     now = time.time()
     result = []
     seen = set()
+    if not USE_SUPABASE:
+        bucket = _local_presence.get(dir_path, {})
+        for uname, entry in list(bucket.items()):
+            if now - entry.get('last_seen', 0) >= PRESENCE_TTL:
+                bucket.pop(uname, None)
+                continue
+            if uname not in seen:
+                seen.add(uname)
+                result.append(entry)
+        return result
     try:
         for it in sb_list(dir_path):
             if it.get('is_dir'):
@@ -5461,12 +5476,15 @@ def _presence_read_dir(dir_path):
 
 def _presence_write(dir_path, username, profile):
     """Ghi/refresh presence cho 1 user vào file riêng của user đó."""
-    if not USE_SUPABASE or not username:
+    if not username:
+        return
+    entry = dict(profile or {})
+    entry['username'] = username
+    entry['last_seen'] = time.time()
+    if not USE_SUPABASE:
+        _local_presence.setdefault(dir_path, {})[username] = entry
         return
     try:
-        entry = dict(profile or {})
-        entry['username'] = username
-        entry['last_seen'] = time.time()
         sb_upload(f'{dir_path}/{_presence_key(username)}',
                   json.dumps(entry).encode('utf-8'), 'application/json')
     except Exception:
@@ -5475,7 +5493,10 @@ def _presence_write(dir_path, username, profile):
 
 def _presence_remove(dir_path, username):
     """Xóa presence file của 1 user."""
-    if not USE_SUPABASE or not username:
+    if not username:
+        return
+    if not USE_SUPABASE:
+        _local_presence.get(dir_path, {}).pop(username, None)
         return
     try:
         sb_delete([f'{dir_path}/{_presence_key(username)}'])
@@ -5486,6 +5507,7 @@ def _presence_remove(dir_path, username):
 def _presence_clear(dir_path):
     """Xóa toàn bộ presence trong folder (dùng khi đổi/ tắt DJ)."""
     if not USE_SUPABASE:
+        _local_presence.pop(dir_path, None)
         return
     try:
         paths = [it['path'] for it in sb_list(dir_path) if not it.get('is_dir')]
@@ -5592,7 +5614,7 @@ def api_radio_release():
     if state.get('dj_username') == username:
         state['dj_username'] = None
         state['is_playing'] = False
-        state['youtube_id'] = '4xDzrIxC4Dk'
+        state['youtube_id'] = 'jfKfPfyJRdk'
         state['current_time'] = 0
         state['allow_requests'] = True
         state['is_automix_enabled'] = False
@@ -5736,6 +5758,10 @@ def api_radio_join():
         'fullname': fullname,
         'avatar': avatar,
     })
+    try:
+        socketio.emit('radio_listeners_update', _radio_read_listeners())
+    except Exception:
+        pass
     return jsonify({'success': True})
 
 
@@ -5747,6 +5773,10 @@ def api_radio_leave():
 
     username = session.get('user', '')
     _presence_remove(RADIO_LISTENERS_DIR, username)
+    try:
+        socketio.emit('radio_listeners_update', _radio_read_listeners())
+    except Exception:
+        pass
     return jsonify({'success': True})
 
 
