@@ -9506,5 +9506,125 @@ async function loadTeamLeaveSchedule() {
 }
 window.loadTeamLeaveSchedule = loadTeamLeaveSchedule;
 
+// =========================================================================
+// ADMIN LEAVE EMAIL NOTIFICATION SETTINGS
+// =========================================================================
+async function openAdminLeaveEmailModal() {
+    const overlay = document.getElementById('admin-leave-email-overlay');
+    const modal = document.getElementById('admin-leave-email-modal');
+    if (!modal) return;
+    overlay.style.display = 'block';
+    modal.style.display = 'block';
+
+    try {
+        const res = await fetch('/api/admin/leave_email_config');
+        const data = await res.json().catch(() => ({}));
+        if (data && data.ok) {
+            const input = document.getElementById('admin-leave-email-input');
+            const chk = document.getElementById('admin-leave-email-enabled');
+            if (input && data.notify_email) input.value = data.notify_email;
+            if (chk) chk.checked = !!data.enabled;
+        }
+    } catch (e) {
+        console.warn('Load admin email config error:', e);
+    }
+}
+window.openAdminLeaveEmailModal = openAdminLeaveEmailModal;
+
+function closeAdminLeaveEmailModal() {
+    const overlay = document.getElementById('admin-leave-email-overlay');
+    const modal = document.getElementById('admin-leave-email-modal');
+    if (overlay) overlay.style.display = 'none';
+    if (modal) modal.style.display = 'none';
+}
+window.closeAdminLeaveEmailModal = closeAdminLeaveEmailModal;
+
+async function saveAdminLeaveEmailConfig() {
+    const input = document.getElementById('admin-leave-email-input');
+    const chk = document.getElementById('admin-leave-email-enabled');
+    const btn = document.getElementById('btn-save-admin-leave-email');
+    const email = (input?.value || '').trim();
+    const enabled = chk ? chk.checked : true;
+
+    if (!email) {
+        if (typeof showToast === 'function') showToast('Vui lòng nhập email nhận thông báo!', 'warning');
+        else alert('Vui lòng nhập email nhận thông báo!');
+        return;
+    }
+
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Đang lưu...</span>';
+    }
+
+    try {
+        const res = await fetch('/api/admin/leave_email_config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ notify_email: email, enabled: enabled })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (data && data.ok) {
+            if (typeof showToast === 'function') showToast('✅ Đã lưu cấu hình email Admin nhận đơn!', 'success');
+            else alert('Đã lưu cấu hình email Admin nhận đơn!');
+            closeAdminLeaveEmailModal();
+        } else {
+            const err = data.error || 'Lỗi lưu cấu hình';
+            if (typeof showToast === 'function') showToast('⚠️ ' + err, 'error');
+            else alert(err);
+        }
+    } catch (e) {
+        if (typeof showToast === 'function') showToast('Lỗi kết nối: ' + e.message, 'error');
+        else alert('Lỗi kết nối: ' + e.message);
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-save"></i> <span>Lưu cài đặt</span>';
+        }
+    }
+}
+window.saveAdminLeaveEmailConfig = saveAdminLeaveEmailConfig;
+
+async function testAdminLeaveEmail() {
+    const input = document.getElementById('admin-leave-email-input');
+    const btn = document.getElementById('btn-admin-leave-email-test');
+    const email = (input?.value || '').trim();
+
+    if (!email) {
+        if (typeof showToast === 'function') showToast('Vui lòng nhập email trước khi gửi thử!', 'warning');
+        return;
+    }
+
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Đang gửi thử...</span>';
+    }
+
+    try {
+        const res = await fetch('/api/admin/leave_email_test', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ notify_email: email })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (data && data.ok) {
+            if (typeof showToast === 'function') showToast('✅ ' + (data.message || 'Đã gửi email test thành công!'), 'success');
+            else alert('Đã gửi email test thành công!');
+        } else {
+            const err = data.error || 'Lỗi gửi mail thử';
+            if (typeof showToast === 'function') showToast('⚠️ ' + err, 'warning');
+            else alert(err);
+        }
+    } catch (e) {
+        if (typeof showToast === 'function') showToast('Lỗi: ' + e.message, 'error');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="far fa-paper-plane"></i> <span>Gửi thử (Test)</span>';
+        }
+    }
+}
+window.testAdminLeaveEmail = testAdminLeaveEmail;
+
 
 
