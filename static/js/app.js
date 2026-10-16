@@ -1716,7 +1716,7 @@ window.simulateWeatherEffect = function(mode) {
     }
 
     window.syncGrassBannerTheme = function() {
-        const isDark = document.body.classList.contains('dark-theme') || localStorage.getItem('vn_tracking_theme') !== 'light';
+        const isDark = document.body.classList.contains('dark-theme');
         targetTimeOfDay = isDark ? 1.0 : 0.0;
     };
 
@@ -4172,18 +4172,24 @@ function toggleAskTask(el) {
 // ===================== THEME TOGGLE =====================
 function toggleTheme() {
     const body = document.body;
-    body.classList.toggle('dark-theme');
-    const isDark = body.classList.contains('dark-theme');
+    const isDark = !body.classList.contains('dark-theme');
+    body.classList.toggle('dark-theme', isDark);
+    document.documentElement.classList.toggle('dark-theme', isDark);
     localStorage.setItem('vn_tracking_theme', isDark ? 'dark' : 'light');
 
-    // Redraw chart to apply new theme colors
-    if (typeof updateAreaChart === 'function') {
-        const activeBtn = document.querySelector('.chart-time-controls button.active');
-        if (activeBtn) updateAreaChart(activeBtn.dataset.period);
-    }
+    // Sync Grass banner target immediately for smooth day/night lerp
     if (typeof window.syncGrassBannerTheme === 'function') {
         window.syncGrassBannerTheme();
     }
+
+    // Defer heavy chart redraw until after the 220ms CSS theme transition completes
+    // This completely eliminates any frame drops or stutter during theme switch!
+    setTimeout(() => {
+        if (typeof updateAreaChart === 'function') {
+            const activeBtn = document.querySelector('.chart-time-controls button.active');
+            if (activeBtn) updateAreaChart(activeBtn.dataset.period);
+        }
+    }, 240);
 }
 
 // ===================== BACKGROUND SYNC =====================
@@ -7475,8 +7481,18 @@ function setInputStatus(id, state) {
 
             weatherCtx = weatherCanvas.getContext('2d');
             window.addEventListener('resize', handleWeatherResize);
-            window.addEventListener('scroll', () => { lastRectUpdate = 0; }, { passive: true });
-            document.addEventListener('scroll', () => { lastRectUpdate = 0; }, { passive: true });
+            window.addEventListener('scroll', () => { lastRectUpdate = 0; cachedChartRect = null; }, { passive: true });
+            document.addEventListener('scroll', () => { lastRectUpdate = 0; cachedChartRect = null; }, { passive: true });
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden) {
+                    if (weatherAnimId) {
+                        cancelAnimationFrame(weatherAnimId);
+                        weatherAnimId = null;
+                    }
+                } else if (currentWeatherMode && !weatherAnimId) {
+                    weatherAnimId = requestAnimationFrame(updateWeatherParticles);
+                }
+            });
         } else if (weatherCanvas.parentElement !== document.documentElement) {
             document.documentElement.appendChild(weatherCanvas);
         }
@@ -7515,44 +7531,33 @@ function setInputStatus(id, state) {
     }
 
     function triggerSplash(x, y, speed) {
-        const count = 3 + Math.floor(Math.random() * 3);
+        if (rainSplashes.length > 20) return;
+        const count = 2 + Math.floor(Math.random() * 2);
         for (let i = 0; i < count; i++) {
-            const spread = (Math.random() - 0.5) * 3.4;
-            const upVelocity = -(Math.random() * 2.0 + 0.8);
+            const spread = (Math.random() - 0.5) * 2.8;
+            const upVelocity = -(Math.random() * 1.8 + 0.6);
             rainSplashes.push({
                 type: 'bead',
                 x: x + (Math.random() - 0.5) * 3,
                 y: y,
                 vx: spread,
                 vy: upVelocity,
-                gravity: 0.13,
-                radius: 0.7 + Math.random() * 1.1,
-                alpha: 0.85,
-                decay: 0.038 + Math.random() * 0.02
+                gravity: 0.14,
+                radius: 0.7 + Math.random() * 0.9,
+                alpha: 0.8,
+                decay: 0.045 + Math.random() * 0.02
             });
         }
         rainSplashes.push({
             type: 'ripple',
             x: x,
             y: y,
-            rx: 2,
-            ry: 0.6,
-            maxRx: 6 + Math.random() * 6,
-            alpha: 0.8,
-            decay: 0.04
+            rx: 1.5,
+            ry: 0.5,
+            maxRx: 5 + Math.random() * 4,
+            alpha: 0.75,
+            decay: 0.045
         });
-        if (Math.random() < 0.18) {
-            rainSplashes.push({
-                type: 'drip',
-                x: x,
-                y: y,
-                speed: 0.3 + Math.random() * 0.4,
-                maxDistance: 6 + Math.random() * 10,
-                distance: 0,
-                radius: 1.0 + Math.random() * 0.5,
-                alpha: 0.75
-            });
-        }
     }
 
     // --- SNOW LOGIC ---
@@ -7603,6 +7608,12 @@ function setInputStatus(id, state) {
                 chartEl.classList.add('rain-wet-rim');
             }
 
+            // Batched Rain Drops (1 single beginPath & stroke for all drops)
+            weatherCtx.beginPath();
+            weatherCtx.lineWidth = 1.15;
+            weatherCtx.lineCap = 'round';
+            weatherCtx.strokeStyle = 'rgba(186, 230, 253, 0.42)';
+
             for (let i = 0; i < rainDrops.length; i++) {
                 const drop = rainDrops[i];
                 const prevY = drop.y;
@@ -7619,7 +7630,7 @@ function setInputStatus(id, state) {
                 }
 
                 if (drop.y > h + 20 || drop.x > w + 40) {
-                    if (drop.y > h && Math.random() < 0.10) {
+                    if (drop.y > h && Math.random() < 0.08) {
                         triggerSplash(drop.x, h - 2, drop.speed);
                     }
                     rainDrops[i] = createRainDrop(false);
@@ -7628,47 +7639,45 @@ function setInputStatus(id, state) {
 
                 const tailX = drop.x - drop.wind * (drop.length / drop.speed);
                 const tailY = drop.y - drop.length;
-                weatherCtx.strokeStyle = `rgba(186, 230, 253, ${drop.alpha})`;
-                weatherCtx.lineWidth = 1.15;
-                weatherCtx.lineCap = 'round';
-                weatherCtx.beginPath();
                 weatherCtx.moveTo(drop.x, drop.y);
                 weatherCtx.lineTo(tailX, tailY);
-                weatherCtx.stroke();
             }
+            weatherCtx.stroke();
 
-            for (let i = rainSplashes.length - 1; i >= 0; i--) {
-                const sp = rainSplashes[i];
-                if (sp.type === 'bead') {
-                    sp.x += sp.vx;
-                    sp.vy += sp.gravity;
-                    sp.y += sp.vy;
-                    sp.alpha -= sp.decay;
-                    if (sp.alpha <= 0) { rainSplashes.splice(i, 1); continue; }
-                    weatherCtx.fillStyle = `rgba(186, 230, 253, ${sp.alpha})`;
-                    weatherCtx.beginPath();
-                    weatherCtx.arc(sp.x, sp.y, sp.radius, 0, Math.PI * 2);
-                    weatherCtx.fill();
-                } else if (sp.type === 'ripple') {
-                    sp.rx += 0.38;
-                    sp.ry += 0.12;
-                    sp.alpha -= sp.decay;
-                    if (sp.alpha <= 0 || sp.rx >= sp.maxRx) { rainSplashes.splice(i, 1); continue; }
-                    weatherCtx.strokeStyle = `rgba(147, 197, 253, ${sp.alpha})`;
-                    weatherCtx.lineWidth = 1.0;
-                    weatherCtx.beginPath();
-                    weatherCtx.ellipse(sp.x, sp.y, sp.rx, sp.ry, 0, 0, Math.PI * 2);
-                    weatherCtx.stroke();
-                } else if (sp.type === 'drip') {
-                    sp.y += sp.speed;
-                    sp.distance += sp.speed;
-                    if (sp.distance >= sp.maxDistance) sp.alpha -= 0.04;
-                    if (sp.alpha <= 0) { rainSplashes.splice(i, 1); continue; }
-                    weatherCtx.fillStyle = `rgba(186, 230, 253, ${sp.alpha})`;
-                    weatherCtx.beginPath();
-                    weatherCtx.arc(sp.x, sp.y, sp.radius, 0, Math.PI * 2);
-                    weatherCtx.fill();
+            // Batched Beads (Single fill call)
+            if (rainSplashes.length > 0) {
+                weatherCtx.fillStyle = 'rgba(186, 230, 253, 0.65)';
+                weatherCtx.beginPath();
+                for (let i = rainSplashes.length - 1; i >= 0; i--) {
+                    const sp = rainSplashes[i];
+                    if (sp.type === 'bead') {
+                        sp.x += sp.vx;
+                        sp.vy += sp.gravity;
+                        sp.y += sp.vy;
+                        sp.alpha -= sp.decay;
+                        if (sp.alpha <= 0) { rainSplashes.splice(i, 1); continue; }
+                        weatherCtx.moveTo(sp.x + sp.radius, sp.y);
+                        weatherCtx.arc(sp.x, sp.y, sp.radius, 0, Math.PI * 2);
+                    } else if (sp.type === 'ripple') {
+                        sp.rx += 0.38;
+                        sp.ry += 0.12;
+                        sp.alpha -= sp.decay;
+                        if (sp.alpha <= 0 || sp.rx >= sp.maxRx) { rainSplashes.splice(i, 1); continue; }
+                    }
                 }
+                weatherCtx.fill();
+
+                // Batched Ripples (Single stroke call)
+                weatherCtx.strokeStyle = 'rgba(147, 197, 253, 0.45)';
+                weatherCtx.lineWidth = 1.0;
+                weatherCtx.beginPath();
+                for (let i = 0; i < rainSplashes.length; i++) {
+                    const sp = rainSplashes[i];
+                    if (sp.type === 'ripple') {
+                        weatherCtx.ellipse(sp.x, sp.y, sp.rx, sp.ry, 0, 0, Math.PI * 2);
+                    }
+                }
+                weatherCtx.stroke();
             }
         }
 
@@ -7782,7 +7791,7 @@ function setInputStatus(id, state) {
         if (weatherCanvas) weatherCanvas.style.display = 'block';
 
         if (mode === 'rain' || mode === 'thunder') {
-            const totalDrops = Math.min(50, Math.floor(window.innerWidth / 24));
+            const totalDrops = Math.min(36, Math.floor(window.innerWidth / 34));
             rainDrops = [];
             rainSplashes = [];
             for (let i = 0; i < totalDrops; i++) {

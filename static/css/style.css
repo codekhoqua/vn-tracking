@@ -117,7 +117,7 @@
 .toast-close:hover { color: var(--text); background: var(--surface-hover); }
 @keyframes slideInRight { from { transform: translateX(110%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
-html:has(body.dark-theme), body.dark-theme {
+html.dark-theme, html:has(body.dark-theme), body.dark-theme {
     color-scheme: dark;
     /* DARK THEME (Obsidian Space & Neon Slate) */
     --bg-page: #080c14;
@@ -7567,15 +7567,270 @@ body:has(.login-page) {
     .filmstrip-lightbox-title { max-width: 200px; }
 }
 
-/* ================== INTERACTIVE GRASS BANNER (WHEN HERO ALBUM IS OFF) ================== */
-.cursor-grass {
-    cursor: grab !important;
+/* ================== BUTTERY 120Hz UNIVERSAL THEME TRANSITIONS & HARMONIZATION ================== */
+body,
+.sidebar,
+.main-area,
+.card,
+.progress-card,
+.chart-section,
+.table-section,
+.data-table-container,
+.hero-banner,
+#hero-weather-bg,
+.modal-content,
+.cp-modal,
+.notification-dropdown-panel,
+.filmstrip-modal-card,
+.weather-forecast-modal,
+.ai-insights-bar,
+.task-back-btn,
+.filters-container,
+.controls-bar {
+    transition: background-color 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+                border-color 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+                color 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+                box-shadow 0.28s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
-.cursor-grass:active {
-    cursor: grabbing !important;
+
+/* 1. Hero Banner Dynamic Sky & Contrast */
+#hero-weather-bg {
+    background: linear-gradient(135deg, #e0e7ff 0%, #f1f5f9 50%, #e2e8f0 100%) !important;
+    transition: background 0.28s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
-.hero-filmstrip-container.disabled ~ .hero-left-focus-scrim {
-    display: none !important;
+body.dark-theme #hero-weather-bg {
+    background: #0b1120 !important;
+}
+
+/* Hero Typography */
+body:not(.dark-theme) .hero-brand-title {
+    color: #0f172a !important;
+    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8) !important;
+}
+body:not(.dark-theme) .hero-welcome-text {
+    color: #475569 !important;
+    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8) !important;
+}
+body.dark-theme .hero-brand-title {
+    color: #ffffff !important;
+    text-shadow: 0 2px 12px rgba(0, 0, 0, 0.9) !important;
+}
+body.dark-theme .hero-welcome-text {
+    color: rgba(255, 255, 255, 0.92) !important;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6) !important;
+}
+
+/* 2. Hero Action Controls & Inline Weather Bar */
+body:not(.dark-theme) .online-users-cluster,
+body:not(.dark-theme) #notification-bell-btn,
+body:not(.dark-theme) .theme-toggle {
+    background: rgba(255, 255, 255, 0.88) !important;
+    border: 1px solid rgba(226, 232, 240, 0.95) !important;
+    color: #1e293b !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05) !important;
+}
+body:not(.dark-theme) #notification-bell-btn i,
+body:not(.dark-theme) .theme-toggle svg {
+    color: #334155 !important;
+    stroke: #334155 !important;
+}
+body:not(.dark-theme) #notification-bell-btn:hover,
+body:not(.dark-theme) .theme-toggle:hover {
+    background: #ffffff !important;
+    border-color: #cbd5e1 !important;
+    transform: translateY(-2px);
+}
+
+body:not(.dark-theme) #inline-weather-container {
+    background: rgba(255, 255, 255, 0.88) !important;
+    border: 1px solid rgba(226, 232, 240, 0.95) !important;
+    color: #0f172a !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05) !important;
+}
+body:not(.dark-theme) #inline-weather-container span,
+body:not(.dark-theme) #inline-weather-container div {
+    color: #334155 !important;
+}
+
+body:not(.dark-theme) .hero-album-btn {
+    background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%) !important;
+    border: 1px solid rgba(245, 158, 11, 0.5) !important;
+    color: #b45309 !important;
+    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.14) !important;
+}
+body:not(.dark-theme) .hero-album-btn i {
+    color: #d97706 !important;
+}
+
+/* 3. AI Insights Bar */
+body:not(.dark-theme) .ai-insights-bar {
+    background: rgba(255, 255, 255, 0.9) !important;
+    border-top: 1px solid rgba(226, 232, 240, 0.9) !important;
+}
+body:not(.dark-theme) .ai-insight-item {
+    color: #1e293b !important;
+}
+body:not(.dark-theme) .ai-insights-label {
+    background: linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(245, 158, 11, 0.25)) !important;
+    border: 1px solid rgba(245, 158, 11, 0.45) !important;
+    color: #b45309 !important;
+    box-shadow: 0 0 10px rgba(245, 158, 11, 0.12) !important;
+}
+
+/* 4. Notification Dropdown Panel */
+body:not(.dark-theme) .notification-dropdown-panel {
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.12), 0 0 24px rgba(99, 102, 241, 0.08) !important;
+}
+body:not(.dark-theme) .notification-panel-header {
+    border-bottom: 1px solid #e2e8f0 !important;
+    background: #f8fafc !important;
+}
+body:not(.dark-theme) .notification-panel-title {
+    color: #0f172a !important;
+}
+body:not(.dark-theme) .btn-notif-action {
+    background: #f1f5f9 !important;
+    border-color: #e2e8f0 !important;
+    color: #334155 !important;
+}
+body:not(.dark-theme) .btn-notif-action:hover {
+    background: #e2e8f0 !important;
+    color: #0f172a !important;
+}
+body:not(.dark-theme) .notification-panel-footer {
+    border-top: 1px solid #e2e8f0 !important;
+    background: #f8fafc !important;
+}
+body:not(.dark-theme) .btn-notif-close-panel {
+    background: #f1f5f9 !important;
+    border-color: #e2e8f0 !important;
+    color: #475569 !important;
+}
+body:not(.dark-theme) .notification-item {
+    border-bottom: 1px solid #f1f5f9 !important;
+}
+body:not(.dark-theme) .notification-item:hover {
+    background: #f8fafc !important;
+}
+body:not(.dark-theme) .notification-item.unread {
+    background: rgba(99, 102, 241, 0.05) !important;
+}
+body:not(.dark-theme) .notification-item-title {
+    color: #0f172a !important;
+}
+body:not(.dark-theme) .notification-item-text {
+    color: #475569 !important;
+}
+
+/* 5. Tool Full Page Views (Calendar, Drive, PSD, Role) */
+body:not(.dark-theme) .modal-overlay.task-detail-page-view.tool-page-view,
+body:not(.dark-theme) #page-view-drive,
+body:not(.dark-theme) #page-view-drive .tool-page-container,
+body:not(.dark-theme) #page-view-drive .tool-iframe-wrapper,
+body:not(.dark-theme) #page-view-calendar,
+body:not(.dark-theme) #page-view-calendar .tool-page-container,
+body:not(.dark-theme) #page-view-psd,
+body:not(.dark-theme) #page-view-role {
+    background: #f8fafc !important;
+    background-color: #f8fafc !important;
+    color: #0f172a !important;
+}
+body:not(.dark-theme) .calendar-subnav-tabs {
+    background: #e2e8f0 !important;
+}
+body:not(.dark-theme) .calendar-subnav-pill {
+    color: #475569 !important;
+}
+body:not(.dark-theme) .calendar-subnav-pill:hover {
+    color: #0f172a !important;
+    background: rgba(0, 0, 0, 0.05) !important;
+}
+body:not(.dark-theme) .calendar-subnav-pill.active {
+    color: #ffffff !important;
+    background: var(--primary) !important;
+}
+body:not(.dark-theme) #page-view-calendar iframe {
+    filter: none !important;
+}
+body.dark-theme #page-view-calendar iframe {
+    filter: invert(0.9) hue-rotate(180deg) contrast(0.9) brightness(0.95);
+}
+
+/* 6. Modals & Popovers (Album, Forecast, Pet) */
+body:not(.dark-theme) .filmstrip-modal-card {
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.12) !important;
+    color: #0f172a !important;
+}
+body:not(.dark-theme) .filmstrip-modal-header {
+    border-bottom: 1px solid #e2e8f0 !important;
+}
+body:not(.dark-theme) .filmstrip-modal-header h3 {
+    color: #0f172a !important;
+}
+body:not(.dark-theme) .filmstrip-modal-close {
+    background: #f1f5f9 !important;
+    border: 1px solid #e2e8f0 !important;
+    color: #475569 !important;
+}
+body:not(.dark-theme) .filmstrip-modal-body {
+    color: #334155 !important;
+}
+
+body:not(.dark-theme) .weather-forecast-modal {
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    color: #0f172a !important;
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.12) !important;
+}
+body:not(.dark-theme) .weather-forecast-modal h2,
+body:not(.dark-theme) .weather-forecast-modal h3,
+body:not(.dark-theme) .weather-forecast-modal p,
+body:not(.dark-theme) .weather-forecast-modal span {
+    color: inherit;
+}
+
+body:not(.dark-theme) .pet-panel {
+    background: rgba(255, 255, 255, 0.96) !important;
+    border-color: #e2e8f0 !important;
+    color: #0f172a !important;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.12) !important;
+}
+body:not(.dark-theme) .pet-panel-header {
+    border-bottom-color: #e2e8f0 !important;
+}
+body:not(.dark-theme) .pet-panel-title {
+    color: #0f172a !important;
+}
+body:not(.dark-theme) .pet-hero-stage {
+    background: linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 100%) !important;
+    border-color: #cbd5e1 !important;
+}
+
+/* 7. Flatpickr Calendar Theming */
+body:not(.dark-theme) .flatpickr-calendar {
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1) !important;
+    color: #0f172a !important;
+}
+body:not(.dark-theme) .flatpickr-calendar .flatpickr-current-month,
+body:not(.dark-theme) .flatpickr-calendar .flatpickr-current-month input.cur-year,
+body:not(.dark-theme) .flatpickr-calendar .flatpickr-current-month .flatpickr-monthDropdown-months {
+    color: #0f172a !important;
+}
+body:not(.dark-theme) .flatpickr-calendar .flatpickr-day {
+    color: #334155 !important;
+}
+body:not(.dark-theme) .flatpickr-calendar .flatpickr-weekday {
+    color: #64748b !important;
+}
+body:not(.dark-theme) .flatpickr-calendar .flatpickr-time input {
+    color: #0f172a !important;
+    background: #f1f5f9 !important;
 }
 
 

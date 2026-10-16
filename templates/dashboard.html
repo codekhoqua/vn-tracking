@@ -808,7 +808,7 @@
     <div class="mobile-brand">
         <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" width="30" height="30" style="border-radius: 8px; object-fit: contain;">
         <span>VN-Tracking</span>
-        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.129</i></sup>
+        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.130</i></sup>
     </div>
     <div class="mobile-topbar-right">
         <button type="button" class="mobile-icon-btn" onclick="toggleNotificationPanel(event)" title="{{ 'Thông báo' if lang == 'vi' else '通知' }}">
@@ -960,7 +960,7 @@
             </div>
             <div class="sidebar-logo-text">
                 <span class="sidebar-brand-name">VN-Tracking</span>
-                <sup class="version-tag"><i>v1.9.129</i></sup>
+                <sup class="version-tag"><i>v1.9.130</i></sup>
             </div>
         </div>
     </div>
@@ -1960,9 +1960,7 @@
         <div
             style="position: absolute; inset: 0; border-radius: 24px; overflow: hidden; pointer-events: none; z-index: 1;">
             <!-- Base dynamic weather sky canvas -->
-            <div id="hero-weather-bg"
-                style="position: absolute; inset: 0; background: #0b1120; transition: background 1.2s ease;">
-            </div>
+            <div id="hero-weather-bg" style="position: absolute; inset: 0;"></div>
             <!-- Interactive Grass Canvas Background (Xuất hiện khi tắt Hero Album) -->
             <canvas id="grass-banner-canvas" style="position: absolute; inset: 0; width: 100%; height: 100%; display: none; z-index: 0; pointer-events: auto;"></canvas>
             <!-- 35mm Cinema Filmstrip Album Track Layer (Runs smoothly across the hero background) -->
