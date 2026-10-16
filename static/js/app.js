@@ -9603,8 +9603,49 @@ async function loadTeamLeaveSchedule() {
 window.loadTeamLeaveSchedule = loadTeamLeaveSchedule;
 
 // =========================================================================
-// ADMIN LEAVE EMAIL NOTIFICATION SETTINGS
+// ADMIN LEAVE EMAIL NOTIFICATION SETTINGS (MULTI-EMAIL SUPPORT)
 // =========================================================================
+function parseAdminEmailList(raw) {
+    if (!raw) return [];
+    const tokens = String(raw).split(/[,;\s\n\r\t]+/);
+    const valid = [];
+    tokens.forEach(t => {
+        const clean = t.trim();
+        if (clean && clean.includes('@') && clean.includes('.')) {
+            if (!valid.includes(clean)) valid.push(clean);
+        }
+    });
+    return valid;
+}
+window.parseAdminEmailList = parseAdminEmailList;
+
+function renderAdminLeaveEmailTags() {
+    const input = document.getElementById('admin-leave-email-input');
+    const tagsContainer = document.getElementById('admin-leave-email-tags');
+    const countEl = document.getElementById('admin-leave-email-count');
+    if (!input || !tagsContainer) return;
+
+    const emails = parseAdminEmailList(input.value);
+    if (countEl) {
+        countEl.textContent = `${emails.length} email`;
+        countEl.style.background = emails.length > 0 ? 'rgba(99, 102, 241, 0.2)' : 'rgba(239, 68, 68, 0.15)';
+        countEl.style.color = emails.length > 0 ? '#c7d2fe' : '#fca5a5';
+    }
+
+    if (emails.length === 0) {
+        tagsContainer.innerHTML = '';
+        return;
+    }
+
+    tagsContainer.innerHTML = emails.map(em => `
+        <span style="display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; background: rgba(99, 102, 241, 0.18); border: 1px solid rgba(99, 102, 241, 0.35); border-radius: 6px; font-size: 0.76rem; color: #e0e7ff; font-weight: 500;">
+            <i class="far fa-envelope" style="font-size: 0.7rem; color: #818cf8;"></i>
+            <span>${escapeHtml(em)}</span>
+        </span>
+    `).join('');
+}
+window.renderAdminLeaveEmailTags = renderAdminLeaveEmailTags;
+
 function openAdminLeaveEmailModal() {
     const overlay = document.getElementById('admin-leave-email-overlay');
     const modal = document.getElementById('admin-leave-email-modal');
@@ -9625,7 +9666,14 @@ function openAdminLeaveEmailModal() {
             if (data && data.ok) {
                 const input = document.getElementById('admin-leave-email-input');
                 const chk = document.getElementById('admin-leave-email-enabled');
-                if (input && data.notify_email) input.value = data.notify_email;
+                if (input) {
+                    if (data.notify_emails && Array.isArray(data.notify_emails) && data.notify_emails.length > 0) {
+                        input.value = data.notify_emails.join(', ');
+                    } else if (data.notify_email) {
+                        input.value = data.notify_email;
+                    }
+                    renderAdminLeaveEmailTags();
+                }
                 if (chk) chk.checked = !!data.enabled;
             }
         })
@@ -9645,12 +9693,13 @@ async function saveAdminLeaveEmailConfig() {
     const input = document.getElementById('admin-leave-email-input');
     const chk = document.getElementById('admin-leave-email-enabled');
     const btn = document.getElementById('btn-save-admin-leave-email');
-    const email = (input?.value || '').trim();
+    const emails = parseAdminEmailList(input?.value || '');
     const enabled = chk ? chk.checked : true;
 
-    if (!email) {
-        if (typeof showToast === 'function') showToast('Vui lòng nhập email nhận thông báo!', 'warning');
-        else alert('Vui lòng nhập email nhận thông báo!');
+    if (emails.length === 0) {
+        const msg = 'Vui lòng nhập ít nhất 1 email hợp lệ (VD: tanphanduy8@gmail.com)!';
+        if (typeof showToast === 'function') showToast(msg, 'warning');
+        else alert(msg);
         return;
     }
 
@@ -9663,12 +9712,16 @@ async function saveAdminLeaveEmailConfig() {
         const res = await fetch('/api/admin/leave_email_config', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ notify_email: email, enabled: enabled })
+            body: JSON.stringify({
+                notify_email: emails.join(', '),
+                notify_emails: emails,
+                enabled: enabled
+            })
         });
         const data = await res.json().catch(() => ({}));
         if (data && data.ok) {
-            if (typeof showToast === 'function') showToast('✅ Đã lưu cấu hình email Admin nhận đơn!', 'success');
-            else alert('Đã lưu cấu hình email Admin nhận đơn!');
+            if (typeof showToast === 'function') showToast(`✅ Đã lưu ${emails.length} email nhận đơn nghỉ phép!`, 'success');
+            else alert(`Đã lưu ${emails.length} email nhận đơn nghỉ phép!`);
             closeAdminLeaveEmailModal();
         } else {
             const err = data.error || 'Lỗi lưu cấu hình';
@@ -9690,10 +9743,11 @@ window.saveAdminLeaveEmailConfig = saveAdminLeaveEmailConfig;
 async function testAdminLeaveEmail() {
     const input = document.getElementById('admin-leave-email-input');
     const btn = document.getElementById('btn-admin-leave-email-test');
-    const email = (input?.value || '').trim();
+    const emails = parseAdminEmailList(input?.value || '');
 
-    if (!email) {
-        if (typeof showToast === 'function') showToast('Vui lòng nhập email trước khi gửi thử!', 'warning');
+    if (emails.length === 0) {
+        if (typeof showToast === 'function') showToast('Vui lòng nhập ít nhất 1 email trước khi gửi thử!', 'warning');
+        else alert('Vui lòng nhập ít nhất 1 email trước khi gửi thử!');
         return;
     }
 
@@ -9706,12 +9760,15 @@ async function testAdminLeaveEmail() {
         const res = await fetch('/api/admin/leave_email_test', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ notify_email: email })
+            body: JSON.stringify({
+                notify_email: emails.join(', '),
+                notify_emails: emails
+            })
         });
         const data = await res.json().catch(() => ({}));
         if (data && data.ok) {
-            if (typeof showToast === 'function') showToast('✅ ' + (data.message || 'Đã gửi email test thành công!'), 'success');
-            else alert('Đã gửi email test thành công!');
+            if (typeof showToast === 'function') showToast('✅ ' + (data.message || `Đã gửi thử thành công đến ${emails.length} email!`), 'success');
+            else alert(data.message || `Đã gửi thử thành công đến ${emails.length} email!`);
         } else {
             const err = data.error || 'Lỗi gửi mail thử';
             if (typeof showToast === 'function') showToast('⚠️ ' + err, 'warning');
