@@ -2992,7 +2992,7 @@ def lsa_drive():
         filter_cv_sau=[],
         users=[],
         tasks=[],
-        app_version='v1.9.111',
+        app_version='v1.9.112',
     )
 
 # =====================================================================
@@ -4186,25 +4186,62 @@ def api_leave_warmup():
     warmup_leave_connections()
     return jsonify({"ok": True})
 
+def parse_leave_notify_emails(email_input):
+    """Phân tách và chuẩn hóa danh sách nhiều email từ string hoặc list."""
+    if not email_input:
+        return []
+    if isinstance(email_input, list):
+        raw = " ".join(str(e) for e in email_input)
+    else:
+        raw = str(email_input)
+    import re
+    tokens = re.split(r'[,;\s\n\r\t]+', raw)
+    valid = []
+    for t in tokens:
+        t = t.strip()
+        if t and '@' in t and '.' in t:
+            if t not in valid:
+                valid.append(t)
+    return valid
+
 def get_leave_admin_email_config():
-    """Lấy cấu hình email nhận thông báo nghỉ phép dành cho Admin."""
+    """Lấy cấu hình email nhận thông báo nghỉ phép dành cho Admin (hỗ trợ nhiều email)."""
     data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
     cfg_file = os.path.join(data_dir, 'leave_admin_config.json')
     if os.path.exists(cfg_file):
         try:
             with open(cfg_file, 'r', encoding='utf-8') as f:
-                return json.load(f)
+                data = json.load(f)
+                emails = parse_leave_notify_emails(data.get('notify_emails') or data.get('notify_email'))
+                if not emails:
+                    emails = ["tanphanduy8@gmail.com"]
+                return {
+                    "notify_email": ", ".join(emails),
+                    "notify_emails": emails,
+                    "enabled": bool(data.get('enabled', True))
+                }
         except Exception:
             pass
-    return {"notify_email": "tanphanduy8@gmail.com", "enabled": True}
+    return {
+        "notify_email": "tanphanduy8@gmail.com",
+        "notify_emails": ["tanphanduy8@gmail.com"],
+        "enabled": True
+    }
 
 def save_leave_admin_email_config(cfg):
     """Lưu cấu hình email nhận thông báo nghỉ phép."""
     data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
     os.makedirs(data_dir, exist_ok=True)
     cfg_file = os.path.join(data_dir, 'leave_admin_config.json')
+    emails = parse_leave_notify_emails(cfg.get('notify_emails') or cfg.get('notify_email'))
+    save_data = {
+        "notify_email": ", ".join(emails),
+        "notify_emails": emails,
+        "enabled": bool(cfg.get('enabled', True))
+    }
     with open(cfg_file, 'w', encoding='utf-8') as f:
-        json.dump(cfg, f, ensure_ascii=False, indent=2)
+        json.dump(save_data, f, ensure_ascii=False, indent=2)
+    return save_data
 
 def create_leave_calendar_event(rec):
     """Tạo sự kiện lịch nghỉ phép trực tiếp trên Google Calendar thông qua Apps Script."""
@@ -4246,9 +4283,10 @@ def create_leave_calendar_event(rec):
         if gdrive_link:
             desc_lines.append(f"📎 Ảnh xác nhận: {gdrive_link}")
 
-        # Đọc cấu hình email thông báo dành cho Admin
+        # Đọc cấu hình email thông báo dành cho Admin (hỗ trợ nhiều email)
         admin_cfg = get_leave_admin_email_config()
-        notify_email = admin_cfg.get('notify_email', '').strip() if admin_cfg.get('enabled') else ''
+        notify_emails = admin_cfg.get('notify_emails', []) if admin_cfg.get('enabled') else []
+        notify_email_str = ", ".join(notify_emails)
 
         payload = {
             "action": "create_event",
@@ -4265,7 +4303,9 @@ def create_leave_calendar_event(rec):
             "reason": reason,
             "gdriveLink": gdrive_link,
             "description": "\n".join(desc_lines),
-            "notifyEmail": notify_email
+            "notifyEmail": notify_email_str,
+            "notifyEmails": notify_emails,
+            "guests": notify_email_str
         }
 
         s = get_gdrive_http_session()
@@ -4296,6 +4336,7 @@ def api_admin_leave_email_config():
         return jsonify({
             "ok": True,
             "notify_email": cfg.get('notify_email', 'tanphanduy8@gmail.com'),
+            "notify_emails": cfg.get('notify_emails', ['tanphanduy8@gmail.com']),
             "enabled": cfg.get('enabled', True),
             "is_admin": is_admin
         })
@@ -4305,17 +4346,20 @@ def api_admin_leave_email_config():
         return jsonify({"ok": False, "error": "Chỉ tài khoản Admin mới có quyền cấu hình email nhận thông báo"}), 403
 
     data = request.get_json() or {}
-    notify_email = str(data.get('notify_email') or '').strip()
-    enabled = bool(data.get('enabled', True))
+    notify_email_raw = data.get('notify_emails') or data.get('notify_email') or ''
+    emails = parse_leave_notify_emails(notify_email_raw)
+    if not emails:
+        return jsonify({"ok": False, "error": "Vui lòng nhập ít nhất 1 địa chỉ email hợp lệ"}), 400
 
-    save_leave_admin_email_config({
-        "notify_email": notify_email,
-        "enabled": enabled
+    saved = save_leave_admin_email_config({
+        "notify_emails": emails,
+        "enabled": bool(data.get('enabled', True))
     })
     return jsonify({
         "ok": True,
-        "notify_email": notify_email,
-        "enabled": enabled
+        "notify_email": saved["notify_email"],
+        "notify_emails": saved["notify_emails"],
+        "enabled": saved["enabled"]
     })
 
 @app.route('/api/admin/leave_email_test', methods=['POST'])
@@ -4324,7 +4368,10 @@ def api_admin_leave_email_test():
         return jsonify({"ok": False, "error": "Unauthorized"}), 401
 
     data = request.get_json() or {}
-    test_email = str(data.get('notify_email') or '').strip() or 'tanphanduy8@gmail.com'
+    raw_emails = data.get('notify_emails') or data.get('notify_email') or 'tanphanduy8@gmail.com'
+    emails = parse_leave_notify_emails(raw_emails)
+    if not emails:
+        emails = ['tanphanduy8@gmail.com']
 
     if not LEAVE_GDRIVE_SCRIPT_URL:
         return jsonify({"ok": False, "error": "Chưa cấu hình LEAVE_GDRIVE_SCRIPT_URL"}), 400
@@ -4332,14 +4379,16 @@ def api_admin_leave_email_test():
     try:
         payload = {
             "action": "send_test_email",
-            "notifyEmail": test_email
+            "notifyEmail": ", ".join(emails),
+            "notifyEmails": emails,
+            "guests": ", ".join(emails)
         }
         s = get_gdrive_http_session()
         r = s.post(LEAVE_GDRIVE_SCRIPT_URL, json=payload, timeout=20)
         if r.status_code == 200:
             res = r.json()
             if res.get('success'):
-                return jsonify({"ok": True, "message": f"Đã gửi email test thành công tới {test_email}"})
+                return jsonify({"ok": True, "message": f"Đã gửi email test thành công tới: {', '.join(emails)}"})
             return jsonify({"ok": False, "error": res.get('error', 'Lỗi gửi mail')})
         return jsonify({"ok": False, "error": f"Apps Script HTTP {r.status_code}"})
     except Exception as e:

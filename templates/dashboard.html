@@ -546,9 +546,16 @@
             </div>
             <div style="padding: 20px 24px;">
                 <div style="margin-bottom: 16px;">
-                    <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.88rem; color: #cbd5e1;">{{ 'Email nhận thông báo' if lang == 'vi' else '受信メールアドレス' }}</label>
-                    <input type="email" id="admin-leave-email-input" placeholder="VD: tanphanduy8@gmail.com" value="tanphanduy8@gmail.com" style="width: 100%; padding: 11px 14px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-page); color: #f8fafc; font-size: 0.92rem; outline: none;">
-                    <p style="margin: 6px 0 0; font-size: 0.78rem; color: #94a3b8;">{{ 'Hệ thống sẽ gửi email báo cáo chi tiết kèm link ảnh xác nhận đến địa chỉ này mỗi khi có nhân viên nộp đơn.' if lang == 'vi' else '休暇申請が提出されると、詳細がこのメールアドレスに送信されます。' }}</p>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <label style="font-weight: 600; font-size: 0.88rem; color: #cbd5e1;">{{ 'Danh sách Email nhận thông báo' if lang == 'vi' else '受信メールアドレス一覧' }}</label>
+                        <span id="admin-leave-email-count" class="badge" style="font-size: 0.72rem; padding: 2px 7px; background: rgba(99, 102, 241, 0.2); color: #c7d2fe; border-radius: 6px; font-weight: 600;">0 email</span>
+                    </div>
+                    <textarea id="admin-leave-email-input" rows="3" placeholder="VD: tanphanduy8@gmail.com, hr@linkstoryasia.com, manager@linkstoryasia.com" oninput="renderAdminLeaveEmailTags()" style="width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-page); color: #f8fafc; font-size: 0.88rem; outline: none; line-height: 1.5; resize: vertical; font-family: inherit;"></textarea>
+                    <div id="admin-leave-email-tags" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px;"></div>
+                    <p style="margin: 6px 0 0; font-size: 0.78rem; color: #94a3b8;">
+                        <i class="fas fa-info-circle" style="color: #60a5fa; margin-right: 4px;"></i>
+                        {{ 'Hỗ trợ nhiều email: phân cách bằng dấu phẩy (,), dấu chấm phẩy (;) hoặc xuống dòng.' if lang == 'vi' else '複数指定可能: カンマ (,)、セミコロン (;) または改行で区切ってください。' }}
+                    </p>
                 </div>
                 <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; background: rgba(30, 41, 59, 0.6); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 10px;">
                     <div>
@@ -799,7 +806,7 @@
     <div class="mobile-brand">
         <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" width="30" height="30" style="border-radius: 8px; object-fit: contain;">
         <span>VN-Tracking</span>
-        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.111</i></sup>
+        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.112</i></sup>
     </div>
     <div class="mobile-topbar-right">
         <button type="button" class="mobile-icon-btn" onclick="toggleNotificationPanel(event)" title="{{ 'Thông báo' if lang == 'vi' else '通知' }}">
@@ -951,7 +958,7 @@
             </div>
             <div class="sidebar-logo-text">
                 <span class="sidebar-brand-name">VN-Tracking</span>
-                <sup class="version-tag"><i>v1.9.111</i></sup>
+                <sup class="version-tag"><i>v1.9.112</i></sup>
             </div>
         </div>
     </div>
