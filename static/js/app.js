@@ -4326,21 +4326,7 @@ document.addEventListener('DOMContentLoaded', () => {
         socket.emit('request_online_users');
         socket.on('connect', () => {
             socket.emit('request_online_users');
-            socket.emit('request_radio_listeners');
         });
-
-        // Radio listeners & state updates directly on global socket
-        socket.on('radio_listeners_update', function (listeners) {
-            if (typeof handleRadioListenersUpdate === 'function') {
-                handleRadioListenersUpdate(listeners);
-            }
-        });
-        socket.on('radio_sync', function (state) {
-            if (state && state.listeners && typeof handleRadioListenersUpdate === 'function') {
-                handleRadioListenersUpdate(state.listeners);
-            }
-        });
-        socket.emit('request_radio_listeners');
     }
 
     // Fallback: nếu sau 4s vẫn không có Socket.IO kết nối (Vercel serverless),
@@ -5497,8 +5483,6 @@ const radioLeaveSound = new Audio('/static/audio/leave.wav');
 let radioLeaveTimeout = null;
 
 function handleRadioListenersUpdate(listeners) {
-    if (!listeners || !Array.isArray(listeners)) listeners = [];
-
     if (isListening || isRadioDJ) {
         if (previousRadioListeners.length > 0 || listeners.length > 0) {
             if (listeners.length > previousRadioListeners.length) {
@@ -5521,42 +5505,37 @@ function handleRadioListenersUpdate(listeners) {
     previousRadioListeners = listeners;
 
     const container = document.getElementById('radio-listeners-container');
-    if (container) {
-        container.innerHTML = '';
-        const MAX_SHOW = 5;
-        listeners.forEach((user, index) => {
-            if (index >= MAX_SHOW) return;
-            const img = document.createElement('img');
-            const fallbackAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.fullname || user.username || 'User')}&background=6366f1&color=fff&size=32`;
-            img.src = user.avatar || fallbackAvatar;
-            img.style.width = '18px';
-            img.style.height = '18px';
-            img.style.borderRadius = '50%';
-            img.style.border = '1px solid rgba(255,255,255,0.2)';
-            img.style.marginLeft = index === 0 ? '0' : '-6px';
-            img.style.objectFit = 'cover';
-            img.title = user.fullname || user.username;
-            img.onerror = function() {
-                this.onerror = null;
-                this.src = fallbackAvatar;
-            };
-            container.appendChild(img);
-        });
+    if (!container) return;
+    container.innerHTML = '';
 
-        if (listeners.length > MAX_SHOW) {
-            const extra = document.createElement('span');
-            extra.textContent = `+${listeners.length - MAX_SHOW}`;
-            Object.assign(extra.style, {
-                width: '18px', height: '18px', borderRadius: '50%',
-                background: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.9)',
-                fontSize: '9px', fontWeight: '700', display: 'flex',
-                alignItems: 'center', justifyContent: 'center',
-                marginLeft: '-6px', border: '1px solid rgba(255,255,255,0.2)',
-                flexShrink: '0'
-            });
-            extra.title = listeners.slice(MAX_SHOW).map(u => u.fullname || u.username).join(', ');
-            container.appendChild(extra);
-        }
+    const MAX_SHOW = 5;
+    listeners.forEach((user, index) => {
+        if (index >= MAX_SHOW) return;
+        const img = document.createElement('img');
+        img.src = user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.fullname)}&background=random&color=fff`;
+        img.style.width = '18px';
+        img.style.height = '18px';
+        img.style.borderRadius = '50%';
+        img.style.border = '1px solid rgba(255,255,255,0.2)';
+        img.style.marginLeft = index === 0 ? '0' : '-6px';
+        img.style.objectFit = 'cover';
+        img.title = user.fullname;
+        container.appendChild(img);
+    });
+
+    if (listeners.length > MAX_SHOW) {
+        const extra = document.createElement('span');
+        extra.textContent = `+${listeners.length - MAX_SHOW}`;
+        Object.assign(extra.style, {
+            width: '18px', height: '18px', borderRadius: '50%',
+            background: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.9)',
+            fontSize: '9px', fontWeight: '700', display: 'flex',
+            alignItems: 'center', justifyContent: 'center',
+            marginLeft: '-6px', border: '1px solid rgba(255,255,255,0.2)',
+            flexShrink: '0'
+        });
+        extra.title = listeners.slice(MAX_SHOW).map(u => u.fullname).join(', ');
+        container.appendChild(extra);
     }
 
     // Update participants marquee
@@ -5571,16 +5550,11 @@ function handleRadioListenersUpdate(listeners) {
                 
                 listeners.forEach(function(user, i) {
                     var img = document.createElement('img');
-                    var fallbackAvatar = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.fullname || user.username || 'User') + '&background=6366f1&color=fff&size=32';
-                    img.src = user.avatar || fallbackAvatar;
-                    img.style.cssText = 'width:16px;height:16px;border-radius:50%;object-fit:cover;flex-shrink:0;border:1px solid rgba(255,255,255,0.3);';
+                    img.src = user.avatar || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(user.fullname) + '&background=random&color=fff&size=16');
+                    img.style.cssText = 'width:16px;height:16px;border-radius:50%;object-fit:cover;flex-shrink:0;border:1px solid var(--border);';
                     if (i > 0) img.style.marginLeft = '-6px';
                     img.referrerPolicy = 'no-referrer';
-                    img.title = user.fullname || user.username;
-                    img.onerror = function() {
-                        this.onerror = null;
-                        this.src = fallbackAvatar;
-                    };
+                    img.onerror = function() { this.style.display='none'; };
                     containerItem.appendChild(img);
                 });
                 
@@ -5671,7 +5645,6 @@ function setupSocketRadio() {
     if (!window.socket) return;
     useRadioPolling = false;
     window.socket.emit('request_radio_state');
-    window.socket.emit('request_radio_listeners');
 
     // Khi socket (re)connect lại: đồng bộ lại trạng thái radio.
     // - Nếu là DJ: server sẽ gán lại dj_sid mới (nếu không sẽ bị chặn ở handle_radio_sync -> user kẹt "Đang đồng bộ...")
@@ -5680,16 +5653,12 @@ function setupSocketRadio() {
         // request_radio_state đã tự re-bind dj_sid theo username nếu ta là DJ.
         // Listener cần join_radio lại vì sid cũ đã bị xóa khỏi radio_listeners khi disconnect.
         window.socket.emit('request_radio_state');
-        window.socket.emit('request_radio_listeners');
         if (isListening && !isRadioDJ) {
             window.socket.emit('join_radio');
         }
     });
 
     window.socket.on('radio_sync', (state) => {
-        if (state && state.listeners) {
-            handleRadioListenersUpdate(state.listeners);
-        }
         // Auto-reclaim DJ mode if server says we are the DJ
         if (state.you_are_dj && !isRadioDJ) {
             isRadioDJ = true;
@@ -5878,8 +5847,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     radioApiPost('/api/radio/join');
                     startListenerHeartbeat();
                     startRadioPolling();
-                }
-                if (window.socket) {
+                } else if (window.socket) {
                     window.socket.emit('join_radio');
                 }
                 const currentVideo = ytPlayer.getVideoData()?.video_id;
@@ -5897,8 +5865,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     radioApiPost('/api/radio/leave');
                     stopListenerHeartbeat();
                     stopRadioPolling();
-                }
-                if (window.socket) {
+                } else if (window.socket) {
                     window.socket.emit('leave_radio');
                 }
                 ytPlayer.pauseVideo();
@@ -5929,8 +5896,7 @@ document.addEventListener('DOMContentLoaded', () => {
             radioApiPost('/api/radio/join');
             startListenerHeartbeat();
             startRadioPolling();
-        }
-        if (window.socket) {
+        } else if (window.socket) {
             window.socket.emit('join_radio');
         }
 
@@ -5990,7 +5956,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // 7. Hiển thị Toast thông báo thành công cho người dùng
         if (typeof showToast === 'function') {
             const djText = radioState.dj_username ? `cùng DJ ${radioState.dj_username}` : '';
-            showToast(`Đã kết nối tham gia nghe nhạc ${djText}!`, 'success');
+            showToast(`🎵 Đã kết nối tham gia nghe nhạc ${djText}!`, 'success');
         }
     };
 
@@ -6010,7 +5976,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         radioApiPost('/api/radio/join');
                         startListenerHeartbeat();
                         if (djBadge) djBadge.style.display = 'block';
-                        if (statusText) statusText.innerHTML = `Bạn đang là DJ`;
+                        if (statusText) statusText.innerHTML = `Bạn đang là DJ 🎧`;
                         if (ytInputContainer) ytInputContainer.style.display = 'block';
                         if (progressEl) progressEl.disabled = false;
                         djSyncInterval = setInterval(syncRadioToServer, 3000);
@@ -6033,7 +5999,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         isListening = true;
                         if (window.socket) window.socket.emit('join_radio');
                         if (djBadge) djBadge.style.display = 'block';
-                        if (statusText) statusText.innerHTML = `Bạn đang là DJ`;
+                        if (statusText) statusText.innerHTML = `Bạn đang là DJ 🎧`;
                         if (ytInputContainer) ytInputContainer.style.display = 'block';
                         if (progressEl) progressEl.disabled = false;
                         djSyncInterval = setInterval(syncRadioToServer, 3000);
