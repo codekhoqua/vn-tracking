@@ -2992,7 +2992,7 @@ def lsa_drive():
         filter_cv_sau=[],
         users=[],
         tasks=[],
-        app_version='v1.9.108',
+        app_version='v1.9.109',
     )
 
 # =====================================================================
@@ -4186,6 +4186,26 @@ def api_leave_warmup():
     warmup_leave_connections()
     return jsonify({"ok": True})
 
+def get_leave_admin_email_config():
+    """Lấy cấu hình email nhận thông báo nghỉ phép dành cho Admin."""
+    data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
+    cfg_file = os.path.join(data_dir, 'leave_admin_config.json')
+    if os.path.exists(cfg_file):
+        try:
+            with open(cfg_file, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {"notify_email": "tanphanduy8@gmail.com", "enabled": True}
+
+def save_leave_admin_email_config(cfg):
+    """Lưu cấu hình email nhận thông báo nghỉ phép."""
+    data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
+    os.makedirs(data_dir, exist_ok=True)
+    cfg_file = os.path.join(data_dir, 'leave_admin_config.json')
+    with open(cfg_file, 'w', encoding='utf-8') as f:
+        json.dump(cfg, f, ensure_ascii=False, indent=2)
+
 def create_leave_calendar_event(rec):
     """Tạo sự kiện lịch nghỉ phép trực tiếp trên Google Calendar thông qua Apps Script."""
     if not LEAVE_GDRIVE_SCRIPT_URL:
@@ -4226,15 +4246,26 @@ def create_leave_calendar_event(rec):
         if gdrive_link:
             desc_lines.append(f"📎 Ảnh xác nhận: {gdrive_link}")
 
+        # Đọc cấu hình email thông báo dành cho Admin
+        admin_cfg = get_leave_admin_email_config()
+        notify_email = admin_cfg.get('notify_email', '').strip() if admin_cfg.get('enabled') else ''
+
         payload = {
             "action": "create_event",
             "title": title,
             "startTime": start_iso,
             "endTime": end_iso,
+            "startTimeFormatted": f"{start_date} {start_time}",
+            "endTimeFormatted": f"{end_date} {end_time}",
             "fullname": fullname,
-            "reason": reason,
+            "staffCode": rec.get('staff_code', ''),
             "department": rec.get('department', ''),
-            "description": "\n".join(desc_lines)
+            "leaveType": leave_type,
+            "totalDays": total_days,
+            "reason": reason,
+            "gdriveLink": gdrive_link,
+            "description": "\n".join(desc_lines),
+            "notifyEmail": notify_email
         }
 
         s = get_gdrive_http_session()
@@ -4250,6 +4281,69 @@ def create_leave_calendar_event(rec):
         print(f"[Calendar Event Exception] {e}")
         return False, str(e)
     return False, "Unknown error creating calendar event"
+
+@app.route('/api/admin/leave_email_config', methods=['GET', 'POST'])
+def api_admin_leave_email_config():
+    if not session.get('logged_in'):
+        return jsonify({"ok": False, "error": "Unauthorized"}), 401
+
+    user = session.get('user', '')
+    user_role = str(session.get('role', '')).lower()
+    is_admin = (user_role in ['admin', 'manager']) or (user and 'tan' in user.lower())
+
+    if request.method == 'GET':
+        cfg = get_leave_admin_email_config()
+        return jsonify({
+            "ok": True,
+            "notify_email": cfg.get('notify_email', 'tanphanduy8@gmail.com'),
+            "enabled": cfg.get('enabled', True),
+            "is_admin": is_admin
+        })
+
+    # POST lưu cấu hình
+    if not is_admin:
+        return jsonify({"ok": False, "error": "Chỉ tài khoản Admin mới có quyền cấu hình email nhận thông báo"}), 403
+
+    data = request.get_json() or {}
+    notify_email = str(data.get('notify_email') or '').strip()
+    enabled = bool(data.get('enabled', True))
+
+    save_leave_admin_email_config({
+        "notify_email": notify_email,
+        "enabled": enabled
+    })
+    return jsonify({
+        "ok": True,
+        "notify_email": notify_email,
+        "enabled": enabled
+    })
+
+@app.route('/api/admin/leave_email_test', methods=['POST'])
+def api_admin_leave_email_test():
+    if not session.get('logged_in'):
+        return jsonify({"ok": False, "error": "Unauthorized"}), 401
+
+    data = request.get_json() or {}
+    test_email = str(data.get('notify_email') or '').strip() or 'tanphanduy8@gmail.com'
+
+    if not LEAVE_GDRIVE_SCRIPT_URL:
+        return jsonify({"ok": False, "error": "Chưa cấu hình LEAVE_GDRIVE_SCRIPT_URL"}), 400
+
+    try:
+        payload = {
+            "action": "send_test_email",
+            "notifyEmail": test_email
+        }
+        s = get_gdrive_http_session()
+        r = s.post(LEAVE_GDRIVE_SCRIPT_URL, json=payload, timeout=20)
+        if r.status_code == 200:
+            res = r.json()
+            if res.get('success'):
+                return jsonify({"ok": True, "message": f"Đã gửi email test thành công tới {test_email}"})
+            return jsonify({"ok": False, "error": res.get('error', 'Lỗi gửi mail')})
+        return jsonify({"ok": False, "error": f"Apps Script HTTP {r.status_code}"})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
 
 @app.route('/api/submit_leave_request', methods=['POST'])
 def api_submit_leave_request():
