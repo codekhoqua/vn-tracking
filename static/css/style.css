@@ -267,13 +267,15 @@ html.lenis, html.lenis body {
     position: fixed; top: 0; left: 0;
     width: var(--sidebar-w); bottom: 0;
     background: var(--sidebar-bg);
-    backdrop-filter: blur(24px) saturate(180%);
-    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    backdrop-filter: blur(12px) saturate(160%);
+    -webkit-backdrop-filter: blur(12px) saturate(160%);
     display: flex; flex-direction: column;
     z-index: 100;
     padding: 20px 14px;
     border-right: 1px solid var(--sidebar-border);
-    transition: width 0.55s var(--ux-spring), background-color var(--t-smooth), border-color var(--t-smooth);
+    transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1), background-color var(--t-smooth), border-color var(--t-smooth);
+    will-change: width;
+    transform: translateZ(0);
     overflow-y: auto;
     overflow-x: hidden;
     box-shadow: 4px 0 24px rgba(0, 0, 0, 0.04);
@@ -764,7 +766,8 @@ body.sidebar-collapsed .custom-lang-select {
     margin-left: var(--sidebar-w);
     padding: 32px 40px;
     min-height: 100vh;
-    transition: margin-left 0.55s var(--ux-spring);
+    transition: margin-left 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    will-change: margin-left;
 }
 
 .top-header {
@@ -4435,8 +4438,8 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
     border-radius: 20px;
     padding: 16px 18px 18px;
     box-shadow: 0 20px 45px -8px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.08);
-    backdrop-filter: blur(24px) saturate(180%);
-    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    backdrop-filter: blur(12px) saturate(160%);
+    -webkit-backdrop-filter: blur(12px) saturate(160%);
     max-height: calc(100vh - 40px);
     overflow-y: auto;
 }
@@ -7036,15 +7039,18 @@ body:has(.login-page) {
 .filmstrip-modal-backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(5, 8, 20, 0.75);
-    backdrop-filter: blur(16px);
+    background: rgba(6, 10, 20, 0.85);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     display: flex;
     align-items: center;
     justify-content: center;
     z-index: 99999;
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.3s ease;
+    transition: opacity 0.25s ease;
+    overscroll-behavior: contain;
+    will-change: opacity;
 }
 
 .filmstrip-modal-backdrop.open {
@@ -7053,7 +7059,7 @@ body:has(.login-page) {
 }
 
 .filmstrip-modal-card {
-    background: linear-gradient(135deg, rgba(17, 24, 39, 0.96) 0%, rgba(15, 23, 42, 0.98) 100%);
+    background: linear-gradient(135deg, rgba(17, 24, 39, 0.97) 0%, rgba(15, 23, 42, 0.99) 100%);
     border: 1px solid rgba(255, 255, 255, 0.15);
     border-radius: 24px;
     box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6), 0 0 40px rgba(245, 158, 11, 0.15);
@@ -7063,12 +7069,14 @@ body:has(.login-page) {
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    transform: scale(0.96) translateY(10px);
-    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    transform: scale(0.96) translateY(10px) translateZ(0);
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    overscroll-behavior: contain;
+    will-change: transform;
 }
 
 .filmstrip-modal-backdrop.open .filmstrip-modal-card {
-    transform: scale(1) translateY(0);
+    transform: scale(1) translateY(0) translateZ(0);
 }
 
 .filmstrip-modal-header {
@@ -7113,6 +7121,8 @@ body:has(.login-page) {
     padding: 20px 24px;
     overflow-y: auto;
     flex: 1;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
 }
 
 .filmstrip-dropzone {

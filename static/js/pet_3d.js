@@ -595,7 +595,7 @@ window.Pet3DEngine = (function () {
                 }
             }
 
-            roaming = createViewport('roaming-pet-canvas', 228, 165, { x: 1.15, y: 1.12, z: 2.65 }, { x: 0, y: 0.50, z: 0 });
+            roaming = createViewport('roaming-pet-canvas', 228, 165, { x: 1.15, y: 1.05, z: 2.65 }, { x: 0, y: 0.35, z: 0 });
             panel = createViewport('panel-pet-canvas', 150, 150, { x: 1.0, y: 0.98, z: 2.35 }, { x: 0, y: 0.44, z: 0 });
 
             if (!animationFrameId) {
@@ -1040,7 +1040,7 @@ window.Pet3DEngine = (function () {
             isDancing = false;
             [roaming, panel].forEach(vp => {
                 if (vp && vp.musicAura) vp.musicAura.visible = false;
-                if (vp && vp.modelGroup) vp.modelGroup.position.y = 0;
+                if (vp && vp.modelGroup) vp.modelGroup.position.y = (vp === roaming ? 0.08 : 0);
             });
         }
         applyPose(poseName);
@@ -1308,18 +1308,19 @@ window.Pet3DEngine = (function () {
 
         // Dynamic pose bounce & physics
         if (vp.modelGroup && !isCelebrating) {
+            const baseY = (vp === roaming ? 0.08 : 0);
             if (vp !== switchPreview && vp !== adoptPreview && isDancing) {
                 const beat = time * 7.5;
-                vp.modelGroup.position.y = Math.abs(Math.sin(beat)) * 0.06;
+                vp.modelGroup.position.y = baseY + Math.abs(Math.sin(beat)) * 0.06;
                 if (Math.random() < 0.02) {
                     spawnParticles('note', 1);
                 }
             } else if (vp !== switchPreview && vp !== adoptPreview && currentPose === 'run') {
-                vp.modelGroup.position.y = Math.abs(Math.sin(time * 9.0)) * 0.045;
+                vp.modelGroup.position.y = baseY + Math.abs(Math.sin(time * 9.0)) * 0.045;
             } else if (vp !== switchPreview && vp !== adoptPreview && currentPose === 'walk') {
-                vp.modelGroup.position.y = Math.sin(time * 5.0) * 0.025;
+                vp.modelGroup.position.y = baseY + Math.sin(time * 5.0) * 0.025;
             } else if (currentPose === 'idle' || vp === switchPreview || vp === adoptPreview) {
-                vp.modelGroup.position.y = 0;
+                vp.modelGroup.position.y = baseY;
             }
         }
 
