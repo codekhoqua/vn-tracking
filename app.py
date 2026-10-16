@@ -2992,7 +2992,7 @@ def lsa_drive():
         filter_cv_sau=[],
         users=[],
         tasks=[],
-        app_version='v1.9.120',
+        app_version='v1.9.121',
     )
 
 # =====================================================================
@@ -5417,6 +5417,9 @@ def _radio_write_state(state):
         pass
 
 
+_local_presence = {}
+
+
 def _presence_key(username):
     """Tên file an toàn cho 1 user (dùng cho cả listeners và online users)."""
     h = hashlib.md5(username.encode('utf-8')).hexdigest()[:16]
@@ -5428,11 +5431,19 @@ def _presence_read_dir(dir_path):
 
     Mỗi user = 1 file nên nhiều người join/heartbeat song song không ghi đè
     lên nhau. Entry quá hạn (>PRESENCE_TTL) được coi là offline (lười xóa)."""
-    if not USE_SUPABASE:
-        return []
     now = time.time()
     result = []
     seen = set()
+    if not USE_SUPABASE:
+        bucket = _local_presence.get(dir_path, {})
+        for uname, entry in list(bucket.items()):
+            if now - entry.get('last_seen', 0) >= PRESENCE_TTL:
+                bucket.pop(uname, None)
+                continue
+            if uname not in seen:
+                seen.add(uname)
+                result.append(entry)
+        return result
     try:
         for it in sb_list(dir_path):
             if it.get('is_dir'):
@@ -5461,12 +5472,15 @@ def _presence_read_dir(dir_path):
 
 def _presence_write(dir_path, username, profile):
     """Ghi/refresh presence cho 1 user vào file riêng của user đó."""
-    if not USE_SUPABASE or not username:
+    if not username:
+        return
+    entry = dict(profile or {})
+    entry['username'] = username
+    entry['last_seen'] = time.time()
+    if not USE_SUPABASE:
+        _local_presence.setdefault(dir_path, {})[username] = entry
         return
     try:
-        entry = dict(profile or {})
-        entry['username'] = username
-        entry['last_seen'] = time.time()
         sb_upload(f'{dir_path}/{_presence_key(username)}',
                   json.dumps(entry).encode('utf-8'), 'application/json')
     except Exception:
@@ -5475,7 +5489,10 @@ def _presence_write(dir_path, username, profile):
 
 def _presence_remove(dir_path, username):
     """Xóa presence file của 1 user."""
-    if not USE_SUPABASE or not username:
+    if not username:
+        return
+    if not USE_SUPABASE:
+        _local_presence.get(dir_path, {}).pop(username, None)
         return
     try:
         sb_delete([f'{dir_path}/{_presence_key(username)}'])
@@ -5486,6 +5503,7 @@ def _presence_remove(dir_path, username):
 def _presence_clear(dir_path):
     """Xóa toàn bộ presence trong folder (dùng khi đổi/ tắt DJ)."""
     if not USE_SUPABASE:
+        _local_presence.pop(dir_path, None)
         return
     try:
         paths = [it['path'] for it in sb_list(dir_path) if not it.get('is_dir')]
@@ -5523,7 +5541,7 @@ def api_radio_state():
 
     username = session.get('user', '')
     state['you_are_dj'] = (username == state.get('dj_username'))
-    state['listeners'] = _radio_read_listeners()
+    state['listeners'] = get_radio_listener_profiles()
     return jsonify(state)
 
 
@@ -5736,6 +5754,10 @@ def api_radio_join():
         'fullname': fullname,
         'avatar': avatar,
     })
+    try:
+        socketio.emit('radio_listeners_update', get_radio_listener_profiles())
+    except Exception:
+        pass
     return jsonify({'success': True})
 
 
@@ -5747,6 +5769,10 @@ def api_radio_leave():
 
     username = session.get('user', '')
     _presence_remove(RADIO_LISTENERS_DIR, username)
+    try:
+        socketio.emit('radio_listeners_update', get_radio_listener_profiles())
+    except Exception:
+        pass
     return jsonify({'success': True})
 
 
@@ -5853,6 +5879,23 @@ def get_radio_listener_profiles():
     if not dj_added and dj_username and radio_state.get('dj_profile'):
         seen.add(dj_username)
         listeners.append(radio_state['dj_profile'])
+        dj_added = True
+
+    # Fallback to USER_DB if DJ profile was not found yet
+    if not dj_added and dj_username:
+        try:
+            USER_DB = load_users_from_sheet(USER_SHEET_URL)
+            dj_u = USER_DB.get(dj_username, {})
+            u = {
+                'username': dj_username,
+                'fullname': dj_u.get('fullname', dj_username),
+                'avatar': dj_u.get('avatar', '')
+            }
+            seen.add(dj_username)
+            listeners.append(u)
+            dj_added = True
+        except Exception:
+            pass
 
     # Add listeners from polling
     polling_listeners = _presence_read_dir(RADIO_LISTENERS_DIR)
@@ -5924,7 +5967,14 @@ def handle_request_radio_state():
     else:
         state['you_are_dj'] = False
         
+    listeners = get_radio_listener_profiles()
+    state['listeners'] = listeners
     emit('radio_sync', state)
+    emit('radio_listeners_update', listeners)
+
+@socketio.on('request_radio_listeners')
+def handle_request_radio_listeners():
+    emit('radio_listeners_update', get_radio_listener_profiles())
 
 @socketio.on('radio_sync')
 def handle_radio_sync(data):
