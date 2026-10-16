@@ -942,6 +942,702 @@ window.simulateWeatherEffect = function(mode) {
     }
 };
 
+
+// =========================================================================
+// TOUCH GRASS HERO BANNER BACKGROUND ENGINE (KHI TẮT HERO ALBUM)
+// =========================================================================
+(function initGrassBannerEngine() {
+    let canvas = null;
+    let ctx = null;
+
+    let width = 800;
+    let height = 225;
+    let dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+    let timeOfDay = 1.0;
+    let targetTimeOfDay = 1.0;
+
+    const pointer = {
+        x: -9999,
+        y: -9999,
+        vx: 0,
+        vy: 0,
+        lastX: -9999,
+        lastY: -9999,
+        isOnHill: false,
+        active: false
+    };
+
+    let grassBlades = [];
+    let clouds = [];
+    let stars = [];
+    let fireflies = [];
+    let flowers = [];
+    let treeFoliage = [];
+
+    let isGrassRunning = false;
+    let grassAnimId = null;
+    let startTime = performance.now();
+
+    function lerp(a, b, t) {
+        return a + (b - a) * t;
+    }
+    function clamp(val, min, max) {
+        return Math.max(min, Math.min(max, val));
+    }
+    function lerpColor(rgb1, rgb2, t) {
+        return [
+            Math.round(lerp(rgb1[0], rgb2[0], t)),
+            Math.round(lerp(rgb1[1], rgb2[1], t)),
+            Math.round(lerp(rgb1[2], rgb2[2], t))
+        ];
+    }
+    function sampleAtmosphereColor(morningRGB, sunsetRGB, nightRGB, t) {
+        if (t < 0.5) {
+            return lerpColor(morningRGB, sunsetRGB, t * 2);
+        } else {
+            return lerpColor(sunsetRGB, nightRGB, (t - 0.5) * 2);
+        }
+    }
+    function rgbToStr(rgb, alpha = 1) {
+        if (alpha < 1) return `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${alpha})`;
+        return `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
+    }
+
+    function getHillSurfaceY(x) {
+        const normX = x / width;
+        const peakX = 0.56;
+        const dist = normX - peakX;
+        const hillApexY = height * 0.54;
+        const dropOff = Math.pow(dist, 2) * (height * 0.62);
+        const wave = Math.sin(normX * Math.PI * 2.4) * (height * 0.015);
+        return hillApexY + dropOff + wave;
+    }
+
+    function resizeAndBuild() {
+        if (!canvas) canvas = document.getElementById('grass-banner-canvas');
+        if (!canvas) return;
+        const parent = canvas.parentElement;
+        if (!parent) return;
+        const rect = parent.getBoundingClientRect();
+        width = Math.max(300, rect.width);
+        height = Math.max(140, rect.height);
+        dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+        canvas.width = Math.floor(width * dpr);
+        canvas.height = Math.floor(height * dpr);
+        if (ctx) ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        buildClouds();
+        buildStars();
+        buildTree();
+        buildGrassAndFlowers();
+        buildAmbientFireflies();
+    }
+
+    function buildClouds() {
+        clouds = [];
+        const cloudCount = 8;
+        const hScale = clamp(height / 420, 0.45, 1.0);
+        for (let i = 0; i < cloudCount; i++) {
+            const puffs = [];
+            const puffCount = 5 + Math.floor(Math.random() * 4);
+            for (let p = 0; p < puffCount; p++) {
+                puffs.push({
+                    ox: (p - puffCount / 2) * (32 + Math.random() * 20),
+                    oy: (Math.random() - 0.5) * 16,
+                    r: 26 + Math.random() * 38
+                });
+            }
+            clouds.push({
+                x: Math.random() * (width + 300) - 150,
+                y: height * (0.1 + Math.random() * 0.4),
+                speed: 0.1 + Math.random() * 0.18,
+                scale: (0.65 + Math.random() * 0.65) * hScale,
+                opacity: 0.42 + Math.random() * 0.35,
+                puffs
+            });
+        }
+    }
+
+    function buildStars() {
+        stars = [];
+        const starCount = 110;
+        for (let i = 0; i < starCount; i++) {
+            stars.push({
+                x: Math.random() * width,
+                y: Math.random() * (height * 0.72),
+                size: 0.55 + Math.random() * 1.25,
+                twinkleSpeed: 1.5 + Math.random() * 3.2,
+                phase: Math.random() * Math.PI * 2
+            });
+        }
+    }
+
+    function buildTree() {
+        treeFoliage = [
+            { ox: -28, oy: -48, rx: 32, ry: 22, layer: 0 },
+            { ox: 26, oy: -45, rx: 30, ry: 21, layer: 0 },
+            { ox: 0, oy: -66, rx: 38, ry: 25, layer: 0 },
+            { ox: -36, oy: -42, rx: 28, ry: 19, layer: 1 },
+            { ox: 34, oy: -40, rx: 26, ry: 18, layer: 1 },
+            { ox: -12, oy: -58, rx: 34, ry: 23, layer: 1 },
+            { ox: 16, oy: -56, rx: 32, ry: 22, layer: 1 },
+            { ox: 0, oy: -72, rx: 30, ry: 21, layer: 1 },
+            { ox: -22, oy: -50, rx: 22, ry: 14, layer: 2 },
+            { ox: 18, oy: -60, rx: 24, ry: 15, layer: 2 },
+            { ox: -4, oy: -74, rx: 23, ry: 14, layer: 2 },
+            { ox: 28, oy: -44, rx: 18, ry: 12, layer: 2 }
+        ];
+    }
+
+    function buildGrassAndFlowers() {
+        grassBlades = [];
+        flowers = [];
+
+        const totalBlades = clamp(Math.floor(width * 3.4), 2600, 4800);
+        const heightScale = clamp(height / 360, 0.58, 1.05);
+
+        for (let i = 0; i < totalBlades; i++) {
+            const x = (Math.random() * 1.06 - 0.03) * width;
+            const hillTopY = getHillSurfaceY(x);
+            const hillDepth = height - hillTopY + 24;
+            if (hillDepth <= 0) continue;
+
+            const depthRatio = Math.pow(Math.random(), 0.86);
+            const y = hillTopY + depthRatio * hillDepth;
+
+            const baseHeight = (12 + depthRatio * 28 + Math.random() * 9) * heightScale;
+            const baseWidth = (1.05 + depthRatio * 1.45) * Math.max(0.75, heightScale);
+
+            grassBlades.push({
+                x,
+                y,
+                depth: depthRatio,
+                h: baseHeight,
+                w: baseWidth,
+                naturalLean: (Math.random() - 0.5) * 0.42,
+                bend: 0,
+                vBend: 0,
+                glow: 0,
+                colorSeed: Math.random(),
+                windPhase: x * 0.015 + y * 0.012 + Math.random() * 1.8
+            });
+
+            if (Math.random() < 0.016 && depthRatio > 0.15) {
+                const flowerTypes = [
+                    [235, 95, 135],
+                    [250, 210, 85],
+                    [165, 130, 245]
+                ];
+                flowers.push({
+                    x,
+                    y: y - baseHeight * 0.65,
+                    size: (1.2 + depthRatio * 1.5) * heightScale,
+                    color: flowerTypes[Math.floor(Math.random() * flowerTypes.length)],
+                    phase: Math.random() * Math.PI * 2
+                });
+            }
+        }
+
+        grassBlades.sort((a, b) => a.y - b.y);
+    }
+
+    function buildAmbientFireflies() {
+        fireflies = [];
+        for (let i = 0; i < 38; i++) {
+            spawnFirefly(true);
+        }
+    }
+
+    function spawnFirefly(isAmbient = false, customX = null, customY = null) {
+        const x = customX !== null ? customX : Math.random() * width;
+        const surfaceY = getHillSurfaceY(x);
+        const y = customY !== null ? customY : surfaceY - 10 + Math.random() * (height - surfaceY + 10);
+
+        const isGold = Math.random() < 0.45;
+        fireflies.push({
+            x,
+            y,
+            vx: (Math.random() - 0.5) * (isAmbient ? 0.45 : 1.6),
+            vy: isAmbient ? (-0.12 - Math.random() * 0.28) : (-0.35 - Math.random() * 1.0),
+            size: isAmbient ? (1.3 + Math.random() * 1.9) : (1.6 + Math.random() * 2.3),
+            phase: Math.random() * Math.PI * 2,
+            isAmbient,
+            life: 1.0,
+            decay: isAmbient ? 0.002 : (0.014 + Math.random() * 0.015),
+            color: isGold ? [250, 230, 105] : [115, 255, 180]
+        });
+    }
+
+    function renderSky(t, elapsed) {
+        if (!ctx) return;
+        const zenithColor = sampleAtmosphereColor(
+            [86, 152, 224],
+            [108, 65, 118],
+            [9, 16, 36],
+            t
+        );
+        const midSkyColor = sampleAtmosphereColor(
+            [150, 198, 238],
+            [215, 102, 112],
+            [16, 30, 62],
+            t
+        );
+        const horizonColor = sampleAtmosphereColor(
+            [235, 240, 212],
+            [246, 168, 92],
+            [25, 46, 84],
+            t
+        );
+
+        const skyGrad = ctx.createLinearGradient(0, 0, 0, height * 0.78);
+        skyGrad.addColorStop(0, rgbToStr(zenithColor));
+        skyGrad.addColorStop(0.55, rgbToStr(midSkyColor));
+        skyGrad.addColorStop(1, rgbToStr(horizonColor));
+
+        ctx.fillStyle = skyGrad;
+        ctx.fillRect(0, 0, width, height);
+
+        // Stars
+        if (t > 0.35) {
+            const starVis = clamp((t - 0.35) / 0.65, 0, 1);
+            ctx.save();
+            for (let i = 0; i < stars.length; i++) {
+                const s = stars[i];
+                const twinkle = 0.4 + 0.6 * Math.sin(elapsed * s.twinkleSpeed + s.phase);
+                ctx.fillStyle = `rgba(255, 255, 255, ${starVis * twinkle * 0.85})`;
+                ctx.beginPath();
+                ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.restore();
+        }
+
+        // Glowing Moon
+        if (t > 0.25) {
+            const moonVis = clamp((t - 0.25) / 0.75, 0, 1);
+            const moonX = width * 0.68;
+            const targetMoonY = height * 0.30;
+            const moonY = lerp(height * 0.58, targetMoonY, moonVis);
+            const moonRadius = clamp(height * 0.048, 8, 18);
+
+            ctx.save();
+            const outerGlow = ctx.createRadialGradient(moonX, moonY, moonRadius * 0.5, moonX, moonY, moonRadius * 5.2);
+            outerGlow.addColorStop(0, `rgba(230, 242, 255, ${0.34 * moonVis})`);
+            outerGlow.addColorStop(0.4, `rgba(180, 215, 255, ${0.12 * moonVis})`);
+            outerGlow.addColorStop(1, 'rgba(180, 215, 255, 0)');
+            ctx.fillStyle = outerGlow;
+            ctx.beginPath();
+            ctx.arc(moonX, moonY, moonRadius * 5.2, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.shadowColor = `rgba(240, 248, 255, ${0.9 * moonVis})`;
+            ctx.shadowBlur = 18;
+            ctx.fillStyle = `rgba(252, 254, 255, ${moonVis})`;
+            ctx.beginPath();
+            ctx.arc(moonX, moonY, moonRadius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        // Drifting Clouds
+        const cloudColor = sampleAtmosphereColor(
+            [255, 255, 255],
+            [238, 152, 138],
+            [40, 60, 102],
+            t
+        );
+        const cloudAlphaScale = lerp(0.52, 0.26, t);
+
+        ctx.save();
+        for (let i = 0; i < clouds.length; i++) {
+            const c = clouds[i];
+            c.x += c.speed;
+            if (c.x > width + 220) c.x = -220;
+
+            for (let p = 0; p < c.puffs.length; p++) {
+                const puff = c.puffs[p];
+                const px = c.x + puff.ox * c.scale;
+                const py = c.y + puff.oy * c.scale;
+                const pr = puff.r * c.scale;
+
+                const grad = ctx.createRadialGradient(px, py, pr * 0.1, px, py, pr);
+                const a = c.opacity * cloudAlphaScale;
+                grad.addColorStop(0, rgbToStr(cloudColor, a));
+                grad.addColorStop(0.6, rgbToStr(cloudColor, a * 0.45));
+                grad.addColorStop(1, rgbToStr(cloudColor, 0));
+
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.arc(px, py, pr, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+        ctx.restore();
+    }
+
+    function renderTree(t, elapsed) {
+        if (!ctx) return;
+        const treeX = width * 0.56;
+        const treeBaseY = getHillSurfaceY(treeX) + 3;
+        const scale = clamp(height / 360, 0.52, 1.08);
+        const windSway = Math.sin(elapsed * 1.3) * 2.2;
+
+        ctx.save();
+        ctx.translate(treeX, treeBaseY);
+        ctx.scale(scale, scale);
+
+        const trunkRGB = sampleAtmosphereColor(
+            [68, 52, 38],
+            [52, 32, 30],
+            [20, 26, 36],
+            t
+        );
+
+        ctx.fillStyle = rgbToStr(trunkRGB);
+        ctx.beginPath();
+        ctx.moveTo(-7, 4);
+        ctx.quadraticCurveTo(-5, -20, -4 + windSway * 0.3, -44);
+        ctx.lineTo(-18 + windSway * 0.5, -56);
+        ctx.lineTo(-14 + windSway * 0.5, -58);
+        ctx.lineTo(-1 + windSway * 0.4, -46);
+        ctx.lineTo(14 + windSway * 0.5, -56);
+        ctx.lineTo(17 + windSway * 0.5, -53);
+        ctx.lineTo(5 + windSway * 0.3, -40);
+        ctx.quadraticCurveTo(5, -18, 8, 4);
+        ctx.closePath();
+        ctx.fill();
+
+        const layerColors = [
+            sampleAtmosphereColor([34, 72, 34], [52, 38, 34], [10, 26, 28], t),
+            sampleAtmosphereColor([56, 108, 44], [82, 56, 40], [16, 42, 38], t),
+            sampleAtmosphereColor([88, 146, 58], [135, 84, 48], [26, 62, 52], t)
+        ];
+
+        for (let i = 0; i < treeFoliage.length; i++) {
+            const f = treeFoliage[i];
+            const swayOffset = windSway * (0.6 + f.layer * 0.25) + Math.cos(elapsed * 1.7 + i) * 1.0;
+            ctx.fillStyle = rgbToStr(layerColors[f.layer]);
+            ctx.beginPath();
+            ctx.ellipse(f.ox + swayOffset, f.oy, f.rx, f.ry, 0, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        ctx.restore();
+    }
+
+    function renderHillBase(t) {
+        if (!ctx) return;
+        const hillApexY = height * 0.52;
+        const hillTopColor = sampleAtmosphereColor(
+            [88, 138, 56],
+            [96, 68, 42],
+            [14, 38, 34],
+            t
+        );
+        const hillBottomColor = sampleAtmosphereColor(
+            [28, 56, 24],
+            [32, 24, 22],
+            [6, 16, 18],
+            t
+        );
+
+        const hillGrad = ctx.createLinearGradient(0, hillApexY, 0, height);
+        hillGrad.addColorStop(0, rgbToStr(hillTopColor));
+        hillGrad.addColorStop(1, rgbToStr(hillBottomColor));
+
+        ctx.fillStyle = hillGrad;
+        ctx.beginPath();
+        ctx.moveTo(0, height);
+        const steps = 60;
+        for (let i = 0; i <= steps; i++) {
+            const x = (i / steps) * width;
+            const y = getHillSurfaceY(x);
+            ctx.lineTo(x, y);
+        }
+        ctx.lineTo(width, height);
+        ctx.closePath();
+        ctx.fill();
+    }
+
+    function renderInteractiveGrass(t, elapsed) {
+        if (!ctx || !canvas) return;
+        if (pointer.active && pointer.y >= getHillSurfaceY(pointer.x) - 22) {
+            if (!pointer.isOnHill) {
+                pointer.isOnHill = true;
+                canvas.classList.add('cursor-grass');
+            }
+        } else if (pointer.isOnHill) {
+            pointer.isOnHill = false;
+            canvas.classList.remove('cursor-grass');
+        }
+
+        if (pointer.isOnHill) {
+            const glowRadius = clamp(height * 0.38, 70, 125);
+            const spotGrad = ctx.createRadialGradient(
+                pointer.x, pointer.y, 4,
+                pointer.x, pointer.y, glowRadius
+            );
+            const spotAlpha = lerp(0.18, 0.38, t);
+            const spotRGB = lerpColor([185, 245, 110], [80, 255, 165], t);
+            spotGrad.addColorStop(0, rgbToStr(spotRGB, spotAlpha));
+            spotGrad.addColorStop(0.55, rgbToStr(spotRGB, spotAlpha * 0.35));
+            spotGrad.addColorStop(1, rgbToStr(spotRGB, 0));
+
+            ctx.fillStyle = spotGrad;
+            ctx.beginPath();
+            ctx.arc(pointer.x, pointer.y, glowRadius, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        const tipMorning1 = [126, 178, 74];
+        const tipMorning2 = [164, 206, 98];
+        const tipSunset1  = [138, 96, 52];
+        const tipSunset2  = [182, 128, 68];
+        const tipNight1   = [24, 62, 52];
+        const tipNight2   = [38, 86, 70];
+
+        const tipRGB1 = sampleAtmosphereColor(tipMorning1, tipSunset1, tipNight1, t);
+        const tipRGB2 = sampleAtmosphereColor(tipMorning2, tipSunset2, tipNight2, t);
+        const bioRGB  = lerpColor([215, 252, 130], [115, 255, 185], t);
+
+        const interactionRadius = clamp(height * 0.32, 65, 95);
+        const interactionRadiusSq = interactionRadius * interactionRadius;
+
+        ctx.lineCap = 'round';
+
+        for (let i = 0; i < grassBlades.length; i++) {
+            const b = grassBlades[i];
+            const wind = Math.sin(elapsed * 1.85 + b.windPhase) * 0.16 +
+                         Math.cos(elapsed * 0.9 + b.x * 0.008) * 0.08;
+
+            if (pointer.isOnHill) {
+                const dx = b.x - pointer.x;
+                const dy = (b.y - b.h * 0.4) - pointer.y;
+                const distSq = dx * dx + dy * dy;
+
+                if (distSq < interactionRadiusSq) {
+                    const dist = Math.sqrt(distSq);
+                    const influence = Math.pow(1 - dist / interactionRadius, 1.5);
+                    const pushDir = dx >= 0 ? 1 : -1;
+                    const targetBend = pushDir * influence * 0.95 + clamp(pointer.vx * 0.025, -0.6, 0.6) * influence;
+                    b.vBend += (targetBend - b.bend) * 0.28;
+                    b.glow = Math.max(b.glow, influence);
+                }
+            }
+
+            b.vBend += (0 - b.bend) * 0.08;
+            b.vBend *= 0.82;
+            b.bend += b.vBend;
+            b.glow *= lerp(0.94, 0.982, t);
+
+            const totalAngle = b.naturalLean + wind + b.bend;
+            const tipX = b.x + Math.sin(totalAngle) * b.h;
+            const tipY = b.y - Math.cos(totalAngle) * b.h;
+            const ctrlX = b.x + Math.sin(totalAngle * 0.5) * (b.h * 0.55);
+            const ctrlY = b.y - Math.cos(totalAngle * 0.5) * (b.h * 0.55);
+
+            let tipColor = lerpColor(tipRGB1, tipRGB2, b.colorSeed);
+            if (b.glow > 0.01) {
+                const glowStrength = clamp(b.glow * (0.65 + 0.35 * t), 0, 1);
+                tipColor = lerpColor(tipColor, bioRGB, glowStrength);
+            }
+
+            ctx.strokeStyle = rgbToStr(tipColor);
+            ctx.lineWidth = b.w;
+            ctx.beginPath();
+            ctx.moveTo(b.x, b.y);
+            ctx.quadraticCurveTo(ctrlX, ctrlY, tipX, tipY);
+            ctx.stroke();
+
+            if (b.glow > 0.22 && t > 0.3) {
+                const orbAlpha = (b.glow - 0.22) * (0.4 + 0.6 * t);
+                ctx.fillStyle = `rgba(165, 255, 205, ${orbAlpha})`;
+                ctx.beginPath();
+                ctx.arc(tipX, tipY, b.w * 0.95, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        for (let i = 0; i < flowers.length; i++) {
+            const fl = flowers[i];
+            const sway = Math.sin(elapsed * 1.8 + fl.phase) * 2.2;
+            const alpha = lerp(0.75, 0.35, t);
+            ctx.fillStyle = rgbToStr(fl.color, alpha);
+            ctx.beginPath();
+            ctx.arc(fl.x + sway, fl.y, fl.size, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+
+    function renderFireflies(t, elapsed) {
+        if (!ctx) return;
+        ctx.save();
+        for (let i = fireflies.length - 1; i >= 0; i--) {
+            const f = fireflies[i];
+            f.x += f.vx + Math.sin(elapsed * 1.6 + f.phase) * 0.3;
+            f.y += f.vy + Math.cos(elapsed * 1.2 + f.phase) * 0.18;
+
+            if (f.isAmbient) {
+                const surfaceY = getHillSurfaceY(f.x);
+                if (f.y < surfaceY - 55) f.vy += 0.01;
+                if (f.y > height - 6) f.vy -= 0.02;
+                if (f.x < 0) f.x = width;
+                if (f.x > width) f.x = 0;
+            } else {
+                f.life -= f.decay;
+                if (f.life <= 0) {
+                    fireflies.splice(i, 1);
+                    continue;
+                }
+            }
+
+            const visibility = f.isAmbient ? clamp((t - 0.25) / 0.75, 0, 1) : 1.0;
+            if (visibility <= 0.01) continue;
+
+            const pulse = 0.55 + 0.45 * Math.sin(elapsed * 3.8 + f.phase);
+            const finalAlpha = visibility * f.life * pulse;
+
+            const radius = f.size * 3.5;
+            const grad = ctx.createRadialGradient(f.x, f.y, 0.4, f.x, f.y, radius);
+            grad.addColorStop(0, rgbToStr([255, 255, 240], finalAlpha));
+            grad.addColorStop(0.35, rgbToStr(f.color, finalAlpha * 0.75));
+            grad.addColorStop(1, rgbToStr(f.color, 0));
+
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(f.x, f.y, radius, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.restore();
+    }
+
+    function animate(now) {
+        if (!isGrassRunning) return;
+        const elapsed = (now - startTime) * 0.001;
+
+        const diff = targetTimeOfDay - timeOfDay;
+        if (Math.abs(diff) > 0.0005) {
+            timeOfDay += diff * 0.028;
+        } else {
+            timeOfDay = targetTimeOfDay;
+        }
+
+        pointer.vx *= 0.85;
+        pointer.vy *= 0.85;
+
+        renderSky(timeOfDay, elapsed);
+        renderTree(timeOfDay, elapsed);
+        renderHillBase(timeOfDay);
+        renderInteractiveGrass(timeOfDay, elapsed);
+        renderFireflies(timeOfDay, elapsed);
+
+        grassAnimId = requestAnimationFrame(animate);
+    }
+
+    function updatePointerFromEvent(clientX, clientY) {
+        if (!canvas || !isGrassRunning || canvas.style.display === 'none') return;
+        const rect = canvas.getBoundingClientRect();
+        const localX = clientX - rect.left;
+        const localY = clientY - rect.top;
+
+        if (localX >= 0 && localX <= rect.width && localY >= 0 && localY <= rect.height) {
+            pointer.active = true;
+            pointer.vx = localX - pointer.lastX;
+            pointer.vy = localY - pointer.lastY;
+            pointer.x = localX;
+            pointer.y = localY;
+            pointer.lastX = localX;
+            pointer.lastY = localY;
+
+            const speed = Math.hypot(pointer.vx, pointer.vy);
+            if (localY >= getHillSurfaceY(localX) - 18 && speed > 2.2 && Math.random() < 0.5 && fireflies.length < 120) {
+                spawnFirefly(
+                    false,
+                    localX + (Math.random() - 0.5) * 26,
+                    localY + (Math.random() - 0.5) * 16
+                );
+            }
+        } else {
+            pointer.active = false;
+            pointer.isOnHill = false;
+            canvas.classList.remove('cursor-grass');
+        }
+    }
+
+    window.syncGrassBannerTheme = function() {
+        const isDark = document.body.classList.contains('dark-theme') || localStorage.getItem('vn_tracking_theme') !== 'light';
+        targetTimeOfDay = isDark ? 1.0 : 0.0;
+    };
+
+    window.startGrassBanner = function() {
+        if (!canvas) canvas = document.getElementById('grass-banner-canvas');
+        if (!canvas) return;
+        if (!ctx) ctx = canvas.getContext('2d', { alpha: false });
+        canvas.style.display = 'block';
+        window.syncGrassBannerTheme();
+        if (isGrassRunning) return;
+        isGrassRunning = true;
+        resizeAndBuild();
+        startTime = performance.now();
+        grassAnimId = requestAnimationFrame(animate);
+    };
+
+    window.stopGrassBanner = function() {
+        if (!canvas) canvas = document.getElementById('grass-banner-canvas');
+        if (canvas) canvas.style.display = 'none';
+        isGrassRunning = false;
+        if (grassAnimId) {
+            cancelAnimationFrame(grassAnimId);
+            grassAnimId = null;
+        }
+    };
+
+    window.addEventListener('mousemove', (e) => {
+        updatePointerFromEvent(e.clientX, e.clientY);
+    });
+
+    window.addEventListener('touchmove', (e) => {
+        if (e.touches && e.touches.length > 0) {
+            updatePointerFromEvent(e.touches[0].clientX, e.touches[0].clientY);
+        }
+    }, { passive: true });
+
+    window.addEventListener('resize', () => {
+        if (isGrassRunning) resizeAndBuild();
+    });
+
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            if (isGrassRunning && grassAnimId) {
+                cancelAnimationFrame(grassAnimId);
+                grassAnimId = null;
+            }
+        } else {
+            if (isGrassRunning && !grassAnimId) {
+                startTime = performance.now();
+                grassAnimId = requestAnimationFrame(animate);
+            }
+        }
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+        canvas = document.getElementById('grass-banner-canvas');
+        if (canvas) {
+            ctx = canvas.getContext('2d', { alpha: false });
+            window.syncGrassBannerTheme();
+            timeOfDay = targetTimeOfDay;
+            const filmstripLayer = document.getElementById('hero-filmstrip-layer');
+            const albumData = window.weatherAlbumData;
+            const isAlbumDisabled = !albumData || !albumData.settings || albumData.settings.enabled === false || (albumData.photos && albumData.photos.length === 0) || (filmstripLayer && filmstripLayer.classList.contains('disabled'));
+            if (isAlbumDisabled) {
+                window.startGrassBanner();
+            }
+        }
+    });
+})();
+
 // ==================== WEATHER 35MM CINEMA FILMSTRIP ALBUM ====================
 window.weatherAlbumData = {
     photos: [],
@@ -957,7 +1653,12 @@ window.initWeatherFilmstripAlbum = function() {
                 renderHeroFilmstripTrack();
             }
         })
-        .catch(e => console.warn('Filmstrip album fetch error:', e));
+        .catch(e => {
+            console.warn('Filmstrip album fetch error:', e);
+            if (typeof window.startGrassBanner === 'function') {
+                window.startGrassBanner();
+            }
+        });
 
     // Bind dropzone events on modal once DOM ready
     setTimeout(() => {
@@ -1012,9 +1713,15 @@ window.renderHeroFilmstripTrack = function() {
 
     if (!settings.enabled || photos.length === 0) {
         container.classList.add('disabled');
+        if (typeof window.startGrassBanner === 'function') {
+            window.startGrassBanner();
+        }
         return;
     }
     container.classList.remove('disabled');
+    if (typeof window.stopGrassBanner === 'function') {
+        window.stopGrassBanner();
+    }
 
     // Update speed class
     track.className = 'hero-filmstrip-track';
@@ -3324,6 +4031,9 @@ function toggleTheme() {
     if (typeof updateAreaChart === 'function') {
         const activeBtn = document.querySelector('.chart-time-controls button.active');
         if (activeBtn) updateAreaChart(activeBtn.dataset.period);
+    }
+    if (typeof window.syncGrassBannerTheme === 'function') {
+        window.syncGrassBannerTheme();
     }
 }
 
