@@ -2992,7 +2992,7 @@ def lsa_drive():
         filter_cv_sau=[],
         users=[],
         tasks=[],
-        app_version='v1.9.101',
+        app_version='v1.9.102',
     )
 
 # =====================================================================
@@ -3889,6 +3889,52 @@ LEAVE_RESPONSES_SPREADSHEET_ID = os.environ.get('LEAVE_RESPONSES_SPREADSHEET_ID'
 LEAVE_RESPONSES_SHEET_TAB = os.environ.get('LEAVE_RESPONSES_SHEET_TAB', 'Form Responses 1')
 LEAVE_GDRIVE_SCRIPT_URL = os.environ.get('LEAVE_GDRIVE_SCRIPT_URL', 'https://script.google.com/macros/s/AKfycbwMr93FoB5MUMmaR3k66768Gat3wVSwFRZhBZCQQreeFhGcYmYsT_7v8QQ1KqbpQQPO1w/exec').strip()
 
+_gdrive_http_session = None
+
+def get_gdrive_http_session():
+    global _gdrive_http_session
+    if _gdrive_http_session is None:
+        _gdrive_http_session = requests.Session()
+        adapter = requests.adapters.HTTPAdapter(pool_connections=10, pool_maxsize=10, max_retries=1)
+        _gdrive_http_session.mount('https://', adapter)
+        _gdrive_http_session.mount('http://', adapter)
+    return _gdrive_http_session
+
+_last_leave_warmup = 0
+
+def warmup_leave_connections():
+    """Chạy nền: mở sẵn socket HTTP và container Apps Script / Google Sheets để khi người dùng tải ảnh/gửi đơn là xong ngay lập tức."""
+    global _last_leave_warmup
+    now = time.time()
+    if now - _last_leave_warmup < 30:
+        return
+    _last_leave_warmup = now
+
+    def _warm():
+        # 1. Warmup Google Apps Script Web App socket & container
+        if LEAVE_GDRIVE_SCRIPT_URL:
+            try:
+                s = get_gdrive_http_session()
+                s.post(LEAVE_GDRIVE_SCRIPT_URL, json={'ping': True}, timeout=10)
+                print("[Warmup] Google Apps Script Web App warmed up successfully.", flush=True)
+            except Exception as e:
+                print(f"[Warmup] Google Apps Script ping notice: {e}", flush=True)
+
+        # 2. Warmup Google Sheets API connection
+        try:
+            client = get_gspread_client()
+            if client:
+                sh = client.open_by_key(LEAVE_RESPONSES_SPREADSHEET_ID)
+                try:
+                    _ = sh.worksheet(LEAVE_RESPONSES_SHEET_TAB)
+                except Exception:
+                    _ = sh.sheet1
+                print("[Warmup] Google Sheets connection warmed up successfully.", flush=True)
+        except Exception as e:
+            print(f"[Warmup] Google Sheets warmup notice: {e}", flush=True)
+
+    threading.Thread(target=_warm, daemon=True, name="LeaveWarmupThread").start()
+
 def upload_leave_file_to_gdrive(file_bytes, filename, mime_type=None, folder_id=LEAVE_GDRIVE_FOLDER_ID):
     """Tải file xác nhận nghỉ phép lên thư mục Google Drive của công ty.
     Hỗ trợ qua Google Apps Script Web App (không lo lỗi quota) hoặc Google Drive API v3 (với Shared Drive).
@@ -3916,7 +3962,8 @@ def upload_leave_file_to_gdrive(file_bytes, filename, mime_type=None, folder_id=
                 'mimeType': mime_type,
                 'folderId': folder_id
             }
-            r = requests.post(LEAVE_GDRIVE_SCRIPT_URL, json=payload, timeout=45)
+            s = get_gdrive_http_session()
+            r = s.post(LEAVE_GDRIVE_SCRIPT_URL, json=payload, timeout=45)
             if r.status_code == 200:
                 res_data = r.json()
                 if res_data.get('success') and res_data.get('url'):
@@ -4090,6 +4137,13 @@ def api_upload_leave_attachment():
         })
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
+
+@app.route('/api/leave/warmup', methods=['POST', 'GET'])
+def api_leave_warmup():
+    if not session.get('logged_in'):
+        return jsonify({"ok": False, "error": "Unauthorized"}), 401
+    warmup_leave_connections()
+    return jsonify({"ok": True})
 
 @app.route('/api/submit_leave_request', methods=['POST'])
 def api_submit_leave_request():

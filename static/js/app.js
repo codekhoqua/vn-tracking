@@ -8773,6 +8773,15 @@ function calculateLeaveDuration() {
 }
 window.calculateLeaveDuration = calculateLeaveDuration;
 
+let lastLeaveWarmupTime = 0;
+function warmupLeaveConnections() {
+    const now = Date.now();
+    if (now - lastLeaveWarmupTime < 30000) return;
+    lastLeaveWarmupTime = now;
+    fetch('/api/leave/warmup', { method: 'POST' }).catch(() => {});
+}
+window.warmupLeaveConnections = warmupLeaveConnections;
+
 function switchCalendarSubpage(subpage) {
     const isAttendance = (subpage === 'attendance');
     const mainView = document.getElementById('calendar-subview-main');
@@ -8795,11 +8804,13 @@ function switchCalendarSubpage(subpage) {
         currentLeaveStep = 1;
         updateLeaveStepUI();
         initLeaveDatePickers();
+        warmupLeaveConnections();
     }
 }
 window.switchCalendarSubpage = switchCalendarSubpage;
 
 function openLeaveModal() {
+    warmupLeaveConnections();
     openToolPage('calendar');
     switchCalendarSubpage('attendance');
 }
@@ -9087,6 +9098,10 @@ function onLeaveFileSelected(e) {
         statusBox.innerHTML = '';
     }
     updateLeaveSubmitButtonState();
+    // Tự động tải ảnh lên Google Drive ngay khi chọn file
+    setTimeout(() => {
+        uploadAttachmentToGDriveDirectly();
+    }, 120);
 }
 window.onLeaveFileSelected = onLeaveFileSelected;
 
@@ -9106,13 +9121,16 @@ function removeLeaveSelectedFile() {
 }
 window.removeLeaveSelectedFile = removeLeaveSelectedFile;
 
+let isUploadingGDrive = false;
 async function uploadAttachmentToGDriveDirectly() {
+    if (isUploadingGDrive) return;
     if (!selectedLeaveFile) {
         if (typeof showToast === 'function') showToast('Vui lòng chọn ảnh trước!', 'warning');
         else alert('Vui lòng chọn ảnh trước!');
         return;
     }
 
+    isUploadingGDrive = true;
     const btn = document.getElementById('leave-btn-upload-gdrive');
     const btnTxt = document.getElementById('leave-btn-upload-gdrive-text');
     const statusBox = document.getElementById('leave-gdrive-upload-status');
@@ -9169,6 +9187,8 @@ async function uploadAttachmentToGDriveDirectly() {
             statusBox.innerHTML = `<span style="color: #f87171;">Lỗi kết nối: ${err.message}</span>`;
         }
         updateLeaveSubmitButtonState();
+    } finally {
+        isUploadingGDrive = false;
     }
 }
 window.uploadAttachmentToGDriveDirectly = uploadAttachmentToGDriveDirectly;
