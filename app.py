@@ -2992,7 +2992,7 @@ def lsa_drive():
         filter_cv_sau=[],
         users=[],
         tasks=[],
-        app_version='v1.9.106',
+        app_version='v1.9.107',
     )
 
 # =====================================================================
@@ -4240,10 +4240,12 @@ def create_leave_calendar_event(rec):
             if res.get('success'):
                 print(f"[Calendar Event Created] {title} (ID: {res.get('eventId')})")
                 return True, res.get('eventId')
-        print(f"[Calendar Event Warning] Apps script response: {r.text[:100]}")
+        print(f"[Calendar Event Warning] Apps script response: {r.text[:120]}")
+        return False, f"Apps script: {r.text[:120]}"
     except Exception as e:
         print(f"[Calendar Event Exception] {e}")
-    return False, str(e)
+        return False, str(e)
+    return False, "Unknown error creating calendar event"
 
 @app.route('/api/submit_leave_request', methods=['POST'])
 def api_submit_leave_request():
