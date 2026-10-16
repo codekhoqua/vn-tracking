@@ -2992,7 +2992,7 @@ def lsa_drive():
         filter_cv_sau=[],
         users=[],
         tasks=[],
-        app_version='v1.9.107',
+        app_version='v1.9.108',
     )
 
 # =====================================================================
@@ -4205,11 +4205,15 @@ def create_leave_calendar_event(rec):
         start_iso = f"{start_date}T{start_time}:00+07:00"
         end_iso = f"{end_date}T{end_time}:00+07:00"
 
-        title = f"🏖️ [Nghỉ phép] {fullname}"
-        if reason:
-            title += f" - {reason}"
-        elif leave_type:
-            title += f" - {leave_type}"
+        fullname_upper = fullname.strip().upper()
+        reason_upper = reason.strip().upper()
+        leave_type_upper = leave_type.strip().upper()
+
+        title = f"[NGHỈ PHÉP] {fullname_upper}"
+        if reason_upper:
+            title += f" - {reason_upper}"
+        elif leave_type_upper:
+            title += f" - {leave_type_upper}"
 
         desc_lines = [
             f"👤 Nhân viên: {fullname}",
@@ -4358,22 +4362,16 @@ def api_submit_leave_request():
         with open(file_path, 'w', encoding='utf-8') as f:
             json.dump(leaves, f, ensure_ascii=False, indent=2)
 
-        # 2. Chạy ngầm Ghi Google Sheet & Tạo sự kiện Google Calendar (không block user)
-        def _sync_leave_async(r_data):
-            try:
-                append_leave_to_google_sheet(r_data)
-            except Exception as ex:
-                print("[Async Leave Sheet Error]", ex)
-            try:
-                create_leave_calendar_event(r_data)
-            except Exception as ex:
-                print("[Async Leave Calendar Error]", ex)
+        # 2. Ghi Google Sheet chạy ngầm
+        threading.Thread(target=append_leave_to_google_sheet, args=(rec,), daemon=True, name="LeaveSheetSync").start()
 
-        threading.Thread(target=_sync_leave_async, args=(rec,), daemon=True, name="LeaveSyncAsync").start()
+        # 3. Tạo sự kiện Google Calendar trực tiếp để Google Calendar có sự kiện ngay lập tức
+        cal_ok, cal_id = create_leave_calendar_event(rec)
 
         return jsonify({
             "ok": True,
             "record": rec,
+            "calendar_created": cal_ok,
             "sheet_appended": True,
             "gdrive_uploaded": gdrive_uploaded,
             "gdrive_link": gdrive_link
