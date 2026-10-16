@@ -970,7 +970,7 @@ window.simulateWeatherEffect = function(mode) {
     };
 
     let grassBlades = [];
-    let grassLayers = [[], [], []]; // 3 batched depth layers
+    let grassLayers = [[], [], [], []]; // 4 batched depth layers
     let clouds = [];
     let stars = [];
     let fireflies = [];
@@ -1147,24 +1147,24 @@ window.simulateWeatherEffect = function(mode) {
 
     function buildGrassAndFlowers() {
         grassBlades = [];
-        grassLayers = [[], [], []];
+        grassLayers = [[], [], [], []];
         flowers = [[], [], []];
 
-        // Optimized blade count: ~1000-1400 blades (instead of 4800) with slightly broader base = identical visual lushness, 10x faster
-        const totalBlades = clamp(Math.floor(width * 1.5), 850, 1500);
-        const heightScale = clamp(height / 360, 0.58, 1.05);
+        // Super dense, lush carpeted hill: ~3200-5800 blades with batched strokes for 120Hz smooth performance
+        const totalBlades = clamp(Math.floor(width * 3.8), 3000, 5800);
+        const heightScale = clamp(height / 360, 0.6, 1.1);
 
         for (let i = 0; i < totalBlades; i++) {
-            const x = (Math.random() * 1.06 - 0.03) * width;
+            const x = (Math.random() * 1.08 - 0.04) * width;
             const hillTopY = getHillSurfaceY(x);
-            const hillDepth = height - hillTopY + 24;
+            const hillDepth = height - hillTopY + 28;
             if (hillDepth <= 0) continue;
 
-            const depthRatio = Math.pow(Math.random(), 0.86);
+            const depthRatio = Math.pow(Math.random(), 0.82);
             const y = hillTopY + depthRatio * hillDepth;
 
-            const baseHeight = (13 + depthRatio * 29 + Math.random() * 9) * heightScale;
-            const baseWidth = (1.3 + depthRatio * 1.6) * Math.max(0.8, heightScale);
+            const baseHeight = (11 + depthRatio * 32 + Math.random() * 10) * heightScale;
+            const baseWidth = (1.2 + depthRatio * 1.7) * Math.max(0.75, heightScale);
 
             const blade = {
                 x,
@@ -1172,7 +1172,7 @@ window.simulateWeatherEffect = function(mode) {
                 depth: depthRatio,
                 h: baseHeight,
                 w: baseWidth,
-                naturalLean: (Math.random() - 0.5) * 0.42,
+                naturalLean: (Math.random() - 0.5) * 0.44,
                 bend: 0,
                 vBend: 0,
                 glow: 0,
@@ -1182,11 +1182,11 @@ window.simulateWeatherEffect = function(mode) {
 
             grassBlades.push(blade);
 
-            // Assign to depth layer (0: back, 1: mid, 2: front) for batching
-            const layerIdx = depthRatio < 0.33 ? 0 : (depthRatio < 0.66 ? 1 : 2);
+            // Assign to 4 depth layers for lush layering
+            const layerIdx = depthRatio < 0.25 ? 0 : (depthRatio < 0.5 ? 1 : (depthRatio < 0.75 ? 2 : 3));
             grassLayers[layerIdx].push(blade);
 
-            if (Math.random() < 0.018 && depthRatio > 0.15) {
+            if (Math.random() < 0.012 && depthRatio > 0.12) {
                 const colorIdx = Math.floor(Math.random() * 3);
                 flowers[colorIdx].push({
                     x,
@@ -1414,16 +1414,16 @@ window.simulateWeatherEffect = function(mode) {
 
         ctx.lineCap = 'round';
 
-        // 3 Batched Depth Passes (Only 3 draw calls for all blades!)
+        // 4 Batched Depth Passes (Only 4 draw calls for thousands of blades!)
         const glowingBlades = [];
-        const layerWidths = [1.35, 1.8, 2.3];
+        const layerWidths = [1.2, 1.6, 2.0, 2.5];
 
-        for (let l = 0; l < 3; l++) {
+        for (let l = 0; l < 4; l++) {
             const blades = grassLayers[l];
             if (!blades || blades.length === 0) continue;
 
             // Pick representative layer color
-            const layerColor = lerpColor(tipRGB1, tipRGB2, l / 2);
+            const layerColor = lerpColor(tipRGB1, tipRGB2, l / 3);
             ctx.strokeStyle = rgbToStr(layerColor);
             ctx.lineWidth = layerWidths[l];
             ctx.beginPath();
