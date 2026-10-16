@@ -224,9 +224,10 @@ function toggleSidebarRail() {
     } catch (e) {}
     placeSidebarHighlight();
     placeToolsHighlight();
-    setTimeout(() => { placeSidebarHighlight(); placeToolsHighlight(); }, 150);
-    setTimeout(() => { placeSidebarHighlight(); placeToolsHighlight(); }, 350);
-    setTimeout(() => { placeSidebarHighlight(); placeToolsHighlight(); }, 600);
+    setTimeout(() => {
+        placeSidebarHighlight();
+        placeToolsHighlight();
+    }, 310);
 }
 
 // Restore saved sidebar collapsed state on load
@@ -983,6 +984,19 @@ window.initWeatherFilmstripAlbum = function() {
                 }
             }, false);
         }
+
+        // Prevent wheel scrolling from bleeding through to dashboard background / Lenis
+        const modalBackdrop = document.getElementById('filmstrip-modal-backdrop');
+        if (modalBackdrop && !modalBackdrop.dataset.scrollBound) {
+            modalBackdrop.dataset.scrollBound = 'true';
+            modalBackdrop.addEventListener('wheel', (e) => {
+                const bodyEl = e.target.closest('.filmstrip-modal-body');
+                if (!bodyEl) {
+                    e.preventDefault();
+                }
+                e.stopPropagation();
+            }, { passive: false });
+        }
     }, 500);
 };
 
@@ -1132,10 +1146,19 @@ function updateLightboxView() {
     }
 }
 
+let _lastFilmstripRenderHash = '';
+
 window.openFilmstripAlbumModal = function(e) {
     if (e) e.stopPropagation();
     const modal = document.getElementById('filmstrip-modal-backdrop');
     if (!modal) return;
+
+    if (window.lenis) window.lenis.stop();
+    document.body.style.overflow = 'hidden';
+
+    // Pause hero background animation while album is open to save GPU frame budget
+    const track = document.getElementById('hero-filmstrip-track');
+    if (track) track.style.animationPlayState = 'paused';
 
     renderFilmstripModalContent();
     modal.classList.add('open');
@@ -1145,9 +1168,15 @@ window.closeFilmstripAlbumModal = function(e) {
     if (e) e.stopPropagation();
     const modal = document.getElementById('filmstrip-modal-backdrop');
     if (modal) modal.classList.remove('open');
+
+    if (window.lenis) window.lenis.start();
+    document.body.style.overflow = '';
+
+    const track = document.getElementById('hero-filmstrip-track');
+    if (track) track.style.animationPlayState = '';
 };
 
-window.renderFilmstripModalContent = function() {
+window.renderFilmstripModalContent = function(force = false) {
     const data = window.weatherAlbumData || { photos: [], settings: { speed: 'normal', enabled: true } };
     const photos = data.photos || [];
     const settings = data.settings || { speed: 'normal', enabled: true };
@@ -1166,6 +1195,12 @@ window.renderFilmstripModalContent = function() {
 
     const grid = document.getElementById('filmstrip-photos-grid');
     if (!grid) return;
+
+    const currentHash = photos.map(p => p.id).join(',');
+    if (!force && _lastFilmstripRenderHash === currentHash && grid.children.length > 0) {
+        return; // Fast cache: avoid destroying & recreating thumbnail DOM elements
+    }
+    _lastFilmstripRenderHash = currentHash;
 
     if (photos.length === 0) {
         grid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: rgba(255,255,255,0.45); padding: 30px;">Chưa có ảnh nào trong cuộn phim</div>`;
