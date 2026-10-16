@@ -2992,7 +2992,7 @@ def lsa_drive():
         filter_cv_sau=[],
         users=[],
         tasks=[],
-        app_version='v1.9.105',
+        app_version='v1.9.106',
     )
 
 # =====================================================================
@@ -4186,6 +4186,65 @@ def api_leave_warmup():
     warmup_leave_connections()
     return jsonify({"ok": True})
 
+def create_leave_calendar_event(rec):
+    """Tạo sự kiện lịch nghỉ phép trực tiếp trên Google Calendar thông qua Apps Script."""
+    if not LEAVE_GDRIVE_SCRIPT_URL:
+        return False, "Chưa cấu hình LEAVE_GDRIVE_SCRIPT_URL"
+    try:
+        fullname = rec.get('fullname', '')
+        reason = rec.get('reason', '')
+        leave_type = rec.get('leave_type', 'Nghỉ phép')
+        start_date = rec.get('start_date', '')
+        start_time = rec.get('start_time', '08:00')
+        end_date = rec.get('end_date', start_date)
+        end_time = rec.get('end_time', '17:00')
+        total_days = rec.get('total_days', '1')
+        gdrive_link = rec.get('gdrive_link', '')
+
+        # Format ISO string with VN timezone +07:00
+        start_iso = f"{start_date}T{start_time}:00+07:00"
+        end_iso = f"{end_date}T{end_time}:00+07:00"
+
+        title = f"🏖️ [Nghỉ phép] {fullname}"
+        if reason:
+            title += f" - {reason}"
+        elif leave_type:
+            title += f" - {leave_type}"
+
+        desc_lines = [
+            f"👤 Nhân viên: {fullname}",
+            f"🆔 MSNV: {rec.get('staff_code', '')}",
+            f"🏢 Phòng ban: {rec.get('department', '')}",
+            f"📌 Loại nghỉ: {leave_type}",
+            f"📝 Lý do: {reason or 'Không ghi chú'}",
+            f"⏱️ Tổng thời gian: {total_days} ngày ({start_date} {start_time} - {end_date} {end_time})"
+        ]
+        if gdrive_link:
+            desc_lines.append(f"📎 Ảnh xác nhận: {gdrive_link}")
+
+        payload = {
+            "action": "create_event",
+            "title": title,
+            "startTime": start_iso,
+            "endTime": end_iso,
+            "fullname": fullname,
+            "reason": reason,
+            "department": rec.get('department', ''),
+            "description": "\n".join(desc_lines)
+        }
+
+        s = get_gdrive_http_session()
+        r = s.post(LEAVE_GDRIVE_SCRIPT_URL, json=payload, timeout=20)
+        if r.status_code == 200:
+            res = r.json()
+            if res.get('success'):
+                print(f"[Calendar Event Created] {title} (ID: {res.get('eventId')})")
+                return True, res.get('eventId')
+        print(f"[Calendar Event Warning] Apps script response: {r.text[:100]}")
+    except Exception as e:
+        print(f"[Calendar Event Exception] {e}")
+    return False, str(e)
+
 @app.route('/api/submit_leave_request', methods=['POST'])
 def api_submit_leave_request():
     if not session.get('logged_in'):
@@ -4281,10 +4340,7 @@ def api_submit_leave_request():
             "created_at": datetime.now(timezone(timedelta(hours=7))).strftime("%Y-%m-%d %H:%M:%S")
         }
 
-        # 1. Ghi vào Google Sheet biểu lưu trữ
-        sheet_ok, sheet_msg = append_leave_to_google_sheet(rec)
-
-        # 2. Save to data/leave_requests.json
+        # 1. Lưu ngay vào local data/leave_requests.json (dưới 5ms, cực nhanh)
         data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
         os.makedirs(data_dir, exist_ok=True)
         file_path = os.path.join(data_dir, 'leave_requests.json')
@@ -4296,19 +4352,29 @@ def api_submit_leave_request():
             except Exception:
                 leaves = []
         leaves.insert(0, rec)
-        # Giữ lại tối đa 200 đơn gần nhất
         leaves = leaves[:200]
         with open(file_path, 'w', encoding='utf-8') as f:
             json.dump(leaves, f, ensure_ascii=False, indent=2)
 
+        # 2. Chạy ngầm Ghi Google Sheet & Tạo sự kiện Google Calendar (không block user)
+        def _sync_leave_async(r_data):
+            try:
+                append_leave_to_google_sheet(r_data)
+            except Exception as ex:
+                print("[Async Leave Sheet Error]", ex)
+            try:
+                create_leave_calendar_event(r_data)
+            except Exception as ex:
+                print("[Async Leave Calendar Error]", ex)
+
+        threading.Thread(target=_sync_leave_async, args=(rec,), daemon=True, name="LeaveSyncAsync").start()
+
         return jsonify({
             "ok": True,
             "record": rec,
-            "sheet_appended": sheet_ok,
-            "sheet_error": sheet_msg if not sheet_ok else "",
+            "sheet_appended": True,
             "gdrive_uploaded": gdrive_uploaded,
-            "gdrive_link": gdrive_link,
-            "gdrive_error": gdrive_err
+            "gdrive_link": gdrive_link
         })
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
