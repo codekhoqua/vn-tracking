@@ -141,6 +141,6 @@
   ],
   "settings": {
     "speed": "normal",
-    "enabled": true
+    "enabled": false
   }
 }
