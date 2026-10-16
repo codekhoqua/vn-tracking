@@ -2992,7 +2992,7 @@ def lsa_drive():
         filter_cv_sau=[],
         users=[],
         tasks=[],
-        app_version='v1.9.100',
+        app_version='v1.9.101',
     )
 
 # =====================================================================
@@ -3887,7 +3887,7 @@ def calendar_view():
 LEAVE_GDRIVE_FOLDER_ID = '1rcBkd1l_JZvXx_9m5uIITnj1qNzPNR81Zj5OldGQcVcqSpYafh3d3KU_-R8ZXsI7nOQKL4Sr'
 LEAVE_RESPONSES_SPREADSHEET_ID = os.environ.get('LEAVE_RESPONSES_SPREADSHEET_ID', '1Mhky2YxG4do3fHS-6bIeultwibqaj1Tf-WcVFiNicY')
 LEAVE_RESPONSES_SHEET_TAB = os.environ.get('LEAVE_RESPONSES_SHEET_TAB', 'Form Responses 1')
-LEAVE_GDRIVE_SCRIPT_URL = os.environ.get('LEAVE_GDRIVE_SCRIPT_URL', '').strip()
+LEAVE_GDRIVE_SCRIPT_URL = os.environ.get('LEAVE_GDRIVE_SCRIPT_URL', 'https://script.google.com/macros/s/AKfycbwMr93FoB5MUMmaR3k66768Gat3wVSwFRZhBZCQQreeFhGcYmYsT_7v8QQ1KqbpQQPO1w/exec').strip()
 
 def upload_leave_file_to_gdrive(file_bytes, filename, mime_type=None, folder_id=LEAVE_GDRIVE_FOLDER_ID):
     """Tải file xác nhận nghỉ phép lên thư mục Google Drive của công ty.
