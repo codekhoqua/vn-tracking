@@ -107,9 +107,9 @@
                     <span>{{ 'Đăng ký nghỉ phép (Attendance)' if lang == 'vi' else '休暇申請 (Attendance)' }}</span>
                 </button>
                 {% if role in ['admin', 'manager'] or session.get('role') == 'admin' or session.get('user') in ['Admin', 'Manager', 'Tan-??', 'tan'] %}
-                <button type="button" class="calendar-subnav-pill" id="tab-btn-leave-admin" onclick="openAdminLeaveEmailModal()" title="Cài đặt email nhận thông báo nghỉ phép (Dành cho Admin)" style="border: 1px dashed rgba(245, 158, 11, 0.4); background: rgba(245, 158, 11, 0.1); color: #fbbf24;">
-                    <i class="fas fa-envelope-cog"></i>
-                    <span>{{ 'Email Admin nhận đơn' if lang == 'vi' else '管理者メール通知' }}</span>
+                <button type="button" class="calendar-subnav-pill" id="tab-btn-leave-admin" onclick="openAdminLeaveEmailModal()" title="Cài đặt email nhận thông báo nghỉ phép (Dành cho Admin)" style="border: 1px dashed rgba(245, 158, 11, 0.4); background: rgba(245, 158, 11, 0.1); color: #fbbf24; cursor: pointer;">
+                    <i class="fas fa-cog"></i>
+                    <span>{{ 'Cài đặt Email nhận đơn' if lang == 'vi' else '管理者メール設定' }}</span>
                 </button>
                 {% endif %}
             </div>
@@ -568,8 +568,8 @@
 </div>
 
 <!-- ============ ADMIN LEAVE EMAIL CONFIG MODAL ============ -->
-<div id="admin-leave-email-overlay" class="cp-overlay" onclick="closeAdminLeaveEmailModal()" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 9999;"></div>
-<div id="admin-leave-email-modal" class="cp-modal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 480px; max-width: 92%; background: #0f172a; border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 20px 40px rgba(0,0,0,0.5); z-index: 10000; overflow: hidden; color: #f8fafc;">
+<div id="admin-leave-email-overlay" class="cp-overlay" onclick="closeAdminLeaveEmailModal()" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.65); backdrop-filter: blur(4px); z-index: 99999;"></div>
+<div id="admin-leave-email-modal" class="cp-modal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 480px; max-width: 92%; background: #0f172a; border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 25px 50px rgba(0,0,0,0.6); z-index: 100000; overflow: hidden; color: #f8fafc;">
     <div class="modal-header" style="padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; background: rgba(30, 41, 59, 0.6);">
         <div style="display: flex; align-items: center; gap: 10px;">
             <div style="width: 34px; height: 34px; border-radius: 10px; background: rgba(245, 158, 11, 0.15); color: #fbbf24; display: flex; align-items: center; justify-content: center; font-size: 1rem;">
@@ -798,7 +798,7 @@
     <div class="mobile-brand">
         <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" width="30" height="30" style="border-radius: 8px; object-fit: contain;">
         <span>VN-Tracking</span>
-        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.109</i></sup>
+        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.110</i></sup>
     </div>
     <div class="mobile-topbar-right">
         <button type="button" class="mobile-icon-btn" onclick="toggleNotificationPanel(event)" title="{{ 'Thông báo' if lang == 'vi' else '通知' }}">
@@ -950,7 +950,7 @@
             </div>
             <div class="sidebar-logo-text">
                 <span class="sidebar-brand-name">VN-Tracking</span>
-                <sup class="version-tag"><i>v1.9.109</i></sup>
+                <sup class="version-tag"><i>v1.9.110</i></sup>
             </div>
         </div>
     </div>
