@@ -2992,7 +2992,7 @@ def lsa_drive():
         filter_cv_sau=[],
         users=[],
         tasks=[],
-        app_version='v1.9.104',
+        app_version='v1.9.105',
     )
 
 # =====================================================================
@@ -4082,7 +4082,8 @@ def append_leave_to_google_sheet(rec):
         except Exception:
             ws = sh.sheet1
 
-        now = datetime.now()
+        tz_vn = timezone(timedelta(hours=7))
+        now = datetime.now(tz_vn)
         timestamp_str = f"{now.month}/{now.day}/{now.year} {now.hour}:{now.minute:02d}:{now.second:02d}"
 
         def format_sheet_dt(d_str, t_str):
@@ -4106,6 +4107,10 @@ def append_leave_to_google_sheet(rec):
 
         policy_text = "Tôi đã hiểu QUY ĐỊNH VỀ NGÀY NGHỈ và xác nhận TUÂN THỦ | 休暇規定について理解し、遵守することを確認いたします。"
 
+        leave_type_display = rec.get('leave_type', '')
+        if rec.get('reason'):
+            leave_type_display += f" ({rec.get('reason')})"
+
         row_values = [
             timestamp_str,
             rec.get('gmail', ''),
@@ -4117,7 +4122,7 @@ def append_leave_to_google_sheet(rec):
             end_dt_str,
             rec.get('total_days', ''),
             rec.get('gdrive_link', ''),
-            rec.get('leave_type', '')
+            leave_type_display
         ]
 
         ws.append_row(row_values, value_input_option='USER_ENTERED')
@@ -4273,7 +4278,7 @@ def api_submit_leave_request():
             "attachment": attachment_filename,
             "gdrive_link": gdrive_link,
             "gdrive_uploaded": gdrive_uploaded,
-            "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            "created_at": datetime.now(timezone(timedelta(hours=7))).strftime("%Y-%m-%d %H:%M:%S")
         }
 
         # 1. Ghi vào Google Sheet biểu lưu trữ
@@ -4305,6 +4310,63 @@ def api_submit_leave_request():
             "gdrive_link": gdrive_link,
             "gdrive_error": gdrive_err
         })
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+@app.route('/api/leave_requests', methods=['GET'])
+def api_get_leave_requests():
+    """Lấy danh sách các đơn nghỉ phép kèm thông tin avatar của từng thành viên."""
+    if not session.get('logged_in'):
+        return jsonify({"ok": False, "error": "Unauthorized"}), 401
+    try:
+        data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
+        file_path = os.path.join(data_dir, 'leave_requests.json')
+        leaves = []
+        if os.path.exists(file_path):
+            with open(file_path, 'r', encoding='utf-8') as f:
+                leaves = json.load(f)
+
+        # Nạp user_db để map avatar
+        user_db = {}
+        try:
+            user_db = load_users_from_sheet(USER_SHEET_URL)
+        except Exception:
+            pass
+
+        import urllib.parse
+        for item in leaves:
+            u_name = item.get('username')
+            u_full = item.get('fullname')
+            u_msnv = item.get('staff_code')
+            u_gmail = item.get('gmail')
+
+            avatar = ""
+            matched_user = None
+
+            if u_name and u_name in user_db:
+                matched_user = user_db[u_name]
+            if not matched_user:
+                for _, u_info in user_db.items():
+                    if u_msnv and str(u_info.get('msnv', '')).strip() == str(u_msnv).strip():
+                        matched_user = u_info
+                        break
+                    if u_full and str(u_info.get('fullname', '')).strip().lower() == str(u_full).strip().lower():
+                        matched_user = u_info
+                        break
+                    if u_gmail and str(u_info.get('gmail', '')).strip().lower() == str(u_gmail).strip().lower():
+                        matched_user = u_info
+                        break
+
+            if matched_user and matched_user.get('avatar'):
+                avatar = matched_user.get('avatar')
+            else:
+                display_name = u_full or u_name or 'NV'
+                avatar = f"https://ui-avatars.com/api/?name={urllib.parse.quote(display_name)}&background=6366f1&color=fff&bold=true"
+
+            item['avatar'] = avatar
+
+        leaves.sort(key=lambda x: str(x.get('start_date') or x.get('created_at', '')), reverse=True)
+        return jsonify({"ok": True, "leaves": leaves})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
 
