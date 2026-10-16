@@ -2452,6 +2452,9 @@ function openToolPage(toolKey) {
         if (iframe && (!iframe.src || iframe.src === window.location.href || iframe.src.endsWith('/'))) {
             iframe.src = '/calendar';
         }
+        if (typeof loadTeamLeaveSchedule === 'function') {
+            loadTeamLeaveSchedule();
+        }
     } else if (toolKey === 'psd') {
         const iframe = document.getElementById('psd-page-iframe');
         if (iframe && (!iframe.src || iframe.src === window.location.href || iframe.src.endsWith('/'))) {
@@ -8805,6 +8808,10 @@ function switchCalendarSubpage(subpage) {
         updateLeaveStepUI();
         initLeaveDatePickers();
         warmupLeaveConnections();
+    } else {
+        if (typeof loadTeamLeaveSchedule === 'function') {
+            loadTeamLeaveSchedule();
+        }
     }
 }
 window.switchCalendarSubpage = switchCalendarSubpage;
@@ -9276,6 +9283,8 @@ async function submitMultiStepLeave(e) {
         formData.append('end_time', endTime);
         formData.append('total_days', totalDays);
         formData.append('leave_type', leaveType);
+        const reason = (document.getElementById('leave-reason')?.value || '').trim();
+        formData.append('reason', reason);
         if (uploadedGDriveLink) {
             formData.append('gdrive_link', uploadedGDriveLink);
         }
@@ -9337,10 +9346,113 @@ async function submitMultiStepLeave(e) {
     setTimeout(() => {
         if (isSubmittingLeave) {
             finishLeaveSubmission(true, submitSuccessMsg);
+            if (typeof loadTeamLeaveSchedule === 'function') {
+                loadTeamLeaveSchedule();
+            }
         }
     }, 1500);
 }
 window.submitMultiStepLeave = submitMultiStepLeave;
+
+let teamLeaveData = [];
+let isLeaveDrawerOpen = false;
+
+function toggleLeaveDrawer(force) {
+    const drawer = document.getElementById('team-leave-drawer');
+    if (!drawer) return;
+    if (typeof force === 'boolean') {
+        isLeaveDrawerOpen = force;
+    } else {
+        isLeaveDrawerOpen = !isLeaveDrawerOpen;
+    }
+    drawer.style.transform = isLeaveDrawerOpen ? 'translateX(0)' : 'translateX(100%)';
+}
+window.toggleLeaveDrawer = toggleLeaveDrawer;
+
+async function loadTeamLeaveSchedule() {
+    try {
+        const res = await fetch('/api/leave_requests');
+        const data = await res.json().catch(() => ({}));
+        if (!data || !data.ok || !data.leaves) return;
+
+        teamLeaveData = data.leaves;
+        const totalCountEl = document.getElementById('leave-total-count');
+        if (totalCountEl) totalCountEl.textContent = teamLeaveData.length;
+
+        // Render Top Strip Pills
+        const pillsContainer = document.getElementById('team-leave-pills-container');
+        if (pillsContainer) {
+            if (teamLeaveData.length === 0) {
+                pillsContainer.innerHTML = '<span style="font-size: 0.78rem; color: #94a3b8;">Chưa có đơn nghỉ phép</span>';
+            } else {
+                pillsContainer.innerHTML = teamLeaveData.slice(0, 8).map(item => {
+                    const avatar = item.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.fullname || 'NV')}&background=6366f1&color=fff&bold=true`;
+                    const reason = item.reason ? item.reason : (item.leave_type || 'Nghỉ phép');
+                    const shortName = (item.fullname || 'Thành viên').split(' ').slice(-2).join(' ');
+                    const dateStr = item.start_date ? item.start_date.split('-').slice(1).reverse().join('/') : '';
+
+                    return `
+                        <div class="team-leave-pill" onclick="toggleLeaveDrawer(true)" title="${escapeHtml(item.fullname)}: ${escapeHtml(reason)} (${item.start_date || ''} - ${item.total_days || 1} ngày)" style="display: flex; align-items: center; gap: 7px; background: rgba(30, 41, 59, 0.85); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: 20px; padding: 3px 10px 3px 4px; cursor: pointer; transition: all 0.2s ease; white-space: nowrap;">
+                            <img src="${avatar}" alt="${escapeHtml(item.fullname)}" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(shortName)}&background=6366f1&color=fff';" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover; border: 1.5px solid #818cf8;">
+                            <span style="font-size: 0.8rem; font-weight: 600; color: #f8fafc;">${escapeHtml(shortName)}</span>
+                            <span style="font-size: 0.72rem; color: #cbd5e1; max-width: 140px; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(reason)}</span>
+                            ${dateStr ? `<span style="font-size: 0.7rem; color: #93c5fd; background: rgba(59, 130, 246, 0.18); padding: 1px 6px; border-radius: 6px; font-weight: 500;">${dateStr}</span>` : ''}
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+
+        // Render Drawer Cards List
+        const listContainer = document.getElementById('team-leave-drawer-list');
+        if (listContainer) {
+            if (teamLeaveData.length === 0) {
+                listContainer.innerHTML = '<div style="text-align: center; color: #94a3b8; font-size: 0.85rem; padding: 30px 0;">Chưa có đơn nghỉ phép nào được ghi nhận.</div>';
+            } else {
+                listContainer.innerHTML = teamLeaveData.map(item => {
+                    const avatar = item.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.fullname || 'NV')}&background=6366f1&color=fff&bold=true`;
+                    const reason = item.reason || 'Không ghi chú';
+                    const dept = item.department || 'DESIGN';
+                    const startStr = `${item.start_date || ''} ${item.start_time || ''}`.trim();
+                    const endStr = `${item.end_date || ''} ${item.end_time || ''}`.trim();
+
+                    return `
+                        <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; transition: border-color 0.2s;">
+                            <div style="display: flex; align-items: center; justify-content: space-between;">
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <img src="${avatar}" alt="${escapeHtml(item.fullname)}" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(item.fullname || 'NV')}&background=6366f1&color=fff';" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(99, 102, 241, 0.4);">
+                                    <div>
+                                        <div style="font-size: 0.88rem; font-weight: 700; color: #f8fafc;">${escapeHtml(item.fullname)}</div>
+                                        <div style="font-size: 0.74rem; color: #94a3b8;">${escapeHtml(item.staff_code || '')} • <span style="color: #818cf8; font-weight: 600;">${escapeHtml(dept)}</span></div>
+                                    </div>
+                                </div>
+                                <span style="background: rgba(16, 185, 129, 0.15); color: #34d399; font-size: 0.74rem; font-weight: 600; padding: 2px 8px; border-radius: 6px;">${item.total_days || '1'} ngày</span>
+                            </div>
+
+                            <div style="background: rgba(15, 23, 42, 0.5); padding: 8px 10px; border-radius: 8px; font-size: 0.8rem; display: flex; flex-direction: column; gap: 4px;">
+                                <div style="color: #cbd5e1;"><strong style="color: #94a3b8;">Loại nghỉ:</strong> ${escapeHtml(item.leave_type || 'Nghỉ phép')}</div>
+                                <div style="color: #fbbf24;"><strong style="color: #94a3b8;">Lý do:</strong> ${escapeHtml(reason)}</div>
+                                <div style="color: #93c5fd; font-size: 0.76rem;"><i class="far fa-clock" style="margin-right: 4px;"></i>${escapeHtml(startStr)} → ${escapeHtml(endStr)}</div>
+                            </div>
+
+                            ${item.gdrive_link ? `
+                                <div style="display: flex; justify-content: flex-end;">
+                                    <a href="${item.gdrive_link}" target="_blank" style="font-size: 0.76rem; color: #60a5fa; text-decoration: underline; display: inline-flex; align-items: center; gap: 4px;">
+                                        <span>Xem ảnh xác nhận Drive</span>
+                                        <i class="fas fa-external-link-alt" style="font-size: 0.65rem;"></i>
+                                    </a>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+    } catch (e) {
+        console.warn('Load team leave schedule error:', e);
+    }
+}
+window.loadTeamLeaveSchedule = loadTeamLeaveSchedule;
 
 
 
