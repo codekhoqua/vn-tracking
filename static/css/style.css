@@ -310,7 +310,7 @@ html.lenis, html.lenis body {
     display: grid;
     place-items: center;
     box-shadow: none !important;
-    transition: transform 0.4s var(--ux-spring);
+    transition: transform 0.25s ease;
 }
 .sidebar-logo:hover .sidebar-logo-icon {
     transform: scale(1.08);
@@ -322,7 +322,7 @@ html.lenis, html.lenis body {
     min-width: 0;
     white-space: nowrap;
     opacity: 1;
-    transition: opacity 0.25s var(--ux-ease), transform 0.4s var(--ux-spring);
+    transition: opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1), transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .sidebar-brand-name {
     font-size: 15.5px;
@@ -348,7 +348,7 @@ html.lenis, html.lenis body {
     place-items: center;
     cursor: pointer;
     opacity: 0;
-    transition: opacity 0.25s var(--ux-ease), background 0.2s, color 0.2s, border-color 0.2s, transform 0.4s var(--ux-spring);
+    transition: opacity 0.2s ease, background 0.2s, color 0.2s, border-color 0.2s, transform 0.25s ease;
     z-index: 20;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
@@ -371,7 +371,7 @@ html.lenis, html.lenis body {
     stroke-width: 2.2;
     stroke-linecap: round;
     stroke-linejoin: round;
-    transition: transform 0.5s var(--ux-spring);
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 body.sidebar-collapsed .sidebar-rail-tog svg {
     transform: rotate(180deg);
@@ -397,7 +397,10 @@ body.sidebar-collapsed .sidebar-rail-tog svg {
     font-size: 0.68rem; font-weight: 800; color: var(--text-4);
     text-transform: uppercase; letter-spacing: 0.12em;
     padding: 0 12px; margin-bottom: 8px; margin-top: 18px;
-    transition: opacity 0.2s, margin 0.3s;
+    white-space: nowrap;
+    overflow: hidden;
+    max-height: 24px;
+    transition: opacity 0.2s ease, max-height 0.28s cubic-bezier(0.16, 1, 0.3, 1), margin 0.28s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* Lucian #040 Navigation List & Sliding Highlight Pill */
@@ -420,7 +423,7 @@ body.sidebar-collapsed .sidebar-rail-tog svg {
     background: var(--primary-bg);
     border: 1px solid rgba(99, 102, 241, 0.2);
     transform: translateY(var(--y, 0));
-    transition: transform 0.5s var(--ux-spring), height 0.3s var(--ux-spring), opacity 0.25s;
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), height 0.25s ease, opacity 0.2s;
     pointer-events: none;
     z-index: 0;
 }
@@ -456,14 +459,14 @@ body.sidebar-collapsed .sidebar-rail-tog svg {
     opacity: 0.68;
     text-align: left;
     cursor: pointer;
-    transition: opacity 0.25s var(--ux-ease), color 0.25s var(--ux-ease), transform 0.35s var(--ux-spring);
+    transition: opacity 0.2s ease, color 0.2s ease, background 0.2s ease;
     user-select: none;
     box-sizing: border-box;
+    overflow: hidden;
 }
 .nav-item:hover {
     opacity: 1;
     color: var(--text);
-    transform: translateX(3px);
 }
 .nav-item.active {
     opacity: 1;
@@ -478,6 +481,7 @@ body.sidebar-collapsed .sidebar-rail-tog svg {
     align-items: center;
     gap: 14px;
     min-width: 0;
+    transition: gap 0.28s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .nav-item svg {
     width: 20px;
@@ -488,12 +492,12 @@ body.sidebar-collapsed .sidebar-rail-tog svg {
     stroke-width: 1.9;
     stroke-linecap: round;
     stroke-linejoin: round;
-    transition: transform 0.5s var(--ux-spring), stroke 0.25s ease;
+    transition: transform 0.25s ease, stroke 0.2s ease;
 }
 .nav-item:hover svg,
 .nav-item.active svg {
     stroke: var(--primary);
-    transform: scale(1.1);
+    transform: scale(1.08);
 }
 [data-theme="dark"] .nav-item.active svg {
     stroke: #818cf8;
@@ -504,12 +508,11 @@ body.sidebar-collapsed .sidebar-rail-tog svg {
     white-space: nowrap;
     opacity: 1;
     transform: none;
-    transition: opacity 0.3s var(--ux-ease), transform 0.4s var(--ux-spring);
-    transition-delay: calc(0.08s + var(--i, 0) * 25ms);
+    transition: opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1), transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .nav-ext-icon {
     opacity: 0.5;
-    transition: opacity 0.2s, transform 0.3s var(--ux-spring);
+    transition: opacity 0.2s ease;
 }
 .nav-item:hover .nav-ext-icon {
     opacity: 1;
@@ -687,46 +690,49 @@ body.sidebar-collapsed {
     --sidebar-w: 78px;
 }
 body.sidebar-collapsed .sidebar {
-    padding: 20px 10px;
+    padding: 20px 14px;
 }
 body.sidebar-collapsed .sidebar-top {
-    justify-content: center;
     padding: 0;
 }
 body.sidebar-collapsed .sidebar-logo {
-    justify-content: center;
     gap: 0;
-    width: 100%;
-}
-body.sidebar-collapsed .sidebar-logo-icon {
-    margin: 0 auto;
 }
 body.sidebar-collapsed .sidebar-logo-text {
-    display: none !important;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateX(-10px);
+    width: 0;
+    overflow: hidden;
+    white-space: nowrap;
 }
 body.sidebar-collapsed .nav-label {
-    display: none !important;
+    opacity: 0;
+    pointer-events: none;
+    max-height: 0;
+    margin-top: 4px;
+    margin-bottom: 0;
+    overflow: hidden;
 }
 body.sidebar-collapsed .nav-item {
-    padding: 0 !important;
-    justify-content: center !important;
-}
-body.sidebar-collapsed .nav-item:hover {
-    transform: none !important;
+    padding: 0 14px;
 }
 body.sidebar-collapsed .nav-item-content {
-    justify-content: center !important;
-    gap: 0 !important;
-    width: 100% !important;
-}
-body.sidebar-collapsed .nav-item svg {
-    margin: 0 auto;
+    gap: 0;
 }
 body.sidebar-collapsed .nav-item span {
-    display: none !important;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateX(-8px);
+    width: 0;
+    overflow: hidden;
+    white-space: nowrap;
 }
 body.sidebar-collapsed .nav-ext-icon {
-    display: none !important;
+    opacity: 0;
+    pointer-events: none;
+    width: 0;
+    overflow: hidden;
 }
 body.sidebar-collapsed .nav-badge,
 body.sidebar-collapsed .sidebar-bd {
@@ -735,30 +741,46 @@ body.sidebar-collapsed .sidebar-bd {
     right: 6px;
 }
 body.sidebar-collapsed .user-card {
-    padding: 0 !important;
-    justify-content: center !important;
-    height: 48px;
-    background: transparent;
-    border-color: transparent;
-}
-body.sidebar-collapsed .user-card:hover {
-    background: var(--surface-hover);
-    border-color: var(--border);
-}
-body.sidebar-collapsed .user-avatar {
-    margin: 0 auto;
+    padding: 0 10px;
 }
 body.sidebar-collapsed .user-info,
 body.sidebar-collapsed .profile-chevron {
-    display: none !important;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateX(-8px);
+    width: 0;
+    overflow: hidden;
+    white-space: nowrap;
 }
 body.sidebar-collapsed .sidebar-pet-panel,
 body.sidebar-collapsed #lofi-radio-widget,
 body.sidebar-collapsed #radio-participants-marquee {
-    display: none !important;
+    opacity: 0;
+    pointer-events: none;
+    max-height: 0 !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    border-width: 0 !important;
+    transform: scale(0.94) translateY(8px);
+    overflow: hidden;
+    visibility: hidden;
 }
 body.sidebar-collapsed .custom-lang-select {
-    display: none !important;
+    opacity: 0;
+    pointer-events: none;
+    width: 0;
+    overflow: hidden;
+}
+
+/* Animation lock: disable pointer events during sidebar toggle for 60fps smoothness */
+body.sidebar-is-animating .sidebar,
+body.sidebar-is-animating .main-area {
+    pointer-events: none !important;
+}
+body.sidebar-is-animating * {
+    user-select: none !important;
 }
 
 /* ======================== 4. MAIN AREA & HEADER ======================== */
