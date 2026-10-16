@@ -622,7 +622,9 @@ function renderWeatherUI(data, isVN, defaultLocName) {
     }
 
     // Update Hero background with clean atmospheric sky gradient (Dribbble & Honor style)
-    const skyGradients = {
+    window.currentWeatherEffect = effectiveEffect;
+    const isDarkTheme = document.body.classList.contains('dark-theme');
+    const skyGradientsDark = {
         sun: "radial-gradient(circle at 78% 25%, rgba(245, 158, 11, 0.22) 0%, rgba(251, 191, 36, 0.08) 35%, transparent 65%), linear-gradient(135deg, #0a1226 0%, #0f1c3f 50%, #151a30 100%)",
         clear: "radial-gradient(circle at 78% 25%, rgba(245, 158, 11, 0.22) 0%, rgba(251, 191, 36, 0.08) 35%, transparent 65%), linear-gradient(135deg, #0a1226 0%, #0f1c3f 50%, #151a30 100%)",
         rain: "linear-gradient(135deg, #090e17 0%, #0f1c2e 50%, #162438 100%)",
@@ -632,6 +634,19 @@ function renderWeatherUI(data, isVN, defaultLocName) {
         fog: "linear-gradient(135deg, #0c1220 0%, #182234 50%, #1e2838 100%)",
         clear_night: "linear-gradient(135deg, #050814 0%, #0b1026 50%, #121338 100%)"
     };
+    const skyGradientsLight = {
+        sun: "radial-gradient(circle at 78% 25%, rgba(251, 191, 36, 0.3) 0%, rgba(245, 158, 11, 0.12) 35%, transparent 65%), linear-gradient(135deg, #38bdf8 0%, #60a5fa 50%, #93c5fd 100%)",
+        clear: "radial-gradient(circle at 78% 25%, rgba(251, 191, 36, 0.3) 0%, rgba(245, 158, 11, 0.12) 35%, transparent 65%), linear-gradient(135deg, #38bdf8 0%, #60a5fa 50%, #93c5fd 100%)",
+        rain: "linear-gradient(135deg, #94a3b8 0%, #cbd5e1 50%, #e2e8f0 100%)",
+        thunder: "linear-gradient(135deg, #64748b 0%, #94a3b8 50%, #cbd5e1 100%)",
+        snow: "linear-gradient(135deg, #bae6fd 0%, #e0f2fe 50%, #f0f9ff 100%)",
+        clouds: "linear-gradient(135deg, #7dd3fc 0%, #93c5fd 50%, #bfdbfe 100%)",
+        fog: "linear-gradient(135deg, #cbd5e1 0%, #e2e8f0 50%, #f1f5f9 100%)",
+        clear_night: "linear-gradient(135deg, #1e293b 0%, #334155 50%, #475569 100%)"
+    };
+    window.skyGradientsDark = skyGradientsDark;
+    window.skyGradientsLight = skyGradientsLight;
+    const skyGradients = isDarkTheme ? skyGradientsDark : skyGradientsLight;
     const bgEl = document.getElementById('hero-weather-bg');
     if (bgEl) {
         bgEl.style.backgroundImage = 'none';
@@ -4192,6 +4207,12 @@ function toggleTheme() {
     // Sync Grass banner target immediately for smooth day/night lerp
     if (typeof window.syncGrassBannerTheme === 'function') {
         window.syncGrassBannerTheme();
+    }
+
+    const heroBgEl = document.getElementById('hero-weather-bg');
+    if (heroBgEl && window.currentWeatherEffect && window.skyGradientsDark && window.skyGradientsLight) {
+        const grads = isDark ? window.skyGradientsDark : window.skyGradientsLight;
+        heroBgEl.style.background = grads[window.currentWeatherEffect] || grads.sun;
     }
 
     // Broadcast theme change to all child iframes (LSA Drive, PSD Tool, etc.)
