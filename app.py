@@ -2992,7 +2992,7 @@ def lsa_drive():
         filter_cv_sau=[],
         users=[],
         tasks=[],
-        app_version='v1.9.115',
+        app_version='v1.9.116',
     )
 
 # =====================================================================
@@ -4273,15 +4273,13 @@ def create_leave_calendar_event(rec):
             title += f" - {leave_type_upper}"
 
         desc_lines = [
-            f"👤 Nhân viên: {fullname}",
-            f"🆔 MSNV: {rec.get('staff_code', '')}",
-            f"🏢 Phòng ban: {rec.get('department', '')}",
-            f"📌 Loại nghỉ: {leave_type}",
-            f"📝 Lý do: {reason or 'Không ghi chú'}",
-            f"⏱️ Tổng thời gian: {total_days} ngày ({start_date} {start_time} - {end_date} {end_time})"
+            f"Nhân viên: {fullname}",
+            f"MSNV: {rec.get('staff_code', '')}",
+            f"Phòng ban: {rec.get('department', '')}",
+            f"Loại nghỉ: {leave_type}",
+            f"Lý do: {reason or 'Không ghi chú'}",
+            f"Tổng thời gian: {total_days} ngày ({start_date} {start_time} - {end_date} {end_time})"
         ]
-        if gdrive_link:
-            desc_lines.append(f"📎 Ảnh xác nhận: {gdrive_link}")
 
         # Đọc cấu hình email thông báo dành cho Admin (hỗ trợ nhiều email)
         admin_cfg = get_leave_admin_email_config()
