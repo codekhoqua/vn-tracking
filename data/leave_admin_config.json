@@ -1,4 +1,8 @@
 {
-  "notify_email": "tanphanduy8@gmail.com",
+  "notify_email": "tanphanduy8@gmail.com, Backoffice@LinkStory.Asia",
+  "notify_emails": [
+    "tanphanduy8@gmail.com",
+    "Backoffice@LinkStory.Asia"
+  ],
   "enabled": true
 }

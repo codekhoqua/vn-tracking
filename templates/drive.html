@@ -872,13 +872,27 @@
         background: #f1f5f9 !important;
     }
 
-    body:not(.dark-theme) .breadcrumb-item {
+    body:not(.dark-theme) .breadcrumb-item:not(.active) {
         color: #475569 !important;
     }
 
-    body:not(.dark-theme) .breadcrumb-item:hover {
+    /* Nút breadcrumb ĐANG CHỌN có nền xanh -> chữ đen cho nổi bật.
+       Trước đây rule light-mode ở trên ép màu xám #475569 lên cả nút đang chọn
+       nên chữ "LSA Drive" bị chìm hẳn vào nền xanh. */
+    .breadcrumb-item.active,
+    body:not(.dark-theme) .breadcrumb-item.active,
+    body:not(.dark-theme) .breadcrumb-item.active:hover {
+        color: #000 !important;
+        background: #3b82f6 !important;
+    }
+
+    body:not(.dark-theme) .breadcrumb-item:not(.active):hover {
         background: rgba(0, 0, 0, 0.05) !important;
         color: #0f172a !important;
+    }
+
+    .breadcrumb-item.active:hover {
+        background: #2563eb !important;
     }
 
     body:not(.dark-theme) .breadcrumb-separator {
