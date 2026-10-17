@@ -39,11 +39,10 @@ Dùng script có sẵn để đóng gói đúng chuẩn:
 python scripts/build_cloudcode_zip.py
 # hoặc chỉ định đường dẫn:
 python scripts/build_cloudcode_zip.py -o "D:\path\vn-tracking-cloudcode-v<version>-full.zip"
-# bản không kèm secrets/data:
-python scripts/build_cloudcode_zip.py --no-private
 ```
 
-Script tự tạo entry thư mục (`templates/`, `static/`, ...) và đường dẫn POSIX.
+Script luôn tạo **một bản full duy nhất** (kèm `env_vars.yaml`, `credentials.json`, `data/`),
+tự tạo entry thư mục (`templates/`, `static/`, ...) và đường dẫn POSIX.
 
 > Zip chứa secret (Supabase key, service account Google). Chỉ lưu nội bộ, không upload nơi công khai.
 
