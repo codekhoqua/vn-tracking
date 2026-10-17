@@ -1,0 +1,22 @@
+# Mẫu cấu hình — copy thành `env_vars.yaml` rồi điền giá trị thật.
+# Lưu ý: app.py đọc mỗi dòng theo dạng KEY: VALUE (không hỗ trợ comment cùng dòng),
+# nên chỉ đặt ghi chú trên dòng riêng như file này.
+
+SUPABASE_URL: "https://YOUR-PROJECT.supabase.co"
+SUPABASE_SECRET_KEY: "sb_secret_REPLACE_ME"
+SUPABASE_BUCKET: "drive"
+
+SECRET_KEY: "change-me-to-a-random-string"
+GROQ_API_KEY: ""
+TZ: "Asia/Ho_Chi_Minh"
+
+# Dán nguyên thẻ iframe embed lịch Google (route /calendar sẽ redirect tới src)
+GOOGLE_CALENDAR_EMBED_URL: ""
+
+# Google Apps Script Web App xử lý upload ảnh nghỉ phép, Calendar event và email
+LEAVE_GDRIVE_SCRIPT_URL: ""
+LEAVE_RESPONSES_SPREADSHEET_ID: ""
+LEAVE_RESPONSES_SHEET_TAB: "Form Responses 1"
+
+# Chỉ dùng khi chạy trên Linux và muốn mở Cloudflare Tunnel
+CF_TUNNEL_TOKEN: ""

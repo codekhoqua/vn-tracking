@@ -58,3 +58,9 @@ static/weather_album/_thumbs/
 ANIMAL/
 model/
 *.zip
+
+# Build artifacts / OS / local archive
+*.msi
+*.py[cod]
+.pytest_cache/
+_archive*/

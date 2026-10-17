@@ -1,4 +1,5 @@
 import os
+import sys
 import struct
 import json
 import math
@@ -12,9 +13,15 @@ def euler_to_quat(rx, ry, rz):
             round(cx * cy * sz - sx * sy * cz, 6),
             round(cx * cy * cz + sx * sy * sz, 6)]
 
-def convert(variant='goose'):
+def convert(variant='goose', fbx_path=None):
+    """Convert một model FBX sang GLB.
+
+    Mặc định đọc `static/models/<variant>.fbx`. Có thể truyền đường dẫn FBX
+    tuỳ ý khi chạy: python scripts/convert_fbx_to_glb.py <fbx_path> [variant]
+    """
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    fbx_path = os.path.join(base_dir, 'static', 'models', 'goose.fbx')
+    if fbx_path is None:
+        fbx_path = os.path.join(base_dir, 'static', 'models', f'{variant}.fbx')
     glb_path = os.path.join(base_dir, 'static', 'models', f'{variant}.glb')
 
     with open(fbx_path, 'rb') as f:
@@ -432,5 +439,9 @@ def convert(variant='goose'):
     print(f'Successfully generated {glb_path} ({os.path.getsize(glb_path)} bytes) with {len(animations_gltf)} animation clips!')
 
 if __name__ == '__main__':
-    convert('goose')
-    convert('duck')
+    if len(sys.argv) > 1:
+        source = sys.argv[1]
+        name = sys.argv[2] if len(sys.argv) > 2 else os.path.splitext(os.path.basename(source))[0]
+        convert(name, source)
+    else:
+        print('Usage: python scripts/convert_fbx_to_glb.py <input.fbx> [output_name]')
