@@ -5613,6 +5613,12 @@ def api_radio_state():
     username = session.get('user', '')
     state['you_are_dj'] = (username == state.get('dj_username'))
     state['listeners'] = _radio_read_listeners()
+    # Hàng chờ thật đang nằm trong RAM (radio_queue), không phải bản cũ đã lưu.
+    # Trước đây endpoint này trả về queue cũ -> listener (chế độ polling) luôn thấy "Danh sách trống".
+    try:
+        state['queue'] = radio_queue
+    except NameError:
+        state['queue'] = state.get('queue') or []
     return jsonify(state)
 
 
@@ -5640,6 +5646,8 @@ def api_radio_sync():
         state['is_crossfading'] = data['is_crossfading']
     if 'is_automix_enabled' in data:
         state['is_automix_enabled'] = data['is_automix_enabled']
+    if 'allow_requests' in data:
+        state['allow_requests'] = data['allow_requests'] is True or data['allow_requests'] == 'true'
     _radio_write_state(state)
     return jsonify({'success': True})
 
@@ -5690,6 +5698,156 @@ def api_radio_release():
         _radio_write_listeners([])
 
     return jsonify({'success': True})
+
+
+# ---- REST cho chế độ polling (khi không có Socket.IO) ----
+# Trước đây các nút "Cho phép thêm nhạc", "Auto-Mix" và hàng chờ chỉ gửi qua Socket.IO
+# -> máy nào mất socket thì server không bao giờ nhận được, listener không thấy ô nhập link.
+def _radio_dj_usernames():
+    """Tên user đang là DJ: gồm cả bản trong RAM (socket) và bản đã lưu (REST)."""
+    names = []
+    try:
+        if radio_state.get('dj_username'):
+            names.append(radio_state['dj_username'])
+    except NameError:
+        pass
+    try:
+        persisted = _radio_read_state().get('dj_username')
+        if persisted and persisted not in names:
+            names.append(persisted)
+    except Exception:
+        pass
+    return names
+
+
+def _radio_allow_requests():
+    """Đang cho phép listener thêm nhạc? (ưu tiên trạng thái RAM nếu DJ phát qua socket)."""
+    try:
+        if radio_state.get('dj_username'):
+            return bool(radio_state.get('allow_requests'))
+    except NameError:
+        pass
+    try:
+        return bool(_radio_read_state().get('allow_requests'))
+    except Exception:
+        return True
+
+
+@app.route('/api/radio/toggle', methods=['POST'])
+def api_radio_toggle():
+    """Bật/tắt 'Cho phép thêm nhạc' + Auto-Mix (fallback REST)."""
+    if not session.get('logged_in'):
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    state = _radio_read_state()
+    if session.get('user', '') not in _radio_dj_usernames():
+        return jsonify({'error': 'Not the DJ'}), 403
+
+    data = request.get_json(silent=True) or {}
+    if 'allow_requests' in data:
+        state['allow_requests'] = data['allow_requests'] is True or data['allow_requests'] == 'true'
+    if 'is_automix_enabled' in data:
+        state['is_automix_enabled'] = data['is_automix_enabled'] is True or data['is_automix_enabled'] == 'true'
+    _radio_write_state(state)
+    # Nếu DJ đang phát qua Socket.IO thì trạng thái thật nằm trong RAM ->
+    # cập nhật luôn và phát cho mọi client đang kết nối socket.
+    try:
+        if radio_state.get('dj_username'):
+            if 'allow_requests' in data:
+                radio_state['allow_requests'] = state['allow_requests']
+            if 'is_automix_enabled' in data:
+                radio_state['is_automix_enabled'] = state['is_automix_enabled']
+            radio_sync_payload = radio_state.copy()
+            radio_sync_payload['queue'] = radio_queue
+            socketio.emit('radio_sync', radio_sync_payload)
+    except NameError:
+        pass
+    return jsonify({'success': True,
+                    'allow_requests': state.get('allow_requests'),
+                    'is_automix_enabled': state.get('is_automix_enabled')})
+
+
+@app.route('/api/radio/queue/add', methods=['POST'])
+def api_radio_queue_add():
+    """Thêm bài vào hàng chờ (listener khi DJ cho phép, hoặc chính DJ)."""
+    if not session.get('logged_in'):
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    state = _radio_read_state()
+    username = session.get('user', 'Guest')
+    if not _radio_allow_requests() and username not in _radio_dj_usernames():
+        return jsonify({'error': 'Not allowed'}), 403
+
+    data = request.get_json(silent=True) or {}
+    youtube_id = (data.get('youtube_id') or '').strip()
+    if not youtube_id:
+        return jsonify({'error': 'Missing youtube_id'}), 400
+
+    avatar = ""
+    if username != 'Guest':
+        try:
+            USER_DB = load_users_from_sheet(USER_SHEET_URL)
+            avatar = USER_DB.get(username, {}).get("avatar", "")
+        except Exception:
+            pass
+
+    import uuid
+    item = {
+        'queue_id': str(uuid.uuid4()),
+        'youtube_id': youtube_id,
+        'title': data.get('title') or 'Unknown Video',
+        'added_by': username,
+        'avatar': avatar,
+    }
+    radio_queue.append(item)
+    socketio.emit('radio_queue_update', radio_queue)
+    return jsonify({'success': True, 'queue': radio_queue})
+
+
+@app.route('/api/radio/queue/remove', methods=['POST'])
+def api_radio_queue_remove():
+    if not session.get('logged_in'):
+        return jsonify({'error': 'Unauthorized'}), 401
+    state = _radio_read_state()
+    if session.get('user', '') not in _radio_dj_usernames():
+        return jsonify({'error': 'Not the DJ'}), 403
+
+    global radio_queue
+    data = request.get_json(silent=True) or {}
+    queue_id = data.get('queue_id')
+    radio_queue = [item for item in radio_queue if item.get('queue_id') != queue_id]
+    socketio.emit('radio_queue_update', radio_queue)
+    return jsonify({'success': True, 'queue': radio_queue})
+
+
+@app.route('/api/radio/queue/reorder', methods=['POST'])
+def api_radio_queue_reorder():
+    if not session.get('logged_in'):
+        return jsonify({'error': 'Unauthorized'}), 401
+    state = _radio_read_state()
+    if session.get('user', '') not in _radio_dj_usernames():
+        return jsonify({'error': 'Not the DJ'}), 403
+
+    global radio_queue
+    data = request.get_json(silent=True) or {}
+    queue = data.get('queue')
+    if isinstance(queue, list):
+        radio_queue = queue
+    socketio.emit('radio_queue_update', radio_queue)
+    return jsonify({'success': True, 'queue': radio_queue})
+
+
+@app.route('/api/radio/queue/pop', methods=['POST'])
+def api_radio_queue_pop():
+    if not session.get('logged_in'):
+        return jsonify({'error': 'Unauthorized'}), 401
+    state = _radio_read_state()
+    if session.get('user', '') not in _radio_dj_usernames():
+        return jsonify({'error': 'Not the DJ'}), 403
+
+    item = radio_queue.pop(0) if radio_queue else None
+    socketio.emit('radio_queue_update', radio_queue)
+    return jsonify({'success': True, 'item': item, 'queue': radio_queue})
 
 
 @app.route('/api/youtube_title')
@@ -5906,6 +6064,23 @@ radio_state = {
 
 radio_queue = []
 
+def _is_radio_dj():
+    """Socket hiện tại có phải DJ không?
+
+    Ưu tiên so theo SID, nhưng nếu SID bị lệch (DJ claim qua REST, hoặc socket
+    reconnect mà chưa kịp rebind) thì so theo username trong session rồi tự rebind.
+    Trước đây chỉ so SID -> mọi lệnh của DJ (bật "Cho phép thêm nhạc", Auto-Mix,
+    xoá / đổi thứ tự bài trong hàng chờ) bị server bỏ qua trong im lặng, nên
+    listener không bao giờ thấy ô nhập link.
+    """
+    if radio_state.get('dj_sid') == request.sid:
+        return True
+    username = session.get('user', 'Guest')
+    if username != 'Guest' and radio_state.get('dj_username') == username:
+        radio_state['dj_sid'] = request.sid
+        return True
+    return False
+
 def get_unique_online_users():
     unique_users = {}
     for sid, u in online_users.items():
@@ -6017,7 +6192,7 @@ def handle_request_radio_state():
 
 @socketio.on('radio_sync')
 def handle_radio_sync(data):
-    if radio_state.get('dj_sid') != request.sid:
+    if not _is_radio_dj():
         return
         
     radio_state['is_playing'] = data.get('is_playing', False)
@@ -6057,7 +6232,7 @@ def handle_claim_dj():
 @socketio.on('release_dj')
 def handle_release_dj():
     global radio_state
-    if radio_state.get('dj_sid') == request.sid:
+    if _is_radio_dj():
         radio_state['dj_sid'] = None
         radio_state['dj_username'] = None
         radio_state['dj_profile'] = None
@@ -6090,19 +6265,19 @@ def handle_disconnect():
 
 @socketio.on('toggle_allow_requests')
 def handle_toggle_allow_requests(data):
-    if radio_state.get('dj_sid') == request.sid:
+    if _is_radio_dj():
         radio_state['allow_requests'] = data.get('allow_requests', True)
         emit('radio_sync', radio_state, broadcast=True)
 
 @socketio.on('toggle_automix')
 def handle_toggle_automix(data):
-    if radio_state.get('dj_sid') == request.sid:
+    if _is_radio_dj():
         radio_state['is_automix_enabled'] = data.get('is_automix_enabled', False)
         emit('radio_sync', radio_state, broadcast=True)
 
 @socketio.on('queue_add')
 def handle_queue_add(data):
-    if not radio_state.get('allow_requests') and radio_state.get('dj_sid') != request.sid:
+    if not radio_state.get('allow_requests') and not _is_radio_dj():
         return
     import uuid
     username = session.get('user', 'Guest')
@@ -6126,7 +6301,7 @@ def handle_queue_add(data):
 
 @socketio.on('queue_remove')
 def handle_queue_remove(data):
-    if radio_state.get('dj_sid') == request.sid:
+    if _is_radio_dj():
         queue_id = data.get('queue_id')
         global radio_queue
         radio_queue = [item for item in radio_queue if item['queue_id'] != queue_id]
@@ -6134,14 +6309,14 @@ def handle_queue_remove(data):
 
 @socketio.on('queue_reorder')
 def handle_queue_reorder(data):
-    if radio_state.get('dj_sid') == request.sid:
+    if _is_radio_dj():
         global radio_queue
         radio_queue = data.get('queue', radio_queue)
         emit('radio_queue_update', radio_queue, broadcast=True)
 
 @socketio.on('queue_pop')
 def handle_queue_pop():
-    if radio_state.get('dj_sid') == request.sid:
+    if _is_radio_dj():
         if radio_queue:
             item = radio_queue.pop(0)
             emit('radio_queue_update', radio_queue, broadcast=True)

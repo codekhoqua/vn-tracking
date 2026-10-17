@@ -6316,14 +6316,18 @@ window.radioSkipPrev = function() {
 };
 
 window.radioSkipNext = function() {
-    if (!isRadioDJ) return; // Only DJ can skip tracks
+    if (!isRadioDJ) {
+        // Listener bấm nút này trước đây không có phản hồi gì -> tưởng nút hỏng
+        if (window.showToast) showToast(CURRENT_LANG === 'vi' ? 'Chỉ DJ mới đổi bài được!' : 'DJのみが曲を変更できます！', 'info');
+        return; // Only DJ can skip tracks
+    }
     if (!radioState.queue || radioState.queue.length === 0) {
         if (window.showToast) showToast(CURRENT_LANG === 'vi' ? 'Hàng chờ trống!' : 'キューが空です！', 'info');
         return;
     }
     if (isCrossfading && window.cancelCrossfade) window.cancelCrossfade();
     var nextItem = radioState.queue[0];
-    if (window.socket) window.socket.emit('queue_pop');
+    radioSend('queue_pop', null, '/api/radio/queue/pop');
     radioState.youtube_id = nextItem.youtube_id;
     radioState.current_time = 0;
     radioState.is_playing = true;
@@ -6359,6 +6363,27 @@ async function radioApiPost(path, body) {
         if (!r.ok) return null;
         return await r.json();
     } catch (e) { return null; }
+}
+
+// ---- Gửi lệnh radio: Socket.IO nếu có, không thì REST (chế độ polling) ----
+function radioCanUseSocket() {
+    return !useRadioPolling && !!window.socket && window.socket.connected === true;
+}
+
+function radioSend(event, payload, restPath) {
+    if (radioCanUseSocket()) {
+        window.socket.emit(event, payload || {});
+        return true;
+    }
+    if (restPath) {
+        radioApiPost(restPath, payload || {});
+        return false;
+    }
+    if (window.socket) {
+        window.socket.emit(event, payload || {});
+        return true;
+    }
+    return false;
 }
 
 // ---- Polling: xử lý radio_sync nhận từ REST ----
@@ -6401,6 +6426,7 @@ function handleRadioStateFromPolling(state) {
         radioState.allow_requests = state.allow_requests === true || state.allow_requests === 'true';
         radioState.is_automix_enabled = state.is_automix_enabled === true || state.is_automix_enabled === 'true';
         radioState.video_active = !!state.video_active;
+        if (window.updateRadioUI) updateRadioUI(); // cập nhật UI trước khi đồng bộ player
         if (state.queue) {
         radioState.queue = state.queue;
         if (window.syncQueueToLocalPlaylist) window.syncQueueToLocalPlaylist(state.queue);
@@ -6432,6 +6458,17 @@ function handleRadioStateFromPolling(state) {
     radioState.current_time = state.current_time;
     radioState.is_playing = state.is_playing;
     if (state.next_title !== undefined) radioState.next_title = state.next_title;
+    // Listener cũng phải nhận các field này (trước đây chỉ DJ nhận) ->
+    // nếu không, ô nhập link + hàng chờ không hiện dù DJ đã bật "Cho phép thêm nhạc"
+    radioState.allow_requests = state.allow_requests === true || state.allow_requests === 'true';
+    radioState.is_automix_enabled = state.is_automix_enabled === true || state.is_automix_enabled === 'true';
+    radioState.video_active = !!state.video_active;
+    if (state.queue) {
+        radioState.queue = state.queue;
+        if (window.syncQueueToLocalPlaylist) window.syncQueueToLocalPlaylist(state.queue);
+    }
+    // Cập nhật UI ngay, phòng khi phần đồng bộ player bên dưới gặp lỗi
+    if (window.updateRadioUI) updateRadioUI();
 
     if (isListening && ytPlayer && ytPlayer.loadVideoById) {
         const currentVideo = ytPlayer.getVideoData?.()?.video_id;
@@ -6728,6 +6765,7 @@ function setupSocketRadio() {
         radioState.allow_requests = state.allow_requests === true || state.allow_requests === 'true';
         radioState.is_automix_enabled = state.is_automix_enabled === true || state.is_automix_enabled === 'true';
         radioState.video_active = !!state.video_active;
+        if (window.updateRadioUI) updateRadioUI(); // cập nhật UI trước khi đồng bộ player
         if (state.queue) {
         radioState.queue = state.queue;
         if (window.syncQueueToLocalPlaylist) window.syncQueueToLocalPlaylist(state.queue);
@@ -6850,7 +6888,7 @@ function onPlayerError(event) {
     if (canSkip) {
         window.__lastErrSkip = now;
         const nextItem = radioState.queue[0];
-        if (window.socket) window.socket.emit('queue_pop');
+        radioSend('queue_pop', null, '/api/radio/queue/pop');
         radioState.youtube_id = nextItem.youtube_id;
         radioState.current_time = 0;
         radioState.is_playing = true;
@@ -6888,7 +6926,7 @@ function onPlayerStateChange(event) {
         } else if (event.data === YT.PlayerState.ENDED) {
             if (radioState.queue && radioState.queue.length > 0) {
                 const nextItem = radioState.queue[0];
-                if (window.socket) window.socket.emit('queue_pop');
+                radioSend('queue_pop', null, '/api/radio/queue/pop');
                 ytPlayer.loadVideoById(nextItem.youtube_id);
                 ytPlayer.playVideo();
                 radioState.youtube_id = nextItem.youtube_id;
@@ -7163,13 +7201,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         .then(d => {
                             const title = d.title || 'Unknown Video';
                             if (window.saveToLocalPlaylist) window.saveToLocalPlaylist(videoId, title);
-                            if (window.socket) {
-                                window.socket.emit('queue_add', { youtube_id: videoId, title: title });
-                            }
+                            radioSend('queue_add', { youtube_id: videoId, title: title }, '/api/radio/queue/add');
                         })
                         .catch(() => {
                             if (window.saveToLocalPlaylist) window.saveToLocalPlaylist(videoId, 'Unknown Video');
-                            if (window.socket) window.socket.emit('queue_add', { youtube_id: videoId, title: 'Unknown Video' });
+                            radioSend('queue_add', { youtube_id: videoId, title: 'Unknown Video' }, '/api/radio/queue/add');
                         });
                     ytInput.value = '';
                     showToast(CURRENT_LANG === 'vi' ? 'Đã thêm vào hàng chờ!' : 'キューに追加されました！', 'success');
@@ -7194,7 +7230,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // --- Auto-Mix Crossfade Check ---
         if (!window.manualSkipInProgress && !!radioState.is_automix_enabled && !isCrossfading && duration > 0 && (duration - time) <= 20 && (duration - time) > 0 && radioState.queue && radioState.queue.length > 0) {
             const nextItem = radioState.queue[0];
-            if (window.socket) window.socket.emit('queue_pop');
+            radioSend('queue_pop', null, '/api/radio/queue/pop');
             radioState.youtube_id = nextItem.youtube_id;
             radioState.current_time = 0;
             radioState.is_playing = true;
@@ -7260,6 +7296,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 next_title: radioState.next_title,
                 is_crossfading: isCrossfading,
                 is_automix_enabled: !!radioState.is_automix_enabled,
+                allow_requests: radioState.allow_requests === true,
                 video_active: radioState.video_active
             });
         } else if (window.socket) {
@@ -7271,6 +7308,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 next_title: radioState.next_title,
                 is_crossfading: isCrossfading,
                 is_automix_enabled: !!radioState.is_automix_enabled,
+                allow_requests: radioState.allow_requests === true,
                 video_active: radioState.video_active
             });
         }
@@ -7279,18 +7317,14 @@ document.addEventListener('DOMContentLoaded', () => {
     window.toggleAutoMix = function (checkbox) {
         if (!isRadioDJ) return;
         radioState.is_automix_enabled = checkbox.checked;
-        if (window.socket) {
-            window.socket.emit('toggle_automix', { is_automix_enabled: checkbox.checked });
-        }
+        radioSend('toggle_automix', { is_automix_enabled: checkbox.checked }, '/api/radio/toggle');
     };
 
     let draggedQueueItem = null;
     window.toggleAllowRequests = function (checkbox) {
         if (!isRadioDJ) return;
         radioState.allow_requests = checkbox.checked;
-        if (window.socket) {
-            window.socket.emit('toggle_allow_requests', { allow_requests: checkbox.checked });
-        }
+        radioSend('toggle_allow_requests', { allow_requests: checkbox.checked }, '/api/radio/toggle');
         updateRadioUI();
     };
 
@@ -7342,7 +7376,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     el.style.opacity = '1';
                     const newQueueIds = [...queueList.children].map(child => child.dataset.queueId);
                     const newQueue = newQueueIds.map(id => radioState.queue.find(q => q.queue_id === id)).filter(Boolean);
-                    if (window.socket) window.socket.emit('queue_reorder', { queue: newQueue });
+                    radioSend('queue_reorder', { queue: newQueue }, '/api/radio/queue/reorder');
                 });
                 el.addEventListener('dragover', (e) => {
                     e.preventDefault();
@@ -7356,7 +7390,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     window.removeQueueItem = function(id) {
-        if (window.socket) window.socket.emit('queue_remove', { queue_id: id });
+        radioSend('queue_remove', { queue_id: id }, '/api/radio/queue/remove');
     };
 
     window.updateRadioUI = function () {
@@ -7536,7 +7570,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (isRadioDJ && !isLive && duration > 0 && (duration - current) <= 1.5 && !isCrossfading && !window.manualSkipInProgress) {
             if (radioState.queue && radioState.queue.length > 0) {
                 const nextItem = radioState.queue[0];
-                if (window.socket) window.socket.emit('queue_pop');
+                radioSend('queue_pop', null, '/api/radio/queue/pop');
                 if (activePlayer.loadVideoById) {
                     activePlayer.loadVideoById(nextItem.youtube_id);
                     activePlayer.playVideo();
@@ -8575,15 +8609,13 @@ window.addLocalToQueue = function(videoId, title) {
         if (window.showToast) window.showToast(CURRENT_LANG === 'vi' ? 'Không có quyền thêm nhạc lúc này!' : '権限がありません！', 'error');
         return;
     }
-    if (window.socket) {
-        window.socket.emit('queue_add', { youtube_id: videoId, title: title });
-        if (window.showToast) window.showToast(CURRENT_LANG === 'vi' ? 'Đã thêm vào hàng chờ!' : 'キューに追加されました！', 'success');
-        const container = document.getElementById('radio-local-playlist');
-        if (container) container.style.display = 'none';
-        
-        // Cập nhật lại playlist để đưa bài hát này lên đầu
-        window.saveToLocalPlaylist(videoId, title);
-    }
+    radioSend('queue_add', { youtube_id: videoId, title: title }, '/api/radio/queue/add');
+    if (window.showToast) window.showToast(CURRENT_LANG === 'vi' ? 'Đã thêm vào hàng chờ!' : 'キューに追加されました！', 'success');
+    const container = document.getElementById('radio-local-playlist');
+    if (container) container.style.display = 'none';
+    
+    // Cập nhật lại playlist để đưa bài hát này lên đầu
+    window.saveToLocalPlaylist(videoId, title);
 }
 
 window.toggleDNASuggestions = function() {
@@ -8668,14 +8700,12 @@ window.addDNAToQueue = function(videoId, title) {
         if (window.showToast) window.showToast(CURRENT_LANG === 'vi' ? 'Không có quyền thêm nhạc lúc này!' : '権限がありません！', 'error');
         return;
     }
-    if (window.socket) {
-        window.socket.emit('queue_add', { youtube_id: videoId, title: title });
-        if (window.showToast) window.showToast(CURRENT_LANG === 'vi' ? 'Đã thêm gợi ý vào hàng chờ!' : 'キューに追加されました！', 'success');
-        const container = document.getElementById('radio-dna-suggestions');
-        if (container) container.style.display = 'none';
-        
-        window.saveToLocalPlaylist(videoId, title);
-    }
+    radioSend('queue_add', { youtube_id: videoId, title: title }, '/api/radio/queue/add');
+    if (window.showToast) window.showToast(CURRENT_LANG === 'vi' ? 'Đã thêm gợi ý vào hàng chờ!' : 'キューに追加されました！', 'success');
+    const container = document.getElementById('radio-dna-suggestions');
+    if (container) container.style.display = 'none';
+    
+    window.saveToLocalPlaylist(videoId, title);
 }
 
 window.addAllLocalToQueue = function() {
@@ -8687,14 +8717,12 @@ window.addAllLocalToQueue = function() {
     if (list.length === 0) return;
     
     // Thêm ngược từ dưới lên để giữ đúng thứ tự playlist
-    if (window.socket) {
-        for (let i = list.length - 1; i >= 0; i--) {
-            window.socket.emit('queue_add', { youtube_id: list[i].id, title: list[i].title });
-        }
-        if (window.showToast) window.showToast(CURRENT_LANG === 'vi' ? `Đã thêm ${list.length} bài vào hàng chờ!` : `${list.length}曲をキューに追加しました！`, 'success');
-        const container = document.getElementById('radio-local-playlist');
-        if (container) container.style.display = 'none';
+    for (let i = list.length - 1; i >= 0; i--) {
+        radioSend('queue_add', { youtube_id: list[i].id, title: list[i].title }, '/api/radio/queue/add');
     }
+    if (window.showToast) window.showToast(CURRENT_LANG === 'vi' ? `Đã thêm ${list.length} bài vào hàng chờ!` : `${list.length}曲をキューに追加しました！`, 'success');
+    const container = document.getElementById('radio-local-playlist');
+    if (container) container.style.display = 'none';
 }
 
 window.removeLocalPlaylist = function(videoId, e) {
