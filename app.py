@@ -6214,8 +6214,9 @@ def handle_radio_sync(data):
 def handle_claim_dj():
     global radio_state
     if radio_state.get('dj_sid') is None or radio_state.get('dj_sid') not in online_users:
-        # Bắt đầu phiên DJ mới với danh sách người nghe trống, chỉ còn host
-        radio_listeners.clear()
+        # KHÔNG xoá radio_listeners: những máy đang nghe vẫn đang phát nhạc, xoá đi
+        # thì DJ mới không thấy ai trong danh sách (họ cũng không tự join lại) ->
+        # đúng lỗi "DJ phải tắt/mở nút DJ mới thấy user tham gia".
         radio_state['dj_sid'] = request.sid
         radio_state['dj_username'] = session.get('user', 'Guest')
         # Store DJ profile for fallback during socket reconnects

@@ -6463,11 +6463,15 @@ function handleRadioStateFromPolling(state) {
 
         if (isListening) {
             isListening = false;
-            if (ytPlayer && ytPlayer.pauseVideo) {
-                ytPlayer.pauseVideo();
+            // Giống nhánh socket: host tắt DJ thì thả listener về nghe riêng nhưng
+            // KHÔNG cắt tiếng đang phát, và trả lại âm lượng chuẩn của user.
+            if (isCrossfading && window.cancelCrossfade) window.cancelCrossfade();
+            if (window.applyUserRadioVolume) {
+                window.applyUserRadioVolume(ytPlayer);
+                window.applyUserRadioVolume(ytPlayer2);
             }
             if (window.showToast) {
-                showToast(CURRENT_LANG === 'vi' ? 'Host đã tắt DJ, bạn đã ngắt kết nối' : 'ホストがDJを終了したため、切断されました', 'info');
+                showToast(CURRENT_LANG === 'vi' ? 'Host đã tắt DJ — bạn vẫn nghe tiếp bài này. Bấm phát để nghe chung lại.' : 'ホストがDJを終了しました — この曲はそのまま再生されます', 'info');
             }
         }
     }
@@ -6798,11 +6802,16 @@ function setupSocketRadio() {
 
             if (isListening) {
                 isListening = false;
-                if (ytPlayer && ytPlayer.pauseVideo) {
-                    ytPlayer.pauseVideo();
+                // KHÔNG pause nữa: trước đây host tắt DJ là bài đang nghe bị cắt ngay
+                // ("mất âm thanh"). Giữ bài đang phát chạy tiếp như nhạc riêng, và
+                // trả lại âm lượng của user (phòng khi đang crossfade -> volume kẹt 0).
+                if (isCrossfading && window.cancelCrossfade) window.cancelCrossfade();
+                if (window.applyUserRadioVolume) {
+                    window.applyUserRadioVolume(ytPlayer);
+                    window.applyUserRadioVolume(ytPlayer2);
                 }
                 if (window.showToast) {
-                    showToast(CURRENT_LANG === 'vi' ? 'Host đã tắt DJ, bạn đã ngắt kết nối' : 'ホストがDJを終了したため、切断されました', 'info');
+                    showToast(CURRENT_LANG === 'vi' ? 'Host đã tắt DJ — bạn vẫn nghe tiếp bài này. Bấm phát để nghe chung lại.' : 'ホストがDJを終了しました — この曲はそのまま再生されます', 'info');
                 }
             }
         } else if (state.is_playing && state.dj_username !== window.currentUser && !isListening) {
@@ -7041,6 +7050,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     ytPlayer.seekTo(radioState.current_time, true);
                 }
 
+                // Trả lại âm lượng của user trước khi phát (phòng khi bị kẹt volume 0
+                // do crossfade lần trước) -> tránh "vào nghe chung mà không có tiếng"
+                if (window.applyUserRadioVolume) window.applyUserRadioVolume(ytPlayer);
+
                 if (radioState.is_playing) ytPlayer.playVideo();
                 else ytPlayer.pauseVideo();
             } else {
@@ -7051,6 +7064,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     stopRadioPolling();
                 } else if (window.socket) {
                     window.socket.emit('leave_radio');
+                }
+                // Huỷ crossfade đang chạy + trả âm lượng về đúng mức của user.
+                // Trước đây rời khi đang crossfade -> volume bị kẹt ở 0 -> câm tiếng.
+                if (isCrossfading && window.cancelCrossfade) window.cancelCrossfade();
+                if (window.applyUserRadioVolume) {
+                    window.applyUserRadioVolume(ytPlayer);
+                    window.applyUserRadioVolume(ytPlayer2);
                 }
                 ytPlayer.pauseVideo();
             }
@@ -8341,8 +8361,20 @@ window.applyRadioVideoState = function() {
 
     if (window.isRadioPoppedOut) {
         // Pop out directly to document.body (floats on top of entire screen)
-        if (wrapper.parentNode !== document.body) {
-            safelyMoveRadioWrapper(wrapper, document.body);
+        // Đặt cửa sổ nổi là con của <html> thay vì <body>:
+        // body có CSS "zoom: 0.92" nên popout bị render ở tỉ lệ lẻ (video giật/lag)
+        // và toạ độ left/top bị lệch so với chuột (bức tường vô hình bên phải).
+        const popoutHost = document.documentElement || document.body;
+        if (wrapper.parentNode !== popoutHost) {
+            safelyMoveRadioWrapper(wrapper, popoutHost);
+        }
+
+        // Tạm dừng hiệu ứng nền của hero (mưa/tuyết + cỏ) khi cửa sổ video nổi đang mở
+        // -> nhường CPU/GPU cho video cho mượt. Đóng popout là chạy lại ngay.
+        if (!window.__lsaPopoutBgPaused) {
+            window.__lsaPopoutBgPaused = true;
+            if (typeof window.pauseWeatherEffect === 'function') window.pauseWeatherEffect();
+            if (typeof window.pauseGrassBanner === 'function') window.pauseGrassBanner();
         }
         wrapper.classList.add('is-popped-out');
         wrapper.style.display = 'flex';
@@ -8362,7 +8394,13 @@ window.applyRadioVideoState = function() {
         const savedPos = JSON.parse(localStorage.getItem('lsa_popout_pos') || 'null');
         const savedSize = JSON.parse(localStorage.getItem('lsa_popout_size') || 'null');
 
-        if (savedPos && savedPos.left >= 10 && savedPos.left < window.innerWidth - 80 && savedPos.top >= 10 && savedPos.top < window.innerHeight - 80) {
+        // innerWidth là px thật, còn left/top của popout nằm trong hệ toạ độ đã bị
+        // zoom (nếu popout còn nằm trong body) -> quy đổi trước khi kiểm tra hợp lệ.
+        const popoutScale = (typeof window.getLsaPopoutScale === 'function') ? window.getLsaPopoutScale() : 1;
+        const maxLeftSaved = window.innerWidth / (popoutScale || 1) - 80;
+        const maxTopSaved = window.innerHeight / (popoutScale || 1) - 80;
+
+        if (savedPos && savedPos.left >= 10 && savedPos.left < maxLeftSaved && savedPos.top >= 10 && savedPos.top < maxTopSaved) {
             wrapper.style.left = savedPos.left + 'px';
             wrapper.style.top = savedPos.top + 'px';
             wrapper.style.right = 'auto';
@@ -8382,6 +8420,19 @@ window.applyRadioVideoState = function() {
             wrapper.style.height = '310px';
         }
 
+        // Kẹp vị trí đã lưu cho khỏi trượt ra ngoài màn hình: vị trí lưu bằng toạ độ
+        // cũ (khi popout còn nằm trong body bị zoom) nên có thể lệch vài chục px.
+        if (wrapper.style.left && wrapper.style.left !== 'auto') {
+            const s2 = (typeof window.getLsaPopoutScale === 'function') ? window.getLsaPopoutScale() : 1;
+            const offW = wrapper.offsetWidth, offH = wrapper.offsetHeight;
+            const maxL = Math.max(10, window.innerWidth / s2 - offW - 10);
+            const maxT = Math.max(10, window.innerHeight / s2 - offH - 10);
+            const l = Math.max(10, Math.min(parseFloat(wrapper.style.left) || 0, maxL));
+            const t = Math.max(10, Math.min(parseFloat(wrapper.style.top) || 0, maxT));
+            wrapper.style.left = Math.round(l) + 'px';
+            wrapper.style.top = Math.round(t) + 'px';
+        }
+
         if (window.initPopoutDragAndResize) initPopoutDragAndResize();
     } else {
         // Natural Inline Mode inside sidebar LSA Music panel
@@ -8395,12 +8446,21 @@ window.applyRadioVideoState = function() {
         wrapper.style.top = '';
         wrapper.style.right = '';
         wrapper.style.bottom = '';
+        wrapper.style.transform = '';
         wrapper.style.width = '100%';
+
+        // Trả lại hiệu ứng nền hero (đã tạm dừng lúc mở cửa sổ nổi)
+        if (window.__lsaPopoutBgPaused) {
+            window.__lsaPopoutBgPaused = false;
+            if (typeof window.resumeWeatherEffect === 'function') window.resumeWeatherEffect();
+            if (typeof window.resumeGrassBanner === 'function') window.resumeGrassBanner();
+        }
         wrapper.style.height = '';
         wrapper.style.aspectRatio = '16 / 9';
         wrapper.style.zIndex = '';
         wrapper.style.borderRadius = '8px';
         wrapper.style.boxShadow = '0 4px 12px rgba(0,0,0,0.4)';
+        wrapper.style.animation = '';
 
         const header = document.getElementById('radio-popout-header');
         if (header) header.style.display = 'none';
@@ -8464,6 +8524,24 @@ window.closeRadioPopout = function() {
     if (window.updateRadioUI) updateRadioUI();
 };
 
+// Hệ số scale THẬT của popout so với viewport (body có CSS "zoom: 0.92").
+// style.left/top nằm trong hệ toạ độ đã bị zoom, còn clientX/getBoundingClientRect
+// là px thật. Trộn 2 hệ này chính là "bức tường vô hình" khiến popout không kéo
+// được tới mép phải màn hình (dừng sớm ~125px).
+window.getLsaPopoutScale = function() {
+    try {
+        const w = document.getElementById('radio-video-wrapper');
+        if (!w) return 1;
+        const off = w.offsetWidth;
+        const real = w.getBoundingClientRect().width;
+        if (off > 0 && real > 0) {
+            const s = real / off;
+            if (s > 0.2 && s < 5) return s;
+        }
+    } catch (e) {}
+    return 1;
+};
+
 let popoutDragInitialized = false;
 window.initPopoutDragAndResize = function() {
     if (popoutDragInitialized) return;
@@ -8475,23 +8553,43 @@ window.initPopoutDragAndResize = function() {
     if (!wrapper || !header || !resizer) return;
 
     // --- DRAG LOGIC ---
+    const MARGIN = 10;
     let isDragging = false;
     let dragStartX = 0, dragStartY = 0;
-    let startLeft = 0, startTop = 0;
+    let startLeft = 0, startTop = 0;      // toạ độ THẬT của popout lúc bắt đầu kéo
+    let dragW = 0, dragH = 0;
+    let dragScale = 1;
+    let pendingShift = null;              // dịch chuyển đang áp bằng transform khi kéo
+
+    // Ghi vị trí đang kéo (transform) thành left/top thật
+    function commitDragShift() {
+        if (!pendingShift) return;
+        const rect = wrapper.getBoundingClientRect();
+        wrapper.style.transform = '';
+        wrapper.style.left = (rect.left / dragScale) + 'px';
+        wrapper.style.top = (rect.top / dragScale) + 'px';
+        pendingShift = null;
+    }
 
     header.addEventListener('mousedown', function(e) {
         if (e.target.closest('button')) return; // ignore clicks on buttons
         isDragging = true;
+        // Chắc chắn không còn animation CSS nào đè lên transform lúc kéo
+        wrapper.style.animation = 'none';
+        wrapper.style.transform = '';
         const rect = wrapper.getBoundingClientRect();
+        dragScale = window.getLsaPopoutScale();
         dragStartX = e.clientX;
         dragStartY = e.clientY;
         startLeft = rect.left;
         startTop = rect.top;
+        dragW = rect.width;
+        dragH = rect.height;
+        pendingShift = null;
 
-        wrapper.style.left = startLeft + 'px';
-        wrapper.style.top = startTop + 'px';
         wrapper.style.right = 'auto';
         wrapper.style.bottom = 'auto';
+        wrapper.classList.add('is-dragging');
 
         document.addEventListener('mousemove', onDragMove);
         document.addEventListener('mouseup', onDragEnd);
@@ -8502,16 +8600,16 @@ window.initPopoutDragAndResize = function() {
         if (!isDragging) return;
         const dx = e.clientX - dragStartX;
         const dy = e.clientY - dragStartY;
-        let newLeft = startLeft + dx;
-        let newTop = startTop + dy;
 
-        const maxLeft = window.innerWidth - wrapper.offsetWidth - 10;
-        const maxTop = window.innerHeight - wrapper.offsetHeight - 10;
-        newLeft = Math.max(10, Math.min(newLeft, maxLeft));
-        newTop = Math.max(10, Math.min(newTop, maxTop));
+        // Kẹp theo px THẬT -> luôn kéo được sát mép màn hình (hết "tường vô hình")
+        const maxLeft = Math.max(MARGIN, window.innerWidth - dragW - MARGIN);
+        const maxTop = Math.max(MARGIN, window.innerHeight - dragH - MARGIN);
+        const realLeft = Math.max(MARGIN, Math.min(startLeft + dx, maxLeft));
+        const realTop = Math.max(MARGIN, Math.min(startTop + dy, maxTop));
 
-        wrapper.style.left = newLeft + 'px';
-        wrapper.style.top = newTop + 'px';
+        // Kéo bằng transform (GPU): không re-layout/re-render iframe -> hết giật
+        pendingShift = { x: (realLeft - startLeft) / dragScale, y: (realTop - startTop) / dragScale };
+        wrapper.style.transform = 'translate3d(' + pendingShift.x + 'px,' + pendingShift.y + 'px,0)';
     }
 
     function onDragEnd() {
@@ -8519,23 +8617,29 @@ window.initPopoutDragAndResize = function() {
         isDragging = false;
         document.removeEventListener('mousemove', onDragMove);
         document.removeEventListener('mouseup', onDragEnd);
+        wrapper.classList.remove('is-dragging');
+        commitDragShift();
         localStorage.setItem('lsa_popout_pos', JSON.stringify({
-            left: parseInt(wrapper.style.left, 10),
-            top: parseInt(wrapper.style.top, 10)
+            left: Math.round(parseFloat(wrapper.style.left) || 0),
+            top: Math.round(parseFloat(wrapper.style.top) || 0)
         }));
     }
 
     // Double-click header to center and resize to 640x400
     header.addEventListener('dblclick', function(e) {
         if (e.target.closest('button')) return;
+        const scale = window.getLsaPopoutScale() || 1;
+        wrapper.style.transform = '';
         wrapper.style.width = '640px';
         wrapper.style.height = '400px';
-        wrapper.style.left = Math.max(20, (window.innerWidth - 640) / 2) + 'px';
-        wrapper.style.top = Math.max(20, (window.innerHeight - 400) / 2) + 'px';
+        wrapper.style.right = 'auto';
+        wrapper.style.bottom = 'auto';
+        wrapper.style.left = Math.max(20, (window.innerWidth / scale - 640) / 2) + 'px';
+        wrapper.style.top = Math.max(20, (window.innerHeight / scale - 400) / 2) + 'px';
         localStorage.setItem('lsa_popout_size', JSON.stringify({ width: 640, height: 400 }));
         localStorage.setItem('lsa_popout_pos', JSON.stringify({
-            left: parseInt(wrapper.style.left, 10),
-            top: parseInt(wrapper.style.top, 10)
+            left: Math.round(parseFloat(wrapper.style.left) || 0),
+            top: Math.round(parseFloat(wrapper.style.top) || 0)
         }));
     });
 
@@ -8543,9 +8647,11 @@ window.initPopoutDragAndResize = function() {
     let isResizing = false;
     let resizeStartX = 0, resizeStartY = 0;
     let startWidth = 0, startHeight = 0;
+    let resizeScale = 1;
 
     resizer.addEventListener('mousedown', function(e) {
         isResizing = true;
+        resizeScale = window.getLsaPopoutScale() || 1;
         resizeStartX = e.clientX;
         resizeStartY = e.clientY;
         startWidth = wrapper.offsetWidth;
@@ -8559,16 +8665,17 @@ window.initPopoutDragAndResize = function() {
 
     function onResizeMove(e) {
         if (!isResizing) return;
-        const dx = e.clientX - resizeStartX;
-        const dy = e.clientY - resizeStartY;
+        // Chuột đi theo px THẬT -> quy về px của element (body bị zoom) rồi mới cộng
+        const dx = (e.clientX - resizeStartX) / resizeScale;
+        const dy = (e.clientY - resizeStartY) / resizeScale;
         let newW = startWidth + dx;
         let newH = startHeight + dy;
 
-        newW = Math.max(260, Math.min(newW, window.innerWidth - 30));
-        newH = Math.max(180, Math.min(newH, window.innerHeight - 30));
+        newW = Math.max(260, Math.min(newW, window.innerWidth / resizeScale - 30));
+        newH = Math.max(180, Math.min(newH, window.innerHeight / resizeScale - 30));
 
-        wrapper.style.width = newW + 'px';
-        wrapper.style.height = newH + 'px';
+        wrapper.style.width = Math.round(newW) + 'px';
+        wrapper.style.height = Math.round(newH) + 'px';
     }
 
     function onResizeEnd() {
