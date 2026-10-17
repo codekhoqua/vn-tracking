@@ -924,6 +924,80 @@ body.sidebar-is-animating * {
     font-weight: 600;
 }
 
+/* ----------------------------------------------------------------
+   HERO CONTROLS — FROSTED BLUR
+   Clean frosted buttons (no border, no rim highlight): the hero
+   backdrop is simply blurred behind a soft veil. Applied to the
+   online user cluster, notification bell, theme toggle (round) and
+   the filter (indigo) / album (gold) pills in dashboard.html.
+   ---------------------------------------------------------------- */
+.liquid-glass {
+    position: relative;
+    backdrop-filter: blur(16px) saturate(165%) !important;
+    -webkit-backdrop-filter: blur(16px) saturate(165%) !important;
+    background: rgba(255, 255, 255, 0.26) !important;
+    border: none !important;
+    box-shadow: 0 6px 18px -10px rgba(15, 23, 42, 0.3) !important;
+    color: #0f172a !important;
+    transition: transform 0.45s var(--ux-spring),
+                box-shadow 0.3s var(--ux-ease),
+                background 0.3s var(--ux-ease),
+                color 0.2s ease;
+}
+.liquid-glass:hover {
+    background: rgba(255, 255, 255, 0.38) !important;
+    box-shadow: 0 10px 24px -12px rgba(15, 23, 42, 0.38) !important;
+}
+.liquid-glass:active {
+    box-shadow: 0 3px 10px -6px rgba(15, 23, 42, 0.32) !important;
+}
+
+/* Tinted variants keep their accent colour through the blur */
+.liquid-glass.glass-indigo {
+    background: rgba(99, 102, 241, 0.4) !important;
+    color: #1e1b4b !important;
+}
+.liquid-glass.glass-indigo:hover {
+    background: rgba(99, 102, 241, 0.54) !important;
+}
+.liquid-glass.glass-gold {
+    background: rgba(245, 158, 11, 0.38) !important;
+    color: #78350f !important;
+}
+.liquid-glass.glass-gold:hover {
+    background: rgba(245, 158, 11, 0.52) !important;
+}
+.liquid-glass.glass-gold i {
+    color: #92400e !important;
+}
+
+/* Dark theme: deeper veil, light text */
+body.dark-theme .liquid-glass {
+    background: rgba(255, 255, 255, 0.1) !important;
+    color: #ffffff !important;
+    box-shadow: 0 6px 18px -10px rgba(0, 0, 0, 0.55) !important;
+}
+body.dark-theme .liquid-glass:hover {
+    background: rgba(255, 255, 255, 0.18) !important;
+}
+body.dark-theme .liquid-glass.glass-indigo {
+    background: rgba(99, 102, 241, 0.32) !important;
+    color: #e0e7ff !important;
+}
+body.dark-theme .liquid-glass.glass-indigo:hover {
+    background: rgba(99, 102, 241, 0.44) !important;
+}
+body.dark-theme .liquid-glass.glass-gold {
+    background: rgba(245, 158, 11, 0.26) !important;
+    color: #fef3c7 !important;
+}
+body.dark-theme .liquid-glass.glass-gold:hover {
+    background: rgba(245, 158, 11, 0.38) !important;
+}
+body.dark-theme .liquid-glass.glass-gold i {
+    color: #fbbf24 !important;
+}
+
 /* ======================== 5. TABS & CONTROLS ======================== */
 .dashboard-controls {
     display: flex; align-items: center; justify-content: space-between;
@@ -3807,6 +3881,30 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
     position: relative;
     width: 100%;
     max-width: 680px;
+    /* Theme-aware tokens for the JS-rendered body: dark values live here,
+       light values are set in the body:not(.dark-theme) override block. */
+    --wf-title: #ffffff;
+    --wf-text: rgba(255, 255, 255, 0.85);
+    --wf-text-muted: rgba(255, 255, 255, 0.62);
+    --wf-text-faint: rgba(255, 255, 255, 0.5);
+    --wf-surface: rgba(255, 255, 255, 0.04);
+    --wf-surface-strong: rgba(255, 255, 255, 0.05);
+    --wf-border: rgba(255, 255, 255, 0.1);
+    --wf-border-soft: rgba(255, 255, 255, 0.08);
+    --wf-chip: rgba(255, 255, 255, 0.08);
+    --wf-chip-border: rgba(255, 255, 255, 0.15);
+    --wf-chip-hover: rgba(255, 255, 255, 0.16);
+    --wf-accent: #38bdf8;
+    --wf-accent-soft: rgba(56, 189, 248, 0.15);
+    --wf-metric-1: #bae6fd;
+    --wf-metric-2: #fed7aa;
+    --wf-metric-3: #fef08a;
+    --wf-metric-4: #e2e8f0;
+    --wf-icon-1: #38bdf8;
+    --wf-icon-2: #fb923c;
+    --wf-icon-3: #facc15;
+    --wf-icon-4: #cbd5e1;
+    --wf-emoji-shadow: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.3));
     background: linear-gradient(135deg, rgba(30, 41, 59, 0.94) 0%, rgba(15, 23, 42, 0.98) 100%);
     border: 1px solid rgba(255, 255, 255, 0.16);
     border-radius: 28px;
@@ -3827,9 +3925,9 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
     width: 36px;
     height: 36px;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.08);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    color: rgba(255, 255, 255, 0.8);
+    background: var(--wf-chip);
+    border: 1px solid var(--wf-chip-border);
+    color: var(--wf-text);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -3837,8 +3935,8 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
     transition: all 0.2s;
 }
 .weather-modal-close-btn:hover {
-    background: rgba(255, 255, 255, 0.18);
-    color: #fff;
+    background: var(--wf-chip-hover);
+    color: var(--wf-title);
     transform: rotate(90deg);
 }
 
@@ -3854,8 +3952,8 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
     }
 }
 .forecast-day-card {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: var(--wf-surface-strong);
+    border: 1px solid var(--wf-border-soft);
     border-radius: 16px;
     padding: 12px 6px;
     display: flex;
@@ -3865,13 +3963,13 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
     transition: all 0.25s ease;
 }
 .forecast-day-card:hover {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: rgba(56, 189, 248, 0.4);
+    background: var(--wf-chip-hover);
+    border-color: var(--wf-accent);
     transform: translateY(-3px);
 }
 .forecast-day-card.today {
-    background: linear-gradient(180deg, rgba(56, 189, 248, 0.18) 0%, rgba(56, 189, 248, 0.06) 100%);
-    border-color: rgba(56, 189, 248, 0.5);
+    background: linear-gradient(180deg, var(--wf-accent-soft) 0%, rgba(56, 189, 248, 0.06) 100%);
+    border-color: var(--wf-accent);
 }
 
 .chart-header {
@@ -7351,6 +7449,69 @@ body:has(.login-page) {
     text-overflow: ellipsis;
 }
 
+/* Filmstrip modal copy + controls (theme-aware; the dark values are the
+   defaults, the light theme overrides them further down the file). */
+.filmstrip-dropzone-title {
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 4px;
+}
+
+.filmstrip-dropzone-sub {
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.filmstrip-settings-label {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.filmstrip-speed-select {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #fff;
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 0.8rem;
+    cursor: pointer;
+}
+
+.filmstrip-enable-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.82rem;
+    color: rgba(255, 255, 255, 0.85);
+    cursor: pointer;
+    user-select: none;
+}
+
+.filmstrip-count-label {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.filmstrip-reset-btn {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #94a3b8;
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.filmstrip-empty-msg {
+    grid-column: 1 / -1;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.45);
+    padding: 30px;
+}
+
 /* ================== FILMSTRIP LIGHTBOX (Xem ảnh kích thước lớn) ================== */
 .filmstrip-lightbox-backdrop {
     position: fixed;
@@ -7629,9 +7790,10 @@ body.dark-theme .hero-welcome-text {
 }
 
 /* 2. Hero Action Controls & Inline Weather Bar */
-body:not(.dark-theme) .online-users-cluster,
-body:not(.dark-theme) #notification-bell-btn,
-body:not(.dark-theme) .theme-toggle {
+/* (kept off `.liquid-glass` elements — those get the glass treatment instead) */
+body:not(.dark-theme) .online-users-cluster:not(.liquid-glass),
+body:not(.dark-theme) #notification-bell-btn:not(.liquid-glass),
+body:not(.dark-theme) .theme-toggle:not(.liquid-glass) {
     background: rgba(255, 255, 255, 0.92) !important;
     border: 1px solid rgba(226, 232, 240, 0.95) !important;
     color: #1e293b !important;
@@ -7642,8 +7804,8 @@ body:not(.dark-theme) .theme-toggle svg {
     color: #334155 !important;
     stroke: #334155 !important;
 }
-body:not(.dark-theme) #notification-bell-btn:hover,
-body:not(.dark-theme) .theme-toggle:hover {
+body:not(.dark-theme) #notification-bell-btn:not(.liquid-glass):hover,
+body:not(.dark-theme) .theme-toggle:not(.liquid-glass):hover {
     background: #ffffff !important;
     border-color: #cbd5e1 !important;
     transform: translateY(-2px);
@@ -7679,14 +7841,14 @@ body:not(.dark-theme) .weather-mockup-range {
     text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8) !important;
 }
 body:not(.dark-theme) .weather-mockup-pill {
-    background: rgba(255, 255, 255, 0.88) !important;
-    border: 1px solid rgba(203, 213, 225, 0.95) !important;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08) !important;
-    backdrop-filter: blur(12px) !important;
-    -webkit-backdrop-filter: blur(12px) !important;
+    background: rgba(255, 255, 255, 0.34) !important;
+    border: none !important;
+    box-shadow: 0 4px 12px -8px rgba(15, 23, 42, 0.28) !important;
+    backdrop-filter: blur(16px) saturate(165%) !important;
+    -webkit-backdrop-filter: blur(16px) saturate(165%) !important;
 }
 body:not(.dark-theme) .weather-mockup-pill span {
-    color: #475569 !important;
+    color: #334155 !important;
     font-weight: 700 !important;
 }
 body:not(.dark-theme) .weather-mockup-pill strong {
@@ -7694,13 +7856,13 @@ body:not(.dark-theme) .weather-mockup-pill strong {
     font-weight: 900 !important;
 }
 
-body:not(.dark-theme) .hero-album-btn {
+body:not(.dark-theme) .hero-album-btn:not(.liquid-glass) {
     background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%) !important;
     border: 1px solid rgba(245, 158, 11, 0.5) !important;
     color: #b45309 !important;
     box-shadow: 0 2px 8px rgba(245, 158, 11, 0.14) !important;
 }
-body:not(.dark-theme) .hero-album-btn i {
+body:not(.dark-theme) .hero-album-btn:not(.liquid-glass) i {
     color: #d97706 !important;
 }
 
@@ -7831,8 +7993,154 @@ body:not(.dark-theme) .filmstrip-modal-close {
 body:not(.dark-theme) .filmstrip-modal-body {
     color: #334155 !important;
 }
+body:not(.dark-theme) .filmstrip-dropzone {
+    border-color: rgba(217, 119, 6, 0.45) !important;
+    background: rgba(245, 158, 11, 0.08) !important;
+}
+body:not(.dark-theme) .filmstrip-dropzone:hover,
+body:not(.dark-theme) .filmstrip-dropzone.dragover {
+    border-color: #d97706 !important;
+    background: rgba(245, 158, 11, 0.15) !important;
+}
+body:not(.dark-theme) .filmstrip-dropzone-title {
+    color: #0f172a !important;
+}
+body:not(.dark-theme) .filmstrip-dropzone-sub {
+    color: #64748b !important;
+}
+body:not(.dark-theme) .filmstrip-settings-bar {
+    background: #f8fafc !important;
+    border: 1px solid #e2e8f0 !important;
+}
+body:not(.dark-theme) .filmstrip-settings-label {
+    color: #334155 !important;
+}
+body:not(.dark-theme) .filmstrip-speed-select {
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #0f172a !important;
+}
+body:not(.dark-theme) .filmstrip-enable-label {
+    color: #334155 !important;
+}
+body:not(.dark-theme) .filmstrip-count-label {
+    color: #475569 !important;
+}
+body:not(.dark-theme) .filmstrip-reset-btn {
+    background: #f1f5f9 !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #475569 !important;
+}
+body:not(.dark-theme) .filmstrip-reset-btn:hover {
+    background: #e2e8f0 !important;
+    color: #0f172a !important;
+}
+body:not(.dark-theme) .filmstrip-empty-msg {
+    color: #94a3b8 !important;
+}
+body:not(.dark-theme) .filmstrip-upload-progress {
+    background: #f8fafc !important;
+    border: 1px solid rgba(217, 119, 6, 0.35) !important;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08) !important;
+}
+body:not(.dark-theme) .filmstrip-progress-title {
+    color: #0f172a !important;
+}
+body:not(.dark-theme) .filmstrip-progress-percent {
+    color: #b45309 !important;
+}
+body:not(.dark-theme) .filmstrip-progress-bar-bg {
+    background: #e2e8f0 !important;
+}
+body:not(.dark-theme) .filmstrip-progress-current-file {
+    color: #64748b !important;
+}
+
+/* ---- Admin "leave notification email" modal ----
+   The markup hardcodes dark hex values but mixes in theme tokens
+   (var(--bg-page), var(--border)), so in light mode boxes went white while the
+   text stayed white (invisible). These overrides make the whole modal follow
+   the active theme; dark mode keeps its original hardcoded look. */
+#admin-leave-email-input::placeholder {
+    color: #94a3b8 !important;
+}
+body:not(.dark-theme) #admin-leave-email-modal {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    border-color: var(--border) !important;
+    box-shadow: 0 25px 50px rgba(15, 23, 42, 0.18) !important;
+}
+body:not(.dark-theme) #admin-leave-email-header,
+body:not(.dark-theme) #admin-leave-email-footer {
+    background: #f8fafc !important;
+}
+body:not(.dark-theme) #admin-leave-email-title,
+body:not(.dark-theme) #admin-leave-email-autotitle {
+    color: #0f172a !important;
+}
+body:not(.dark-theme) #admin-leave-email-subtitle,
+body:not(.dark-theme) #admin-leave-email-autosub,
+body:not(.dark-theme) #admin-leave-email-hint {
+    color: #64748b !important;
+}
+body:not(.dark-theme) #admin-leave-email-list-label {
+    color: #334155 !important;
+}
+body:not(.dark-theme) #admin-leave-email-count {
+    background: rgba(79, 70, 229, 0.12) !important;
+    color: #4338ca !important;
+}
+body:not(.dark-theme) #admin-leave-email-input {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    border-color: #cbd5e1 !important;
+}
+body:not(.dark-theme) #admin-leave-email-tags > span {
+    background: rgba(79, 70, 229, 0.1) !important;
+    border-color: rgba(79, 70, 229, 0.3) !important;
+    color: #4338ca !important;
+}
+body:not(.dark-theme) #admin-leave-email-tags > span i {
+    color: #6366f1 !important;
+}
+body:not(.dark-theme) #admin-leave-email-autobox {
+    background: #f8fafc !important;
+}
+body:not(.dark-theme) #admin-leave-email-header > div > div:first-child {
+    background: rgba(217, 119, 6, 0.12) !important;
+    color: #b45309 !important;
+}
+body:not(.dark-theme) #admin-leave-email-header button {
+    color: #64748b !important;
+}
+body:not(.dark-theme) #btn-admin-leave-email-test {
+    border-color: rgba(217, 119, 6, 0.45) !important;
+    color: #b45309 !important;
+}
 
 body:not(.dark-theme) .weather-forecast-modal {
+    --wf-title: #0f172a;
+    --wf-text: #1e293b;
+    --wf-text-muted: #475569;
+    --wf-text-faint: #64748b;
+    --wf-surface: #f8fafc;
+    --wf-surface-strong: #f1f5f9;
+    --wf-border: #e2e8f0;
+    --wf-border-soft: #e2e8f0;
+    --wf-chip: #f1f5f9;
+    --wf-chip-border: #cbd5e1;
+    --wf-chip-hover: #e2e8f0;
+    --wf-accent: #0284c7;
+    --wf-accent-soft: rgba(2, 132, 199, 0.12);
+    --wf-metric-1: #0369a1;
+    --wf-metric-2: #c2410c;
+    --wf-metric-3: #a16207;
+    --wf-metric-4: #475569;
+    --wf-icon-1: #0284c7;
+    --wf-icon-2: #ea580c;
+    --wf-icon-3: #ca8a04;
+    --wf-icon-4: #64748b;
+    --wf-emoji-shadow: drop-shadow(0 2px 5px rgba(15, 23, 42, 0.18));
     background: #ffffff !important;
     border: 1px solid #e2e8f0 !important;
     color: #0f172a !important;
@@ -8105,4 +8413,440 @@ body:not(.dark-theme) {
 }
 body.dark-theme {
     --bg-card: #141926;
+}
+
+/* ================================================================
+   12. TASK DETAIL PAGE — LIGHT MODE VIVID CONTRAST LAYER
+   The task-page components above were authored on the dark surface
+   and lean on translucent white / black fills plus pale accent ink.
+   On the porcelain light surface that collapses into flat grey and
+   the labels sink into their chip (white-on-white NOTION chip, grey
+   message blocks, grey composer). This layer restores solid surfaces
+   and real saturated colour for the LIGHT theme only; the dark theme
+   is untouched.
+   ================================================================ */
+
+/* 12.1  Page tint + card edges. */
+body:not(.dark-theme) .modal-overlay.task-detail-page-view {
+    background-color: #eef2f7 !important;
+}
+body:not(.dark-theme) .task-main-col .step-col,
+body:not(.dark-theme) .task-main-col .task-links-box,
+body:not(.dark-theme) .task-main-col .task-handover-box {
+    border-color: #dbe3ec !important;
+}
+
+/* 12.2  Message template blocks: a solid card with an accent rail
+   instead of the flat grey wash. */
+body:not(.dark-theme) .msg-template-card,
+body:not(.dark-theme) .task-main-col .msg-template-card {
+    background: #ffffff !important;
+    border: 1px solid #dbe3ec !important;
+    border-left: 3px solid #4f46e5 !important;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05) !important;
+}
+body:not(.dark-theme) .msg-template-card.nested {
+    background: #f8fafc !important;
+    border-left-color: #6366f1 !important;
+}
+body:not(.dark-theme) .msg-template-card:hover {
+    background: #f8faff !important;
+    border-color: #4f46e5 !important;
+    border-left-color: #4338ca !important;
+}
+body:not(.dark-theme) .msg-template-label {
+    color: #3730a3 !important;
+}
+body:not(.dark-theme) .msg-template-body {
+    color: #090d16 !important;
+    opacity: 1 !important;
+}
+
+/* 12.3  Comment composer: a clean white field, not a grey bar. */
+body:not(.dark-theme) .handover-input {
+    background: #ffffff !important;
+    border: 1px solid #d3dce6 !important;
+    color: #090d16 !important;
+}
+body:not(.dark-theme) .handover-input::placeholder {
+    color: #8b97a6 !important;
+    opacity: 1 !important;
+}
+body:not(.dark-theme) .handover-input:focus {
+    border-color: #4f46e5 !important;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.16) !important;
+}
+
+/* 12.4  Comment rows + meta. */
+body:not(.dark-theme) .handover-comment-item {
+    background: #f8fafc !important;
+    border: 1px solid #e6ecf3 !important;
+}
+body:not(.dark-theme) .handover-comment-item:hover {
+    background: #eef2f7 !important;
+    border-color: #d3dce6 !important;
+}
+body:not(.dark-theme) .handover-empty {
+    color: #8b97a6 !important;
+}
+body:not(.dark-theme) .comment-user {
+    color: #4338ca !important;
+}
+body:not(.dark-theme) .comment-tag.handover {
+    background: rgba(5, 150, 105, 0.16) !important;
+    color: #047857 !important;
+}
+body:not(.dark-theme) .comment-tag.progress {
+    background: rgba(180, 83, 9, 0.16) !important;
+    color: #92400e !important;
+}
+body:not(.dark-theme) .comment-tag.warning {
+    background: rgba(190, 18, 60, 0.14) !important;
+    color: #be123c !important;
+}
+body:not(.dark-theme) .comment-psd-badge,
+body:not(.dark-theme) .handover-count-bar .count-badge {
+    color: #4338ca !important;
+}
+body:not(.dark-theme) .handover-volume-name {
+    color: #b45309 !important;
+}
+body:not(.dark-theme) .handover-partner-badge {
+    color: #4338ca !important;
+    background: rgba(99, 102, 241, 0.1) !important;
+    border: 1px solid rgba(99, 102, 241, 0.3) !important;
+}
+body:not(.dark-theme) .quick-handover-label {
+    color: #5b6b7d !important;
+}
+
+/* 12.5  Quick-tag buttons: real, saturated colours. */
+body:not(.dark-theme) .btn-quick-tag {
+    background: #f1f5f9 !important;
+    border: 1px solid #dbe3ec !important;
+    color: #334155 !important;
+}
+body:not(.dark-theme) .btn-quick-tag:hover {
+    background: #e8eef5 !important;
+    border-color: #4f46e5 !important;
+    color: #3730a3 !important;
+}
+body:not(.dark-theme) .btn-quick-tag.done-retouch {
+    background: rgba(5, 150, 105, 0.13) !important;
+    border-color: rgba(5, 150, 105, 0.38) !important;
+    color: #047857 !important;
+}
+body:not(.dark-theme) .btn-quick-tag.done-retouch:hover {
+    background: rgba(5, 150, 105, 0.22) !important;
+    border-color: #059669 !important;
+}
+body:not(.dark-theme) .btn-quick-tag.in-progress {
+    background: rgba(180, 83, 9, 0.13) !important;
+    border-color: rgba(180, 83, 9, 0.38) !important;
+    color: #92400e !important;
+}
+body:not(.dark-theme) .btn-quick-tag.in-progress:hover {
+    background: rgba(180, 83, 9, 0.22) !important;
+    border-color: #b45309 !important;
+}
+body:not(.dark-theme) .btn-quick-tag.note {
+    background: rgba(190, 18, 60, 0.12) !important;
+    border-color: rgba(190, 18, 60, 0.38) !important;
+    color: #be123c !important;
+}
+body:not(.dark-theme) .btn-quick-tag.note:hover {
+    background: rgba(190, 18, 60, 0.2) !important;
+    border-color: #be123c !important;
+}
+
+/* 12.6  Platform chips: dark saturated ink on a real tint
+   (the NOTION chip was near-white text on a near-white fill). */
+body:not(.dark-theme) .platform-badge.notion {
+    background: #eef1f6 !important;
+    color: #334155 !important;
+    border: 1px solid #dbe3ec !important;
+}
+body:not(.dark-theme) .platform-badge.sheet {
+    background: rgba(5, 150, 105, 0.14) !important;
+    color: #047857 !important;
+    border: 1px solid rgba(5, 150, 105, 0.36) !important;
+}
+body:not(.dark-theme) .platform-badge.asana {
+    background: rgba(190, 18, 60, 0.13) !important;
+    color: #be123c !important;
+    border: 1px solid rgba(190, 18, 60, 0.34) !important;
+}
+body:not(.dark-theme) .platform-badge.mikan {
+    background: rgba(180, 83, 9, 0.14) !important;
+    color: #92400e !important;
+    border: 1px solid rgba(180, 83, 9, 0.36) !important;
+}
+
+/* 12.7  Step columns: visible track, readable sub-labels, and a hint
+   box that actually has an edge. */
+body:not(.dark-theme) .step-progress-bar {
+    background: #e4eaf1 !important;
+}
+body:not(.dark-theme) .step-sub {
+    color: #5b6b7d !important;
+}
+body:not(.dark-theme) .step-num {
+    background: #eef2ff !important;
+    border-color: #d6dcfa !important;
+    color: #3730a3 !important;
+}
+body:not(.dark-theme) .step-count {
+    background: #eef2f6 !important;
+    color: #475569 !important;
+    border-color: #dbe3ec !important;
+}
+body:not(.dark-theme) .step-count.complete {
+    background: rgba(5, 150, 105, 0.14) !important;
+    color: #047857 !important;
+    border-color: rgba(5, 150, 105, 0.36) !important;
+}
+body:not(.dark-theme) .step-hint-box {
+    background: #f6f9fc !important;
+    border: 1px dashed #d3dce6 !important;
+    color: #5b6b7d !important;
+}
+body:not(.dark-theme) .task-row:hover {
+    background: #f1f5f9 !important;
+    border-color: #e6ecf3 !important;
+}
+
+/* 12.8  Ask-task accordion trigger. */
+body:not(.dark-theme) .ask-task-trigger {
+    background: rgba(99, 102, 241, 0.1) !important;
+    border: 1px solid rgba(99, 102, 241, 0.3) !important;
+    color: #3730a3 !important;
+}
+body:not(.dark-theme) .ask-task-trigger:hover {
+    background: rgba(99, 102, 241, 0.18) !important;
+    border-color: #4f46e5 !important;
+}
+
+/* 12.9  Work-link cards: keep the hue code, lift it out of the wash.
+   Empty = quiet tint, has-link = confident tint + dark ink. */
+body:not(.dark-theme) .task-link-card .task-link-status {
+    opacity: 1 !important;
+}
+body:not(.dark-theme) .task-link-card.mikan.empty {
+    background: rgba(234, 88, 12, 0.09) !important;
+    border-color: rgba(194, 65, 12, 0.35) !important;
+    color: #9a3412 !important;
+}
+body:not(.dark-theme) .task-link-card.mikan.empty .task-link-icon {
+    background: rgba(234, 88, 12, 0.18) !important;
+    color: #c2410c !important;
+}
+body:not(.dark-theme) .task-link-card.mikan.has-url {
+    background: rgba(234, 88, 12, 0.16) !important;
+    border-color: rgba(194, 65, 12, 0.5) !important;
+    color: #7c2d12 !important;
+}
+body:not(.dark-theme) .task-link-card.mikan.has-url .task-link-icon {
+    background: rgba(234, 88, 12, 0.28) !important;
+    color: #c2410c !important;
+}
+body:not(.dark-theme) .task-link-card.notion.empty {
+    background: rgba(99, 102, 241, 0.08) !important;
+    border-color: rgba(99, 102, 241, 0.32) !important;
+    color: #3730a3 !important;
+}
+body:not(.dark-theme) .task-link-card.notion.empty .task-link-icon {
+    background: rgba(99, 102, 241, 0.16) !important;
+    color: #4f46e5 !important;
+}
+body:not(.dark-theme) .task-link-card.notion.has-url {
+    background: rgba(99, 102, 241, 0.14) !important;
+    border-color: rgba(99, 102, 241, 0.5) !important;
+    color: #312e81 !important;
+}
+body:not(.dark-theme) .task-link-card.notion.has-url .task-link-icon {
+    background: rgba(99, 102, 241, 0.26) !important;
+    color: #4338ca !important;
+}
+body:not(.dark-theme) .task-link-card.asana.empty {
+    background: rgba(225, 29, 72, 0.08) !important;
+    border-color: rgba(190, 18, 60, 0.32) !important;
+    color: #9f1239 !important;
+}
+body:not(.dark-theme) .task-link-card.asana.empty .task-link-icon {
+    background: rgba(225, 29, 72, 0.16) !important;
+    color: #be123c !important;
+}
+body:not(.dark-theme) .task-link-card.asana.has-url {
+    background: rgba(225, 29, 72, 0.14) !important;
+    border-color: rgba(190, 18, 60, 0.5) !important;
+    color: #881337 !important;
+}
+body:not(.dark-theme) .task-link-card.asana.has-url .task-link-icon {
+    background: rgba(225, 29, 72, 0.26) !important;
+    color: #be123c !important;
+}
+body:not(.dark-theme) .task-link-card.dropbox.empty {
+    background: rgba(37, 99, 235, 0.08) !important;
+    border-color: rgba(37, 99, 235, 0.32) !important;
+    color: #1e40af !important;
+}
+body:not(.dark-theme) .task-link-card.dropbox.empty .task-link-icon {
+    background: rgba(37, 99, 235, 0.16) !important;
+    color: #2563eb !important;
+}
+body:not(.dark-theme) .task-link-card.dropbox.has-url {
+    background: rgba(37, 99, 235, 0.14) !important;
+    border-color: rgba(37, 99, 235, 0.5) !important;
+    color: #1e3a8a !important;
+}
+body:not(.dark-theme) .task-link-card.dropbox.has-url .task-link-icon {
+    background: rgba(37, 99, 235, 0.26) !important;
+    color: #1d4ed8 !important;
+}
+
+/* ================================================================
+   13. LSA MUSIC WIDGET — LIGHT MODE
+   The radio widget is authored white-on-dark through inline styles,
+   so in the light theme it stayed a dark slab inside a bright
+   sidebar. Light mode remaps it to a light card (background, ink,
+   seek track, switch, DJ panels); the dark theme keeps its original
+   look because the --radio-track fallbacks still resolve to the
+   authored translucent white.
+   ================================================================ */
+body:not(.dark-theme) .lsa-music-card {
+    --radio-track: rgba(15, 23, 42, 0.16);
+    background: #ffffff !important;
+    color: #0f172a !important;
+    border: 1px solid #e2e8f0 !important;
+    box-shadow: 0 10px 26px -18px rgba(15, 23, 42, 0.3) !important;
+}
+
+/* 13.1  The blurred album cover becomes a pastel light-wash. */
+body:not(.dark-theme) .lsa-music-card #radio-bg-blur {
+    filter: blur(28px) brightness(1.5) saturate(1.2) !important;
+    opacity: 0.5 !important;
+}
+
+/* 13.2  Ink: labels + track meta. */
+body:not(.dark-theme) .lsa-music-card #radio-header-title,
+body:not(.dark-theme) .lsa-music-card #radio-dj-label {
+    color: #64748b !important;
+}
+body:not(.dark-theme) .lsa-music-card #radio-track-name {
+    color: #0f172a !important;
+    text-shadow: none !important;
+}
+body:not(.dark-theme) .lsa-music-card #radio-dj-name {
+    color: #475569 !important;
+    text-shadow: none !important;
+}
+body:not(.dark-theme) .lsa-music-card #radio-next-track {
+    color: #64748b !important;
+}
+body:not(.dark-theme) .lsa-music-card #radio-video-toggle,
+body:not(.dark-theme) .lsa-music-card #radio-video-popout-icon {
+    color: #94a3b8 !important;
+}
+body:not(.dark-theme) .lsa-music-card #radio-video-toggle:hover,
+body:not(.dark-theme) .lsa-music-card #radio-video-popout-icon:hover {
+    color: #334155 !important;
+}
+
+/* 13.3  Transport controls (play button keeps its indigo disc). */
+body:not(.dark-theme) .lsa-music-card .radio-ctrl-btn,
+body:not(.dark-theme) .lsa-music-card #radio-volume-btn {
+    color: #334155 !important;
+}
+body:not(.dark-theme) .lsa-music-card #radio-volume-btn:hover {
+    color: #0f172a !important;
+}
+body:not(.dark-theme) .lsa-music-card #radio-time-current,
+body:not(.dark-theme) .lsa-music-card #radio-time-total,
+body:not(.dark-theme) .lsa-music-card #radio-volume-label {
+    color: #475569 !important;
+}
+
+/* 13.4  Mute state keeps its red accent in both themes. */
+.lsa-music-card #radio-volume-label.is-muted,
+.lsa-music-card #radio-volume-btn.is-muted {
+    color: #ef4444 !important;
+}
+body:not(.dark-theme) .lsa-music-card #radio-volume-label.is-muted,
+body:not(.dark-theme) .lsa-music-card #radio-volume-btn.is-muted {
+    color: #dc2626 !important;
+}
+
+/* 13.5  DJ switch: light track, iOS green when engaged. */
+body:not(.dark-theme) .lsa-music-card .switch .slider {
+    background-color: rgba(15, 23, 42, 0.16) !important;
+}
+body:not(.dark-theme) .lsa-music-card .switch input:checked + .slider {
+    background-color: #34c759 !important;
+}
+
+/* 13.6  Sliders. */
+body:not(.dark-theme) .lsa-music-card #radio-progress::-webkit-slider-runnable-track {
+    background: rgba(15, 23, 42, 0.14) !important;
+}
+body:not(.dark-theme) .lsa-music-card #radio-progress:hover::-webkit-slider-runnable-track {
+    background: rgba(15, 23, 42, 0.24) !important;
+}
+body:not(.dark-theme) .lsa-music-card #radio-progress::-webkit-slider-thumb {
+    background: #ffffff !important;
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.35), 0 0 5px rgba(99, 102, 241, 0.45) !important;
+}
+body:not(.dark-theme) .lsa-music-card #radio-progress[disabled]::-webkit-slider-thumb {
+    background: #94a3b8 !important;
+    box-shadow: none !important;
+}
+body:not(.dark-theme) .lsa-music-card #radio-volume-slider::-webkit-slider-thumb,
+body:not(.dark-theme) .lsa-music-card #radio-volume-slider::-moz-range-thumb {
+    background: #ffffff !important;
+    box-shadow: 0 1px 5px rgba(15, 23, 42, 0.35), 0 0 4px rgba(99, 102, 241, 0.45) !important;
+}
+
+/* 13.7  DJ-only inputs (DJ panel appears only for the DJ). */
+body:not(.dark-theme) .lsa-music-card #radio-yt-input {
+    background: #ffffff !important;
+    border-color: #cbd5e1 !important;
+    color: #0f172a !important;
+}
+body:not(.dark-theme) .lsa-music-card #radio-yt-input::placeholder {
+    color: #94a3b8 !important;
+}
+body:not(.dark-theme) .lsa-music-card .radio-mini-btn {
+    background: #f1f5f9 !important;
+    border-color: #cbd5e1 !important;
+    color: #334155 !important;
+}
+body:not(.dark-theme) .lsa-music-card .radio-mini-btn:hover {
+    background: #e2e8f0 !important;
+}
+body:not(.dark-theme) .lsa-music-card #radio-mixing-label span {
+    color: #dc2626 !important;
+}
+
+/* 13.8  DJ-only rows (toggle labels + queue) and the "+N" listener chip. */
+body:not(.dark-theme) .lsa-music-card .dj-toggle-label {
+    color: #475569 !important;
+}
+body:not(.dark-theme) .lsa-music-card #radio-queue-list .queue-empty {
+    color: #64748b !important;
+}
+body:not(.dark-theme) .lsa-music-card #radio-queue-list .queue-item {
+    background: rgba(15, 23, 42, 0.05) !important;
+}
+body:not(.dark-theme) .lsa-music-card #radio-queue-list .queue-item-title {
+    color: #1e293b !important;
+}
+body:not(.dark-theme) .lsa-music-card #radio-queue-list .queue-drag-handle {
+    color: #94a3b8 !important;
+}
+body:not(.dark-theme) .lsa-music-card #radio-queue-list .queue-remove-btn {
+    color: #ef4444 !important;
+}
+body:not(.dark-theme) .lsa-music-card .radio-listener-more {
+    background: rgba(15, 23, 42, 0.12) !important;
+    color: #334155 !important;
+    border-color: rgba(15, 23, 42, 0.18) !important;
 }
