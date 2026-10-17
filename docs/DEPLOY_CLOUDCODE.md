@@ -24,6 +24,27 @@ Tên gợi ý:
 vn-tracking-cloudcode-v<version>-full.zip
 ```
 
+## Bắt buộc: đường dẫn POSIX trong zip
+
+Entry trong zip phải dùng dấu `/`, **không dùng `\`** (Windows). Nếu dùng `\`,
+panel Linux sẽ không tạo thư mục `templates/` và `static/`, dẫn tới:
+
+- `TemplateNotFound: login.html / dashboard.html` → HTTP 500
+- `/static/css/style.css` → 404
+- `/api/app_version` trả `version: "dev"`
+
+Dùng script có sẵn để đóng gói đúng chuẩn:
+
+```bash
+python scripts/build_cloudcode_zip.py
+# hoặc chỉ định đường dẫn:
+python scripts/build_cloudcode_zip.py -o "D:\path\vn-tracking-cloudcode-v<version>-full.zip"
+# bản không kèm secrets/data:
+python scripts/build_cloudcode_zip.py --no-private
+```
+
+Script tự tạo entry thư mục (`templates/`, `static/`, ...) và đường dẫn POSIX.
+
 > Zip chứa secret (Supabase key, service account Google). Chỉ lưu nội bộ, không upload nơi công khai.
 
 ## Cập nhật server đang chạy
