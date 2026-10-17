@@ -726,6 +726,8 @@ window.refreshWeatherNow = function(e) {
     if (e) e.stopPropagation();
     const syncIcon = document.getElementById('weather-sync-icon');
     if (syncIcon) syncIcon.classList.add('fa-spin');
+    const modalSyncIcon = document.getElementById('modal-weather-sync-icon');
+    if (modalSyncIcon) modalSyncIcon.classList.add('fa-spin');
     
     // Clear user override if any, return to real-time
     userWeatherOverride = null;
@@ -738,6 +740,8 @@ window.refreshWeatherNow = function(e) {
     setTimeout(() => {
         const syncIcon = document.getElementById('weather-sync-icon');
         if (syncIcon) syncIcon.classList.remove('fa-spin');
+        const modalSyncIcon = document.getElementById('modal-weather-sync-icon');
+        if (modalSyncIcon) modalSyncIcon.classList.remove('fa-spin');
     }, 1200);
 };
 
@@ -797,10 +801,10 @@ window.openWeatherForecastModal = function() {
 
         forecastHtml += `
             <div class="forecast-day-card ${idx === 0 ? 'today' : ''}">
-                <div style="font-size: 0.78rem; font-weight: 700; color: ${idx === 0 ? '#38bdf8' : 'rgba(255,255,255,0.7)'}; margin-bottom: 6px;">${dayLabel}</div>
-                <div style="font-size: 1.6rem; margin-bottom: 6px; filter: drop-shadow(0 2px 6px rgba(0,0,0,0.3));">${miniIcon}</div>
-                <div style="font-size: 0.88rem; font-weight: 700; color: #fff;">${f.max_temp}°</div>
-                <div style="font-size: 0.72rem; color: rgba(255,255,255,0.5); font-weight: 500;">${f.min_temp}°</div>
+                <div style="font-size: 0.78rem; font-weight: 700; color: ${idx === 0 ? 'var(--wf-accent)' : 'var(--wf-text-muted)'}; margin-bottom: 6px;">${dayLabel}</div>
+                <div style="font-size: 1.6rem; margin-bottom: 6px; filter: var(--wf-emoji-shadow);">${miniIcon}</div>
+                <div style="font-size: 0.88rem; font-weight: 700; color: var(--wf-title);">${f.max_temp}°</div>
+                <div style="font-size: 0.72rem; color: var(--wf-text-faint); font-weight: 500;">${f.min_temp}°</div>
             </div>
         `;
     });
@@ -810,40 +814,39 @@ window.openWeatherForecastModal = function() {
             <div>
                 <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
                     <span class="weather-live-dot"></span>
-                    <span style="font-size: 1.3rem; font-weight: 800; color: #fff; letter-spacing: -0.01em;">${locName}</span>
-                    <span style="font-size: 0.78rem; color: #38bdf8; background: rgba(56, 189, 248, 0.15); padding: 2px 8px; border-radius: 999px; font-weight: 600;">3D LIVE</span>
+                    <span style="font-size: 1.3rem; font-weight: 800; color: var(--wf-title); letter-spacing: -0.01em;">${locName}</span>
+                    <span style="font-size: 0.78rem; color: var(--wf-accent); background: var(--wf-accent-soft); padding: 2px 8px; border-radius: 999px; font-weight: 600;">3D LIVE</span>
                 </div>
-                <div style="font-size: 0.85rem; color: rgba(255,255,255,0.6);">
+                <div style="font-size: 0.85rem; color: var(--wf-text-muted);">
                     ${isVN ? 'Dữ liệu khí tượng Open-Meteo vệ tinh thời gian thực' : '気象衛星リアルタイム観測データ'}
                 </div>
             </div>
-            <button onclick="refreshWeatherNow(event)" style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 12px; padding: 6px 14px; color: #fff; font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 6px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.16)'" onmouseout="this.style.background='rgba(255,255,255,0.08)'">
+            <button type="button" onclick="refreshWeatherNow(event)" title="${isVN ? 'Làm mới vệ tinh' : '衛星データ更新'}" aria-label="${isVN ? 'Làm mới vệ tinh' : '衛星データ更新'}" style="position: absolute; top: 20px; right: 64px; width: 36px; height: 36px; border-radius: 50%; background: var(--wf-chip); border: 1px solid var(--wf-chip-border); color: var(--wf-text); display: flex; align-items: center; justify-content: center; font-size: 0.82rem; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='var(--wf-chip-hover)'; this.style.color='var(--wf-title)'" onmouseout="this.style.background='var(--wf-chip)'; this.style.color='var(--wf-text)'">
                 <i class="fas fa-sync-alt" id="modal-weather-sync-icon"></i>
-                <span>${isVN ? 'Làm mới vệ tinh' : '衛星データ更新'}</span>
             </button>
         </div>
 
         <!-- 3D Hero Display Box -->
-        <div style="display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; padding: 20px 28px; margin-bottom: 22px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; background: var(--wf-surface); border: 1px solid var(--wf-border); border-radius: 20px; padding: 20px 28px; margin-bottom: 22px;">
             <div style="display: flex; align-items: center; gap: 20px;">
                 ${getWeather3DMarkup(category, isDay, wCode)}
                 <div>
-                    <div style="font-size: 3.6rem; font-weight: 300; line-height: 1; letter-spacing: -0.03em; color: #fff;">
+                    <div style="font-size: 3.6rem; font-weight: 300; line-height: 1; letter-spacing: -0.03em; color: var(--wf-title);">
                         ${temp}<span style="font-size: 1.5rem; vertical-align: super; font-weight: 500; opacity: 0.85;">°c</span>
                     </div>
-                    <div style="font-size: 0.95rem; color: rgba(255,255,255,0.85); font-weight: 600; margin-top: 4px;">
+                    <div style="font-size: 0.95rem; color: var(--wf-text); font-weight: 600; margin-top: 4px;">
                         ${isVN ? 'Cảm giác như' : '体感'}: ${feelsLike}°C
                     </div>
                 </div>
             </div>
             <div style="text-align: right;">
-                <div style="font-size: 1.15rem; font-weight: 700; color: #fff; margin-bottom: 4px;">
+                <div style="font-size: 1.15rem; font-weight: 700; color: var(--wf-title); margin-bottom: 4px;">
                     ${isVN ? (category === 'rain' ? 'Trời có mưa' : category === 'thunder' ? 'Giông bão sét' : category === 'snow' ? 'Tuyết rơi' : category === 'clouds' ? 'Nhiều mây râm' : 'Trời quang nắng đẹp') : (category === 'rain' ? '雨天' : category === 'thunder' ? '雷雨' : category === 'snow' ? '降雪' : category === 'clouds' ? '曇り' : '快晴')}
                 </div>
-                <div style="font-size: 0.85rem; color: rgba(255,255,255,0.65); font-weight: 500;">
+                <div style="font-size: 0.85rem; color: var(--wf-text-muted); font-weight: 500;">
                     ${isVN ? 'Nhiệt độ ngày' : '最高/最低'}: ${minTemp}°C - ${maxTemp}°C
                 </div>
-                <div style="font-size: 0.8rem; color: rgba(255,255,255,0.5); margin-top: 4px;">
+                <div style="font-size: 0.8rem; color: var(--wf-text-faint); margin-top: 4px;">
                     ${isVN ? 'Mây bao phủ' : '雲量'}: ${cloudPct}%
                 </div>
             </div>
@@ -851,40 +854,40 @@ window.openWeatherForecastModal = function() {
 
         <!-- 4 Metrics Grid -->
         <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 24px;">
-            <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 12px 14px;">
-                <div style="display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: #bae6fd; margin-bottom: 4px;">
-                    <i class="fas fa-tint" style="color: #38bdf8;"></i>
+            <div style="background: var(--wf-surface); border: 1px solid var(--wf-border-soft); border-radius: 14px; padding: 12px 14px;">
+                <div style="display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: var(--wf-metric-1); margin-bottom: 4px;">
+                    <i class="fas fa-tint" style="color: var(--wf-icon-1);"></i>
                     <span>${isVN ? 'Độ ẩm' : '湿度'}</span>
                 </div>
-                <div style="font-size: 1.25rem; font-weight: 700; color: #fff;">${humidity}%</div>
+                <div style="font-size: 1.25rem; font-weight: 700; color: var(--wf-title);">${humidity}%</div>
             </div>
-            <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 12px 14px;">
-                <div style="display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: #fed7aa; margin-bottom: 4px;">
-                    <i class="fas fa-wind" style="color: #fb923c;"></i>
+            <div style="background: var(--wf-surface); border: 1px solid var(--wf-border-soft); border-radius: 14px; padding: 12px 14px;">
+                <div style="display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: var(--wf-metric-2); margin-bottom: 4px;">
+                    <i class="fas fa-wind" style="color: var(--wf-icon-2);"></i>
                     <span>${isVN ? 'Tốc độ gió' : '風速'}</span>
                 </div>
-                <div style="font-size: 1.25rem; font-weight: 700; color: #fff;">${windKmh} <span style="font-size: 0.75rem; font-weight: 500; opacity: 0.7;">km/h</span></div>
+                <div style="font-size: 1.25rem; font-weight: 700; color: var(--wf-title);">${windKmh} <span style="font-size: 0.75rem; font-weight: 500; opacity: 0.7;">km/h</span></div>
             </div>
-            <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 12px 14px;">
-                <div style="display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: #fef08a; margin-bottom: 4px;">
-                    <i class="fas fa-sun" style="color: #facc15;"></i>
+            <div style="background: var(--wf-surface); border: 1px solid var(--wf-border-soft); border-radius: 14px; padding: 12px 14px;">
+                <div style="display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: var(--wf-metric-3); margin-bottom: 4px;">
+                    <i class="fas fa-sun" style="color: var(--wf-icon-3);"></i>
                     <span>${isVN ? 'Tia UV' : 'UV指数'}</span>
                 </div>
-                <div style="font-size: 1.25rem; font-weight: 700; color: #fff;">UV ${uvIdx}</div>
+                <div style="font-size: 1.25rem; font-weight: 700; color: var(--wf-title);">UV ${uvIdx}</div>
             </div>
-            <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 12px 14px;">
-                <div style="display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: #e2e8f0; margin-bottom: 4px;">
-                    <i class="fas fa-tachometer-alt" style="color: #cbd5e1;"></i>
+            <div style="background: var(--wf-surface); border: 1px solid var(--wf-border-soft); border-radius: 14px; padding: 12px 14px;">
+                <div style="display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: var(--wf-metric-4); margin-bottom: 4px;">
+                    <i class="fas fa-tachometer-alt" style="color: var(--wf-icon-4);"></i>
                     <span>${isVN ? 'Áp suất' : '気圧'}</span>
                 </div>
-                <div style="font-size: 1.25rem; font-weight: 700; color: #fff;">${pressure} <span style="font-size: 0.75rem; font-weight: 500; opacity: 0.7;">hPa</span></div>
+                <div style="font-size: 1.25rem; font-weight: 700; color: var(--wf-title);">${pressure} <span style="font-size: 0.75rem; font-weight: 500; opacity: 0.7;">hPa</span></div>
             </div>
         </div>
 
         <!-- 7-Day Forecast Section -->
         <div>
-            <div style="font-size: 0.88rem; font-weight: 700; color: rgba(255,255,255,0.85); margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
-                <i class="far fa-calendar-alt" style="color: #38bdf8;"></i>
+            <div style="font-size: 0.88rem; font-weight: 700; color: var(--wf-text); margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+                <i class="far fa-calendar-alt" style="color: var(--wf-accent);"></i>
                 <span>${isVN ? 'Dự báo thời tiết 7 ngày tới' : '週間天気予報（7日間）'}</span>
             </div>
             <div class="weather-forecast-grid">
@@ -999,6 +1002,7 @@ window.simulateWeatherEffect = function(mode) {
     let flySpriteGreen = null;
 
     let isGrassRunning = false;
+    let grassPaused = false;
     let grassAnimId = null;
     let lastFrameTime = performance.now();
     let elapsedTotal = 0;
@@ -1758,6 +1762,29 @@ window.simulateWeatherEffect = function(mode) {
         }
     };
 
+    // Temporarily freeze the grass animation WITHOUT tearing down the pre-baked
+    // beds. Used while a heavy modal (album / lightbox) covers the hero so the
+    // 120Hz canvas stops competing with the modal's backdrop blur.
+    window.pauseGrassBanner = function() {
+        if (!canvas) canvas = document.getElementById('grass-banner-canvas');
+        grassPaused = true;
+        if (canvas) canvas.style.visibility = 'hidden';
+        if (grassAnimId) {
+            cancelAnimationFrame(grassAnimId);
+            grassAnimId = null;
+        }
+    };
+
+    window.resumeGrassBanner = function() {
+        if (!canvas) canvas = document.getElementById('grass-banner-canvas');
+        grassPaused = false;
+        if (canvas) canvas.style.visibility = '';
+        if (isGrassRunning && !grassAnimId) {
+            lastFrameTime = performance.now();
+            grassAnimId = requestAnimationFrame(animate);
+        }
+    };
+
     window.addEventListener('mousemove', (e) => {
         updatePointerFromEvent(e.clientX, e.clientY);
     });
@@ -1779,7 +1806,7 @@ window.simulateWeatherEffect = function(mode) {
                 grassAnimId = null;
             }
         } else {
-            if (isGrassRunning && !grassAnimId) {
+            if (isGrassRunning && !grassAnimId && !grassPaused) {
                 lastFrameTime = performance.now();
                 grassAnimId = requestAnimationFrame(animate);
             }
@@ -1866,6 +1893,25 @@ window.initWeatherFilmstripAlbum = function() {
     }, 500);
 };
 
+// The film frames and the album grid render at ~128px, so never feed them the
+// full-size original: some uploads are multi-MB (one is 10MB), and decoding 20+
+// of those into tiny frames is what made the album crawl. The lightbox keeps
+// using photo.src (the original) for full quality.
+window.albumThumbSrc = function(photo) {
+    const id = photo && (photo.id || '');
+    if (!id) return (photo && photo.src) || '';
+    return `/api/weather/album/thumb/${encodeURIComponent(id)}`;
+};
+
+// Medium (~1600px) render for the lightbox. Keeps large-screen viewing snappy
+// (a 10MB original can stall the viewer); download / open-in-new-tab still use
+// the untouched original via photo.src.
+window.albumViewSrc = function(photo) {
+    const id = photo && (photo.id || '');
+    if (!id) return (photo && photo.src) || '';
+    return `/api/weather/album/view/${encodeURIComponent(id)}`;
+};
+
 window.renderHeroFilmstripTrack = function() {
     const track = document.getElementById('hero-filmstrip-track');
     const container = document.getElementById('hero-filmstrip-layer');
@@ -1907,7 +1953,7 @@ window.renderHeroFilmstripTrack = function() {
             html += `
                 <div class="hero-film-item" onclick="openFilmstripLightbox('${p.id}', event)" title="${displayName} (Click để xem ảnh lớn)">
                     <div class="film-sprocket-backlight"></div>
-                    <img src="${p.src}" alt="${displayName}" class="hero-film-photo" loading="lazy">
+                    <img src="${window.albumThumbSrc(p)}" alt="${displayName}" class="hero-film-photo" loading="lazy" decoding="async">
                     <div class="hero-film-overlay-frame"></div>
                     <div class="hero-film-caption">${displayName}</div>
                 </div>
@@ -1935,6 +1981,9 @@ window.openFilmstripLightbox = function(photoId, e) {
 
     updateLightboxView();
 
+    if (typeof window.pauseGrassBanner === 'function') window.pauseGrassBanner();
+    if (typeof window.pauseWeatherEffect === 'function') window.pauseWeatherEffect();
+
     const backdrop = document.getElementById('filmstrip-lightbox-backdrop');
     if (backdrop) {
         backdrop.style.display = 'flex';
@@ -1958,6 +2007,13 @@ window.closeFilmstripLightbox = function(e) {
         setTimeout(() => {
             backdrop.style.display = 'none';
         }, 220);
+    }
+    // Only resume the hero canvases once no filmstrip overlay is left on screen.
+    const album = document.getElementById('filmstrip-modal-backdrop');
+    const albumOpen = album && album.classList.contains('open');
+    if (!albumOpen) {
+        if (typeof window.resumeGrassBanner === 'function') window.resumeGrassBanner();
+        if (typeof window.resumeWeatherEffect === 'function') window.resumeWeatherEffect();
     }
     window.removeEventListener('keydown', handleLightboxKeydown);
 };
@@ -2003,7 +2059,7 @@ function updateLightboxView() {
     const displayName = photo.name || photo.caption || photo.id || '';
 
     if (img) {
-        img.src = photo.src;
+        img.src = (photo.src ? window.albumViewSrc(photo) : '');
         img.alt = displayName;
     }
     if (title) title.textContent = displayName;
@@ -2032,6 +2088,13 @@ window.openFilmstripAlbumModal = function(e) {
     const track = document.getElementById('hero-filmstrip-track');
     if (track) track.style.animationPlayState = 'paused';
 
+    // Freeze the heavy hero canvases (120Hz grass banner + full-screen weather
+    // particles). The modal's backdrop-filter: blur() otherwise has to re-blur a
+    // constantly repainting backdrop every single frame, which is what makes the
+    // album feel laggy while it is open.
+    if (typeof window.pauseGrassBanner === 'function') window.pauseGrassBanner();
+    if (typeof window.pauseWeatherEffect === 'function') window.pauseWeatherEffect();
+
     renderFilmstripModalContent();
     modal.classList.add('open');
 };
@@ -2046,6 +2109,14 @@ window.closeFilmstripAlbumModal = function(e) {
 
     const track = document.getElementById('hero-filmstrip-track');
     if (track) track.style.animationPlayState = '';
+
+    // Resume the hero canvases, unless the lightbox is still layered on top.
+    const lb = document.getElementById('filmstrip-lightbox-backdrop');
+    const lightboxOpen = lb && lb.classList.contains('active');
+    if (!lightboxOpen) {
+        if (typeof window.resumeGrassBanner === 'function') window.resumeGrassBanner();
+        if (typeof window.resumeWeatherEffect === 'function') window.resumeWeatherEffect();
+    }
 };
 
 window.renderFilmstripModalContent = function(force = false) {
@@ -2075,7 +2146,7 @@ window.renderFilmstripModalContent = function(force = false) {
     _lastFilmstripRenderHash = currentHash;
 
     if (photos.length === 0) {
-        grid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: rgba(255,255,255,0.45); padding: 30px;">Chưa có ảnh nào trong cuộn phim</div>`;
+        grid.innerHTML = `<div class="filmstrip-empty-msg">Chưa có ảnh nào trong cuộn phim</div>`;
         return;
     }
 
@@ -2084,7 +2155,7 @@ window.renderFilmstripModalContent = function(force = false) {
         return `
             <div class="filmstrip-thumb-item" id="filmstrip-thumb-${p.id}" onclick="openFilmstripLightbox('${p.id}', event)" title="${displayName} (Click để xem ảnh lớn)" style="cursor: pointer;">
                 <div class="film-sprocket-backlight"></div>
-                <img src="${p.src}" alt="${displayName}" class="filmstrip-thumb-photo" loading="lazy" decoding="async">
+                <img src="${window.albumThumbSrc(p)}" alt="${displayName}" class="filmstrip-thumb-photo" loading="lazy" decoding="async">
                 <div class="filmstrip-thumb-frame"></div>
                 <button type="button" class="filmstrip-thumb-delete" onclick="deleteFilmstripPhoto('${p.id}', event)" title="Xóa ảnh này">
                     <i class="fas fa-trash"></i>
@@ -5976,12 +6047,13 @@ function updateRadioVolumeUI() {
     sliders.forEach(slider => {
         slider.value = radioVolume;
         const pct = isMutedState ? 0 : radioVolume;
-        slider.style.background = `linear-gradient(to right, rgba(99, 102, 241, 0.9) 0%, rgba(129, 140, 248, 0.9) ${pct}%, rgba(255, 255, 255, 0.2) ${pct}%, rgba(255, 255, 255, 0.2) 100%)`;
+        const trackOff = 'var(--radio-track, rgba(255, 255, 255, 0.2))';
+        slider.style.background = `linear-gradient(to right, rgba(99, 102, 241, 0.9) 0%, rgba(129, 140, 248, 0.9) ${pct}%, ${trackOff} ${pct}%, ${trackOff} 100%)`;
     });
 
     labels.forEach(lbl => {
         lbl.textContent = isMutedState ? (radioMuted ? 'Mute' : '0%') : `${radioVolume}%`;
-        lbl.style.color = isMutedState ? 'rgba(239, 68, 68, 0.85)' : 'rgba(255, 255, 255, 0.65)';
+        lbl.classList.toggle('is-muted', isMutedState);
     });
 
     highIcons.forEach(icon => {
@@ -5995,7 +6067,7 @@ function updateRadioVolumeUI() {
     });
 
     btns.forEach(btn => {
-        btn.style.color = isMutedState ? '#ef4444' : 'rgba(255, 255, 255, 0.85)';
+        btn.classList.toggle('is-muted', isMutedState);
         btn.title = isMutedState ? ((typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'ja') ? 'ミュート解除' : 'Bật âm thanh') : ((typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'ja') ? 'ミュート' : 'Tắt tiếng');
     });
 }
@@ -6003,8 +6075,26 @@ window.updateRadioVolumeUI = updateRadioVolumeUI;
 
 try { initRadioVolume(); } catch (e) {}
 
+// ---- Parse link YouTube (hỗ trợ watch?v=, youtu.be, /shorts/, /live/, /embed/, /v/, ID trần, link lẫn trong câu) ----
+function parseYoutubeInput(raw) {
+    const out = { videoId: null, listId: null };
+    if (!raw) return out;
+    const s = String(raw).trim();
+    if (/^[A-Za-z0-9_-]{11}$/.test(s)) {
+        out.videoId = s; // người dùng dán ID trần
+    } else {
+        const m = s.match(/(?:youtu\.be\/|\/shorts\/|\/live\/|\/embed\/|\/v\/|[?&]v=)([A-Za-z0-9_-]{11})/);
+        if (m) out.videoId = m[1];
+    }
+    const lm = s.match(/[?&]list=([A-Za-z0-9_-]+)/);
+    if (lm) out.listId = lm[1];
+    return out;
+}
+window.parseYoutubeInput = parseYoutubeInput;
+
 window.onYouTubeIframeAPIReady = function () {
-    const pVars = { 'autoplay': 0, 'controls': 0, 'disablekb': 1, 'fs': 0, 'modestbranding': 1, 'rel': 0, 'showinfo': 0 };
+    // 'origin' là khuyến nghị chính thức của YouTube IFrame API (postMessage + tránh lỗi nhúng)
+    const pVars = { 'autoplay': 0, 'controls': 0, 'disablekb': 1, 'fs': 0, 'modestbranding': 1, 'rel': 0, 'showinfo': 0, 'origin': window.location.origin };
     ytPlayer = new YT.Player('lofi-youtube-player', {
         height: '0',
         width: '0',
@@ -6019,6 +6109,9 @@ window.onYouTubeIframeAPIReady = function () {
                 }
                 applyUserRadioVolume(event.target);
                 onPlayerReady(event);
+            },
+            'onError': function(event) {
+                onPlayerError(event);
             },
             'onStateChange': function(event) {
                 // Only process events from the active player, ignore during crossfade
@@ -6040,6 +6133,9 @@ window.onYouTubeIframeAPIReady = function () {
                     event.target.getIframe().style.zIndex = '1';
                 }
                 applyUserRadioVolume(event.target);
+            },
+            'onError': function(event) {
+                onPlayerError(event);
             },
             'onStateChange': function(event) {
                 if (event.target !== ytPlayer || isCrossfading) return;
@@ -6435,6 +6531,7 @@ function handleRadioListenersUpdate(listeners) {
 
     if (listeners.length > MAX_SHOW) {
         const extra = document.createElement('span');
+        extra.className = 'radio-listener-more';
         extra.textContent = `+${listeners.length - MAX_SHOW}`;
         Object.assign(extra.style, {
             width: '18px', height: '18px', borderRadius: '50%',
@@ -6691,6 +6788,72 @@ function setupSocketRadio() {
         if (window.updateRadioUI) window.updateRadioUI();
     });
 }
+
+// ---- Xử lý video lỗi: chặn nhúng / giới hạn tuổi / khoá vùng / đã xoá ----
+window.__lastYtError = window.__lastYtError || { key: '', t: 0 };
+function onPlayerError(event) {
+    if (!event) return;
+    const code = event.data;
+    if (ytPlayer2 && event.target === ytPlayer2 && isCrossfading && window.cancelCrossfade) {
+        window.cancelCrossfade();
+    }
+
+    let title = '';
+    let vid = '';
+    try {
+        const d = event.target && event.target.getVideoData ? event.target.getVideoData() : null;
+        if (d) { title = d.title || ''; vid = d.video_id || ''; }
+    } catch (e) {}
+
+    // Chống spam toast khi cùng 1 video lỗi lặp lại liên tục
+    const key = code + ':' + vid;
+    const now = Date.now();
+    if (key === window.__lastYtError.key && (now - window.__lastYtError.t) < 4000) return;
+    window.__lastYtError = { key: key, t: now };
+
+    const msgs = {
+        2:   { vi: 'Link/ID video không hợp lệ!',                            jp: '無効な動画リンクです！' },
+        5:   { vi: 'Video không phát được trong trình phát HTML5!',           jp: 'HTML5プレーヤーで再生できません！' },
+        100: { vi: 'Video đã bị xoá hoặc để chế độ riêng tư!',                jp: '動画は削除されたか非公開です！' },
+        101: { vi: 'Chủ video không cho phép nhúng (embed)!',                 jp: '埋め込みが許可されていません！' },
+        150: { vi: 'Video không cho phép nhúng / giới hạn tuổi / khoá vùng!', jp: '埋め込み不可・年齢制限・地域制限があります！' }
+    };
+    const m = msgs[code] || { vi: 'Video không phát được (mã ' + code + ')!', jp: '再生できません（エラー ' + code + '）！' };
+    const name = title ? '"' + (title.length > 38 ? title.slice(0, 38) + '…' : title) + '" ' : '';
+
+    // DJ + có hàng chờ: tự nhảy bài kế để phòng nhạc bị treo (video lỗi không bao giờ "ended")
+    const canSkip = isRadioDJ && radioState.queue && radioState.queue.length > 0
+        && (now - (window.__lastErrSkip || 0)) > 3000;
+
+    if (window.showToast) {
+        const suffix = canSkip ? (CURRENT_LANG === 'vi' ? ' → chuyển bài kế' : ' → 次の曲へ') : '';
+        showToast(name + (CURRENT_LANG === 'vi' ? m.vi : m.jp) + suffix, 'error');
+    }
+
+    if (canSkip) {
+        window.__lastErrSkip = now;
+        const nextItem = radioState.queue[0];
+        if (window.socket) window.socket.emit('queue_pop');
+        radioState.youtube_id = nextItem.youtube_id;
+        radioState.current_time = 0;
+        radioState.is_playing = true;
+        window.manualSkipInProgress = true;
+        try {
+            if (ytPlayer && ytPlayer.loadVideoById) {
+                ytPlayer.loadVideoById(nextItem.youtube_id);
+                ytPlayer.playVideo();
+            }
+        } catch (e) {}
+        if (window.updateRadioUI) updateRadioUI();
+        if (window.syncRadioToServer) syncRadioToServer();
+        setTimeout(function () { window.manualSkipInProgress = false; }, 2000);
+    } else if (isRadioDJ) {
+        radioState.is_playing = false;
+        if (window.updateRadioUI) updateRadioUI();
+        if (window.syncRadioToServer) syncRadioToServer();
+    }
+}
+window.onPlayerError = onPlayerError;
 
 function onPlayerStateChange(event) {
     if (event.data === YT.PlayerState.PLAYING && !isCrossfading) {
@@ -6949,24 +7112,26 @@ document.addEventListener('DOMContentLoaded', () => {
         ytInput.addEventListener('change', function (e) {
             if (!isRadioDJ && !radioState.allow_requests) return;
             const url = e.target.value;
-            const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-            const match = url.match(regExp);
-            const videoId = (match && match[2].length === 11) ? match[2] : null;
-            const listMatch = url.match(/[?&]list=([^#\&\?]+)/);
-            const listId = listMatch ? listMatch[1] : null;
+            // Nhận diện: watch?v=, youtu.be, /shorts/, /live/, /embed/, /v/, ID trần, link lẫn trong text
+            const parsed = parseYoutubeInput(url);
+            const videoId = parsed.videoId;
+            const listId = parsed.listId;
 
             if (videoId || listId) {
                 if (isRadioDJ && !radioState.allow_requests) {
-                    if (listId) {
-                        radioState.youtube_id = videoId || 'playlist';
-                        if (ytPlayer && ytPlayer.loadPlaylist) {
-                            ytPlayer.loadPlaylist({list: listId, listType: 'playlist', index: 0});
-                        }
-                    } else if (videoId) {
+                    if (videoId) {
+                        // Ưu tiên video đơn: link Share (nhất là từ YouTube Music) luôn kèm &list=RD... của mix,
+                        // phát mix sẽ ra bài khác chứ không phải video người dùng chọn.
                         radioState.youtube_id = videoId;
                         if (ytPlayer && ytPlayer.loadVideoById) {
                             ytPlayer.loadVideoById(videoId);
                             ytPlayer.playVideo();
+                        }
+                    } else if (listId) {
+                        // Chỉ khi link KHÔNG có video đơn mới phát cả playlist
+                        radioState.youtube_id = 'playlist';
+                        if (ytPlayer && ytPlayer.loadPlaylist) {
+                            ytPlayer.loadPlaylist({list: listId, listType: 'playlist', index: 0});
                         }
                     }
                     radioState.is_playing = true;
@@ -7117,12 +7282,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!queueList) return;
         queueList.innerHTML = '';
         if (!radioState.queue || radioState.queue.length === 0) {
-            queueList.innerHTML = `<div style="font-size: 10px; color: rgba(255,255,255,0.7); text-align: center; padding: 4px;">${CURRENT_LANG === 'vi' ? 'Danh sách trống' : '空のリスト'}</div>`;
+            queueList.innerHTML = `<div class="queue-empty" style="font-size: 10px; color: rgba(255,255,255,0.7); text-align: center; padding: 4px;">${CURRENT_LANG === 'vi' ? 'Danh sách trống' : '空のリスト'}</div>`;
             return;
         }
         
         radioState.queue.forEach((item, index) => {
             const el = document.createElement('div');
+            el.className = 'queue-item';
             el.dataset.queueId = item.queue_id;
             el.style.display = 'flex';
             el.style.alignItems = 'center';
@@ -7139,9 +7305,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             const avatarUrl = item.avatar ? (item.avatar.startsWith('http') || item.avatar.startsWith('/api') || item.avatar.startsWith('/static') ? item.avatar : '/static/avatars/' + item.avatar) : '/static/logo.png';
             html += `<img src="${avatarUrl}" onerror="this.src='/static/logo.png'" style="width: 16px; height: 16px; border-radius: 50%; object-fit: cover;" title="${item.added_by}">`;
-            html += `<div style="flex: 1; min-width: 0; font-size: 10px; color: rgba(255,255,255,0.9); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.title || 'Loading...'}</div>`;
+            html += `<div class="queue-item-title" style="flex: 1; min-width: 0; font-size: 10px; color: rgba(255,255,255,0.9); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.title || 'Loading...'}</div>`;
             if (isRadioDJ) {
-                html += `<button onclick="removeQueueItem('${item.queue_id}')" style="background: none; border: none; color: rgba(255,100,100,0.8); cursor: pointer; padding: 2px;">
+                html += `<button class="queue-remove-btn" onclick="removeQueueItem('${item.queue_id}')" style="background: none; border: none; color: rgba(255,100,100,0.8); cursor: pointer; padding: 2px;">
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41z"/></svg>
                          </button>`;
             }
@@ -7452,6 +7618,9 @@ function setInputStatus(id, state) {
     let weatherCtx = null;
     let weatherAnimId = null;
     let currentWeatherMode = null; // 'rain', 'thunder', 'snow', 'sun', null
+    let weatherPaused = false;
+    let weatherHost = null;          // hero clip wrapper (or documentElement fallback)
+    let weatherResizeObserver = null;
 
     // Rain state
     let rainDrops = [];
@@ -7468,6 +7637,9 @@ function setInputStatus(id, state) {
     let lastRectUpdate = 0;
 
     function getChartCollisionRect() {
+        // When the rain is confined to the hero the chart rim is unreachable, and
+        // its viewport-space rect would not match the canvas-local coordinates.
+        if (weatherHost && weatherHost !== document.documentElement) return null;
         const now = performance.now();
         if (!cachedChartRect || now - lastRectUpdate > 250) {
             const chartEl = document.getElementById('main-chart-section') || document.querySelector('.chart-section');
@@ -7513,17 +7685,6 @@ function setInputStatus(id, state) {
                 weatherCanvas = document.createElement('canvas');
                 weatherCanvas.id = 'weather-canvas';
             }
-            if (weatherCanvas.parentElement !== document.documentElement) {
-                document.documentElement.appendChild(weatherCanvas);
-            }
-            weatherCanvas.style.position = 'fixed';
-            weatherCanvas.style.top = '0';
-            weatherCanvas.style.left = '0';
-            weatherCanvas.style.width = '100vw';
-            weatherCanvas.style.height = '100vh';
-            weatherCanvas.style.pointerEvents = 'none';
-            weatherCanvas.style.zIndex = '9999';
-
             weatherCtx = weatherCanvas.getContext('2d');
             window.addEventListener('resize', handleWeatherResize);
             window.addEventListener('scroll', () => { lastRectUpdate = 0; cachedChartRect = null; }, { passive: true });
@@ -7534,21 +7695,74 @@ function setInputStatus(id, state) {
                         cancelAnimationFrame(weatherAnimId);
                         weatherAnimId = null;
                     }
-                } else if (currentWeatherMode && !weatherAnimId) {
+                } else if (currentWeatherMode && !weatherAnimId && !weatherPaused) {
                     weatherAnimId = requestAnimationFrame(updateWeatherParticles);
                 }
             });
-        } else if (weatherCanvas.parentElement !== document.documentElement) {
-            document.documentElement.appendChild(weatherCanvas);
         }
+        attachWeatherCanvasHost();
         handleWeatherResize();
+    }
+
+    // The weather particles belong to the hero banner only (they used to fall
+    // over the whole dashboard). The canvas is parented to the hero's clipping
+    // wrapper — rounded corners + overflow: hidden — so nothing escapes it.
+    // If that wrapper is missing (other pages) it falls back to full-screen.
+    function attachWeatherCanvasHost() {
+        if (!weatherCanvas) return;
+        const host = document.getElementById('hero-weather-clip');
+
+        if (host) {
+            weatherHost = host;
+            if (weatherCanvas.parentElement !== host) host.appendChild(weatherCanvas);
+            weatherCanvas.style.position = 'absolute';
+            weatherCanvas.style.inset = '0';
+            weatherCanvas.style.top = '0';
+            weatherCanvas.style.left = '0';
+            weatherCanvas.style.width = '100%';
+            weatherCanvas.style.height = '100%';
+            weatherCanvas.style.zIndex = '3'; // above grass (0), album (1), scrim (2)
+        } else {
+            weatherHost = document.documentElement;
+            if (weatherCanvas.parentElement !== document.documentElement) {
+                document.documentElement.appendChild(weatherCanvas);
+            }
+            weatherCanvas.style.position = 'fixed';
+            weatherCanvas.style.inset = 'auto';
+            weatherCanvas.style.top = '0';
+            weatherCanvas.style.left = '0';
+            weatherCanvas.style.width = '100vw';
+            weatherCanvas.style.height = '100vh';
+            weatherCanvas.style.zIndex = '9999';
+        }
+        weatherCanvas.style.pointerEvents = 'none';
+
+        // The hero can also change size without a window resize (e.g. collapsing
+        // the sidebar), so keep the backing store in sync with the host.
+        if (typeof ResizeObserver !== 'undefined') {
+            if (weatherResizeObserver) weatherResizeObserver.disconnect();
+            weatherResizeObserver = new ResizeObserver(() => handleWeatherResize());
+            weatherResizeObserver.observe(host || document.documentElement);
+        }
+    }
+
+    // Size of the area the particles are allowed to live in (hero, or viewport
+    // when the hero is not on the page).
+    function getWeatherSize() {
+        if (weatherHost && weatherHost !== document.documentElement) {
+            const w = weatherHost.clientWidth;
+            const h = weatherHost.clientHeight;
+            if (w > 0 && h > 0) return { w: w, h: h };
+        }
+        return { w: window.innerWidth, h: window.innerHeight };
     }
 
     function handleWeatherResize() {
         if (!weatherCanvas) return;
         const dpr = Math.min(window.devicePixelRatio || 1, 2);
-        weatherCanvas.width = window.innerWidth * dpr;
-        weatherCanvas.height = window.innerHeight * dpr;
+        const size = getWeatherSize();
+        weatherCanvas.width = Math.max(1, Math.round(size.w * dpr));
+        weatherCanvas.height = Math.max(1, Math.round(size.h * dpr));
         if (weatherCtx) {
             weatherCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
         }
@@ -7557,17 +7771,18 @@ function setInputStatus(id, state) {
 
     // --- RAIN LOGIC ---
     function createRainDrop(isInitial = false) {
+        const size = getWeatherSize();
         const rect = getChartCollisionRect();
         let x;
         if (rect && rect.width > 0 && Math.random() < 0.70) {
             x = rect.left + Math.random() * rect.width;
         } else {
-            x = Math.random() * window.innerWidth;
+            x = Math.random() * size.w;
         }
         const speed = 5.5 + Math.random() * 3.5;
         return {
             x: x,
-            y: isInitial ? (Math.random() * (window.innerHeight * 0.8)) : (-15 - Math.random() * 60),
+            y: isInitial ? (Math.random() * (size.h * 0.8)) : (-15 - Math.random() * 60),
             speed: speed,
             length: 12 + Math.random() * 10,
             wind: 0.35 + Math.random() * 0.45,
@@ -7607,9 +7822,10 @@ function setInputStatus(id, state) {
 
     // --- SNOW LOGIC ---
     function createSnowFlake(isInitial = false) {
+        const size = getWeatherSize();
         return {
-            x: Math.random() * window.innerWidth,
-            y: isInitial ? Math.random() * window.innerHeight : -10 - Math.random() * 40,
+            x: Math.random() * size.w,
+            y: isInitial ? Math.random() * size.h : -10 - Math.random() * 40,
             radius: 1.4 + Math.random() * 2.8,
             speed: 0.9 + Math.random() * 1.4,
             wind: 0.2 + Math.random() * 0.35,
@@ -7622,9 +7838,10 @@ function setInputStatus(id, state) {
 
     // --- SUN LOGIC ---
     function createSunMote(isInitial = false) {
+        const size = getWeatherSize();
         return {
-            x: Math.random() * window.innerWidth,
-            y: isInitial ? Math.random() * (window.innerHeight * 0.75) : window.innerHeight * 0.75 + Math.random() * 50,
+            x: Math.random() * size.w,
+            y: isInitial ? Math.random() * (size.h * 0.75) : size.h * 0.75 + Math.random() * 50,
             radius: 1.0 + Math.random() * 2.2,
             vx: (Math.random() - 0.5) * 0.35 + 0.15,
             vy: -(0.3 + Math.random() * 0.45),
@@ -7638,8 +7855,9 @@ function setInputStatus(id, state) {
     function updateWeatherParticles() {
         if (!currentWeatherMode || !weatherCtx) return;
 
-        const w = window.innerWidth;
-        const h = window.innerHeight;
+        const size = getWeatherSize();
+        const w = size.w;
+        const h = size.h;
         weatherCtx.clearRect(0, 0, w, h);
 
         const rect = getChartCollisionRect();
@@ -7836,14 +8054,14 @@ function setInputStatus(id, state) {
         if (weatherCanvas) weatherCanvas.style.display = 'block';
 
         if (mode === 'rain' || mode === 'thunder') {
-            const totalDrops = Math.min(36, Math.floor(window.innerWidth / 34));
+            const totalDrops = Math.min(34, Math.max(10, Math.floor(getWeatherSize().w / 40)));
             rainDrops = [];
             rainSplashes = [];
             for (let i = 0; i < totalDrops; i++) {
                 rainDrops.push(createRainDrop(true));
             }
         } else if (mode === 'snow') {
-            const totalFlakes = Math.min(48, Math.floor(window.innerWidth / 26));
+            const totalFlakes = Math.min(48, Math.max(12, Math.floor(getWeatherSize().w / 26)));
             snowFlakes = [];
             for (let i = 0; i < totalFlakes; i++) {
                 snowFlakes.push(createSnowFlake(true));
@@ -7866,6 +8084,27 @@ function setInputStatus(id, state) {
         lastRectUpdate = 0;
         if (weatherAnimId) cancelAnimationFrame(weatherAnimId);
         weatherAnimId = requestAnimationFrame(updateWeatherParticles);
+    };
+
+    // Freeze the full-viewport weather particle loop while a modal is on top.
+    // The overlay canvas is fixed + full-screen, so leaving it animating under a
+    // backdrop-blur forces a full-screen re-blur every frame.
+    window.pauseWeatherEffect = function() {
+        weatherPaused = true;
+        if (weatherAnimId) {
+            cancelAnimationFrame(weatherAnimId);
+            weatherAnimId = null;
+        }
+        if (weatherCanvas) weatherCanvas.style.visibility = 'hidden';
+    };
+
+    window.resumeWeatherEffect = function() {
+        weatherPaused = false;
+        if (weatherCanvas) weatherCanvas.style.visibility = '';
+        if (currentWeatherMode && !weatherAnimId) {
+            lastRectUpdate = 0;
+            weatherAnimId = requestAnimationFrame(updateWeatherParticles);
+        }
     };
 
     // Backward compatibility aliases

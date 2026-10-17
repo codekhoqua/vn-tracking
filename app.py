@@ -2583,6 +2583,7 @@ def api_weather():
 
 # ---------------- WEATHER FILMSTRIP ALBUM APIS ----------------
 WEATHER_ALBUM_DIR = os.path.join(os.path.dirname(__file__), 'static', 'weather_album')
+WEATHER_ALBUM_THUMB_DIR = os.path.join(WEATHER_ALBUM_DIR, '_thumbs')
 WEATHER_ALBUM_JSON = os.path.join(WEATHER_ALBUM_DIR, 'album.json')
 WEATHER_ALBUM_SB_PREFIX = 'weather_album'
 WEATHER_ALBUM_SB_JSON = '_system/weather_album.json'
@@ -2669,6 +2670,7 @@ def upload_weather_album():
         
         try:
             from PIL import Image, ImageOps
+            f.seek(0)
             img = Image.open(f)
             img = ImageOps.exif_transpose(img)
             if img.mode != 'RGB':
@@ -2679,6 +2681,10 @@ def upload_weather_album():
             img.save(buf, format='JPEG', quality=75, optimize=True, progressive=True)
             compressed_bytes = buf.getvalue()
         except Exception as e:
+            # Không xử lý được (thiếu Pillow / ảnh lỗi): đành lưu nguyên bản.
+            # Lưu ý: file gốc có thể nặng vài MB -> album sẽ lag; endpoint
+            # /api/weather/album/thumb sẽ tự tạo bản nhỏ khi hiển thị.
+            print(f"Album upload: could not process {f.filename}, storing original:", e)
             f.seek(0)
             compressed_bytes = f.read()
 
@@ -2725,6 +2731,12 @@ def delete_weather_album_photo():
         file_path = os.path.join(WEATHER_ALBUM_DIR, photo_id)
         if os.path.exists(file_path):
             os.remove(file_path)
+        # Xóa luôn bản thumbnail / bản xem trước đã cache
+        safe_id = os.path.basename(photo_id)
+        for prefix in ('thumb_', 'view_'):
+            cached = os.path.join(WEATHER_ALBUM_THUMB_DIR, f"{prefix}{safe_id}")
+            if os.path.exists(cached):
+                os.remove(cached)
     except Exception as e:
         print("Error deleting local album photo file:", e)
 
@@ -2763,6 +2775,83 @@ def serve_weather_album_photo(filename):
         except Exception as e:
             print(f"Error downloading photo {filename} from Supabase:", e)
             
+    return "", 404
+
+
+def _album_resized_path(safe_name, max_dim, quality, cache_prefix):
+    """Create (once) and return a cached, resized copy of an album photo.
+
+    Returns the absolute path of the rendered file, or None when it cannot be
+    produced (source missing / PIL unavailable / undecodable image).
+    """
+    cache_path = os.path.join(WEATHER_ALBUM_THUMB_DIR, f"{cache_prefix}{safe_name}")
+    if os.path.exists(cache_path):
+        return cache_path
+
+    # Make sure the original is available locally (pull from Supabase if not).
+    source_path = os.path.join(WEATHER_ALBUM_DIR, safe_name)
+    if not os.path.exists(source_path) and USE_SUPABASE:
+        try:
+            data = sb_download_bytes(f"{WEATHER_ALBUM_SB_PREFIX}/{safe_name}")
+            if data:
+                os.makedirs(WEATHER_ALBUM_DIR, exist_ok=True)
+                with open(source_path, 'wb') as f:
+                    f.write(data)
+        except Exception as e:
+            print(f"Album: Supabase download failed for {safe_name}:", e)
+
+    if not os.path.exists(source_path):
+        return None
+
+    try:
+        from PIL import Image, ImageOps
+        with Image.open(source_path) as img:
+            img = ImageOps.exif_transpose(img)
+            if img.mode != 'RGB':
+                img = img.convert('RGB')
+            img.thumbnail((max_dim, max_dim), Image.Resampling.LANCZOS)
+            os.makedirs(WEATHER_ALBUM_THUMB_DIR, exist_ok=True)
+            img.save(cache_path, format='JPEG', quality=quality, optimize=True, progressive=True)
+        return cache_path
+    except Exception as e:
+        print(f"Album: resize failed for {safe_name}:", e)
+        return None
+
+
+@app.route('/api/weather/album/thumb/<path:filename>')
+def serve_weather_album_thumb(filename):
+    """Tiny cached thumbnail for the filmstrip frames + album grid.
+
+    The frames render at ~128px but some legacy uploads are several MB (one is
+    10MB), so feeding the raw originals into 20+ tiny frames is what made the
+    album crawl. Resize once to <=360px, cache on disk, serve the cached copy.
+    """
+    safe_name = os.path.basename(filename or '')
+    if not safe_name:
+        return "", 404
+    rendered = _album_resized_path(safe_name, 360, 72, 'thumb_')
+    if rendered:
+        return send_from_directory(WEATHER_ALBUM_THUMB_DIR, os.path.basename(rendered), max_age=604800)
+    if os.path.exists(os.path.join(WEATHER_ALBUM_DIR, safe_name)):
+        return send_from_directory(WEATHER_ALBUM_DIR, safe_name, max_age=604800)
+    return "", 404
+
+
+@app.route('/api/weather/album/view/<path:filename>')
+def serve_weather_album_view(filename):
+    """Medium (~1600px) render for the lightbox.
+
+    Keeps large-screen viewing fast (a 10MB original can stall the viewer)
+    while the download / open-in-new-tab actions keep the untouched original.
+    """
+    safe_name = os.path.basename(filename or '')
+    if not safe_name:
+        return "", 404
+    rendered = _album_resized_path(safe_name, 1600, 82, 'view_')
+    if rendered:
+        return send_from_directory(WEATHER_ALBUM_THUMB_DIR, os.path.basename(rendered), max_age=604800)
+    if os.path.exists(os.path.join(WEATHER_ALBUM_DIR, safe_name)):
+        return send_from_directory(WEATHER_ALBUM_DIR, safe_name, max_age=604800)
     return "", 404
 
 @app.route('/api/weather/album/reset', methods=['POST'])
