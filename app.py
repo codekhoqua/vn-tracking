@@ -5495,6 +5495,41 @@ def _radio_read_state():
         return _DEFAULT_RADIO_STATE.copy()
 
 
+def _radio_live_state():
+    """Trạng thái radio "thật" để trả cho client.
+
+    DJ phát qua Socket.IO chỉ cập nhật radio_state trong RAM của process này,
+    KHÔNG ghi vào bản lưu Supabase (chỉ đường REST mới ghi). Vì vậy máy khách ở
+    chế độ polling (mất Socket.IO) đọc /api/radio/state sẽ thấy dữ liệu cũ:
+    không biết ai đang là DJ và quan trọng hơn là KHÔNG bị văng ra khi DJ tắt
+    (lỗi "tắt DJ mà có máy vẫn ngồi trong phòng nghe chung").
+    Hàm này gộp bản lưu với trạng thái RAM đang sống.
+    """
+    state = _radio_read_state()
+    try:
+        ram_dj = radio_state.get('dj_username')
+        released_at = radio_state.get('dj_released_at') or 0
+        stored_updated = state.get('last_update') or 0
+    except NameError:
+        return state
+
+    if ram_dj and (time.time() - (radio_state.get('last_update') or 0) < 60):
+        # Có DJ đang phát qua socket ở process này (sync 3s/lần) -> RAM là nguồn thật.
+        # Quá 60s không sync nghĩa là DJ đã tắt tab -> không tin RAM nữa, dùng bản lưu.
+        for key in ('dj_username', 'is_playing', 'youtube_id', 'current_time',
+                    'next_title', 'video_active', 'allow_requests',
+                    'is_automix_enabled', 'is_crossfading'):
+            state[key] = radio_state.get(key)
+        state['last_update'] = radio_state.get('last_update') or time.time()
+    elif released_at > stored_updated:
+        # DJ vừa tắt DJ trên process này -> kết thúc phòng nghe chung cho mọi máy,
+        # kể cả máy chỉ đọc được bản lưu (polling).
+        state['dj_username'] = None
+        state['is_playing'] = False
+        state['queue'] = []
+    return state
+
+
 def _radio_write_state(state):
     """Ghi radio state vào Supabase Storage."""
     if not USE_SUPABASE:
@@ -5604,7 +5639,7 @@ def api_radio_state():
     if not session.get('logged_in'):
         return jsonify({'error': 'Unauthorized'}), 401
 
-    state = _radio_read_state()
+    state = _radio_live_state()
     # Tính current_time dựa trên thời gian đã trôi qua
     if state.get('is_playing') and state.get('last_update'):
         elapsed = time.time() - state['last_update']
@@ -5659,7 +5694,7 @@ def api_radio_claim():
         return jsonify({'error': 'Unauthorized'}), 401
 
     username = session.get('user', '')
-    state = _radio_read_state()
+    state = _radio_live_state()
 
     current_dj = state.get('dj_username')
     if current_dj and current_dj != username:
@@ -6243,6 +6278,9 @@ def handle_release_dj():
         radio_state['allow_requests'] = True
         radio_state['is_automix_enabled'] = False
         radio_state['is_crossfading'] = False
+        # Mốc "vừa tắt DJ" -> /api/radio/state báo cho cả máy ở chế độ polling
+        # biết phòng nghe chung đã kết thúc (họ cũng bị văng ra).
+        radio_state['dj_released_at'] = time.time()
         radio_queue.clear()
         # Tắt DJ: xóa toàn bộ người nghe, mở lại sẽ không còn ai join
         radio_listeners.clear()

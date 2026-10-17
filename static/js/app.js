@@ -6463,15 +6463,20 @@ function handleRadioStateFromPolling(state) {
 
         if (isListening) {
             isListening = false;
-            // Giống nhánh socket: host tắt DJ thì thả listener về nghe riêng nhưng
-            // KHÔNG cắt tiếng đang phát, và trả lại âm lượng chuẩn của user.
+            // Host tắt DJ = kết thúc phòng nghe chung: listener bị văng ra VÀ dừng nhạc ngay.
+            // Vẫn phải huỷ crossfade + trả lại âm lượng của user TRƯỚC khi pause, nếu không
+            // volume bị kẹt ở 0 -> lần sau bấm phát sẽ câm tiếng.
             if (isCrossfading && window.cancelCrossfade) window.cancelCrossfade();
             if (window.applyUserRadioVolume) {
                 window.applyUserRadioVolume(ytPlayer);
                 window.applyUserRadioVolume(ytPlayer2);
             }
+            if (ytPlayer) ytPlayer.pauseVideo();
+            // Đã ra khỏi phòng -> ngừng heartbeat, không để mình hiện lại trong
+            // danh sách người nghe của DJ kế tiếp khi mình chưa bấm phát lại.
+            stopListenerHeartbeat();
             if (window.showToast) {
-                showToast(CURRENT_LANG === 'vi' ? 'Host đã tắt DJ — bạn vẫn nghe tiếp bài này. Bấm phát để nghe chung lại.' : 'ホストがDJを終了しました — この曲はそのまま再生されます', 'info');
+                showToast(CURRENT_LANG === 'vi' ? 'Host đã tắt DJ — bạn đã ra khỏi phòng nghe chung.' : 'ホストがDJを終了しました — 一緒に聞くルームから退出しました', 'info');
             }
         }
     }
@@ -6802,16 +6807,17 @@ function setupSocketRadio() {
 
             if (isListening) {
                 isListening = false;
-                // KHÔNG pause nữa: trước đây host tắt DJ là bài đang nghe bị cắt ngay
-                // ("mất âm thanh"). Giữ bài đang phát chạy tiếp như nhạc riêng, và
-                // trả lại âm lượng của user (phòng khi đang crossfade -> volume kẹt 0).
+                // Host tắt DJ = kết thúc phòng nghe chung: listener bị văng ra VÀ dừng nhạc ngay.
+                // Trước đây pause luôn mà không trả âm lượng -> volume kẹt ở 0 do crossfade,
+                // nên phải cancelCrossfade + applyUserRadioVolume TRƯỚC khi pause.
                 if (isCrossfading && window.cancelCrossfade) window.cancelCrossfade();
                 if (window.applyUserRadioVolume) {
                     window.applyUserRadioVolume(ytPlayer);
                     window.applyUserRadioVolume(ytPlayer2);
                 }
+                if (ytPlayer) ytPlayer.pauseVideo();
                 if (window.showToast) {
-                    showToast(CURRENT_LANG === 'vi' ? 'Host đã tắt DJ — bạn vẫn nghe tiếp bài này. Bấm phát để nghe chung lại.' : 'ホストがDJを終了しました — この曲はそのまま再生されます', 'info');
+                    showToast(CURRENT_LANG === 'vi' ? 'Host đã tắt DJ — bạn đã ra khỏi phòng nghe chung.' : 'ホストがDJを終了しました — 一緒に聞くルームから退出しました', 'info');
                 }
             }
         } else if (state.is_playing && state.dj_username !== window.currentUser && !isListening) {
