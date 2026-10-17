@@ -74,7 +74,7 @@
 })();
 
 // ===================== TOAST =====================
-function showToast(message, type = 'info') {
+function showToast(message, type = 'info', duration = 4000) {
     let container = document.getElementById('toast-container');
     if (!container) {
         container = document.createElement('div');
@@ -88,7 +88,7 @@ function showToast(message, type = 'info') {
     toast.className = `toast toast-${type}`;
     toast.innerHTML = `<span class="toast-icon">${icon}</span><span class="toast-msg">${message}</span><button class="toast-close" onclick="this.parentElement.remove()">✕</button>`;
     container.appendChild(toast);
-    setTimeout(() => { if (toast.parentElement) toast.remove(); }, 4000);
+    setTimeout(() => { if (toast.parentElement) toast.remove(); }, duration);
 }
 
 // ===================== TAB MANAGEMENT =====================
@@ -6810,6 +6810,23 @@ function onPlayerError(event) {
     const now = Date.now();
     if (key === window.__lastYtError.key && (now - window.__lastYtError.t) < 4000) return;
     window.__lastYtError = { key: key, t: now };
+
+    // YouTube chặn phát nhúng khi trang mở bằng địa chỉ IP (127.0.0.1, 192.168.x.x...).
+    // Trường hợp này KHÔNG phải video lỗi -> chỉ cảnh báo 1 lần, không báo "video bị chặn", không tự skip.
+    const isIpHost = /^(\d{1,3}\.){3}\d{1,3}$/.test(location.hostname);
+    if (isIpHost && (code === 100 || code === 101 || code === 150)) {
+        if (!window.__ipEmbedWarned) {
+            window.__ipEmbedWarned = true;
+            if (window.showToast) {
+                const port = location.port || '5000';
+                showToast(CURRENT_LANG === 'vi'
+                    ? 'YouTube chặn phát nhúng khi mở web bằng địa chỉ IP. Hãy mở bằng http://localhost:' + port + ' để nghe được!'
+                    : 'IPアドレスで開くとYouTube埋め込み再生がブロックされます。http://localhost:' + port + ' で開いてください！',
+                    'warning', 12000);
+            }
+        }
+        return;
+    }
 
     const msgs = {
         2:   { vi: 'Link/ID video không hợp lệ!',                            jp: '無効な動画リンクです！' },
