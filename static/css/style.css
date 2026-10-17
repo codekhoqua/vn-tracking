@@ -274,7 +274,7 @@ html.lenis, html.lenis body {
     padding: 20px 14px;
     border-right: 1px solid var(--sidebar-border);
     transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1), background-color var(--t-smooth), border-color var(--t-smooth);
-    will-change: width;
+    will-change: auto;
     transform: translateZ(0);
     overflow-y: auto;
     overflow-x: hidden;
@@ -741,14 +741,18 @@ body.sidebar-collapsed .sidebar-bd {
     right: 6px;
 }
 body.sidebar-collapsed .user-card {
-    padding: 0 10px;
+    padding: 0;
+    justify-content: center;
+    gap: 0;
 }
 body.sidebar-collapsed .user-info,
 body.sidebar-collapsed .profile-chevron {
+    position: absolute;
     opacity: 0;
     pointer-events: none;
     transform: translateX(-8px);
     width: 0;
+    height: 0;
     overflow: hidden;
     white-space: nowrap;
 }
@@ -770,6 +774,33 @@ body.sidebar-collapsed .custom-lang-select {
     pointer-events: none;
     width: 0;
     overflow: hidden;
+}
+
+/* Khi thu gọn rail: ẩn LSA Music giống pet (nhạc vẫn phát, chỉ ẩn UI) */
+body.sidebar-collapsed #lofi-radio-widget,
+body.sidebar-collapsed #radio-participants-marquee {
+    display: none !important;
+}
+
+/* Giảm chi phí style/paint trong lúc đóng-mở rail */
+body.sidebar-is-animating .sidebar {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    contain: layout paint style;
+    will-change: width;
+}
+body.sidebar-is-animating .main-area {
+    will-change: margin-left;
+}
+body.sidebar-is-animating #lofi-radio-widget,
+body.sidebar-is-animating #radio-participants-marquee,
+body.sidebar-is-animating .sidebar-pet-panel {
+    display: none !important;
+}
+body.sidebar-is-animating .sidebar-hl,
+body.sidebar-is-animating #sidebar-tools-hl {
+    opacity: 0 !important;
+    transition: none !important;
 }
 
 /* Animation lock: disable pointer events & isolate layout during sidebar toggle for 60fps smoothness */
@@ -795,7 +826,7 @@ body.sidebar-is-animating * {
     padding: 32px 40px;
     min-height: 100vh;
     transition: margin-left 0.28s cubic-bezier(0.16, 1, 0.3, 1);
-    will-change: margin-left;
+    will-change: auto;
     transform: translateZ(0);
 }
 
@@ -1089,6 +1120,9 @@ body.dark-theme .liquid-glass.glass-gold i {
     align-items: flex-start;
     position: relative;
     z-index: 1;
+    /* Chỉ chặn overscroll ngang (tránh back/forward gesture); cuộn dọc vẫn để Lenis xử lý */
+    overscroll-behavior-x: contain;
+    overscroll-behavior-y: auto;
 }
 
 .kanban-column {
@@ -1443,6 +1477,9 @@ body.dark-theme .liquid-glass.glass-gold i {
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
+    /* Bỏ layout/paint của các overlay đang đóng (có hàng chục task-detail rất nặng),
+       tránh Recalculate Style toàn bộ khi sidebar đổi width */
+    content-visibility: hidden;
     transition: opacity 0.26s cubic-bezier(0.16, 1, 0.3, 1),
                 visibility 0.26s cubic-bezier(0.16, 1, 0.3, 1);
     transform: translateZ(0);
@@ -1451,6 +1488,7 @@ body.dark-theme .liquid-glass.glass-gold i {
     opacity: 1;
     visibility: visible;
     pointer-events: auto;
+    content-visibility: visible;
 }
 
 /* ======================== TASK DETAIL FULL-PAGE VIEW (NO POPUP) ======================== */
@@ -4341,7 +4379,11 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
 .profile-panel-avatar {
     width: 52px;
     height: 52px;
-    border-radius: 16px;
+    border-radius: 50%;
+    /* 2px padding = viền gradient tím đều quanh ảnh; border trắng bao ngoài.
+       Trước đây container bo 16px nhưng ảnh bo tròn 50% -> viền tím lệch/góc vuông. */
+    padding: 2px;
+    box-sizing: border-box;
     background: var(--primary-gradient);
     color: white;
     font-size: 1.35rem;
@@ -4357,6 +4399,8 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    border-radius: 50%;
+    display: block;
 }
 .profile-status-dot {
     position: absolute;
@@ -8335,6 +8379,35 @@ body:not(.dark-theme) .pet-speech-bubble::before {
 body:not(.dark-theme) #pet-speech-text,
 body:not(.dark-theme) .pet-speech-text {
     color: #0f172a !important;
+}
+
+/* 9.1 Pet leaderboard + stage badge — light mode readability */
+.pet-lb-rank.rank-1 { color: #fbbf24; }
+.pet-lb-rank.rank-2 { color: #cbd5e1; }
+.pet-lb-rank.rank-3 { color: #d97706; }
+.pet-lb-rank.rank-4,
+.pet-lb-rank.rank-5 { color: #64748b; }
+
+body:not(.dark-theme) .pet-lb-header { color: #64748b !important; }
+body:not(.dark-theme) .pet-lb-user { color: #1e293b !important; }
+body:not(.dark-theme) .pet-lb-level { color: #6d28d9 !important; }
+body:not(.dark-theme) .pet-lb-track { background: rgba(15, 23, 42, 0.08) !important; }
+body:not(.dark-theme) .pet-lb-fill { background: linear-gradient(90deg, #6366f1, #8b5cf6) !important; }
+body:not(.dark-theme) .pet-lb-rank.rank-1 { color: #b45309 !important; }
+body:not(.dark-theme) .pet-lb-rank.rank-2 { color: #475569 !important; }
+body:not(.dark-theme) .pet-lb-rank.rank-3 { color: #9a3412 !important; }
+body:not(.dark-theme) .pet-lb-rank.rank-4,
+body:not(.dark-theme) .pet-lb-rank.rank-5 { color: #64748b !important; }
+
+body:not(.dark-theme) .pet-stage-badge {
+    background: rgba(139, 92, 246, 0.12) !important;
+    border-color: rgba(139, 92, 246, 0.35) !important;
+    color: #6d28d9 !important;
+}
+body:not(.dark-theme) .sidebar-pet-reset-btn {
+    background: rgba(239, 68, 68, 0.08) !important;
+    border-color: rgba(239, 68, 68, 0.25) !important;
+    color: #dc2626 !important;
 }
 
 /* 10. Team Calendar - Attendance Subpage */

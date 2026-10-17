@@ -71,23 +71,40 @@ socketio = SocketIO(app, cors_allowed_origins="*", async_mode=_SOCKETIO_ASYNC_MO
 
 # ==================== PHIÊN BẢN VÀ BUILD AUTO-RELOAD ====================
 SERVER_START_TIME = int(time.time())
+_APP_VERSION_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'templates', 'dashboard.html')
+_app_version_cache = {'value': None, 'mtime': None}
+
 
 def get_current_app_version():
-    """Lấy phiên bản hiện tại từ templates/dashboard.html"""
+    """Lấy version từ thẻ version-tag trong templates/dashboard.html.
+
+    Cache theo mtime để không phải đọc lại file 400KB ở mỗi request.
+    """
     try:
-        t_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'templates', 'dashboard.html')
-        if os.path.exists(t_path):
-            with open(t_path, 'r', encoding='utf-8', errors='ignore') as f:
-                content = f.read(50000)
-            m = re.search(r'class="version-tag"[^>]*><i>([^<]+)</i>', content)
-            if m:
-                return m.group(1).strip()
-            m2 = re.search(r'v1\.\d+\.\d+', content)
-            if m2:
-                return m2.group(0).strip()
-    except Exception:
-        pass
-    return "v1.7.3"
+        if not os.path.exists(_APP_VERSION_FILE):
+            return _app_version_cache['value'] or 'dev'
+        mtime = os.path.getmtime(_APP_VERSION_FILE)
+        if _app_version_cache['value'] and _app_version_cache['mtime'] == mtime:
+            return _app_version_cache['value']
+
+        with open(_APP_VERSION_FILE, 'r', encoding='utf-8', errors='ignore') as f:
+            content = f.read()
+
+        version = None
+        m = re.search(r'class="version-tag"[^>]*>\s*<i>\s*([^<]+?)\s*</i>', content)
+        if m:
+            version = m.group(1).strip()
+        if not version:
+            m2 = re.search(r'v\d+\.\d+\.\d+', content)
+            version = m2.group(0).strip() if m2 else None
+
+        if version:
+            _app_version_cache['value'] = version
+            _app_version_cache['mtime'] = mtime
+            return version
+    except Exception as e:
+        print("get_current_app_version error:", e)
+    return _app_version_cache['value'] or 'dev'
 
 def get_current_build_id():
     cur_ver = get_current_app_version()
@@ -1191,13 +1208,11 @@ CHECKLIST_TEXT = {
         'phase2': 'BẮT ĐẦU', 'phase2_sub': 'Báo Asana & cập nhật',
         'phase3': 'GIAO HÀNG', 'phase3_sub': 'Hoàn thành & bàn giao',
         'step1': 'BƯỚC 1: CHUẨN BỊ', 'step2': 'BƯỚC 2: BẮT ĐẦU', 'step3': 'BƯỚC 3: GIAO HÀNG',
-        't1': 'Tạo Task DB_工程管理', 't2': 'N: notion済', 't3': 'Báo bắt đầu', 't4': 'O: 開始 (Bắt đầu)', 't5': 'Not Started → In Progress',
-        't6': 'Báo hoàn thành', 't7': 'N: 納品済み', 't8': 'Trạng thái: Delivered', 't9': 'Tick comment & Tick checklist in Mikan',
-        'copy_start': 'Sao chép', 'ask_task': 'Trễ chỉ thị? (Hỏi Task)', 'copy_ask': 'Sao chép',
-        'copy_done': 'Sao chép', 'copied': 'Đã sao chép', 'copy_deliver': 'Sao chép',
-        'tmpl_start': 'Mẫu tin nhắn Asana (Bắt đầu)',
+        't1': 'Tạo Task DB_工程管理', 't2': 'O: notion済', 't3': 'Asana Đổi trạng thái In Progress', 't4': 'P: 開始 (Bắt đầu)', 't5': 'Not Started → In Progress',
+        't6': 'Asana Đổi trạng thái In Review', 't7': 'O: 納品済み', 't8': 'Trạng thái: Delivered', 't9': 'Tick comment & Tick checklist in Mikan',
+        'ask_task': 'Trễ chỉ thị? (Hỏi Task)', 'copy_ask': 'Sao chép',
+        'copied': 'Đã sao chép', 'copy_deliver': 'Sao chép',
         'tmpl_ask': 'Mẫu hỏi khi trễ chỉ thị (Tiếng Nhật)',
-        'tmpl_done': 'Mẫu tin nhắn Asana (Hoàn thành)',
         'tmpl_deliver': 'Mẫu tin nhắn giao hàng (Tiếng Nhật)'
     },
     'ja': {
@@ -1205,13 +1220,11 @@ CHECKLIST_TEXT = {
         'phase2': '着手フェーズ', 'phase2_sub': 'Asana報告・更新',
         'phase3': '納品フェーズ', 'phase3_sub': '完了報告・納品',
         'step1': 'STEP 1: 準備', 'step2': 'STEP 2: 着手', 'step3': 'STEP 3: 納品',
-        't1': 'DB_工程管理に作成', 't2': 'N列：notion済', 't3': '着手報告 (Asana)', 't4': 'O列：開始', 't5': 'Not Started → In Progress',
-        't6': '完了報告 (Asana)', 't7': 'N列：納品済み', 't8': 'ステータス：Delivered', 't9': 'Mikanでコメント＆チェックリストをTick',
-        'copy_start': 'コピー', 'ask_task': '指示遅れ？(確認文)', 'copy_ask': 'コピー',
-        'copy_done': 'コピー', 'copied': 'コピー完了', 'copy_deliver': 'コピー',
-        'tmpl_start': 'Asana着手報告テンプレート',
+        't1': 'DB_工程管理に作成', 't2': 'O列：notion済', 't3': 'Asana：ステータスを In Progress に変更', 't4': 'P列：開始', 't5': 'Not Started → In Progress',
+        't6': 'Asana：ステータスを In Review に変更', 't7': 'O列：納品済み', 't8': 'ステータス：Delivered', 't9': 'Mikanでコメント＆チェックリストをTick',
+        'ask_task': '指示遅れ？(確認文)', 'copy_ask': 'コピー',
+        'copied': 'コピー完了', 'copy_deliver': 'コピー',
         'tmpl_ask': '指示遅れ確認テンプレート',
-        'tmpl_done': 'Asana完了報告テンプレート',
         'tmpl_deliver': '納品メッセージテンプレート'
     }
 }
@@ -1357,17 +1370,6 @@ def render_task_steps_html(tac_pham_key, index, lang, checked_ids=None):
                     </label>
                 </div>
 
-                <!-- Template Card Start -->
-                <div class="msg-template-card">
-                    <div class="msg-template-header">
-                        <span class="msg-template-label"><i class="far fa-comment-dots"></i> {l.get('tmpl_start', 'Mẫu tin nhắn Asana')}</span>
-                        <button type="button" class="btn-copy-action" onclick="copyText(this, 'msg_t3_{index}')" title="{l.get('copy_start', 'Sao chép')}">
-                            <i class="far fa-clone"></i> <span>{l.get('copy_start', 'Copy')}</span>
-                        </button>
-                    </div>
-                    <div class="msg-template-body" id="msg_t3_{index}">(PC) cc @Shiori Fujimura @Miho Osada @Erika Kawasaki&#10;===タスク着手===</div>
-                </div>
-
                 <!-- Collapsible Ask Task Accordion -->
                 <div class="ask-task-accordion">
                     <div class="ask-task-trigger" onclick="toggleAskTask(this)">
@@ -1428,17 +1430,6 @@ def render_task_steps_html(tac_pham_key, index, lang, checked_ids=None):
                         <span class="checkmark"></span>
                         <span class="action-text">{l['t6']}</span>
                     </label>
-                </div>
-
-                <!-- Template Card Done -->
-                <div class="msg-template-card">
-                    <div class="msg-template-header">
-                        <span class="msg-template-label"><i class="far fa-check-circle"></i> {l.get('tmpl_done', 'Mẫu báo hoàn thành')}</span>
-                        <button type="button" class="btn-copy-action" onclick="copyText(this, 'msg_t6_{index}')" title="{l.get('copy_done', 'Sao chép')}">
-                            <i class="far fa-clone"></i> <span>{l.get('copy_done', 'Copy')}</span>
-                        </button>
-                    </div>
-                    <div class="msg-template-body" id="msg_t6_{index}">(PC) cc @Shiori Fujimura @Miho Osada @Erika Kawasaki&#10;===タスク完了===</div>
                 </div>
 
                 <div class="task-row">
@@ -3081,7 +3072,7 @@ def lsa_drive():
         filter_cv_sau=[],
         users=[],
         tasks=[],
-        app_version='v1.9.121',
+        app_version=get_current_app_version(),
     )
 
 # =====================================================================
@@ -5684,6 +5675,12 @@ def api_radio_sync():
     if 'allow_requests' in data:
         state['allow_requests'] = data['allow_requests'] is True or data['allow_requests'] == 'true'
     _radio_write_state(state)
+
+    # DJ báo bài vừa chuyển sang -> đảm bảo bài đó không còn nằm trong hàng chờ
+    # kể cả khi request queue_pop trước đó bị mất/từ chối.
+    if _remove_radio_queue_item(data.get('played_queue_id')):
+        socketio.emit('radio_queue_update', radio_queue)
+
     return jsonify({'success': True})
 
 
@@ -5872,15 +5869,42 @@ def api_radio_queue_reorder():
     return jsonify({'success': True, 'queue': radio_queue})
 
 
+def _remove_radio_queue_item(queue_id):
+    """Xoá đúng 1 item khỏi hàng chờ theo queue_id. Trả True nếu có xoá."""
+    if not queue_id or not radio_queue:
+        return False
+    for idx, item in enumerate(radio_queue):
+        if str(item.get('queue_id')) == str(queue_id):
+            radio_queue.pop(idx)
+            return True
+    return False
+
+
+def _pop_radio_queue(queue_id=None):
+    """Lấy và xoá 1 bài khỏi hàng chờ.
+
+    Ưu tiên xoá đúng queue_id do DJ báo lên (tránh trường hợp queue local và
+    server lệch nhau -> xoá nhầm bài). Không có queue_id thì lấy bài đầu hàng.
+    """
+    if not radio_queue:
+        return None
+    if queue_id:
+        for idx, item in enumerate(radio_queue):
+            if str(item.get('queue_id')) == str(queue_id):
+                return radio_queue.pop(idx)
+        return None
+    return radio_queue.pop(0)
+
+
 @app.route('/api/radio/queue/pop', methods=['POST'])
 def api_radio_queue_pop():
     if not session.get('logged_in'):
         return jsonify({'error': 'Unauthorized'}), 401
-    state = _radio_read_state()
     if session.get('user', '') not in _radio_dj_usernames():
         return jsonify({'error': 'Not the DJ'}), 403
 
-    item = radio_queue.pop(0) if radio_queue else None
+    data = request.get_json(silent=True) or {}
+    item = _pop_radio_queue(data.get('queue_id'))
     socketio.emit('radio_queue_update', radio_queue)
     return jsonify({'success': True, 'item': item, 'queue': radio_queue})
 
@@ -6241,6 +6265,8 @@ def handle_radio_sync(data):
     if 'is_automix_enabled' in data:
         radio_state['is_automix_enabled'] = data['is_automix_enabled']
     radio_state['last_update'] = time.time()
+    if _remove_radio_queue_item(data.get('played_queue_id')):
+        emit('radio_queue_update', radio_queue, broadcast=True)
     state = radio_state.copy()
     state['queue'] = radio_queue
     emit('radio_sync', state, broadcast=True, include_self=False)
@@ -6354,12 +6380,13 @@ def handle_queue_reorder(data):
         emit('radio_queue_update', radio_queue, broadcast=True)
 
 @socketio.on('queue_pop')
-def handle_queue_pop():
+def handle_queue_pop(data=None):
     if _is_radio_dj():
-        if radio_queue:
-            item = radio_queue.pop(0)
+        item = _pop_radio_queue((data or {}).get('queue_id'))
+        if item is not None:
             emit('radio_queue_update', radio_queue, broadcast=True)
-            return item
+            return {'success': True, 'item': item, 'queue': radio_queue}
+        return {'success': False, 'reason': 'empty'}
         return None
 
 @socketio.on('sync_checkbox')
@@ -6526,11 +6553,13 @@ def handle_chat_mark_read():
 
 @socketio.on('cursor_move')
 def handle_cursor_move(data):
-    # data contains x, y, and window sizing.
-    # Broadcast to everyone else
+    # Chỉ broadcast cho người khác, kèm fullname để client không phải tra cứu.
+    username = session.get('user', 'Guest')
+    profile = online_users.get(request.sid) or {}
     emit('cursor_move', {
         'sid': request.sid,
-        'username': session.get('user', 'Guest'),
+        'username': username,
+        'fullname': profile.get('fullname') or username,
         'x': data.get('x', 0),
         'y': data.get('y', 0)
     }, broadcast=True, include_self=False)
