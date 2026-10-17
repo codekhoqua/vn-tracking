@@ -1681,8 +1681,19 @@ window.simulateWeatherEffect = function(mode) {
         ctx.restore();
     }
 
+    let grassFrameTick = 0;
     function animate(now) {
         if (!isGrassRunning) return;
+
+        // Đang mở player nổi (PiP): KHÔNG tắt cỏ, chỉ vẽ cách khung -> giảm tải CPU/GPU
+        // cho video mà hiệu ứng vẫn chạy (trước đây bị ẩn hẳn, người dùng không muốn).
+        if (window.__lsaPopoutFrameSkip) {
+            grassFrameTick++;
+            if (grassFrameTick % (window.__lsaPopoutFrameSkip + 1) !== 0) {
+                grassAnimId = requestAnimationFrame(animate);
+                return;
+            }
+        }
 
         // Paced frame time for locked 120Hz/60Hz display refresh
         const dt = Math.min(0.033, (now - lastFrameTime) * 0.001);
@@ -7987,8 +7998,18 @@ function setInputStatus(id, state) {
     }
 
     // MAIN ANIMATION LOOP
+    let weatherFrameTick = 0;
     function updateWeatherParticles() {
         if (!currentWeatherMode || !weatherCtx) return;
+
+        // Đang mở player nổi (PiP): mưa/tuyết VẪN RƠI, chỉ vẽ cách khung cho nhẹ máy.
+        if (window.__lsaPopoutFrameSkip) {
+            weatherFrameTick++;
+            if (weatherFrameTick % (window.__lsaPopoutFrameSkip + 1) !== 0) {
+                weatherAnimId = requestAnimationFrame(updateWeatherParticles);
+                return;
+            }
+        }
 
         const size = getWeatherSize();
         const w = size.w;
@@ -8242,6 +8263,12 @@ function setInputStatus(id, state) {
         }
     };
 
+    // Khi cửa sổ video nổi (PiP) đang mở: KHÔNG tắt mưa/tuyết/cỏ (người dùng không
+    // muốn hiệu ứng hero biến mất), chỉ vẽ cách khung (1/2) để nhường CPU/GPU cho video.
+    window.setLsaPopoutPerfMode = function(on) {
+        window.__lsaPopoutFrameSkip = on ? 1 : 0;
+    };
+
     // Backward compatibility aliases
     window.startRainEffect = function() { window.applyWeatherEffect('rain'); };
     window.stopRainEffect = function() { window.applyWeatherEffect('clear'); };
@@ -8375,12 +8402,11 @@ window.applyRadioVideoState = function() {
             safelyMoveRadioWrapper(wrapper, popoutHost);
         }
 
-        // Tạm dừng hiệu ứng nền của hero (mưa/tuyết + cỏ) khi cửa sổ video nổi đang mở
-        // -> nhường CPU/GPU cho video cho mượt. Đóng popout là chạy lại ngay.
-        if (!window.__lsaPopoutBgPaused) {
-            window.__lsaPopoutBgPaused = true;
-            if (typeof window.pauseWeatherEffect === 'function') window.pauseWeatherEffect();
-            if (typeof window.pauseGrassBanner === 'function') window.pauseGrassBanner();
+        // Cửa sổ video nổi đang mở: giảm nhịp hiệu ứng nền của hero (mưa/tuyết + cỏ)
+        // để video mượt hơn, nhưng VẪN CHẠY (không tắt, không ẩn) -> đóng popout là về nhịp thường.
+        if (!window.__lsaPopoutPerfMode) {
+            window.__lsaPopoutPerfMode = true;
+            if (typeof window.setLsaPopoutPerfMode === 'function') window.setLsaPopoutPerfMode(true);
         }
         wrapper.classList.add('is-popped-out');
         wrapper.style.display = 'flex';
@@ -8455,11 +8481,10 @@ window.applyRadioVideoState = function() {
         wrapper.style.transform = '';
         wrapper.style.width = '100%';
 
-        // Trả lại hiệu ứng nền hero (đã tạm dừng lúc mở cửa sổ nổi)
-        if (window.__lsaPopoutBgPaused) {
-            window.__lsaPopoutBgPaused = false;
-            if (typeof window.resumeWeatherEffect === 'function') window.resumeWeatherEffect();
-            if (typeof window.resumeGrassBanner === 'function') window.resumeGrassBanner();
+        // Trả hiệu ứng nền hero về nhịp bình thường (khi mở cửa sổ nổi đã giảm nhịp)
+        if (window.__lsaPopoutPerfMode) {
+            window.__lsaPopoutPerfMode = false;
+            if (typeof window.setLsaPopoutPerfMode === 'function') window.setLsaPopoutPerfMode(false);
         }
         wrapper.style.height = '';
         wrapper.style.aspectRatio = '16 / 9';
