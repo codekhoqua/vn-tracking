@@ -808,7 +808,7 @@
     <div class="mobile-brand">
         <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" width="30" height="30" style="border-radius: 8px; object-fit: contain;">
         <span>VN-Tracking</span>
-        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.137</i></sup>
+        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.138</i></sup>
     </div>
     <div class="mobile-topbar-right">
         <button type="button" class="mobile-icon-btn" onclick="toggleNotificationPanel(event)" title="{{ 'Thông báo' if lang == 'vi' else '通知' }}">
@@ -960,7 +960,7 @@
             </div>
             <div class="sidebar-logo-text">
                 <span class="sidebar-brand-name">VN-Tracking</span>
-                <sup class="version-tag"><i>v1.9.137</i></sup>
+                <sup class="version-tag"><i>v1.9.138</i></sup>
             </div>
         </div>
     </div>
@@ -1636,6 +1636,9 @@
                 top: 0;
                 left: 0;
                 pointer-events: none;
+                /* Đẩy video sang layer riêng của GPU -> xem cửa sổ nổi mượt hơn */
+                transform: translateZ(0);
+                backface-visibility: hidden;
             }
 
             #radio-video-wrapper.is-hidden {
@@ -1661,17 +1664,32 @@
                 aspect-ratio: unset !important;
                 background: #0f172a !important;
                 overflow: hidden !important;
-                animation: popoutZoom 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+                animation: popoutFadeIn 0.22s ease-out;
+                /* Giữ popout trên layer riêng -> kéo/phát video đỡ giật */
+                will-change: transform;
+                contain: layout paint;
+                backface-visibility: hidden;
             }
 
-            @keyframes popoutZoom {
+            /* Đang kéo: bám theo con trỏ bằng transform (không re-layout iframe) */
+            #radio-video-wrapper.is-dragging {
+                cursor: grabbing !important;
+                transition: none !important;
+            }
+
+            #radio-video-wrapper.is-dragging * {
+                pointer-events: none !important;
+            }
+
+            /* Chỉ fade opacity. Trước đây keyframe có transform: scale() nên khi animation
+               bị treo (tab bị ẩn / chunk render bị throttle) popout kẹt ở scale 0.85 và
+               transform của animation đè lên transform lúc kéo -> không kéo được. */
+            @keyframes popoutFadeIn {
                 0% {
-                    transform: scale(0.85);
                     opacity: 0;
                 }
 
                 100% {
-                    transform: scale(1);
                     opacity: 1;
                 }
             }
