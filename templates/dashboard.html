@@ -808,7 +808,7 @@
     <div class="mobile-brand">
         <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" width="30" height="30" style="border-radius: 8px; object-fit: contain;">
         <span>VN-Tracking</span>
-        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.141</i></sup>
+        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.147</i></sup>
     </div>
     <div class="mobile-topbar-right">
         <button type="button" class="mobile-icon-btn" onclick="toggleNotificationPanel(event)" title="{{ 'Thông báo' if lang == 'vi' else '通知' }}">
@@ -960,7 +960,7 @@
             </div>
             <div class="sidebar-logo-text">
                 <span class="sidebar-brand-name">VN-Tracking</span>
-                <sup class="version-tag"><i>v1.9.141</i></sup>
+                <sup class="version-tag"><i>v1.9.147</i></sup>
             </div>
         </div>
     </div>
@@ -6756,13 +6756,12 @@
                 // Limit to top 5
                 data.leaderboard.slice(0, 5).forEach((p, index) => {
                     let pct = Math.min(100, (p.level / maxLevel) * 100);
-                    let rankColor = index === 0 ? '#fbbf24' : index === 1 ? '#cbd5e1' : index === 2 ? '#d97706' : '#64748b';
 
                     html += `
                 <div class="pet-lb-item">
                     <div class="pet-lb-row">
                         <span class="pet-lb-user">
-                            <span class="pet-lb-rank" style="color:${rankColor};">#${index + 1}</span>
+                            <span class="pet-lb-rank rank-${index + 1}">#${index + 1}</span>
                             <span>${p.username} <span style="opacity:0.6; font-size:11px;">(${p.name})</span></span>
                         </span>
                         <span class="pet-lb-level">Lv.${p.level}</span>
@@ -7473,8 +7472,6 @@
 
 {% block scripts %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="{{ url_for('static', filename='js/fflate.min.js') }}"></script>
-<script src="{{ url_for('static', filename='js/FBXLoader.js') }}"></script>
 <script src="{{ url_for('static', filename='js/GLTFLoader.js') }}"></script>
 <script src="{{ url_for('static', filename='js/pet_3d.js') }}?v={{ range(1, 1000000) | random }}"></script>
 <script>

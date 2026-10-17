@@ -26,45 +26,80 @@
         }
         requestAnimationFrame(raf);
 
-        // Mark internal scroll containers with data-lenis-prevent so their nested scrolling remains native and unblocked
-        const markPreventContainers = () => {
-            const selectors = [
-                '.sidebar',
-                '.kanban-column',
-                '.kanban-board',
-                '.profile-panel',
-                '#profile-panel',
-                '.pet-flyout-panel',
-                '#pet-panel',
-                '.modal',
-                '.modal-dialog',
-                '.modal-content',
-                '.table-responsive',
-                '.table-container',
-                '.flatpickr-calendar',
-                '.dropdown-menu',
-                '.notification-panel'
-            ];
-            document.querySelectorAll(selectors.join(', ')).forEach(el => {
+        // Mark internal scroll containers with data-lenis-prevent so their nested scrolling remains native and unblocked.
+        // LƯU Ý: chỉ đánh dấu những khối thực sự cuộn dọc. TUYỆT ĐỐI không đánh dấu
+        // .kanban-board / .kanban-column: Kanban chỉ cuộn ngang, nếu đánh dấu thì
+        // wheel dọc trên vùng task sẽ bị đẩy sang native scroll (Lenis bỏ qua) ->
+        // cảm giác "đứng" rồi nhảy, không mượt.
+        const preventScrollSelector = [
+            '.sidebar',
+            '.profile-panel',
+            '#profile-panel',
+            '.pet-flyout-panel',
+            '#pet-panel',
+            '.modal',
+            '.modal-dialog',
+            '.modal-content',
+            '.table-responsive',
+            '.table-container',
+            '.flatpickr-calendar',
+            '.dropdown-menu',
+            '.notification-panel'
+        ].join(', ');
+
+        const markPreventContainers = (root) => {
+            const scope = root && root.nodeType === 1 ? root : document;
+            const candidates = [];
+            if (scope.matches && scope.matches(preventScrollSelector)) candidates.push(scope);
+            if (scope.querySelectorAll) {
+                scope.querySelectorAll(preventScrollSelector).forEach(el => candidates.push(el));
+            }
+            candidates.forEach(el => {
                 if (!el.hasAttribute('data-lenis-prevent')) {
                     el.setAttribute('data-lenis-prevent', '');
                 }
             });
         };
 
+        // Gộp các lần mark vào 1 frame và chỉ quét trong subtree vừa thay đổi,
+        // tránh quét toàn document + ghi attribute liên tục khi chat/toast cập nhật.
+        let markQueued = false;
+        let didInitialScan = false;
+        const pendingRoots = new Set();
+        const scheduleMarkPrevent = (roots) => {
+            (roots || []).forEach(r => {
+                if (r && r.nodeType === 1) pendingRoots.add(r);
+            });
+            if (markQueued) return;
+            markQueued = true;
+            requestAnimationFrame(() => {
+                markQueued = false;
+                // Lần đầu: quét toàn document (sidebar/modal/... đã có sẵn trong HTML)
+                if (!didInitialScan) {
+                    didInitialScan = true;
+                    markPreventContainers(document);
+                }
+                if (pendingRoots.size > 0) {
+                    pendingRoots.forEach(r => markPreventContainers(r));
+                    pendingRoots.clear();
+                }
+            });
+        };
+
         if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', markPreventContainers);
+            document.addEventListener('DOMContentLoaded', () => scheduleMarkPrevent([]));
         } else {
-            markPreventContainers();
+            scheduleMarkPrevent([]);
         }
 
         const observer = new MutationObserver((mutations) => {
+            const added = [];
             for (const m of mutations) {
-                if (m.addedNodes.length > 0) {
-                    markPreventContainers();
-                    break;
+                for (const node of m.addedNodes) {
+                    if (node.nodeType === 1) added.push(node);
                 }
             }
+            if (added.length > 0) scheduleMarkPrevent(added);
         });
         observer.observe(document.body, { childList: true, subtree: true });
 
@@ -213,8 +248,11 @@ function placeToolsHighlight(it) {
 }
 
 function toggleSidebarRail() {
-    const isCollapsed = document.body.classList.toggle('sidebar-collapsed');
-    document.body.classList.add('sidebar-is-animating');
+    const body = document.body;
+    const sidebar = document.querySelector('.sidebar');
+    body.classList.add('sidebar-is-animating');
+
+    const isCollapsed = body.classList.toggle('sidebar-collapsed');
     const tog = document.getElementById('sidebar-rail-tog');
     if (tog) {
         tog.setAttribute('aria-expanded', String(!isCollapsed));
@@ -224,11 +262,35 @@ function toggleSidebarRail() {
         localStorage.setItem('vn_sidebar_collapsed', isCollapsed ? 'true' : 'false');
     } catch (e) {}
 
-    setTimeout(() => {
-        document.body.classList.remove('sidebar-is-animating');
-        placeSidebarHighlight();
-        placeToolsHighlight();
-    }, 320);
+    // Chỉ đo lại highlight sau khi transition kết thúc và layout đã sạch.
+    // Trước đây đọc offsetTop ngay giữa animation -> forced layout toàn trang
+    // (hàng trăm ms) => cảm giác đơ khi đóng/mở sidebar.
+    let finished = false;
+    const finish = () => {
+        if (finished) return;
+        finished = true;
+        body.classList.remove('sidebar-is-animating');
+        const updateHighlights = () => {
+            placeSidebarHighlight();
+            placeToolsHighlight();
+        };
+        if ('requestIdleCallback' in window) {
+            window.requestIdleCallback(updateHighlights, { timeout: 250 });
+        } else {
+            requestAnimationFrame(() => requestAnimationFrame(updateHighlights));
+        }
+    };
+
+    if (sidebar) {
+        const onEnd = (e) => {
+            if (e.target !== sidebar || e.propertyName !== 'width') return;
+            sidebar.removeEventListener('transitionend', onEnd);
+            finish();
+        };
+        sidebar.addEventListener('transitionend', onEnd);
+    }
+    // Fallback nếu transitionend không chạy (tab ẩn, reduced motion, ...)
+    setTimeout(finish, 450);
 }
 
 // Restore saved sidebar collapsed state on load
@@ -4154,7 +4216,7 @@ function showLogtimeSaveModal(state, isVi) {
                         renderer: 'svg',
                         loop: true,
                         autoplay: true,
-                        path: '/static/duolingo_animation.json?v=' + Date.now()
+                        path: '/static/lottie/duolingo_animation.json?v=' + Date.now()
                     });
                 } catch (e) {
                     console.warn('Lottie loading error:', e);
@@ -4633,8 +4695,10 @@ const avatarPlugin = {
     afterDatasetsDraw(chart, args, options) {
         if (!options.avatars) return;
         const ctx = chart.ctx;
-        const xAxis = chart.scales.x;
-        const yAxis = chart.scales.y;
+        const xAxis = chart.scales && chart.scales.x;
+        const yAxis = chart.scales && chart.scales.y;
+        // Chart có thể đang resize/destroy (vd khi đóng-mở sidebar) -> scales chưa sẵn sàng
+        if (!xAxis || !yAxis || !chart.data || !Array.isArray(chart.data.labels)) return;
 
         chart.data.labels.forEach((label, index) => {
             const avatarUrl = options.avatars[label];
@@ -4942,6 +5006,7 @@ function updateAreaChart(period) {
                 }
             },
             responsive: true,
+            resizeDelay: 200,
             maintainAspectRatio: false,
             layout: {
                 padding: {
@@ -5832,6 +5897,8 @@ document.addEventListener('DOMContentLoaded', () => {
 // ======================================
 const cursors = {};
 let lastMouseMove = 0;
+let lastCursorX = -1, lastCursorY = -1;
+let cursorRafId = null;
 const isDashboard = window.location.pathname === '/dashboard' || window.location.pathname === '/';
 
 
@@ -5845,54 +5912,101 @@ function getColorForUser(str) {
     return `hsl(${h}, 70%, 50%)`;
 }
 
-document.addEventListener('mousemove', (e) => {
-    if (!isDashboard || !window.socket) return;
-    const now = Date.now();
-    if (now - lastMouseMove > 50) { // 20fps
-        const x = (e.clientX / window.innerWidth) * 100;
-        const y = (e.clientY / window.innerHeight) * 100;
-        window.socket.emit('cursor_move', { x, y });
-        lastMouseMove = now;
+// Vẽ cursor bằng transform (compositor) + nội suy theo rAF.
+// Trước đây set left/top mỗi packet + CSS transition left/top -> layout/paint
+// liên tục, rất lag khi có nhiều người di chuột.
+function cursorRenderLoop() {
+    let active = false;
+    for (const uid in cursors) {
+        const c = cursors[uid];
+        if (!c.el) continue;
+        const tx = (c.nx / 100) * window.innerWidth;
+        const ty = (c.ny / 100) * window.innerHeight;
+        if (c.x === undefined) { c.x = tx; c.y = ty; }
+        c.x += (tx - c.x) * 0.35;
+        c.y += (ty - c.y) * 0.35;
+        if (Math.abs(tx - c.x) < 0.2 && Math.abs(ty - c.y) < 0.2) {
+            c.x = tx; c.y = ty;
+        } else {
+            active = true;
+        }
+        if (c.lastX !== c.x || c.lastY !== c.y) {
+            c.el.style.transform = `translate3d(${c.x.toFixed(2)}px, ${c.y.toFixed(2)}px, 0)`;
+            c.lastX = c.x;
+            c.lastY = c.y;
+        }
     }
+    cursorRafId = active ? requestAnimationFrame(cursorRenderLoop) : null;
+}
+
+function ensureCursorLoop() {
+    if (!cursorRafId) cursorRafId = requestAnimationFrame(cursorRenderLoop);
+}
+
+document.addEventListener('pointermove', (e) => {
+    if (!isDashboard || !window.socket) return;
+    if (e.pointerType && e.pointerType !== 'mouse') return;
+    const now = performance.now();
+    if (now - lastMouseMove < 33) return; // ~30fps là đủ mượt
+    const nx = (e.clientX / window.innerWidth) * 100;
+    const ny = (e.clientY / window.innerHeight) * 100;
+    // Bỏ qua rung tay rất nhỏ để giảm packet
+    if (Math.abs(nx - lastCursorX) < 0.06 && Math.abs(ny - lastCursorY) < 0.06) return;
+    lastMouseMove = now;
+    lastCursorX = nx;
+    lastCursorY = ny;
+    const payload = { x: nx, y: ny };
+    // volatile: nếu socket đang bận thì bỏ packet cursor, không xếp hàng gây lag
+    if (window.socket.volatile) window.socket.volatile.emit('cursor_move', payload);
+    else window.socket.emit('cursor_move', payload);
 });
+
+window.addEventListener('resize', () => { if (Object.keys(cursors).length) ensureCursorLoop(); }, { passive: true });
 
 document.addEventListener('DOMContentLoaded', () => {
     if (window.socket) {
         window.socket.on('cursor_move', (data) => {
-            if (!isDashboard) return;
+            if (!isDashboard || !data) return;
             const uid = data.username; // Key by username to prevent duplicates
             if (typeof CURRENT_USER !== 'undefined' && uid === CURRENT_USER) return;
             let cursorEl = cursors[uid];
             if (!cursorEl) {
                 const userColor = getColorForUser(data.username);
-                cursorEl = document.createElement('div');
-                cursorEl.dataset.username = data.username;
-                cursorEl.innerHTML = `
+                const el = document.createElement('div');
+                el.dataset.username = data.username;
+                el.innerHTML = `
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="${userColor}" stroke="white" stroke-width="2"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"></path></svg>
                     <div style="background: ${userColor}; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; margin-top: 2px; font-weight: bold; white-space: nowrap;">
                         ${data.fullname || data.username}
                     </div>
                 `;
-                Object.assign(cursorEl.style, {
+                Object.assign(el.style, {
                     position: 'fixed',
+                    left: '0',
+                    top: '0',
+                    transform: 'translate3d(-100px, -100px, 0)',
                     pointerEvents: 'none',
                     zIndex: '100000',
-                    transition: 'left 0.1s linear, top 0.1s linear',
                     display: 'flex',
                     flexDirection: 'column',
-                    alignItems: 'flex-start'
+                    alignItems: 'flex-start',
+                    willChange: 'transform',
+                    contain: 'layout style paint'
                 });
-                document.body.appendChild(cursorEl);
+                document.body.appendChild(el);
+                cursorEl = { el, x: undefined, y: undefined, nx: data.x || 0, ny: data.y || 0, lastX: null, lastY: null, timeoutId: null };
                 cursors[uid] = cursorEl;
             }
-            cursorEl.style.left = data.x + 'vw';
-            cursorEl.style.top = data.y + 'vh';
+
+            cursorEl.nx = data.x || 0;
+            cursorEl.ny = data.y || 0;
+            ensureCursorLoop();
 
             clearTimeout(cursorEl.timeoutId);
             cursorEl.timeoutId = setTimeout(() => {
-                cursorEl.remove();
+                cursorEl.el.remove();
                 delete cursors[uid];
-            }, 180000); // 3 mins
+            }, 15000); // ẩn sau 15s không di chuyển
         });
 
         window.socket.on('online_users_update', (users) => {
@@ -5900,7 +6014,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const onlineUsernames = users.map(u => u.username);
             for (let uid in cursors) {
                 if (!onlineUsernames.includes(uid)) {
-                    cursors[uid].remove();
+                    cursors[uid].el.remove();
                     delete cursors[uid];
                 }
             }
@@ -6337,8 +6451,8 @@ window.radioSkipNext = function() {
         return;
     }
     if (isCrossfading && window.cancelCrossfade) window.cancelCrossfade();
-    var nextItem = radioState.queue[0];
-    radioSend('queue_pop', null, '/api/radio/queue/pop');
+    var nextItem = takeNextQueueItem();
+    if (!nextItem) return;
     radioState.youtube_id = nextItem.youtube_id;
     radioState.current_time = 0;
     radioState.is_playing = true;
@@ -6397,6 +6511,34 @@ function radioSend(event, payload, restPath) {
     return false;
 }
 
+// ---- Hàng chờ: luôn xoá bài vừa phát khỏi queue ngay tại client ----
+// Trước đây chỉ gửi queue_pop rồi load nhạc, chờ server broadcast lại queue.
+// Nếu gói pop đến trễ / bị từ chối (socket chưa sẵn sàng, polling lệch state),
+// queue vẫn còn bài vừa phát -> hết bài lại chọn đúng bài đó -> lặp vô hạn.
+// Lưu id các bài đã phát để state cũ (đến trễ) không thể chèn lại vào queue.
+window.__playedQueueIds = window.__playedQueueIds || new Set();
+
+function filterPlayedQueue(queue) {
+    if (!Array.isArray(queue)) return [];
+    return queue.filter(item => item && !window.__playedQueueIds.has(item.queue_id));
+}
+
+function takeNextQueueItem() {
+    if (!radioState.queue || radioState.queue.length === 0) return null;
+    const item = radioState.queue[0];
+    if (item && item.queue_id) window.__playedQueueIds.add(item.queue_id);
+    radioState.last_played_queue_id = item && item.queue_id ? item.queue_id : null;
+
+    // Xoá khỏi queue local ngay lập tức
+    radioState.queue = filterPlayedQueue(radioState.queue.slice(1));
+    if (window.renderRadioQueue) window.renderRadioQueue();
+    if (window.updateRadioUI) window.updateRadioUI();
+
+    // Báo server xoá đúng item này (kèm queue_id để không xoá nhầm bài)
+    radioSend('queue_pop', item && item.queue_id ? { queue_id: item.queue_id } : null, '/api/radio/queue/pop');
+    return item;
+}
+
 // ---- Polling: xử lý radio_sync nhận từ REST ----
 function handleRadioStateFromPolling(state) {
     if (!state) return;
@@ -6439,8 +6581,8 @@ function handleRadioStateFromPolling(state) {
         radioState.video_active = !!state.video_active;
         if (window.updateRadioUI) updateRadioUI(); // cập nhật UI trước khi đồng bộ player
         if (state.queue) {
-        radioState.queue = state.queue;
-        if (window.syncQueueToLocalPlaylist) window.syncQueueToLocalPlaylist(state.queue);
+        radioState.queue = filterPlayedQueue(state.queue);
+        if (window.syncQueueToLocalPlaylist) window.syncQueueToLocalPlaylist(radioState.queue);
     }
 
         if (window.updateRadioUI) window.updateRadioUI();
@@ -6459,8 +6601,8 @@ function handleRadioStateFromPolling(state) {
         }
         if (state.next_title !== undefined) radioState.next_title = state.next_title;
         if (state.queue) {
-            radioState.queue = state.queue;
-            if (window.syncQueueToLocalPlaylist) window.syncQueueToLocalPlaylist(state.queue);
+            radioState.queue = filterPlayedQueue(state.queue);
+            if (window.syncQueueToLocalPlaylist) window.syncQueueToLocalPlaylist(radioState.queue);
         }
         if (state.listeners) handleRadioListenersUpdate(state.listeners);
         if (window.updateRadioUI) updateRadioUI();
@@ -6502,8 +6644,8 @@ function handleRadioStateFromPolling(state) {
     radioState.is_automix_enabled = state.is_automix_enabled === true || state.is_automix_enabled === 'true';
     radioState.video_active = !!state.video_active;
     if (state.queue) {
-        radioState.queue = state.queue;
-        if (window.syncQueueToLocalPlaylist) window.syncQueueToLocalPlaylist(state.queue);
+        radioState.queue = filterPlayedQueue(state.queue);
+        if (window.syncQueueToLocalPlaylist) window.syncQueueToLocalPlaylist(radioState.queue);
     }
     // Cập nhật UI ngay, phòng khi phần đồng bộ player bên dưới gặp lỗi
     if (window.updateRadioUI) updateRadioUI();
@@ -6849,8 +6991,8 @@ function setupSocketRadio() {
         radioState.video_active = !!state.video_active;
         if (window.updateRadioUI) updateRadioUI(); // cập nhật UI trước khi đồng bộ player
         if (state.queue) {
-        radioState.queue = state.queue;
-        if (window.syncQueueToLocalPlaylist) window.syncQueueToLocalPlaylist(state.queue);
+        radioState.queue = filterPlayedQueue(state.queue);
+        if (window.syncQueueToLocalPlaylist) window.syncQueueToLocalPlaylist(radioState.queue);
     }
 
         if (isListening && ytPlayer && ytPlayer.loadVideoById) {
@@ -6903,8 +7045,8 @@ function setupSocketRadio() {
     });
 
     window.socket.on('radio_queue_update', function (queue) {
-        radioState.queue = queue;
-        if (window.syncQueueToLocalPlaylist) window.syncQueueToLocalPlaylist(queue);
+        radioState.queue = filterPlayedQueue(queue);
+        if (window.syncQueueToLocalPlaylist) window.syncQueueToLocalPlaylist(radioState.queue);
         if (window.updateRadioUI) window.updateRadioUI();
     });
 }
@@ -6977,8 +7119,8 @@ function onPlayerError(event) {
 
     if (canSkip) {
         window.__lastErrSkip = now;
-        const nextItem = radioState.queue[0];
-        radioSend('queue_pop', null, '/api/radio/queue/pop');
+        const nextItem = takeNextQueueItem();
+        if (!nextItem) return;
         radioState.youtube_id = nextItem.youtube_id;
         radioState.current_time = 0;
         radioState.is_playing = true;
@@ -7014,9 +7156,8 @@ function onPlayerStateChange(event) {
             updateRadioUI();
             syncRadioToServer();
         } else if (event.data === YT.PlayerState.ENDED) {
-            if (radioState.queue && radioState.queue.length > 0) {
-                const nextItem = radioState.queue[0];
-                radioSend('queue_pop', null, '/api/radio/queue/pop');
+            const nextItem = takeNextQueueItem();
+            if (nextItem) {
                 ytPlayer.loadVideoById(nextItem.youtube_id);
                 ytPlayer.playVideo();
                 radioState.youtube_id = nextItem.youtube_id;
@@ -7330,8 +7471,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // --- Auto-Mix Crossfade Check ---
         if (!window.manualSkipInProgress && !!radioState.is_automix_enabled && !isCrossfading && duration > 0 && (duration - time) <= 20 && (duration - time) > 0 && radioState.queue && radioState.queue.length > 0) {
-            const nextItem = radioState.queue[0];
-            radioSend('queue_pop', null, '/api/radio/queue/pop');
+            const nextItem = takeNextQueueItem();
+            if (!nextItem) return;
             radioState.youtube_id = nextItem.youtube_id;
             radioState.current_time = 0;
             radioState.is_playing = true;
@@ -7398,7 +7539,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 is_crossfading: isCrossfading,
                 is_automix_enabled: !!radioState.is_automix_enabled,
                 allow_requests: radioState.allow_requests === true,
-                video_active: radioState.video_active
+                video_active: radioState.video_active,
+                played_queue_id: radioState.last_played_queue_id || null
             });
         } else if (window.socket) {
             // Socket.IO sync
@@ -7410,7 +7552,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 is_crossfading: isCrossfading,
                 is_automix_enabled: !!radioState.is_automix_enabled,
                 allow_requests: radioState.allow_requests === true,
-                video_active: radioState.video_active
+                video_active: radioState.video_active,
+                played_queue_id: radioState.last_played_queue_id || null
             });
         }
     };
@@ -7670,9 +7813,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // Only do this if NOT crossfading, otherwise it conflicts with auto-mix
         if (isRadioDJ && !isLive && duration > 0 && (duration - current) <= 1.5 && !isCrossfading && !window.manualSkipInProgress) {
             if (radioState.queue && radioState.queue.length > 0) {
-                const nextItem = radioState.queue[0];
-                radioSend('queue_pop', null, '/api/radio/queue/pop');
-                if (activePlayer.loadVideoById) {
+                const nextItem = takeNextQueueItem();
+                if (nextItem && activePlayer.loadVideoById) {
                     activePlayer.loadVideoById(nextItem.youtube_id);
                     activePlayer.playVideo();
                     radioState.youtube_id = nextItem.youtube_id;
