@@ -6436,7 +6436,25 @@ function handleRadioStateFromPolling(state) {
         if (window.renderRadioQueue) window.renderRadioQueue();
     }
 
-    if (isRadioDJ) return;
+    if (isRadioDJ) {
+        // DJ cũng phải cập nhật từ server: hàng chờ, người nghe, bài kế tiếp, cờ cho phép thêm nhạc...
+        // Trước đây DJ return luôn ở đây -> tự thêm nhạc mà UI vẫn "Danh sách trống",
+        // không thấy user tham gia; phải tắt/mở lại nút DJ (lúc đó server gửi snapshot đầy đủ) mới hiện.
+        if (state.allow_requests !== undefined) {
+            radioState.allow_requests = state.allow_requests === true || state.allow_requests === 'true';
+        }
+        if (state.is_automix_enabled !== undefined) {
+            radioState.is_automix_enabled = state.is_automix_enabled === true || state.is_automix_enabled === 'true';
+        }
+        if (state.next_title !== undefined) radioState.next_title = state.next_title;
+        if (state.queue) {
+            radioState.queue = state.queue;
+            if (window.syncQueueToLocalPlaylist) window.syncQueueToLocalPlaylist(state.queue);
+        }
+        if (state.listeners) handleRadioListenersUpdate(state.listeners);
+        if (window.updateRadioUI) updateRadioUI();
+        return;
+    }
 
     // Nếu DJ tắt, các máy đang nghe (listener) tự động bị văng khỏi chế độ nghe
     if (!state.dj_username) {
@@ -6663,25 +6681,63 @@ function stopListenerHeartbeat() {
     }
 }
 
-function onPlayerReady(event) {
-    // Detect nếu Socket.IO không khả dụng → dùng REST polling
-    const socketAvailable = window.socket && window.socket.connected;
+// ---- Khởi tạo kết nối radio (KHÔNG phụ thuộc YouTube player) ----
+// Trước đây chỉ chạy trong onPlayerReady của YouTube. Nếu player không khởi tạo được
+// (video lỗi, mở web bằng IP bị YouTube chặn, mạng chậm, CDN iframe bị chặn...) thì
+// radio không bao giờ được khởi tạo: DJ thêm nhạc mà không thấy hàng chờ, không thấy
+// user tham gia, không thấy bài kế tiếp.
+let radioMode = null; // 'socket' | 'polling'
+let radioSocketWatcherAttached = false;
 
-    if (!socketAvailable) {
-        // Chờ thêm 3s cho socket reconnect, nếu vẫn không có thì dùng polling
-        setTimeout(() => {
-            if (!window.socket || !window.socket.connected) {
-                console.log('[Radio] Socket.IO not available, using REST polling');
-                useRadioPolling = true;
-                // Bắt đầu polling state
-                startRadioPolling();
-            } else {
-                setupSocketRadio();
+function initRadioConnection() {
+    if (!radioSocketWatcherAttached && window.socket && window.socket.on) {
+        radioSocketWatcherAttached = true;
+        // Socket.IO có thể kết nối muộn -> nâng cấp từ polling sang socket để cập nhật tức thì
+        window.socket.on('connect', () => {
+            if (radioMode === 'socket') return;
+            radioMode = 'socket';
+            if (window.stopRadioPolling) stopRadioPolling();
+            setupSocketRadio();
+            if (isRadioDJ && window.socket) {
+                // Đang là DJ (claim qua REST) -> claim lại trên socket để server biết socket này là DJ
+                window.socket.emit('claim_dj', () => {});
+            } else if (isListening && window.socket) {
+                window.socket.emit('join_radio');
             }
-        }, 3000);
-    } else {
-        setupSocketRadio();
+        });
     }
+
+    if (radioMode) return;
+
+    if (window.socket && window.socket.connected) {
+        radioMode = 'socket';
+        setupSocketRadio();
+        return;
+    }
+
+    // Chờ tối đa ~6s cho Socket.IO, sau đó dùng REST polling (đã đầy đủ chức năng)
+    let tries = 0;
+    const timer = setInterval(() => {
+        tries++;
+        if (radioMode) { clearInterval(timer); return; }
+        if (window.socket && window.socket.connected) {
+            clearInterval(timer);
+            radioMode = 'socket';
+            setupSocketRadio();
+        } else if (tries >= 6) {
+            clearInterval(timer);
+            if (!radioMode) {
+                radioMode = 'polling';
+                useRadioPolling = true;
+                startRadioPolling();
+            }
+        }
+    }, 1000);
+}
+
+function onPlayerReady(event) {
+    // Player YouTube sẵn sàng -> đảm bảo radio đã được khởi tạo (nếu chưa)
+    initRadioConnection();
 }
 
 // ---- Socket.IO radio setup (local dev) ----
@@ -7614,6 +7670,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     initRadioVolume();
+    // Khởi tạo radio ngay khi trang sẵn sàng (không chờ YouTube player)
+    try { initRadioConnection(); } catch (e) { }
 });
 
 // Prepare PSD Modal logic
