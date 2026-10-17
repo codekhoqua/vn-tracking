@@ -41,6 +41,12 @@ PSD_New_Rules.docx
 cloudflared*
 credentials.json
 output.txt
+scratch/
+scratch_*
+data/leave_requests.json
+data/leave_attachments/
+static/weather_album/_thumbs/
+
 
 # IDE
 .claude/

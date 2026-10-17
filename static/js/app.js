@@ -6958,11 +6958,19 @@ function onPlayerError(event) {
     const m = msgs[code] || { vi: 'Video không phát được (mã ' + code + ')!', jp: '再生できません（エラー ' + code + '）！' };
     const name = title ? '"' + (title.length > 38 ? title.slice(0, 38) + '…' : title) + '" ' : '';
 
+    // Các mã lỗi này người dùng KHÔNG cần thấy thông báo nữa (theo yêu cầu):
+    // 101 = chủ video không cho phép nhúng, 150 = không cho phép nhúng / giới hạn tuổi / khoá vùng.
+    // Vẫn tự động chuyển bài kế tiếp nếu là DJ, chỉ ẩn toast (ghi log console để còn gỡ lỗi).
+    const SILENT_ERR_CODES = [101, 150];
+    const isSilent = SILENT_ERR_CODES.indexOf(code) !== -1;
+
     // DJ + có hàng chờ: tự nhảy bài kế để phòng nhạc bị treo (video lỗi không bao giờ "ended")
     const canSkip = isRadioDJ && radioState.queue && radioState.queue.length > 0
         && (now - (window.__lastErrSkip || 0)) > 3000;
 
-    if (window.showToast) {
+    if (isSilent) {
+        console.warn('[radio] Video lỗi (ẩn thông báo):', code, name || vid);
+    } else if (window.showToast) {
         const suffix = canSkip ? (CURRENT_LANG === 'vi' ? ' → chuyển bài kế' : ' → 次の曲へ') : '';
         showToast(name + (CURRENT_LANG === 'vi' ? m.vi : m.jp) + suffix, 'error');
     }
