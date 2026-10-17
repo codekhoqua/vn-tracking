@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Đóng gói zip FULL để upload lên Cloudcode (Pterodactyl panel).
+r"""Đóng gói zip FULL để upload lên Cloudcode (Pterodactyl panel).
 
 Quy ước duy nhất:
 - Chỉ tạo MỘT bản full: kèm env_vars.yaml, credentials.json và data/*.json.
