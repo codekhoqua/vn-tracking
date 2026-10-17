@@ -18,7 +18,9 @@ Thumbs.db
 *.log
 templates/dashboard_cleaned.html
 model/
-tools/
+scripts/
+integrations/
+docs/
 cloudflared*
 *.zip
 .agents/
