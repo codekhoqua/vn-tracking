@@ -76,6 +76,38 @@
     </div>
 </div>
 
+<!-- ============ LỊCH SỬ TASK FULL-PAGE VIEW ============ -->
+<div class="modal-overlay task-detail-page-view tool-page-view" id="page-view-history" role="region" aria-label="{{ 'Lịch sử task' if lang == 'vi' else 'タスク履歴' }}" data-lenis-prevent>
+    <div class="tool-page-container">
+        <!-- Top Navigation / Breadcrumbs -->
+        <div class="tool-page-nav-bar">
+            <div class="task-page-breadcrumbs">
+                <button type="button" class="task-back-btn" onclick="closeToolPage('history')" title="{{ 'Trở về Dashboard' if lang == 'vi' else 'ダッシュボードに戻る' }}">
+                    <i class="fas fa-chevron-left"></i>
+                    <span>{{ 'Trở về Dashboard' if lang == 'vi' else 'ダッシュボードに戻る' }}</span>
+                </button>
+                <span class="task-crumb-sep">/</span>
+                <span class="task-crumb-root" onclick="closeToolPage('history')">Dashboard</span>
+                <span class="task-crumb-sep">/</span>
+                <span class="task-crumb-current">{{ 'Lịch sử task' if lang == 'vi' else 'タスク履歴' }}</span>
+            </div>
+
+            <div class="task-page-top-actions">
+                <button class="task-page-close-btn" onclick="closeToolPage('history')" title="{{ 'Đóng trang' if lang == 'vi' else '閉じる' }} (Esc)">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <div class="tool-iframe-wrapper">
+            <iframe id="history-page-iframe" src="" title="{{ 'Lịch sử task' if lang == 'vi' else 'タスク履歴' }}" style="width: 100%; height: 100%; border: none; display: block;"></iframe>
+        </div>
+    </div>
+</div>
+
 <!-- ============ TEAM CALENDAR FULL-PAGE VIEW ============ -->
 {% set cur_u_profile = user_profiles.get(user, {}) %}
 {% set u_team = (cur_u_profile.get('team', '') or '').upper() %}
@@ -107,7 +139,7 @@
                     <span>{{ 'Đăng ký nghỉ phép (Attendance)' if lang == 'vi' else '休暇申請 (Attendance)' }}</span>
                 </button>
                 {% if role == 'admin' or session.get('role') == 'admin' or session.get('user') in ['Admin', 'Manager'] %}
-                <button type="button" class="calendar-subnav-pill" id="tab-btn-leave-admin" onclick="openAdminLeaveEmailModal()" title="Cài đặt email nhận thông báo nghỉ phép (Dành cho Admin)" style="border: 1px dashed rgba(245, 158, 11, 0.4); background: rgba(245, 158, 11, 0.1); color: #fbbf24; cursor: pointer; position: relative; z-index: 20;">
+                <button type="button" class="calendar-subnav-pill leave-admin-email-btn" id="tab-btn-leave-admin" onclick="openAdminLeaveEmailModal()" title="Cài đặt email nhận thông báo nghỉ phép (Dành cho Admin)" style="border: 1px dashed rgba(245, 158, 11, 0.4); background: rgba(245, 158, 11, 0.1); color: #fbbf24; cursor: pointer; position: relative; z-index: 20;">
                     <i class="fas fa-cog"></i>
                     <span>{{ 'Cài đặt Email nhận đơn' if lang == 'vi' else '管理者メール設定' }}</span>
                 </button>
@@ -214,7 +246,7 @@
                                     • <strong>Nghỉ nửa buổi chiều:</strong> được tính từ 12:00 đến 17:00.<br>
                                     <em>Lưu ý: Nếu người lao động nghỉ “nửa buổi chiều” hoặc ngược lại nhưng rời văn phòng trước thời gian quy định sẽ không được tính nghỉ nửa ngày.</em></p>
 
-                                    <hr style="border: 0; border-top: 1px dashed rgba(255,255,255,0.15); margin: 16px 0;">
+                                    <hr style="border: 0; border-top: 1px dashed var(--border); margin: 16px 0;">
 
                                     <h4 style="color: #818cf8;">A. 休暇申請手順</h4>
                                     <p><strong>1. 事前計画された休暇</strong><br>
@@ -266,7 +298,7 @@
                                     <div class="leave-card-title">
                                         <span>HỌ VÀ TÊN</span>
                                         <span style="color: #ef4444;">*</span>
-                                        <span class="badge" style="font-size: 0.72rem; padding: 2px 7px; background: rgba(99, 102, 241, 0.2); color: #c7d2fe; border-radius: 6px; font-weight: 500;">Tự động điền</span>
+                                        <span class="badge" style="font-size: 0.72rem; padding: 2px 7px; background: rgba(99, 102, 241, 0.2); color: var(--primary-text); border-radius: 6px; font-weight: 500;">Tự động điền</span>
                                     </div>
                                     <div class="leave-card-sub">氏名</div>
                                     <div class="leave-card-guide">
@@ -282,7 +314,7 @@
                                     <div class="leave-card-title">
                                         <span>MÃ SỐ NHÂN VIÊN</span>
                                         <span style="color: #ef4444;">*</span>
-                                        <span class="badge" style="font-size: 0.72rem; padding: 2px 7px; background: rgba(99, 102, 241, 0.2); color: #c7d2fe; border-radius: 6px; font-weight: 500;">Tự động điền</span>
+                                        <span class="badge" style="font-size: 0.72rem; padding: 2px 7px; background: rgba(99, 102, 241, 0.2); color: var(--primary-text); border-radius: 6px; font-weight: 500;">Tự động điền</span>
                                     </div>
                                     <div class="leave-card-sub">スタッフコード</div>
                                     <div class="leave-card-guide">
@@ -298,7 +330,7 @@
                                     <div class="leave-card-title">
                                         <span>GMAIL LIÊN HỆ</span>
                                         <span style="color: #ef4444;">*</span>
-                                        <span class="badge" style="font-size: 0.72rem; padding: 2px 7px; background: rgba(99, 102, 241, 0.2); color: #c7d2fe; border-radius: 6px; font-weight: 500;">Tự động điền</span>
+                                        <span class="badge" style="font-size: 0.72rem; padding: 2px 7px; background: rgba(99, 102, 241, 0.2); color: var(--primary-text); border-radius: 6px; font-weight: 500;">Tự động điền</span>
                                     </div>
                                     <div class="leave-card-sub">メールアドレス</div>
                                     <div class="leave-card-guide">
@@ -429,21 +461,21 @@
                                 <!-- File naming rule card -->
                                 <div class="leave-card" style="border-left: 4px solid #f59e0b; margin-bottom: 0;">
                                     <div class="leave-card-title">XÁC NHẬN CỦA QUẢN LÍ | 管理人の確認書</div>
-                                    <div class="leave-card-guide" style="border-left: none; background: rgba(245, 158, 11, 0.1); color: #fde68a;">
+                                    <div class="leave-card-guide leave-name-rule-guide" style="border-left: none; background: rgba(245, 158, 11, 0.1); color: #fde68a;">
                                         <strong>XÁC NHẬN CỦA QUẢN LÍ ĐƯỢC ĐẶT TÊN THEO QUY ĐỊNH SAU:</strong><br>
-                                        <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; color: #fbbf24;">&lt;HR - Leave Request - YYMMDD - MÃ SỐ NHÂN VIÊN - HỌ VÀ TÊN&gt;</code><br><br>
+                                        <code class="leave-name-rule-code" style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; color: #fbbf24;">&lt;HR - Leave Request - YYMMDD - MÃ SỐ NHÂN VIÊN - HỌ VÀ TÊN&gt;</code><br><br>
                                         *<strong>YYMMDD</strong> là ngày bắt đầu nghỉ, không phải ngày đăng ký<br>
                                         *<strong>Ví dụ:</strong> Ngày bắt đầu nghỉ là 15/10/2026, MSNV 2507010030, PHAN DUY TAN<br>
-                                        <strong style="color: #6ee7b7;">HR - Leave Request - 261015 - 2507010030 - PHAN DUY TAN</strong>
+                                        <strong class="leave-name-rule-example" style="color: #6ee7b7;">HR - Leave Request - 261015 - 2507010030 - PHAN DUY TAN</strong>
                                     </div>
 
                                     <!-- Live Suggested Filename -->
                                     <div id="leave-suggested-filename-box" style="margin-top: 10px; padding: 10px 14px; background: rgba(99, 102, 241, 0.12); border-radius: 8px; border: 1px solid rgba(99, 102, 241, 0.25); display: flex; align-items: center; justify-content: space-between;">
-                                        <div style="font-size: 0.82rem; color: #c7d2fe;">
+                                        <div style="font-size: 0.82rem; color: var(--primary-text);">
                                             <span>Tên file đề xuất:</span>
-                                            <strong id="leave-suggested-filename" style="margin-left: 6px; color: #fff; font-family: monospace;">HR - Leave Request - YYMMDD - STAFFCODE - FULLNAME</strong>
+                                            <strong id="leave-suggested-filename" style="margin-left: 6px; color: var(--primary-text); font-family: monospace;">HR - Leave Request - YYMMDD - STAFFCODE - FULLNAME</strong>
                                         </div>
-                                        <button type="button" class="btn btn-sm" onclick="copySuggestedFilename()" style="padding: 3px 10px; font-size: 0.75rem; background: rgba(255,255,255,0.1); color: #fff; border: none; border-radius: 6px; cursor: pointer;">Copy tên</button>
+                                        <button type="button" class="btn btn-sm" onclick="copySuggestedFilename()" style="padding: 3px 10px; font-size: 0.75rem; background: var(--primary); color: #fff; border: none; border-radius: 6px; cursor: pointer;">Copy tên</button>
                                     </div>
                                 </div>
 
@@ -458,7 +490,7 @@
                                         <div style="font-size: 2.2rem; color: #818cf8; margin-bottom: 8px;">
                                             <i class="fas fa-cloud-upload-alt"></i>
                                         </div>
-                                        <div style="font-size: 0.92rem; font-weight: 600; color: #f8fafc; margin-bottom: 4px;">
+                                        <div style="font-size: 0.92rem; font-weight: 600; color: var(--text); margin-bottom: 4px;">
                                             {{ 'Thêm tệp ảnh xác nhận' if lang == 'vi' else '確認書画像を追加' }}
                                         </div>
                                         <div style="font-size: 0.78rem; color: var(--text-3);">
@@ -472,7 +504,7 @@
                                             <div style="display: flex; align-items: center; gap: 12px; overflow: hidden;">
                                                 <img id="leave-preview-img" src="" alt="Preview" style="width: 52px; height: 52px; border-radius: 8px; object-fit: cover; border: 1px solid var(--border);">
                                                 <div style="overflow: hidden;">
-                                                    <div id="leave-preview-name" style="font-size: 0.88rem; font-weight: 600; color: #f8fafc; white-space: nowrap; text-overflow: ellipsis; overflow: hidden;">filename.png</div>
+                                                    <div id="leave-preview-name" style="font-size: 0.88rem; font-weight: 600; color: var(--text); white-space: nowrap; text-overflow: ellipsis; overflow: hidden;">filename.png</div>
                                                     <div id="leave-preview-size" style="font-size: 0.75rem; color: var(--text-3); margin-top: 2px;">0 KB</div>
                                                 </div>
                                             </div>
@@ -480,7 +512,7 @@
                                         </div>
 
                                         <!-- Nút upload ảnh lên Google Drive riêng -->
-                                        <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 10px; border-top: 1px dashed rgba(255,255,255,0.1); width: 100%; flex-wrap: wrap;">
+                                        <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 10px; border-top: 1px dashed var(--border); width: 100%; flex-wrap: wrap;">
                                             <button type="button" id="leave-btn-upload-gdrive" onclick="uploadAttachmentToGDriveDirectly()" style="background: #2563eb; color: #fff; border: 1px solid #3b82f6; padding: 7px 16px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; transition: all 0.2s ease; box-shadow: 0 2px 8px rgba(37,99,235,0.3);">
                                                 <i class="fab fa-google-drive"></i>
                                                 <span id="leave-btn-upload-gdrive-text">Tải ảnh lên Google Drive</span>
@@ -693,18 +725,26 @@
                             <p style="margin: 4px 0 0; font-size: 0.85rem; color: var(--text-2);">{{ 'Thay đổi quyền hạn (Admin, Leader, Member) cho các thành viên trong hệ thống' if lang == 'vi' else 'システムのメンバー権限（Admin、Leader、Member）を変更します' }}</p>
                         </div>
                     </div>
-                    <div style="background: var(--surface-2); padding: 6px 14px; border-radius: 20px; font-size: 0.82rem; font-weight: 600; color: var(--primary);">
-                        {{ user_profiles|length }} {{ 'Thành viên' if lang == 'vi' else 'メンバー' }}
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="background: var(--surface-2); padding: 6px 14px; border-radius: 20px; font-size: 0.82rem; font-weight: 600; color: var(--primary);">
+                            <span id="role-member-count">{{ user_profiles|length }}</span> {{ 'Thành viên' if lang == 'vi' else 'メンバー' }}
+                        </div>
+                        <button type="button" class="btn btn-primary" onclick="openAddMemberModal()"
+                            style="padding: 8px 16px; font-size: 0.85rem; display: flex; align-items: center; gap: 6px; white-space: nowrap;">
+                            <i class="fas fa-user-plus" style="font-size: 0.8rem;"></i>
+                            <span>{{ 'Thêm thành viên' if lang == 'vi' else 'メンバーを追加' }}</span>
+                        </button>
                     </div>
                 </div>
 
                 <!-- Role Members List -->
                 <div style="background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 8px 24px; box-shadow: var(--shadow-sm);">
                     {% for uname, info in user_profiles.items() %}
-                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--border);">
+                    <div data-member-row="{{ uname }}" style="display: flex; justify-content: space-between; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--border);">
                         <div style="display: flex; align-items: center; gap: 12px;">
-                            <div style="width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(168, 85, 247, 0.2)); display: flex; align-items: center; justify-content: center; font-weight: 700; color: var(--text);">
-                                {{ (info.fullname or uname)[:1] | upper }}
+                            <div class="role-avatar clickable" title="{{ 'Đổi ảnh đại diện' if lang == 'vi' else 'アイコンを変更' }}" onclick="pickMemberAvatar('{{ uname }}')">
+                                <span>{{ (info.fullname or uname)[:1] | upper }}</span>
+                                {% if info.avatar %}<img src="{{ info.avatar }}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove();">{% endif %}
                             </div>
                             <div>
                                 <div style="font-weight: 600; font-size: 0.95rem; color: var(--text);">{{ info.fullname or uname }}</div>
@@ -724,6 +764,11 @@
                                 <i class="fas fa-save" style="font-size: 0.8rem;"></i>
                                 <span>{{ 'Lưu' if lang == 'vi' else '保存' }}</span>
                             </button>
+                            <button type="button" class="role-delete-btn"
+                                title="{{ 'Xóa thành viên' if lang == 'vi' else 'メンバーを削除' }}"
+                                onclick="deleteMember('{{ uname }}', this)">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
                         </div>
                     </div>
                     {% endfor %}
@@ -736,6 +781,100 @@
 
 
 
+
+<!-- ============ ADD MEMBER MODAL ============ -->
+<div class="am-overlay" id="am-overlay" onclick="closeAddMemberModal()"></div>
+<div class="am-modal" id="am-modal" role="dialog" aria-modal="true">
+    <div class="am-head">
+        <div class="am-head-title">
+            <span class="am-head-icon"><i class="fas fa-user-plus"></i></span>
+            <div>
+                <h3>{{ 'Thêm thành viên' if lang == 'vi' else 'メンバーを追加' }}</h3>
+            </div>
+        </div>
+        <button type="button" class="am-close" onclick="closeAddMemberModal()" aria-label="Close">✕</button>
+    </div>
+    <div class="am-body">
+        <div class="am-grid">
+            <label class="am-field">
+                <span class="am-label">{{ 'Tên đăng nhập' if lang == 'vi' else 'ログイン名' }} <b>*</b></span>
+                <input id="am-username" class="am-input" type="text" autocomplete="off" placeholder="vd: Linh-リン">
+            </label>
+            <label class="am-field">
+                <span class="am-label">{{ 'Mật khẩu' if lang == 'vi' else 'パスワード' }} <b>*</b></span>
+                <input id="am-password" class="am-input" type="text" autocomplete="new-password" placeholder="vd: 123">
+            </label>
+            <label class="am-field am-span2">
+                <span class="am-label">{{ 'Họ tên' if lang == 'vi' else '氏名' }}</span>
+                <input id="am-fullname" class="am-input" type="text" placeholder="NGUYỄN VĂN A">
+            </label>
+            <label class="am-field">
+                <span class="am-label">{{ 'Quyền' if lang == 'vi' else '権限' }}</span>
+                <select id="am-role" class="am-input">
+                    <option value="member">Member</option>
+                    <option value="leader">Leader</option>
+                    <option value="admin">Admin</option>
+                </select>
+            </label>
+            <label class="am-field">
+                <span class="am-label">{{ 'Giới tính' if lang == 'vi' else '性別' }}</span>
+                <select id="am-gender" class="am-input">
+                    <option value="">—</option>
+                    <option value="Nam">Nam</option>
+                    <option value="Nữ">Nữ</option>
+                    <option value="Khác">Khác</option>
+                </select>
+            </label>
+            <label class="am-field">
+                <span class="am-label">{{ 'Năm sinh' if lang == 'vi' else '生年' }}</span>
+                <input id="am-birth-year" class="am-input" type="text" placeholder="2000">
+            </label>
+            <label class="am-field">
+                <span class="am-label">Team</span>
+                <input id="am-team" class="am-input" type="text" placeholder="Retouch">
+            </label>
+            <label class="am-field">
+                <span class="am-label">MSNV</span>
+                <input id="am-msnv" class="am-input" type="text" placeholder="2507010030">
+            </label>
+            <label class="am-field">
+                <span class="am-label">Gmail</span>
+                <input id="am-gmail" class="am-input" type="text" placeholder="abc@gmail.com">
+            </label>
+            <label class="am-field am-span2">
+                <span class="am-label">Avatar</span>
+                <div class="am-avatar-row">
+                    <div class="am-avatar-preview" id="am-avatar-preview">
+                        <i class="fas fa-user"></i>
+                        <img id="am-avatar-preview-img" alt="" style="display: none;">
+                    </div>
+                    <div class="am-avatar-actions">
+                        <input type="file" id="am-avatar-file" accept="image/png,image/jpeg,image/webp,image/gif" style="display: none;"
+                            onchange="onAddMemberAvatarPick(this)">
+                        <button type="button" class="am-btn am-btn-ghost am-btn-sm" onclick="document.getElementById('am-avatar-file').click()">
+                            <i class="fas fa-upload"></i> <span>{{ 'Chọn ảnh từ máy' if lang == 'vi' else '画像を選択' }}</span>
+                        </button>
+                        <button type="button" class="am-btn am-btn-ghost am-btn-sm" id="am-avatar-clear" onclick="clearAddMemberAvatar()" style="display: none;">
+                            <i class="fas fa-times"></i> <span>{{ 'Bỏ ảnh' if lang == 'vi' else '解除' }}</span>
+                        </button>
+                    </div>
+                </div>
+                <input id="am-avatar" class="am-input" type="text" style="margin-top: 8px;"
+                    placeholder="{{ 'Link ảnh (tuỳ chọn)' if lang == 'vi' else '画像URL（任意）' }}">
+            </label>
+        </div>
+        <div class="am-error" id="am-error" style="display: none;"></div>
+    </div>
+    <div class="am-foot">
+        <button type="button" class="am-btn am-btn-ghost" onclick="closeAddMemberModal()">{{ 'Hủy' if lang == 'vi' else 'キャンセル' }}</button>
+        <button type="button" class="am-btn am-btn-primary" id="am-submit" onclick="submitAddMember()">
+            <i class="fas fa-user-plus"></i> <span>{{ 'Thêm thành viên' if lang == 'vi' else '追加する' }}</span>
+        </button>
+    </div>
+</div>
+
+<input type="file" id="member-avatar-file" accept="image/png,image/jpeg,image/webp,image/gif" style="display: none;"
+    onchange="onMemberAvatarFilePicked(this)">
 
 <!-- ============ FILTER DRAWER (RIGHT SIDE) ============ -->
 {% if role in ['admin', 'manager', 'leader'] %}
@@ -808,14 +947,14 @@
     <div class="mobile-brand">
         <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" width="30" height="30" style="border-radius: 8px; object-fit: contain;">
         <span>VN-Tracking</span>
-        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.147</i></sup>
+        <sup class="version-tag" style="font-size: 11px; padding: 1px 5px; margin-top: 1px;"><i>v1.9.148</i></sup>
     </div>
     <div class="mobile-topbar-right">
         <button type="button" class="mobile-icon-btn" onclick="toggleNotificationPanel(event)" title="{{ 'Thông báo' if lang == 'vi' else '通知' }}">
             <i class="far fa-bell"></i>
             <span class="mobile-unread-dot" id="mobile-unread-dot" style="display: none;"></span>
         </button>
-        <div class="mobile-avatar-btn" onclick="toggleProfilePanel()" title="{{ 'Cá nhân' if lang == 'vi' else 'プロフィール' }}">
+        <div class="mobile-avatar-btn" id="mobile-avatar-btn" onclick="toggleProfilePanel()" title="{{ 'Cá nhân' if lang == 'vi' else 'プロフィール' }}">
             {% set p_top = user_profiles.get(user, {}) if user_profiles else {} %}
             {% if p_top and p_top.avatar %}
             <img src="{{ p_top.avatar }}" alt="Avatar" referrerpolicy="no-referrer">
@@ -831,7 +970,7 @@
 <div class="profile-popover-backdrop" id="profile-popover-backdrop" onclick="toggleProfilePanel()"></div>
 
 {% set p = user_profiles.get(user, {}) if user_profiles else {} %}
-<div class="profile-panel" id="profile-panel" role="dialog" aria-modal="true" aria-label="Thông tin tài khoản">
+<div class="profile-panel" id="profile-panel" role="dialog" aria-modal="true" aria-label="Thông tin tài khoản" data-username="{{ user }}">
     <div class="profile-panel-inner">
         <!-- Close Button -->
         <button type="button" class="profile-panel-close" onclick="toggleProfilePanel()" aria-label="Đóng">
@@ -844,7 +983,8 @@
         <!-- Profile Header -->
         <div class="profile-panel-header">
             <div class="profile-panel-avatar-wrap">
-                <div class="profile-panel-avatar">
+                <div class="profile-panel-avatar clickable" id="profile-panel-avatar"
+                    title="{{ 'Đổi ảnh đại diện' if lang == 'vi' else 'アイコンを変更' }}" onclick="pickProfileAvatar()">
                     {% if p.avatar %}
                     <img src="{{ p.avatar }}" alt="Avatar" class="avatar-img" referrerpolicy="no-referrer"
                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
@@ -854,6 +994,7 @@
                     {{ user[0]|upper if user else 'U' }}
                     {% endif %}
                 </div>
+                <span class="profile-avatar-edit"><i class="fas fa-camera"></i></span>
                 <span class="profile-status-dot" title="Online"></span>
             </div>
             <div class="profile-panel-meta">
@@ -904,6 +1045,9 @@
         </div>
     </div>
 </div>
+
+<input type="file" id="profile-avatar-file" accept="image/png,image/jpeg,image/webp,image/gif" style="display: none;"
+    onchange="onProfileAvatarFilePicked(this)">
 
 <!-- Pet Flyout Popover & Backdrop (Placed at root body level so sidebar overflow won't clip it and it never pushes sidebar content) -->
 <div class="pet-popover-backdrop" id="pet-popover-backdrop" onclick="toggleSidebarPetDetails()"></div>
@@ -960,7 +1104,7 @@
             </div>
             <div class="sidebar-logo-text">
                 <span class="sidebar-brand-name">VN-Tracking</span>
-                <sup class="version-tag"><i>v1.9.147</i></sup>
+                <sup class="version-tag"><i>v1.9.148</i></sup>
             </div>
         </div>
     </div>
@@ -1032,8 +1176,20 @@
             </div>
         </div>
 
+        <div class="nav-item" style="--i:5; cursor: pointer;" onclick="openToolPage('history')" id="nav-history" title="{{ 'Lịch sử task' if lang == 'vi' else 'タスク履歴' }}">
+            <div class="nav-item-content">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 3v5h5"></path>
+                    <path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"></path>
+                    <path d="M12 7v5l4 2"></path>
+                </svg>
+                <span>{{ 'Lịch sử task' if lang == 'vi' else 'タスク履歴' }}</span>
+            </div>
+        </div>
+
         {% if session.get('user') == 'Manager' or session.get('role') == 'admin' %}
-        <div class="nav-item" style="--i:5; cursor: pointer;" onclick="openToolPage('role')" id="nav-role" title="Role Members">
+        <div class="nav-item" style="--i:6; cursor: pointer;" onclick="openToolPage('role')" id="nav-role" title="Role Members">
             <div class="nav-item-content">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                     stroke-linecap="round" stroke-linejoin="round">
@@ -2258,7 +2414,7 @@
                             <polyline points="6 9 12 15 18 9"></polyline>
                         </svg>
                     </div>
-                    <div class="lang-dropdown" id="week-dropdown-list"
+                    <div class="lang-dropdown" id="week-dropdown-list" data-lenis-prevent
                         style="min-width: 140px; max-height: 250px; overflow-y: auto;">
                     </div>
                 </div>
@@ -2275,7 +2431,7 @@
                             <polyline points="6 9 12 15 18 9"></polyline>
                         </svg>
                     </div>
-                    <div class="lang-dropdown" id="month-dropdown-list"
+                    <div class="lang-dropdown" id="month-dropdown-list" data-lenis-prevent
                         style="min-width: 140px; max-height: 250px; overflow-y: auto;">
                     </div>
                 </div>
@@ -3802,119 +3958,9 @@
 {% set tp_key = row['tp_key'] %}
 {% set tp_name_display = row['tp_name'] %}
 {% set worker = row['Người thực hiện']|string|trim %}
-<div class="modal-overlay task-detail-page-view" id="modal-{{ tab_key }}-{{ loop.index0 }}" role="region" aria-label="{{ tp_name_display }}" data-lenis-prevent>
-    <div class="task-page-container">
-        <!-- Top Navigation / Breadcrumbs -->
-        <div class="task-page-nav-bar">
-            <div class="task-page-breadcrumbs">
-                <button type="button" class="task-back-btn" onclick="closeModal('{{ tab_key }}-{{ loop.index0 }}', '{{ tp_key }}')" title="{{ 'Trở về Dashboard' if lang == 'vi' else 'ダッシュボードに戻る' }}">
-                    <i class="fas fa-chevron-left"></i>
-                    <span>{{ 'Trở về Dashboard' if lang == 'vi' else 'ダッシュボードに戻る' }}</span>
-                </button>
-                <span class="task-crumb-sep">/</span>
-                <span class="task-crumb-root" onclick="closeModal('{{ tab_key }}-{{ loop.index0 }}', '{{ tp_key }}')">Dashboard</span>
-                <span class="task-crumb-sep">/</span>
-                <span class="task-crumb-current">Task</span>
-            </div>
-
-            <div class="task-page-top-actions">
-                <button class="export-project-btn" title="Export Project (DB_作品管理)" onclick="exportProjectNotionCSV('{{ tp_key }}')">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
-                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
-                    </svg>
-                </button>
-                <button class="export-btn" title="Export Task (DB_工程管理)" onclick="exportSingleNotionCSV('{{ tp_key }}')">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                        <polyline points="7 10 12 15 17 10"></polyline>
-                        <line x1="12" y1="15" x2="12" y2="3"></line>
-                    </svg>
-                </button>
-                <button class="task-page-close-btn" onclick="closeModal('{{ tab_key }}-{{ loop.index0 }}', '{{ tp_key }}')" title="{{ 'Đóng trang' if lang == 'vi' else '閉じる' }} (Esc)">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                    </svg>
-                </button>
-            </div>
-        </div>
-
-        <!-- Task Page Hero Title & Worker Header -->
-        <div class="task-page-header">
-            <div class="task-page-title-block">
-                <h1 class="task-page-main-title">{{ tp_name_display }}</h1>
-                <div class="task-page-worker-row">
-                    <div class="worker-avatars-group" style="display: flex;">
-                        {% set workers = worker.split(',') if worker else [] %}
-                        {% for w in workers %}
-                        {% set w_trim = w.strip() %}
-                        {% set ns = namespace(found_avatar=none) %}
-                        {% if user_profiles %}
-                        {% for k, v in user_profiles.items() %}
-                        {% if k|lower in w_trim|lower or w_trim|lower in k|lower %}
-                        {% set ns.found_avatar = v.avatar %}
-                        {% endif %}
-                        {% endfor %}
-                        {% endif %}
-                        <span class="worker-avatar"
-                            style="{% if not loop.first %}margin-left: -8px;{% endif %} border: 2px solid var(--surface-card); position: relative; z-index: {{ 10 - loop.index0 }};"
-                            title="{{ w_trim }}">
-                            {% if ns.found_avatar %}
-                            <img src="{{ ns.found_avatar }}" alt="Avatar" class="avatar-img"
-                                referrerpolicy="no-referrer"
-                                onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                            <span class="avatar-fallback" style="display:none;">{{ w_trim[0]|upper if w_trim else 'U' }}</span>
-                            {% else %}
-                            {{ w_trim[0]|upper if w_trim else 'U' }}
-                            {% endif %}
-                        </span>
-                        {% endfor %}
-                    </div>
-                    <span class="task-page-worker-name">{{ worker }}</span>
-                    {% if row.get('QC Nội bộ') and row.get('QC Nội bộ')|string|trim|lower not in ['nan', 'none', ''] %}
-                    <div class="qc-badge"
-                        style="font-size: 0.82rem; color: #f59e0b; background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.35); padding: 3px 10px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; font-weight: 700;"
-                        title="QC Nội bộ">
-                        <i class="fas fa-clipboard-check"></i> QC: {{ row.get('QC Nội bộ') }}
-                    </div>
-                    {% endif %}
-
-                    <!-- GHOST AVATARS CONTAINER -->
-                    <div class="ghost-avatars" data-tp-key="{{ tp_key }}"
-                        style="display: flex; gap: -5px; align-items: center; margin-left: 10px;">
-                        <!-- Avatars injected by JS -->
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Task Page Master Layout -->
-        <div class="task-master-layout">
-            <!-- LEFT MAIN STAGE: Workflow & Collaboration -->
-            <div class="task-main-col">
-                {{ render_task_links(tp_key, tab_key ~ '_' ~ loop.index0, lang, row) }}
-                {{ render_task_steps(tp_key, tab_key ~ '_' ~ loop.index0, lang, checklist_api, checked_ids_dict) }}
-                {{ render_task_handover(tp_key, tab_key ~ '_' ~ loop.index0, lang, row) }}
-            </div>
-
-            <!-- RIGHT SIDEBAR: Time Tracking & Logtime Control Deck -->
-            <div class="task-side-col">
-                {{ render_task_tracker(tp_key, tab_key ~ '_' ~ loop.index0, lang) }}
-                
-                <div class="task-page-logtime-card">
-                    <div class="task-page-logtime-header">
-                        <div class="task-page-logtime-title">
-                            <span class="logtime-icon-circle"><i class="fas fa-clock"></i></span>
-                            <span>{{ 'Nhập Logtime' if lang == 'vi' else 'Logtime入力' }}</span>
-                        </div>
-                    </div>
-                    {{ render_logtime_form(row, tab_key ~ '_' ~ loop.index0, t, users, lang) }}
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+{% set page_id = tab_key ~ '_' ~ loop.index0 %}
+{% set modal_id = tab_key ~ '-' ~ loop.index0 %}
+{%- include '_task_detail_page.html' %}
 {% endfor %}
 {% endfor %}
 

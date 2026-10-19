@@ -76,11 +76,17 @@
     </div>
     <div class="modal-body" style="max-height: 50vh; overflow-y: auto; padding-right: 10px;">
         {% for uname, info in user_profiles.items() %}
-        <div
+        <div data-member-row="{{ uname }}"
             style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border);">
-            <div>
-                <div style="font-weight: 500;">{{ info.fullname or uname }}</div>
-                <div style="font-size: 0.85rem; color: var(--text-3);">@{{ uname }}</div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <div class="role-avatar">
+                    <span>{{ (info.fullname or uname)[:1] | upper }}</span>
+                    {% if info.avatar %}<img src="{{ info.avatar }}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove();">{% endif %}
+                </div>
+                <div>
+                    <div style="font-weight: 500;">{{ info.fullname or uname }}</div>
+                    <div style="font-size: 0.85rem; color: var(--text-3);">@{{ uname }}</div>
+                </div>
             </div>
             <div style="display: flex; gap: 10px; align-items: center;">
                 <select id="role-select-{{ uname | replace(' ', '_') | replace('.', '_') }}"
@@ -92,6 +98,11 @@
                 <button class="btn btn-primary"
                     style="padding: 6px 12px; font-size: 0.85rem; display: flex; align-items: center; gap: 5px; min-width: 60px; justify-content: center;"
                     onclick="updateRole('{{ uname }}', this)">{{ 'Lưu' if lang == 'vi' else '保存' }}</button>
+                <button type="button" class="role-delete-btn"
+                    title="{{ 'Xóa thành viên' if lang == 'vi' else 'メンバーを削除' }}"
+                    onclick="deleteMember('{{ uname }}', this)">
+                    <i class="fas fa-trash-alt"></i>
+                </button>
             </div>
         </div>
         {% endfor %}
@@ -1491,7 +1502,7 @@
         </div>
     </div>
     
-    <div class="drive-grid" id="drive-grid">
+    <div class="drive-grid" id="drive-grid" data-lenis-prevent>
         <!-- Items injected by JS -->
     </div>
     

@@ -47,6 +47,11 @@ data/leave_requests.json
 data/leave_attachments/
 static/weather_album/_thumbs/
 
+# Archive DB local (SQLite fallback) - không commit dữ liệu thật
+data/vn_tracking_archive.db
+data/vn_tracking_archive.db-wal
+data/vn_tracking_archive.db-shm
+
 
 # IDE
 .claude/

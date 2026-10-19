@@ -1,5 +1,6 @@
 import sys
 import os
+from urllib.parse import quote as _urlquote
 
 if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
     try:
@@ -51,6 +52,17 @@ if os.path.exists(env_path):
                         os.environ[k] = v
     except Exception as e:
         print("Failed to load env_vars.yaml:", e)
+
+# Kho lưu trữ dài hạn: task / comment / checklist / link nằm ở DB SQL
+# (Turso khi có cấu hình, ngược lại dùng SQLite local).
+try:
+    import task_archive
+    ARCHIVE_IMPORT_ERROR = ""
+except Exception as _archive_import_exc:  # pragma: no cover
+    task_archive = None
+    ARCHIVE_IMPORT_ERROR = str(_archive_import_exc)
+    print("Không import được task_archive:", _archive_import_exc)
+
 app = Flask(__name__)
 
 DRIVE_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "drive_data")
@@ -122,6 +134,10 @@ LOGTIME_SPREADSHEET_ID = '1dkCu_HUs12DTas--yZlDTB9M17DKnUGBvWJ6vdVuIGU'
 LOGTIME_SHEET_NAME = '日報'
 logtime_submit_lock = threading.Lock()
 _logtime_ws_cache = {}  # (spreadsheet_id, tab) -> gspread Worksheet đã xác thực, tái sử dụng để lưu nhanh hơn
+_logtime_history_cache = {'time': 0.0, 'rows': []}  # cache lịch sử logtime (tiết kiệm quota đọc sheet)
+_logtime_history_lock = threading.Lock()
+_logtime_history_fetch_lock = threading.Lock()  # chỉ 1 thread đọc sheet tại 1 thời điểm
+LOGTIME_HISTORY_TTL = 60.0  # giây
 creds_path = 'credentials.json'
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 last_sheet_error = ""
@@ -330,10 +346,58 @@ def fix_drive_url(url):
         return f"/api/avatar-proxy?id={file_id}"
     return url
 
+_USERS_SHEET_ID_RE = re.compile(r'/spreadsheets/d/([a-zA-Z0-9_-]+)')
+
+
+def _sheet_gid_from_url(url):
+    match = re.search(r'[#&?]gid=(\d+)', url or '')
+    return int(match.group(1)) if match else None
+
+
+def load_users_dataframe(url):
+    """Đọc bảng users của sheet "Pass".
+
+    Ưu tiên **service account** (``credentials.json`` / ``GOOGLE_CREDENTIALS``)
+    để sheet có thể để ở chế độ *Restricted* — cột Password không còn lộ ra
+    ngoài qua CSV export công khai. Nếu không có credentials thì fallback về
+    CSV export như trước (giữ nguyên hành vi cũ).
+    """
+    sheet_id_match = _USERS_SHEET_ID_RE.search(url or '')
+    if sheet_id_match:
+        try:
+            client = get_gspread_client()
+            if client:
+                spreadsheet = client.open_by_key(sheet_id_match.group(1))
+                worksheet = None
+                gid = _sheet_gid_from_url(url)
+                if gid is not None:
+                    try:
+                        worksheet = spreadsheet.get_worksheet_by_id(gid)
+                    except Exception:
+                        worksheet = None
+                worksheet = worksheet or spreadsheet.sheet1
+                values = worksheet.get_all_values()
+                if values:
+                    header = list(values[0])
+                    width = len(header)
+                    body = []
+                    for raw_row in values[1:]:
+                        row = (list(raw_row) + [''] * width)[:width]
+                        # Tương đương dropna(subset=['Username', 'Password'])
+                        if not str(row[0]).strip() or not str(row[1]).strip():
+                            continue
+                        body.append(row)
+                    return pd.DataFrame(body, columns=header)
+        except Exception as e:
+            print("Đọc users bằng service account thất bại, fallback CSV công khai:", e)
+
+    return pd.read_csv(url).dropna(subset=['Username', 'Password'])
+
+
 @cached(ttl=300)
 def load_users_from_sheet(url):
     try:
-        df_users = pd.read_csv(url).dropna(subset=['Username', 'Password'])
+        df_users = load_users_dataframe(url)
         users = {}
         for _, row in df_users.iterrows():
             username = str(row.iloc[0]).strip()
@@ -386,10 +450,200 @@ def load_users_from_sheet(url):
         print("Error loading users from sheet:", e)
         return {}
 
+def delete_user_from_sheet(username):
+    """Xóa 1 thành viên khỏi sheet "Pass" (bảng Users) bằng service account.
+
+    Dùng service account (credentials.json) để GHI trực tiếp, xóa hẳn dòng
+    của user -> user không còn đăng nhập được. Trả về dict {success, message}.
+    """
+    username = str(username or '').strip()
+    if not username:
+        return {'success': False, 'message': 'Thiếu tên đăng nhập'}
+
+    client = get_gspread_client()
+    if not client:
+        return {'success': False, 'message': 'Không kết nối được Google Sheets (service account)'}
+
+    sheet_id_match = _USERS_SHEET_ID_RE.search(USER_SHEET_URL or '')
+    if not sheet_id_match:
+        return {'success': False, 'message': 'Không tìm thấy ID sheet users'}
+
+    try:
+        spreadsheet = client.open_by_key(sheet_id_match.group(1))
+        worksheet = None
+        gid = _sheet_gid_from_url(USER_SHEET_URL)
+        if gid is not None:
+            try:
+                worksheet = spreadsheet.get_worksheet_by_id(gid)
+            except Exception:
+                worksheet = None
+        worksheet = worksheet or spreadsheet.sheet1
+
+        values = worksheet.get_all_values()
+        if not values:
+            return {'success': False, 'message': 'Sheet users đang rỗng'}
+
+        target_row = None
+        admins = []
+        for idx, row in enumerate(values, start=1):
+            uname = str(row[0]).strip() if len(row) > 0 else ''
+            role = str(row[2]).strip().lower() if len(row) > 2 else ''
+            if uname == username:
+                target_row = idx
+            if uname and role in ('admin', 'manager'):
+                admins.append(uname)
+
+        if target_row is None:
+            return {'success': False, 'message': f'Không tìm thấy thành viên "{username}" trong sheet'}
+        if target_row == 1:
+            return {'success': False, 'message': 'Không thể xóa dòng tiêu đề'}
+        if username in admins and len(admins) <= 1:
+            return {'success': False, 'message': 'Không thể xóa quản trị viên cuối cùng!'}
+
+        worksheet.delete_rows(target_row)
+        return {'success': True, 'row': target_row, 'message': f'Đã xóa "{username}"'}
+    except Exception as e:
+        return {'success': False, 'message': f'Lỗi xóa thành viên: {e}'}
+
+USER_ROLE_CHOICES = ('admin', 'leader', 'member')
+
+def add_user_to_sheet(payload):
+    """Thêm 1 thành viên mới vào sheet "Pass" (bảng Users) bằng service account.
+
+    Cột sheet: A=Username, B=Password, C=Role, D=Họ tên, E=Giới tính,
+    F=Năm sinh, G=Avatar, H=Team, I=MSNV, J=Gmail.
+    Trả về dict {success, message, user?}.
+    """
+    payload = payload or {}
+    username = str(payload.get('username') or '').strip()
+    password = str(payload.get('password') or '').strip()
+    fullname = str(payload.get('fullname') or '').strip()
+    role = str(payload.get('role') or 'member').strip().lower()
+    gender = str(payload.get('gender') or '').strip()
+    birth_year = str(payload.get('birth_year') or '').strip()
+    avatar = str(payload.get('avatar') or '').strip()
+    team = str(payload.get('team') or '').strip()
+    msnv = str(payload.get('msnv') or '').strip()
+    gmail = str(payload.get('gmail') or '').strip()
+
+    if not username or not password:
+        return {'success': False, 'message': 'Vui lòng nhập Tên đăng nhập và Mật khẩu'}
+    if any(c in username for c in ('\t', '\n', '\r', '"', "'", '<', '>', '/', '\\')):
+        return {'success': False, 'message': 'Tên đăng nhập chứa ký tự không hợp lệ (nháy, ngoặc nhọn, dấu /...)'}
+    if role not in USER_ROLE_CHOICES:
+        role = 'member'
+    if not fullname:
+        fullname = username
+
+    client = get_gspread_client()
+    if not client:
+        return {'success': False, 'message': 'Không kết nối được Google Sheets (service account)'}
+
+    sheet_id_match = _USERS_SHEET_ID_RE.search(USER_SHEET_URL or '')
+    if not sheet_id_match:
+        return {'success': False, 'message': 'Không tìm thấy ID sheet users'}
+
+    try:
+        spreadsheet = client.open_by_key(sheet_id_match.group(1))
+        worksheet = None
+        gid = _sheet_gid_from_url(USER_SHEET_URL)
+        if gid is not None:
+            try:
+                worksheet = spreadsheet.get_worksheet_by_id(gid)
+            except Exception:
+                worksheet = None
+        worksheet = worksheet or spreadsheet.sheet1
+
+        values = worksheet.get_all_values()
+        for row in values[1:]:
+            if row and str(row[0]).strip().lower() == username.lower():
+                return {'success': False, 'message': f'Tên đăng nhập "{username}" đã tồn tại'}
+
+        new_row = len(values) + 1
+        row_values = [username, password, role, fullname, gender, birth_year, avatar, team, msnv, gmail]
+        worksheet.update(
+            range_name=f'A{new_row}:J{new_row}',
+            values=[row_values],
+        )
+        return {'success': True, 'row': new_row, 'message': f'Đã thêm "{fullname}" ({username})'}
+    except Exception as e:
+        return {'success': False, 'message': f'Lỗi thêm thành viên: {e}'}
+
+
+def update_user_avatar_url(username, url):
+    """Ghi URL avatar mới vào cột G (Avatar) của user trong sheet "Pass"."""
+    username = (username or '').strip()
+    url = (url or '').strip()
+    if not username:
+        return {'success': False, 'message': 'Thiếu tên đăng nhập'}
+
+    client = get_gspread_client()
+    if not client:
+        return {'success': False, 'message': 'Không kết nối được Google Sheets (service account)'}
+
+    sheet_id_match = _USERS_SHEET_ID_RE.search(USER_SHEET_URL or '')
+    if not sheet_id_match:
+        return {'success': False, 'message': 'Không tìm thấy ID sheet users'}
+
+    try:
+        spreadsheet = client.open_by_key(sheet_id_match.group(1))
+        worksheet = None
+        gid = _sheet_gid_from_url(USER_SHEET_URL)
+        if gid is not None:
+            try:
+                worksheet = spreadsheet.get_worksheet_by_id(gid)
+            except Exception:
+                worksheet = None
+        worksheet = worksheet or spreadsheet.sheet1
+
+        values = worksheet.get_all_values()
+        target_row = None
+        for idx, row in enumerate(values, start=1):
+            if row and str(row[0]).strip() == username:
+                target_row = idx
+                break
+        if target_row is None:
+            return {'success': False, 'message': f'Không tìm thấy thành viên "{username}"'}
+
+        worksheet.update(range_name=f'G{target_row}', values=[[url]])
+        return {'success': True, 'row': target_row}
+    except Exception as e:
+        return {'success': False, 'message': f'Lỗi cập nhật avatar: {e}'}
+
+def sanitize_user_profiles(user_db):
+    """Bản sao user_profiles đã bỏ ``password`` trước khi đưa vào template.
+
+    ``dashboard.html`` nhúng nguyên dict này vào JS (``userProfilesDB``) nên
+    tuyệt đối không được để lộ mật khẩu ở đó.
+    """
+    out = {}
+    for uname, info in (user_db or {}).items():
+        if isinstance(info, dict):
+            out[uname] = {k: v for k, v in info.items() if k != "password"}
+        else:
+            out[uname] = info
+    return out
+
+
 _checklist_cache = None
 _checklist_cache_time = 0
-checklist_lock = threading.Lock()
+checklist_lock = threading.RLock()  # RLock: api_checklist_sync giữ lock rồi gọi save_supabase_checklists()
 checklist_version = 0
+
+# Lưu ý kiến trúc (xem README mục "Kho lưu trữ dài hạn"):
+#   - Dữ liệu liên quan tới task (checklist / comment / task links) GIỜ lấy
+#     từ DB SQL (Turso hoặc SQLite) do task_archive quản lý.
+#   - File Supabase `_system/*.json` vẫn được ghi song song như bản mirror/dự
+#     phòng cho trường hợp DB chưa cấu hình hoặc tạm thời lỗi.
+#   - Ảnh, drive, pet, radio... vẫn nằm nguyên trên Supabase Storage.
+
+
+def _archive_db_ready():
+    """True nếu module archive đã import được và DB dùng được."""
+    try:
+        return bool(task_archive)
+    except Exception:
+        return False
 
 
 def get_supabase_checklists(force_refresh=False):
@@ -397,6 +651,18 @@ def get_supabase_checklists(force_refresh=False):
     now = time.time()
     if not force_refresh and _checklist_cache is not None and (now - _checklist_cache_time < 5):
         return _checklist_cache
+
+    # 1. Nguồn chính: DB SQL
+    if _archive_db_ready():
+        try:
+            data = task_archive.get_checklists_dict()
+            _checklist_cache = data
+            _checklist_cache_time = now
+            return _checklist_cache
+        except Exception as e:
+            print("Error reading checklists from archive DB:", e)
+
+    # 2. Dự phòng: file JSON cũ trên Supabase Storage
     try:
         data = sb_download_bytes('_system/checklists.json')
         if data:
@@ -411,11 +677,18 @@ def get_supabase_checklists(force_refresh=False):
             _checklist_cache = {}
     return _checklist_cache
 
-def save_supabase_checklists(data):
+def save_supabase_checklists(data, actor=None):
     global _checklist_cache, _checklist_cache_time
     with checklist_lock:
         _checklist_cache = data
         _checklist_cache_time = time.time()
+        # 1. Ghi vào DB SQL (nguồn chính) - có ghi event kèm người tick
+        if _archive_db_ready():
+            try:
+                task_archive.save_checklists(data, actor=actor)
+            except Exception as e:
+                print("Error saving checklists to archive DB:", e)
+        # 2. Mirror sang Supabase Storage để giữ tương thích ngược
         try:
             json_bytes = json.dumps(data, ensure_ascii=False).encode('utf-8')
             sb_upload('_system/checklists.json', json_bytes, content_type='application/json')
@@ -431,6 +704,16 @@ def get_supabase_task_comments(force_refresh=False):
     now = time.time()
     if not force_refresh and _task_comments_cache is not None and (now - _task_comments_cache_time < 5):
         return _task_comments_cache
+
+    if _archive_db_ready():
+        try:
+            data = task_archive.get_comments_dict()
+            _task_comments_cache = data
+            _task_comments_cache_time = now
+            return _task_comments_cache
+        except Exception as e:
+            print("Error reading task comments from archive DB:", e)
+
     try:
         data = sb_download_bytes('_system/task_comments.json')
         if data:
@@ -450,6 +733,11 @@ def save_supabase_task_comments(data):
     with task_comments_lock:
         _task_comments_cache = data
         _task_comments_cache_time = time.time()
+        if _archive_db_ready():
+            try:
+                task_archive.save_comments(data)
+            except Exception as e:
+                print("Error saving task comments to archive DB:", e)
         try:
             json_bytes = json.dumps(data, ensure_ascii=False).encode('utf-8')
             sb_upload('_system/task_comments.json', json_bytes, content_type='application/json')
@@ -465,6 +753,16 @@ def get_supabase_task_links(force_refresh=False):
     now = time.time()
     if not force_refresh and _task_links_cache is not None and (now - _task_links_cache_time < 5):
         return _task_links_cache
+
+    if _archive_db_ready():
+        try:
+            data = task_archive.get_links_dict()
+            _task_links_cache = data
+            _task_links_cache_time = now
+            return _task_links_cache
+        except Exception as e:
+            print("Error reading task links from archive DB:", e)
+
     try:
         data = sb_download_bytes('_system/task_links.json')
         if data:
@@ -484,6 +782,11 @@ def save_supabase_task_links(data):
     with task_links_lock:
         _task_links_cache = data
         _task_links_cache_time = time.time()
+        if _archive_db_ready():
+            try:
+                task_archive.save_task_links(data)
+            except Exception as e:
+                print("Error saving task links to archive DB:", e)
         try:
             json_bytes = json.dumps(data, ensure_ascii=False).encode('utf-8')
             sb_upload('_system/task_links.json', json_bytes, content_type='application/json')
@@ -558,6 +861,14 @@ def load_vntask_details():
                 if 'kết thúc' in c_str or 'deadline' in c_str or 'hạn chót' in c_str:
                     end_col = c
                     break
+        if not end_col:
+            # Sheet lịch sử của JP không có cột "End": 納品日 (ngày giao),
+            # 提出日 (ngày nộp), 作業日程|終了日 (kết thúc lịch làm).
+            for c in df_target.columns:
+                s = str(c)
+                if any(k in s for k in ['納品日', '提出日', '終了日', '納期']):
+                    end_col = c
+                    break
 
         job_col = None
         for c in df_target.columns:
@@ -592,17 +903,36 @@ def load_vntask_details():
         if not start_col:
             return []
 
+        _SENTINELS = ['nan', 'NaN', 'None', '', '::', '-', '->']
+
+        def _date_token(raw):
+            """Trích chuỗi ngày từ một ô. Hỗ trợ '9/11(Fri)', '2026/9/11',
+            'Sep-7 (Mon)', 'April 6', '6-Sep'... Trả về None nếu không có ngày."""
+            if raw is None:
+                return None
+            s = str(raw).strip()
+            if s in _SENTINELS:
+                return None
+            matches = re.findall(r'\d{1,4}[/-]\d{1,2}(?:[/-]\d{1,4})?', s)
+            if matches:
+                return matches[-1]
+            # Dạng tên tháng: 'Sep-7', 'Apr-6 (Mon)', 'September 7'
+            m = re.search(r'([A-Za-z]{3,9})[\s./-]+(\d{1,2})', s)
+            if m:
+                return f"{m.group(1)} {m.group(2)}"
+            m = re.search(r'(\d{1,2})[\s./-]+([A-Za-z]{3,9})', s)
+            if m:
+                return f"{m.group(2)} {m.group(1)}"
+            return None
+
         res = []
         for _, row in df_target.iterrows():
-            val = ""
             end_val = str(row[end_col]).strip() if end_col and pd.notna(row.get(end_col)) else ""
-            if end_val and end_val not in ['nan', 'NaN', 'None', '', '::', '-', '->']:
-                val = end_val
-            else:
-                start_val = str(row[start_col]).strip() if start_col and pd.notna(row.get(start_col)) else ""
-                val = start_val
-                
-            if val in ['nan', 'NaN', 'None', '', '::', '-', '->']:
+            start_val = str(row[start_col]).strip() if start_col and pd.notna(row.get(start_col)) else ""
+
+            # Ưu tiên ngày kết thúc/giao; nếu không parse được thì lấy ngày bắt đầu.
+            clean_d = _date_token(end_val) or _date_token(start_val)
+            if not clean_d:
                 continue
 
             raw_job = str(row[job_col]).strip() if job_col and pd.notna(row.get(job_col)) else "Khác"
@@ -631,10 +961,6 @@ def load_vntask_details():
             if worker in ['nan', 'NaN', 'None', '作業者 \nNgười thực hiện']:
                 worker = ""
 
-            matches = re.findall(r'\d{1,4}[/-]\d{1,2}(?:[/-]\d{1,4})?', val)
-            if not matches:
-                continue
-            clean_d = matches[-1]
             try:
                 dt = date_parser.parse(clean_d, default=datetime(current_year, 1, 1))
                 formatted_date = dt.strftime('%Y-%m-%d')
@@ -841,36 +1167,210 @@ def save_logtime(data):
     
     MAIN_TARGET = (LOGTIME_SPREADSHEET_ID, LOGTIME_SHEET_NAME)
 
+    # --- AUDIT LOG: ghi lại mọi lần lưu để truy vết lỗi lệch cột ---
+    def _logtime_audit(status, detail):
+        try:
+            log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
+            os.makedirs(log_dir, exist_ok=True)
+            with open(os.path.join(log_dir, 'logtime_writes.log'), 'a', encoding='utf-8') as f:
+                f.write(f"{datetime.now().isoformat(timespec='seconds')} | {status} | {detail}\n")
+        except Exception:
+            pass
+
+    # CHỐT AN TOÀN: sheet 日報 chỉ có đúng 14 cột (A:N).
+    # Nếu payload dài hơn 14, append_row sẽ tự mở rộng sang phải và 14 giá trị
+    # thật sẽ rơi vào L:Y (lệch 11 cột) - đúng lỗi đã thấy trên sheet.
+    if not isinstance(row_data, (list, tuple)) or len(row_data) != 14:
+        _logtime_audit('ABORT_PAYLOAD', f"len={len(row_data)} data={row_data!r}")
+        print(f"[Logtime] ABORT: payload có {len(row_data)} phần tử, yêu cầu đúng 14", flush=True)
+        return False
+
     def _write_row():
         ws = _get_logtime_ws(MAIN_TARGET)
-        try:
-            ws.append_row(row_data, value_input_option='USER_ENTERED', table_range='A:N')
-        except Exception:
-            col_a = ws.col_values(1)
-            next_row = len(col_a) + 1
-            for i, val in enumerate(col_a):
-                if i > 0 and not str(val).strip():
-                    next_row = i + 1
-                    break
-            if next_row > ws.row_count:
-                ws.add_rows(1)
-            ws.update(range_name=f'A{next_row}:N{next_row}', values=[row_data], value_input_option='USER_ENTERED')
+
+        # Tìm dòng CUỐI CÙNG có dữ liệu thật trong cột A.
+        # LÝ DO: append_row dùng "table detection" của Google và dừng ở ô trống
+        # ĐẦU TIÊN. Nếu sheet có 1 dòng trống ở giữa (do xoá dòng lỗi trước đó),
+        # nó ghi vào giữa sheet -> người dùng mở sheet không thấy dòng mới.
+        # Vì vậy ta tự tính dòng cuối (bỏ qua mọi lỗ hổng) để luôn ghi ở đáy.
+        col_a = ws.col_values(1)
+        last = 0
+        for i in range(len(col_a) - 1, -1, -1):
+            if str(col_a[i]).strip():
+                last = i + 1
+                break
+        target_row = last + 1
+        if target_row > ws.row_count:
+            ws.add_rows(1)
+
+        # Ghi thẳng đúng dải A:N (14 cột) tại dòng cuối + 1 -> không thể lệch cột.
+        res = ws.update(range_name=f'A{target_row}:N{target_row}',
+                        values=[row_data], value_input_option='USER_ENTERED')
+        updated = str((res or {}).get('updatedRange', ''))
+        range_part = updated.split('!')[-1]
+        ok = bool(re.fullmatch(rf'A{target_row}:N{target_row}', range_part))
+        _logtime_audit(
+            'OK' if ok else 'WRONG_RANGE',
+            f"row={target_row} updated={updated!r} len={len(row_data)} "
+            f"date={row_data[0]!r} title={row_data[3]!r} worker={row_data[7]!r}"
+        )
+        if not ok:
+            print(f"[Logtime] CẢNH BÁO: ghi vào range bất thường {updated!r}", flush=True)
+        return ok
 
     def _write_with_retry():
         try:
-            _write_row()
+            return _write_row()
         except Exception:
             _logtime_ws_cache.pop(MAIN_TARGET, None)  # cache có thể cũ/hết hạn -> thử lại 1 lần
-            _write_row()
+            return _write_row()
 
     with logtime_submit_lock:
         try:
-            _write_with_retry()
-            print(f"==> [Service Account gspread] Đã ghi logtime thành công vào sheet 日報 cho: {row_data[3]} ({row_data[7]})", flush=True)
-            return True
+            ok = _write_with_retry()
+            if ok:
+                # Xoá cache lịch sử để lần xem sau thấy ngay dòng vừa ghi
+                with _logtime_history_lock:
+                    _logtime_history_cache['time'] = 0.0
+                print(f"==> [Service Account gspread] Đã ghi logtime thành công vào sheet 日報 cho: {row_data[3]} ({row_data[7]})", flush=True)
+                return True
+            print("Lỗi khi lưu logtime: range ghi không đúng A:N", flush=True)
+            return False
         except Exception as ex:
             print("Lỗi khi lưu logtime vào sheet 日報:", repr(ex), flush=True)
+            _logtime_audit('ERROR', repr(ex))
             return False
+
+# ==================== LỊCH SỬ LOGTIME (đọc từ sheet 日報) ====================
+def _normalize_logtime_date(value):
+    """Chuẩn hoá ngày về dạng YYYY/MM/DD để so sánh/lọc."""
+    s = str(value or '').strip().replace('-', '/')
+    m = re.match(r'(\d{4})/(\d{1,2})/(\d{1,2})', s)
+    if m:
+        return f"{int(m.group(1)):04d}/{int(m.group(2)):02d}/{int(m.group(3)):02d}"
+    return s
+
+def _norm_num_str(value):
+    """Chuẩn hoá số dạng '12', '12.0', 12 -> '12' để so khớp tập/chương."""
+    s = str(value or '').strip()
+    if not s:
+        return ''
+    try:
+        f = float(s)
+        return str(int(f)) if f.is_integer() else str(f)
+    except (TypeError, ValueError):
+        return s
+
+def get_logtime_history(limit=100, worker=None, date_from=None, date_to=None, q=None,
+                        tac_pham=None, cong_viec=None, tap=None, chuong=None, force=False):
+    """Trả về lịch sử logtime (mới nhất trước). Cache 60s để tiết kiệm quota đọc sheet."""
+    now = time.time()
+    with _logtime_history_lock:
+        cached_rows = _logtime_history_cache['rows']
+        cached_time = _logtime_history_cache['time']
+    age = now - cached_time
+
+    # Chống spam nút ↻: trong 3 giây đầu không đọc lại Google
+    if force and age < 3:
+        force = False
+
+    rows = None
+    if (not force) and cached_rows and age < LOGTIME_HISTORY_TTL:
+        rows = cached_rows
+    else:
+        # Chỉ 1 request được đọc sheet tại một thời điểm. Nếu nhiều người cùng
+        # mở lịch sử lúc cache hết hạn, chỉ 1 người đọc Google, còn lại dùng cache.
+        with _logtime_history_fetch_lock:
+            with _logtime_history_lock:
+                cached_rows = _logtime_history_cache['rows']
+                cached_time = _logtime_history_cache['time']
+            if cached_rows and cached_time > now:
+                # thread khác vừa đọc xong trong lúc ta chờ lock
+                rows = cached_rows
+            elif (not force) and cached_rows and (time.time() - cached_time) < LOGTIME_HISTORY_TTL:
+                rows = cached_rows
+
+            if rows is None:
+                ws = _get_logtime_ws((LOGTIME_SPREADSHEET_ID, LOGTIME_SHEET_NAME))
+                raw = ws.get('A2:N') or []
+                rows = []
+                for i, r in enumerate(raw, start=2):
+                    r = list(r) + [''] * 14
+                    date_val = _normalize_logtime_date(r[0])
+                    worker_val = str(r[7]).strip()
+                    # Bỏ dòng trống hoàn toàn và dòng rác cũ (chỉ có dữ liệu lệch ở L:Y)
+                    if not date_val and not worker_val:
+                        continue
+                    rows.append({
+                        'row': i,                                   # dòng thật trên sheet (để đối chiếu)
+                        'date': date_val,                           # A: 日にち
+                        'category': str(r[1]).strip(),              # B: カテゴリ
+                        'cong_viec': str(r[2]).strip(),             # C: 作業内容
+                        'tac_pham': str(r[3]).strip(),              # D: 作品名
+                        'chuong': str(r[4]).strip(),                # E: 話数
+                        'tap': str(r[5]).strip(),                   # F: 巻数
+                        'so_trang_tong': str(r[6]).strip(),         # G: 総ページ数
+                        'nguoi_thuc_hien': worker_val,              # H: 作業者
+                        'so_page': str(r[8]).strip(),               # I: 作業ページ数
+                        'so_gio': str(r[9]).strip(),                # J: 合計時間
+                        'difficulty': str(r[11]).strip(),           # L: 難易度
+                        'ghi_chu': str(r[13]).strip(),              # N: 備考
+                    })
+                with _logtime_history_lock:
+                    _logtime_history_cache['time'] = time.time()
+                    _logtime_history_cache['rows'] = rows
+
+    def _matches(target, val):
+        # giống time tracker: khớp chính xác hoặc chứa nhau (không phân biệt hoa thường)
+        if not target or not val:
+            return False
+        return target == val or target in val or val in target
+
+    w = (worker or '').strip().lower()
+    df = (date_from or '').strip().replace('-', '/')
+    dt = (date_to or '').strip().replace('-', '/')
+    qq = (q or '').strip().lower()
+    tp = (tac_pham or '').strip().lower()
+    cv = (cong_viec or '').strip().lower()
+    tap_f = _norm_num_str(tap)
+    chuong_f = _norm_num_str(chuong)
+
+    out = []
+    for r in rows:
+        # Lọc theo đúng task: tên truyện/tác phẩm
+        if tp and not _matches(tp, r['tac_pham'].lower()):
+            continue
+        # Task là theo TẬP (単行本) hoặc theo CHƯƠNG (weekly) -> phải khớp đúng
+        if tap_f and tap_f != _norm_num_str(r['tap']):
+            continue
+        # Chương chỉ lọc khi sheet có ghi chương; dòng không ghi chương thì bỏ qua
+        # (tránh task weekly bị lọc ra 0 dòng vì sheet để trống cột 話数)
+        if chuong_f and r['chuong'] and chuong_f != _norm_num_str(r['chuong']):
+            continue
+        # Công việc khớp chính xác (写植 khác 修正写植)
+        if cv and cv != r['cong_viec'].strip().lower():
+            continue
+        if w and w not in r['nguoi_thuc_hien'].lower():
+            continue
+        if df and (not r['date'] or r['date'] < df):
+            continue
+        if dt and (not r['date'] or r['date'] > dt):
+            continue
+        if qq:
+            haystack = ' '.join([
+                r['tac_pham'], r['cong_viec'], r['category'],
+                r['ghi_chu'], r['nguoi_thuc_hien'],
+            ]).lower()
+            if qq not in haystack:
+                continue
+        out.append(r)
+
+    out.reverse()  # dòng cuối sheet = mới nhất -> đưa lên đầu
+    try:
+        limit = int(limit)
+    except (TypeError, ValueError):
+        limit = 100
+    return out[:max(1, min(limit, 500))]
 
 # ==================== CẤU HÌNH THEO DÕI THỜI GIAN (JP-Tracking) ====================
 TRACKER_SPREADSHEET_ID = '1EvTrNJx7dBO5pK58sc25WXkKPMTCJogzpMRz_e-Tr0k'
@@ -1604,6 +2104,14 @@ def render_logtime_form_html(row, index, t, users, lang):
         for u in users
     )
 
+    tap_val = tap if pd.notna(tap) else ''
+    chuong_val = chuong if pd.notna(chuong) else ''
+
+    def _esc(v):
+        return (str(v if v is not None else '')
+                .replace('&', '&amp;').replace('"', '&quot;')
+                .replace('<', '&lt;').replace('>', '&gt;'))
+
     return f'''
     <div class="logtime-form">
         <form id="logtime-{index}" onsubmit="return handleLogtime(event, 'logtime-{index}')" novalidate>
@@ -1659,7 +2167,10 @@ def render_logtime_form_html(row, index, t, users, lang):
                     <input type="text" name="ghi_chu" placeholder="...">
                 </div>
             </div>
-            <div class="logtime-submit-row" style="margin-top: 16px; text-align: right;">
+            <div class="logtime-submit-row" style="margin-top: 16px; display: flex; justify-content: flex-end; align-items: center; gap: 10px;">
+                <button type="button" onclick="openLogtimeHistory(this.closest('form'))" style="min-width: 120px; padding: 12px 18px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-weight: 600; cursor: pointer;">
+                    <i class="fas fa-history"></i> {'Lịch sử' if lang == 'vi' else '履歴'}
+                </button>
                 <button type="submit" class="btn btn-primary" style="min-width: 160px; padding: 12px 24px;">{t['f_btn']}</button>
             </div>
             <div class="logtime-progress" id="progress-{index}" style="display:none; margin-top: 10px;">
@@ -1672,6 +2183,33 @@ def render_logtime_form_html(row, index, t, users, lang):
                 </div>
             </div>
         </form>
+
+        <!-- LỊCH SỬ LOGTIME (inline, tự load khi mở task) -->
+        <div class="logtime-history-inline" id="logtime-history-inline-{index}"
+             data-index="{index}"
+             data-tac-pham="{_esc(tac_pham)}"
+             data-cong-viec="{_esc(cong_viec)}"
+             data-tap="{_esc(tap_val)}"
+             data-chuong="{_esc(chuong_val)}">
+            <div class="logtime-history-head">
+                <span class="logtime-history-title">
+                    <i class="fas fa-history"></i> {'LỊCH SỬ LOGTIME' if lang == 'vi' else 'LOGTIME履歴'}
+                </span>
+                <div class="logtime-history-meta">
+                    <span class="logtime-history-total" id="logtime-history-total-{index}"></span>
+                    <span class="logtime-history-count" id="logtime-history-count-{index}"></span>
+                </div>
+            </div>
+            <div class="logtime-history-list" id="logtime-history-list-{index}">
+                <div class="logtime-history-empty">{'Đang tải...' if lang == 'vi' else '読み込み中...'}</div>
+            </div>
+            <div class="logtime-report-line" id="logtime-report-line-{index}" style="display:none;">
+                <code class="logtime-report-text" id="logtime-report-text-{index}"></code>
+                <button type="button" class="logtime-report-copy" onclick="copyLogtimeReport('{index}')" title="Copy">
+                    <i class="fas fa-copy"></i>
+                </button>
+            </div>
+        </div>
     </div>
     '''
 
@@ -2108,7 +2646,7 @@ def process_dashboard_data():
         'lang': lang,
         't': t,
         'users': users,
-        'user_profiles': USER_DB,
+        'user_profiles': sanitize_user_profiles(USER_DB),
         'cols_keys': COLS,
         'checklist_api': '',
         'checked_ids_dict': checked_ids_dict,
@@ -2214,9 +2752,9 @@ def api_checklist_sync():
                         data[tp_key]['_rewarded'] = True
                         reward_granted = True
                 
-                # Upload to Supabase and update cache
-                json_data = json.dumps(data, ensure_ascii=False).encode('utf-8')
-                sb_upload('_system/checklists.json', json_data, content_type='application/json')
+                # Ghi vào DB SQL (nguồn chính, có log event kèm người tick)
+                # rồi mirror sang Supabase Storage.
+                save_supabase_checklists(data, actor=session.get('user', ''))
                 global _checklist_cache, _checklist_cache_time, checklist_version
                 _checklist_cache = data
                 _checklist_cache_time = time.time()
@@ -3030,6 +3568,148 @@ def update_roles():
     except Exception as e:
         return jsonify({"success": False, "message": "Lỗi kết nối API"}), 500
 
+@app.route('/api/users/delete', methods=['POST'])
+def api_delete_user():
+    """Xóa thành viên khỏi sheet "Pass" (bảng Users). Chỉ admin/manager/leader."""
+    user = session.get('user')
+    role = (session.get('role') or '').lower()
+    if not user or (user != 'Manager' and role not in ['admin', 'manager', 'leader']):
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+
+    data = request.get_json(silent=True) or {}
+    username = str(data.get("username") or '').strip()
+    if not username:
+        return jsonify({"success": False, "message": "Thiếu tên đăng nhập"}), 400
+    if username == user:
+        return jsonify({"success": False, "message": "Không thể tự xóa chính mình!"}), 400
+
+    result = delete_user_from_sheet(username)
+    if result.get('success'):
+        # Xóa cache để web cập nhật ngay (không cần chờ TTL)
+        clear_cache('load_users_from_sheet')
+        _history_profiles_cache['data'] = {}
+        _history_profiles_cache['at'] = 0.0
+        # Xóa luôn avatar trong DB (nếu có)
+        if task_archive is not None:
+            try:
+                task_archive.delete_user_avatar(username)
+            except Exception as _av_exc:
+                print("delete_user_avatar lỗi:", _av_exc)
+        return jsonify({"success": True, "message": result.get('message', 'Đã xóa')})
+    return jsonify({"success": False, "message": result.get('message', 'Không thể xóa thành viên')}), 400
+
+@app.route('/api/users/add', methods=['POST'])
+def api_add_user():
+    """Thêm thành viên mới vào sheet "Pass" (bảng Users). Chỉ admin/manager/leader."""
+    user = session.get('user')
+    role = (session.get('role') or '').lower()
+    if not user or (user != 'Manager' and role not in ['admin', 'manager', 'leader']):
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+
+    data = request.get_json(silent=True) or {}
+    result = add_user_to_sheet(data)
+    if not result.get('success'):
+        return jsonify({"success": False, "message": result.get('message', 'Không thể thêm thành viên')}), 400
+
+    clear_cache('load_users_from_sheet')
+    _history_profiles_cache['data'] = {}
+    _history_profiles_cache['at'] = 0.0
+
+    username = str(data.get('username') or '').strip()
+    profile = {}
+    try:
+        fresh = load_users_from_sheet(USER_SHEET_URL)
+        info = fresh.get(username)
+        if info:
+            profile = {k: v for k, v in info.items() if k != 'password'}
+    except Exception:
+        profile = {}
+
+    return jsonify({"success": True, "message": result.get('message', 'Đã thêm thành viên'), "user": profile})
+
+ALLOWED_AVATAR_MIMES = ('image/jpeg', 'image/png', 'image/webp', 'image/gif')
+AVATAR_EXT_MIME = {
+    'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'png': 'image/png',
+    'webp': 'image/webp', 'gif': 'image/gif',
+}
+AVATAR_UPLOAD_LIMIT = 5 * 1024 * 1024  # 5MB
+
+@app.route('/api/users/avatar', methods=['POST'])
+def api_upload_user_avatar():
+    """Upload avatar -> lưu thẳng vào DB (Turso/SQLite) + ghi URL vào sheet "Pass".
+
+    Ai cũng đổi được avatar của CHÍNH MÌNH; admin/manager/leader đổi được cho người khác.
+    """
+    user = session.get('user')
+    role = (session.get('role') or '').lower()
+    if not user:
+        return jsonify({"success": False, "message": "Unauthorized"}), 403
+
+    username = str(request.form.get('username') or '').strip()
+    file = request.files.get('file')
+    if not username:
+        return jsonify({"success": False, "message": "Thiếu tên đăng nhập"}), 400
+
+    is_privileged = (user == 'Manager' or role in ['admin', 'manager', 'leader'])
+    if not is_privileged and username != user:
+        return jsonify({"success": False, "message": "Bạn chỉ có thể đổi avatar của chính mình."}), 403
+
+    if not file or not file.filename:
+        return jsonify({"success": False, "message": "Chưa chọn file ảnh"}), 400
+
+    mime = (file.mimetype or '').lower().split(';')[0].strip()
+    if mime not in ALLOWED_AVATAR_MIMES:
+        ext = (file.filename.rsplit('.', 1)[-1] if '.' in file.filename else '').lower()
+        mime = AVATAR_EXT_MIME.get(ext, '')
+    if mime not in ALLOWED_AVATAR_MIMES:
+        return jsonify({"success": False, "message": "Chỉ nhận ảnh JPG / PNG / WEBP / GIF"}), 400
+
+    data = file.read()
+    if not data:
+        return jsonify({"success": False, "message": "File ảnh rỗng"}), 400
+    if len(data) > AVATAR_UPLOAD_LIMIT:
+        return jsonify({"success": False, "message": "Ảnh quá lớn (tối đa 5MB)"}), 400
+
+    if task_archive is None:
+        return jsonify({"success": False, "message": "Chưa cấu hình DB để lưu avatar"}), 500
+
+    try:
+        task_archive.save_user_avatar(username, data, mime=mime)
+    except Exception as e:
+        return jsonify({"success": False, "message": f"Lỗi lưu avatar vào DB: {e}"}), 500
+
+    url = "/api/avatar/" + _urlquote(username, safe='')
+    sheet_res = update_user_avatar_url(username, url)
+
+    clear_cache('load_users_from_sheet')
+    _history_profiles_cache['data'] = {}
+    _history_profiles_cache['at'] = 0.0
+
+    return jsonify({
+        "success": True,
+        "url": url,
+        "message": "Đã lưu avatar vào DB",
+        "sheet_updated": bool(sheet_res.get('success')),
+        "sheet_message": sheet_res.get('message') or '',
+    })
+
+@app.route('/api/avatar/<username>')
+def api_user_avatar(username):
+    """Phục vụ avatar đã lưu trong DB."""
+    from flask import Response
+    if task_archive is None:
+        return Response('No DB', status=404)
+    try:
+        av = task_archive.get_user_avatar(username)
+    except Exception as e:
+        print("get_user_avatar lỗi:", e)
+        av = None
+    if not av or not av.get('data'):
+        return Response('Not found', status=404)
+    resp = Response(av['data'], mimetype=av.get('mime') or 'image/jpeg')
+    resp.headers['Cache-Control'] = 'public, max-age=1800'
+    return resp
+
 @app.route('/logout')
 def logout():
     session.clear()
@@ -3074,6 +3754,320 @@ def lsa_drive():
         tasks=[],
         app_version=get_current_app_version(),
     )
+
+# =====================================================================
+# KHO LƯU TRỮ DÀI HẠN (ARCHIVE) - Turso/SQLite
+# ---------------------------------------------------------------------
+# Sheet của JP chỉ giữ ~3 tuần task; comment/checklist trước đây nằm trên
+# Supabase Storage dạng 1 file JSON ghi đè (không lịch sử). Phần này ghi
+# mọi thứ liên quan tới task vào DB SQL để tra lại được về sau.
+# =====================================================================
+ARCHIVE_SYNC_INTERVAL = int(os.environ.get('ARCHIVE_SYNC_INTERVAL', '900'))  # giây
+_archive_sync_lock = threading.Lock()
+_archive_sync_state = {'last': 0.0, 'ok': None, 'message': '', 'running': False}
+
+
+def archive_available():
+    return task_archive is not None and not ARCHIVE_IMPORT_ERROR
+
+
+# --- Hỗ trợ trang chi tiết task của Lịch sử -------------------------
+_history_profiles_cache = {'at': 0.0, 'data': {}}
+HISTORY_PROFILES_TTL = int(os.environ.get('HISTORY_PROFILES_TTL', '1800'))
+
+
+def history_user_profiles():
+    """Hồ sơ thành viên (avatar/tên) cho trang Lịch sử, cache 30 phút.
+
+    Trước đây mỗi lần mở trang là gọi Google Sheets một lần -> dễ dính lỗi
+    429 (quota). Cache lại là đủ vì avatar hầu như không đổi.
+    """
+    now = time.time()
+    cached = _history_profiles_cache['data']
+    if cached and (now - _history_profiles_cache['at']) < HISTORY_PROFILES_TTL:
+        return cached
+    try:
+        data = sanitize_user_profiles(load_users_from_sheet(USER_SHEET_URL))
+    except Exception:
+        return cached or {}
+    if data:
+        _history_profiles_cache['data'] = data
+        _history_profiles_cache['at'] = now
+    return data or cached or {}
+
+
+def _archive_detail_row(detail):
+    """Đổi dòng archive thành dict theo tên cột tiếng Việt của dashboard.
+
+    Các hàm render_task_* nhận ``row`` là 1 dòng sheet; ở đây mình dựng lại
+    đúng những khoá mà chúng cần đọc.
+    """
+    task = detail['task']
+
+    def clean(value):
+        if value is None:
+            return ''
+        text = str(value).strip()
+        return '' if text.lower() in ('nan', 'none') else text
+
+    worker = clean(task.get('worker'))
+    workers = [w.strip() for w in worker.split(',') if w.strip()]
+    return {
+        'tp_key': detail['tp_key'],
+        'tp_name': detail['tp_key'],
+        'volume_key': detail['volume_key'],
+        'Người thực hiện': ', '.join(workers),
+        'QC Nội bộ': clean(task.get('qc')),
+        'Công việc': clean(task.get('cong_viec')),
+        'Tên tác phẩm': clean(task.get('tac_pham')),
+        'Chương': clean(task.get('chuong')),
+        'Tập': clean(task.get('tap')),
+        'Số trang': clean(task.get('page')),
+        'Danh mục': clean(task.get('category')),
+        'is_coop': False,
+        'partner_worker': '',
+        'partner_cv': '',
+    }
+
+
+def archive_run_sync(log_fn=print):
+    """Đồng bộ task từ sheet + state từ Supabase vào archive. Chạy đồng bộ."""
+    if not archive_available():
+        return {'error': ARCHIVE_IMPORT_ERROR or 'archive không khả dụng'}
+    result = {'sheets': None, 'state': None}
+    try:
+        result['sheets'] = task_archive.sync_sheets(progress=log_fn)
+    except Exception as exc:
+        result['sheets'] = {'error': str(exc)}
+        log_fn(f"archive sync sheets lỗi: {exc}")
+    try:
+        result['state'] = task_archive.migrate_from_env(progress=log_fn)
+    except Exception as exc:
+        result['state'] = {'error': str(exc)}
+        log_fn(f"archive sync state lỗi: {exc}")
+    return result
+
+
+def archive_maybe_sync(force=False):
+    """Kích hoạt đồng bộ nền nếu đã quá ARCHIVE_SYNC_INTERVAL giây."""
+    if not archive_available():
+        return False
+    now = time.time()
+    if not force and (now - _archive_sync_state['last']) < ARCHIVE_SYNC_INTERVAL:
+        return False
+    if _archive_sync_state['running']:
+        return False
+    if not _archive_sync_lock.acquire(blocking=False):
+        return False
+
+    _archive_sync_state['last'] = now
+    _archive_sync_state['running'] = True
+
+    def _worker():
+        try:
+            res = archive_run_sync()
+            _archive_sync_state['ok'] = True
+            _archive_sync_state['message'] = 'ok'
+        except Exception as exc:
+            _archive_sync_state['ok'] = False
+            _archive_sync_state['message'] = str(exc)
+            print("archive background sync lỗi:", exc)
+        finally:
+            _archive_sync_state['running'] = False
+            try:
+                _archive_sync_lock.release()
+            except Exception:
+                pass
+
+    threading.Thread(target=_worker, daemon=True).start()
+    return True
+
+
+@app.route('/history')
+def history_page():
+    if not session.get('logged_in'):
+        return redirect('/')
+    lang = session.get('lang', 'vi')
+    archive_maybe_sync()
+    return render_template(
+        'history.html',
+        lang=lang,
+        user=session.get('user', ''),
+        role=session.get('role', 'member'),
+        user_profiles=history_user_profiles(),
+        archive_ok=archive_available(),
+        archive_error=ARCHIVE_IMPORT_ERROR,
+        app_version=get_current_app_version(),
+    )
+
+
+@app.route('/api/history/stats')
+def api_history_stats():
+    if not session.get('logged_in'):
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+    if not archive_available():
+        return jsonify({"status": "error", "message": ARCHIVE_IMPORT_ERROR}), 500
+    try:
+        data = task_archive.stats()
+        data['sync'] = dict(_archive_sync_state)
+        data['interval'] = ARCHIVE_SYNC_INTERVAL
+        return jsonify({"status": "success", "data": data})
+    except Exception as exc:
+        return jsonify({"status": "error", "message": str(exc)}), 500
+
+
+@app.route('/api/history/titles')
+def api_history_titles():
+    if not session.get('logged_in'):
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+    if not archive_available():
+        return jsonify({"status": "error", "message": ARCHIVE_IMPORT_ERROR}), 500
+    query = (request.args.get('q') or '').strip()
+    vn_only = (request.args.get('vn', '1') != '0')
+    try:
+        limit = min(int(request.args.get('limit', 300)), 2000)
+    except ValueError:
+        limit = 300
+    try:
+        titles = task_archive.list_titles(limit=limit, vn_only=vn_only, q=query or None)
+        total = task_archive.count_titles(vn_only=vn_only, q=query or None)
+        return jsonify({
+            "status": "success", "total": total, "titles": titles,
+            "vn_only": vn_only,
+        })
+    except Exception as exc:
+        return jsonify({"status": "error", "message": str(exc)}), 500
+
+
+@app.route('/api/history')
+def api_history():
+    if not session.get('logged_in'):
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+    if not archive_available():
+        return jsonify({"status": "error", "message": ARCHIVE_IMPORT_ERROR}), 500
+
+    tac_pham = (request.args.get('tac_pham') or '').strip()
+    if not tac_pham:
+        return jsonify({"status": "error", "message": "Thiếu tac_pham"}), 400
+
+    try:
+        items = task_archive.history_for_title(
+            tac_pham,
+            date_from=(request.args.get('from') or '').strip() or None,
+            date_to=(request.args.get('to') or '').strip() or None,
+            worker=(request.args.get('worker') or '').strip() or None,
+            job_type=(request.args.get('job_type') or '').strip() or None,
+            limit=min(int(request.args.get('limit', 2000)), 5000),
+            vn_only=(request.args.get('vn', '1') != '0'),
+        )
+        comments = task_archive.all_comments_for_title(tac_pham, limit=1000)
+        return jsonify({
+            "status": "success",
+            "tac_pham": tac_pham,
+            "items": items,
+            "comments": comments,
+        })
+    except Exception as exc:
+        return jsonify({"status": "error", "message": str(exc)}), 500
+
+
+@app.route('/api/history/task_detail')
+def api_history_task_detail():
+    """Trả về HTML trang chi tiết 1 thẻ (giống tab Task) + comment của tập.
+
+    Trang lịch sử bấm vào thẻ Kanban sẽ gọi API này rồi hiển thị ở chế độ
+    chỉ đọc (khoá logtime / import Notion / comment).
+    """
+    if not session.get('logged_in'):
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+    if not archive_available():
+        return jsonify({"status": "error", "message": ARCHIVE_IMPORT_ERROR}), 500
+
+    tac_pham = (request.args.get('tac_pham') or '').strip()
+    tp_key = (request.args.get('tp_key') or '').strip()
+    volume_key = (request.args.get('volume_key') or '').strip()
+    if not tac_pham:
+        return jsonify({"status": "error", "message": "Thiếu tac_pham"}), 400
+
+    try:
+        detail = task_archive.task_detail(
+            tac_pham, tp_key=tp_key or None, volume_key=volume_key or None)
+        if not detail:
+            return jsonify({"status": "error",
+                            "message": "Không tìm thấy task trong kho lưu trữ"}), 404
+
+        lang = session.get('lang', 'vi')
+        t = DICT_LANG.get(lang, DICT_LANG['vi'])
+        try:
+            users = task_archive.worker_names()
+        except Exception:
+            users = []
+
+        row = _archive_detail_row(detail)
+        html = render_template(
+            '_task_detail_page.html',
+            lang=lang,
+            t=t,
+            users=users,
+            user_profiles=history_user_profiles(),
+            row=row,
+            worker=row['Người thực hiện'],
+            tp_key=detail['tp_key'],
+            tp_name_display=detail['tp_key'],
+            page_id='hist',
+            modal_id='hist',
+            checked_ids_dict={detail['tp_key']: detail['checked_ids']},
+            archive_links={detail['tp_key']: detail['links']},
+            checklist_api='',
+            hist_lock=True,
+        )
+        return jsonify({
+            "status": "success",
+            "html": html,
+            "tp_key": detail['tp_key'],
+            "volume_key": detail['volume_key'],
+            "checklist_assumed": detail['checklist_assumed'],
+            "comments": detail['comments'],
+        })
+    except Exception as exc:
+        return jsonify({"status": "error", "message": str(exc)}), 500
+
+
+@app.route('/api/history/sync', methods=['POST'])
+def api_history_sync():
+    if not session.get('logged_in'):
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+    if not archive_available():
+        return jsonify({"status": "error", "message": ARCHIVE_IMPORT_ERROR}), 500
+    try:
+        if request.args.get('wait') == '1' or (request.get_json(silent=True) or {}).get('wait'):
+            result = archive_run_sync()
+            return jsonify({"status": "success", "result": result})
+        started = archive_maybe_sync(force=True)
+        return jsonify({"status": "success", "started": started})
+    except Exception as exc:
+        return jsonify({"status": "error", "message": str(exc)}), 500
+
+
+@app.route('/api/archive/cron')
+def api_archive_cron():
+    """Endpoint cho scheduler bên ngoài (Vercel cron / cron-job.org / Cloud Scheduler).
+
+    Bảo vệ bằng ARCHIVE_CRON_TOKEN. Ví dụ gọi mỗi giờ:
+        https://<domain>/api/archive/cron?token=<ARCHIVE_CRON_TOKEN>
+    """
+    expected = os.environ.get('ARCHIVE_CRON_TOKEN', '').strip()
+    if not expected:
+        return jsonify({"status": "error", "message": "Chưa cấu hình ARCHIVE_CRON_TOKEN"}), 503
+    if request.args.get('token', '') != expected:
+        return jsonify({"status": "error", "message": "Sai token"}), 403
+    if not archive_available():
+        return jsonify({"status": "error", "message": ARCHIVE_IMPORT_ERROR}), 500
+    try:
+        result = archive_run_sync(log_fn=lambda *a: None)
+        return jsonify({"status": "success", "result": result})
+    except Exception as exc:
+        return jsonify({"status": "error", "message": str(exc)}), 500
 
 # =====================================================================
 # DRIVE APIs
@@ -3714,6 +4708,12 @@ def dashboard():
     if data is None:
         return "Lỗi tải dữ liệu. Vui lòng kiểm tra lại link Google Sheets.", 500
 
+    # Đồng bộ kho lưu trữ dài hạn ở chế độ nền (không chặn trang).
+    try:
+        archive_maybe_sync()
+    except Exception as _archive_exc:
+        print("archive_maybe_sync lỗi:", _archive_exc)
+
     return render_template('dashboard.html', **data)
 
 @app.route('/debug-who-am-i')
@@ -3816,6 +4816,48 @@ def api_logtime():
         return jsonify({"status": "success"})
     else:
         return jsonify({"status": "error", "message": "Lỗi khi lưu logtime"}), 500
+
+@app.route('/api/logtime/history', methods=['GET'])
+def api_logtime_history():
+    """Lịch sử logtime cho màn hình web (đọc từ sheet 日報, cache 60s)."""
+    if not session.get('logged_in'):
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+
+    limit = request.args.get('limit', default=100, type=int) or 100
+    try:
+        rows = get_logtime_history(
+            limit=limit,
+            worker=request.args.get('worker', ''),
+            date_from=request.args.get('date_from', ''),
+            date_to=request.args.get('date_to', ''),
+            q=request.args.get('q', ''),
+            tac_pham=request.args.get('tac_pham', ''),
+            cong_viec=request.args.get('cong_viec', ''),
+            tap=request.args.get('tap', ''),
+            chuong=request.args.get('chuong', ''),
+            force=(request.args.get('refresh') == '1'),
+        )
+        total_hours = 0.0
+        total_pages = 0.0
+        for r in rows:
+            try:
+                total_hours += float(r['so_gio'] or 0)
+            except (TypeError, ValueError):
+                pass
+            try:
+                total_pages += float(r['so_page'] or 0)
+            except (TypeError, ValueError):
+                pass
+        return jsonify({
+            "status": "ok",
+            "count": len(rows),
+            "total_hours": round(total_hours, 2),
+            "total_pages": int(total_pages) if total_pages.is_integer() else round(total_pages, 1),
+            "rows": rows,
+        })
+    except Exception as ex:
+        print("Lỗi đọc lịch sử logtime:", repr(ex), flush=True)
+        return jsonify({"status": "error", "message": "Không đọc được lịch sử logtime"}), 500
 
 @app.route('/api/log_member_time', methods=['POST'])
 def api_log_member_time():
