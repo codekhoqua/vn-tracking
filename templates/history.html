@@ -1,0 +1,859 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Lịch sử task' if lang == 'vi' else 'タスク履歴' }} — VN-Tracking{% endblock %}
+
+{% block head %}
+<style>
+    /* Trang lịch sử lấp đầy khung nhìn (iframe của Tools hoặc cả cửa sổ).
+       Dùng height:100% theo chuỗi html/body thay cho 100vh: khi trang bị zoom
+       (trình duyệt zoom < 100%), 100vh tính thiếu nên đáy trang bị hụt. */
+    html, body { height: 100%; }
+    .hist-wrap {
+        max-width: none; margin: 0; padding: 16px 18px 16px;
+        height: 100%; box-sizing: border-box;
+        display: flex; flex-direction: column;
+    }
+    .hist-head { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-shrink: 0; }
+    .hist-title { display: flex; align-items: center; gap: 12px; font-family: 'Plus Jakarta Sans', sans-serif; }
+    .hist-title h1 { font-size: 1.7rem; font-weight: 800; margin: 0; color: var(--text); }
+    .hist-title .sub { display: block; font-size: .94rem; font-weight: 500; color: var(--text-3); margin-top: 3px; }
+
+    .hist-stats { display: flex; flex-wrap: wrap; gap: 10px; }
+    .stat-pill {
+        background: var(--surface-card); border: 1px solid var(--border); border-radius: var(--radius-md);
+        padding: 9px 15px; box-shadow: var(--shadow-xs); min-width: 104px;
+    }
+    .stat-pill .v { font-size: 1.24rem; font-weight: 800; color: var(--text); line-height: 1.2; }
+    .stat-pill .k { font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; color: var(--text-3); font-weight: 600; }
+
+    .btn {
+        border: 1px solid var(--border); background: var(--surface-card); color: var(--text-2);
+        border-radius: var(--radius-md); padding: 10px 17px; font-size: .96rem; font-weight: 600;
+        cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: .18s;
+    }
+    .btn:hover { background: var(--surface-hover); }
+    .btn-primary { background: var(--primary-gradient); color: #fff; border-color: transparent; box-shadow: var(--shadow-sm); }
+    .btn-primary:hover { filter: brightness(1.06); }
+    .btn:disabled { opacity: .55; cursor: not-allowed; }
+
+    .hist-grid { display: grid; grid-template-columns: 360px minmax(0, 1fr); gap: 18px; align-items: stretch; flex: 1; min-height: 0; }
+    @media (max-width: 1150px) {
+        .hist-grid { grid-template-columns: 1fr; }
+        .hist-wrap { height: auto; min-height: 100%; }
+    }
+
+    .panel { background: var(--surface-card); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-md); overflow: hidden; }
+    .hist-grid > .panel { display: flex; flex-direction: column; min-height: 0; }
+    .panel-head { padding: 14px 16px; border-bottom: 1px solid var(--border-subtle); display: flex; align-items: center; gap: 10px; flex-wrap: wrap; flex-shrink: 0; }
+    .panel-head h2 { font-size: 1.18rem; font-weight: 700; margin: 0; color: var(--text); }
+    .panel-body { padding: 14px 16px; }
+
+    .search-box { position: relative; }
+    .search-box input {
+        width: 100%; padding: 12px 15px; border: 1px solid var(--border); border-radius: var(--radius-md);
+        background: var(--bg-page); color: var(--text); font-size: 1.05rem; outline: none;
+    }
+    .search-box input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--border-focus); }
+
+    .title-list { flex: 1; min-height: 0; overflow-y: auto; margin: 0; padding: 4px; list-style: none; }
+    @media (max-width: 1150px) { .title-list { flex: none; max-height: 46vh; } }
+    /* Khung chi tiết (kanban/bảng) tự cuộn, lấp hết chiều cao còn lại */
+    #detail-body { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; }
+    @media (max-width: 1150px) { #detail-body { flex: none; } }
+    .title-item { padding: 10px 12px; border-radius: var(--radius-sm); cursor: pointer; transition: .14s; border: 1px solid transparent; }
+    .title-item:hover { background: var(--surface-hover); }
+    .title-item.active { background: var(--primary-bg); border-color: var(--border-focus); }
+    .title-item .n { font-size: 1.12rem; font-weight: 600; color: var(--text); display: block; word-break: break-word; }
+    .title-item .m { font-size: .92rem; color: var(--text-3); margin-top: 3px; }
+    /* Số tập VN đảm nhận (đã gộp trùng giữa 写植 và レタッチ) */
+    .title-item .vols { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+    .title-item .vol {
+        font-size: .86rem; font-weight: 800; padding: 1px 8px; border-radius: 6px; line-height: 1.7;
+        background: rgba(16,185,129,.14); color: #059669;
+    }
+    .title-item .badge {
+        display: inline-block; font-size: .86rem; font-weight: 800; padding: 1px 7px; border-radius: 999px;
+        background: rgba(16,185,129,.14); color: #059669; margin-left: 6px; vertical-align: middle;
+    }
+
+    /* ---------- chuyển chế độ xem ---------- */
+    .view-switch { display: inline-flex; background: var(--bg-page); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 3px; gap: 2px; }
+    .view-switch button {
+        border: 0; background: transparent; color: var(--text-3); font-size: .92rem; font-weight: 700;
+        padding: 7px 15px; border-radius: var(--radius-sm); cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+    }
+    .view-switch button.on { background: var(--surface-card); color: var(--text); box-shadow: var(--shadow-xs); }
+    .vn-toggle { display: inline-flex; align-items: center; gap: 8px; font-size: .92rem; font-weight: 600; color: var(--text-2); cursor: pointer; user-select: none; }
+    .vn-toggle input { width: 17px; height: 17px; accent-color: var(--primary); cursor: pointer; }
+
+    /* ---------- Kanban ---------- */
+    /* Bảng kanban lấp hết chiều cao còn lại; mỗi cột tự cuộn bên trong. */
+    .kb-board { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; align-items: stretch; flex: 1; min-height: 0; }
+    @media (max-width: 900px) { .kb-board { grid-template-columns: 1fr; } }
+    .kb-col { background: var(--bg-page); border: 1px solid var(--border); border-radius: var(--radius-lg); display: flex; flex-direction: column; min-height: 0; }
+    .kb-col-head { display: flex; justify-content: space-between; align-items: center; padding: 13px 15px; border-bottom: 1px solid var(--border); font-weight: 800; font-size: .95rem; color: var(--text); letter-spacing: .02em; }
+    .kb-col[data-status="not-started"] .kb-col-head { border-top: 3px solid #f59e0b; }
+    .kb-col[data-status="in-progress"] .kb-col-head { border-top: 3px solid #0ea5e9; }
+    .kb-col[data-status="delivered"] .kb-col-head { border-top: 3px solid #10b981; }
+    .kb-col-head .count { background: var(--surface-card); border: 1px solid var(--border); border-radius: 999px; padding: 1px 10px; font-size: .85rem; color: var(--text-3); font-weight: 700; }
+    .kb-cards { padding: 10px; overflow-y: auto; flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 9px; }
+    .kb-group { font-size: .76rem; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; color: var(--text-3); padding: 6px 4px 0; }
+    .kb-card { background: var(--surface-card); border: 1px solid var(--border); border-left: 3px solid var(--border); border-radius: var(--radius-md); padding: 11px 13px; cursor: pointer; transition: .15s; }
+    .kb-card:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
+    .kb-card.status-not-started { border-left-color: #f59e0b; }
+    .kb-card.status-in-progress { border-left-color: #0ea5e9; }
+    .kb-card.status-delivered { border-left-color: #10b981; }
+    .kb-card-top { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .kb-title { font-size: 1.1rem; font-weight: 700; color: var(--text); margin: 6px 0 4px; word-break: break-word; line-height: 1.35; }
+    .kb-dates { font-size: .88rem; color: var(--text-3); display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
+    .kb-dates .pill { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; }
+    .kb-dates .pill.hot { background: rgba(244,63,94,.1); color: #f43f5e; border-color: rgba(244,63,94,.22); font-weight: 700; }
+    .kb-row { display: flex; justify-content: space-between; gap: 8px; align-items: center; font-size: .95rem; color: var(--text-2); }
+    .kb-avatars { display: flex; }
+    .kb-av {
+        width: 24px; height: 24px; border-radius: 50%; color: #fff; font-size: 11px; font-weight: 700;
+        display: inline-flex; align-items: center; justify-content: center; overflow: hidden;
+        border: 2px solid var(--bg-card); background: linear-gradient(135deg, #4f46e5, #a855f7); flex-shrink: 0;
+    }
+    .kb-av img { width: 100%; height: 100%; object-fit: cover; }
+    .kb-qc { font-size: .82rem; color: var(--warning); background: rgba(255,167,38,.1); border: 1px solid rgba(255,167,38,.28); padding: 1px 6px; border-radius: 4px; white-space: nowrap; }
+    .kb-bar { height: 6px; border-radius: 3px; background: var(--surface); overflow: hidden; margin-top: 8px; }
+    .kb-bar > i { display: block; height: 100%; background: var(--primary-gradient); }
+    .kb-bar.assumed > i { background: linear-gradient(90deg, #34d399, #10b981); opacity: .6; }
+    .kb-assumed {
+        font-size: .76rem; font-weight: 800; color: #059669; background: rgba(16,185,129,.13);
+        border-radius: 4px; padding: 0 5px; margin-left: 4px; cursor: help; white-space: nowrap;
+    }
+    .kb-foot { display: flex; justify-content: space-between; align-items: center; font-size: .82rem; color: var(--text-3); margin-top: 4px; }
+    .kb-cmt { display: inline-flex; align-items: center; gap: 4px; color: #d97706; font-weight: 700; }
+
+    .filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-bottom: 14px; flex-shrink: 0; }
+    .filters label { display: block; font-size: .84rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--text-3); margin-bottom: 4px; }
+    .filters input, .filters select {
+        width: 100%; padding: 9px 11px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+        background: var(--bg-page); color: var(--text); font-size: 1rem; outline: none;
+    }
+
+    table.hist-table { width: 100%; border-collapse: collapse; font-size: 1rem; }
+    table.hist-table th {
+        text-align: left; padding: 11px 12px; background: var(--bg-page); color: var(--text-3);
+        font-size: .82rem; text-transform: uppercase; letter-spacing: .05em; border-bottom: 1px solid var(--border);
+        position: sticky; top: 0; z-index: 1;
+    }
+    table.hist-table td { padding: 11px 12px; border-bottom: 1px solid var(--border-subtle); color: var(--text-2); vertical-align: top; }
+    table.hist-table tr:hover td { background: var(--surface-hover); }
+    table.hist-table tr.is-new td { background: rgba(16,185,129,.06); }
+    .tbl-scroll { flex: 1 1 auto; min-height: 0; overflow: auto; }
+
+    .tag { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: .8rem; font-weight: 700; white-space: nowrap; }
+    .tag-Lettering { background: rgba(14,165,233,.12); color: #0284c7; }
+    .tag-Retouch { background: rgba(139,92,246,.12); color: #7c3aed; }
+    .tag-Both { background: rgba(16,185,129,.12); color: #059669; }
+    .tag-Prep { background: rgba(245,158,11,.14); color: #b45309; }
+    .tag-Other { background: rgba(100,116,139,.12); color: var(--text-3); }
+
+    .cmt-list { list-style: none; margin: 0; padding: 0; max-height: 40vh; overflow-y: auto; }
+    .cmt { padding: 10px 12px; border-radius: var(--radius-sm); background: var(--bg-page); margin-bottom: 8px; }
+    .cmt .top { display: flex; justify-content: space-between; gap: 10px; font-size: .82rem; color: var(--text-3); margin-bottom: 3px; }
+    .cmt .who { font-weight: 700; color: var(--text-2); }
+    .cmt .msg { font-size: .94rem; color: var(--text-2); white-space: pre-wrap; word-break: break-word; }
+
+    .empty { text-align: center; padding: 42px 18px; color: var(--text-3); font-size: 1rem; }
+    .warn { background: rgba(244,63,94,.08); border: 1px solid rgba(244,63,94,.25); color: #be123c; padding: 12px 14px; border-radius: var(--radius-md); font-size: .95rem; }
+    .muted { color: var(--text-3); font-size: .88rem; }
+
+    /* ---------- modal chi tiết ---------- */
+    .hist-modal { position: fixed; inset: 0; background: rgba(15,23,42,.55); backdrop-filter: blur(3px); z-index: 9999; display: none; align-items: center; justify-content: center; padding: 24px; }
+    .hist-modal.on { display: flex; }
+    .hist-modal-box { background: var(--surface-card); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg, 0 25px 50px rgba(0,0,0,.25)); width: 100%; max-width: 940px; max-height: 88vh; display: flex; flex-direction: column; overflow: hidden; }
+    .hist-modal-head { padding: 16px 18px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; }
+    .hist-modal-head h3 { margin: 0; font-size: 1.14rem; font-weight: 800; color: var(--text); }
+    .hist-modal-head .sub { font-size: .86rem; color: var(--text-3); margin-top: 3px; }
+    .hist-modal-close { border: 0; background: var(--bg-page); color: var(--text-3); border-radius: 8px; width: 32px; height: 32px; cursor: pointer; font-size: 1.1rem; flex-shrink: 0; }
+    .hist-modal-close:hover { background: var(--surface-hover); color: var(--text); }
+    .hist-modal-body { padding: 16px 18px; overflow-y: auto; }
+
+    /* ---------- trang chi tiết task (giống tab Task) ở chế độ chỉ đọc ---------- */
+    #hist-task-page { z-index: 130; left: 0 !important; top: 0 !important; }
+    #hist-task-page-inner { min-height: 100%; }
+    .hist-loading { padding: 80px 20px; text-align: center; color: var(--text-3); font-size: 1rem; }
+    .hist-lock-banner {
+        margin: 14px 26px 0; padding: 10px 16px; display: flex; align-items: flex-start; gap: 10px;
+        background: rgba(245,158,11,.13); border: 1px solid rgba(245,158,11,.4);
+        border-radius: var(--radius-md); color: #b45309; font-size: .92rem; font-weight: 600; line-height: 1.5;
+    }
+    .hist-lock-banner .hlb-icon { font-size: 1.1rem; line-height: 1.5; }
+    /* Bấm được vào nút điều hướng (về trang lịch sử) nhưng không đổi dữ liệu */
+    .hist-readonly input:disabled, .hist-readonly select:disabled,
+    .hist-readonly textarea:disabled, .hist-readonly button:disabled { opacity: .55; cursor: not-allowed; }
+    .hist-locked { opacity: .45 !important; filter: saturate(.4); pointer-events: none !important; cursor: not-allowed !important; }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="hist-wrap">
+    <div class="hist-head">
+        <div class="hist-title">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 3v5h5"></path><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"></path><path d="M12 7v5l4 2"></path>
+            </svg>
+            <div>
+                <h1>{{ 'Lịch sử task VN' if lang == 'vi' else 'VN タスク履歴' }}</h1>
+                <span class="sub">{{ 'Tra lại toàn bộ task của team VN, kể cả dữ liệu đã bị xoá khỏi Google Sheet.' if lang == 'vi' else 'シートから消えた過去タスクも検索できます。' }}</span>
+            </div>
+        </div>
+        <div class="hist-stats" id="hist-stats"></div>
+        <div style="display:flex; gap:8px;">
+            <button class="btn" id="btn-sync" onclick="triggerSync()">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline>
+                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                </svg>
+                <span>{{ 'Đồng bộ ngay' if lang == 'vi' else '今すぐ同期' }}</span>
+            </button>
+        </div>
+    </div>
+
+    {% if not archive_ok %}
+    <div class="warn" style="margin-bottom:18px;">Archive chưa sẵn sàng: {{ archive_error }}</div>
+    {% endif %}
+
+    <div class="hist-grid">
+        <div class="panel">
+            <div class="panel-head">
+                <h2>{{ 'Tác phẩm' if lang == 'vi' else '作品' }}</h2>
+                <span class="muted" id="title-count"></span>
+            </div>
+            <div class="panel-body" style="padding-bottom: 6px;">
+                <div class="search-box">
+                    <input id="q" type="text" autocomplete="off"
+                           placeholder="{{ 'Tìm tên tác phẩm...' if lang == 'vi' else '作品名で検索...' }}">
+                </div>
+                <label class="vn-toggle" style="margin-top:10px;">
+                    <input type="checkbox" id="vn-only" checked>
+                    <span>{{ 'Chỉ task VN' if lang == 'vi' else 'VNタスクのみ' }}</span>
+                </label>
+            </div>
+            <ul class="title-list" id="title-list" data-lenis-prevent>
+                <li class="empty">{{ 'Đang tải...' if lang == 'vi' else '読み込み中...' }}</li>
+            </ul>
+        </div>
+
+        <div class="panel">
+            <div class="panel-head">
+                <h2 id="detail-title">{{ 'Chọn một tác phẩm để xem lịch sử' if lang == 'vi' else '作品を選択してください' }}</h2>
+                <span class="muted" id="detail-meta" style="margin-left:auto;"></span>
+                <div class="view-switch" id="view-switch" style="display:none;">
+                    <button data-view="kanban" class="on">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="18" rx="1.5"/><rect x="14" y="3" width="7" height="18" rx="1.5"/></svg>
+                        Kanban
+                    </button>
+                    <button data-view="table">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+                        {{ 'Bảng' if lang == 'vi' else '表' }}
+                    </button>
+                </div>
+            </div>
+            <div class="panel-body" id="detail-body" data-lenis-prevent style="padding:14px;"></div>
+        </div>
+    </div>
+</div>
+
+<div class="hist-modal" id="hist-modal">
+    <div class="hist-modal-box">
+        <div class="hist-modal-head">
+            <div>
+                <h3 id="modal-title">-</h3>
+                <div class="sub" id="modal-sub"></div>
+            </div>
+            <button class="hist-modal-close" onclick="closeModal()">&times;</button>
+        </div>
+        <div class="hist-modal-body" id="modal-body" data-lenis-prevent></div>
+    </div>
+</div>
+
+<!-- ============ TRANG CHI TIẾT TASK (giống tab Task, chỉ đọc) ============ -->
+<div class="modal-overlay task-detail-page-view" id="hist-task-page" role="region"
+     aria-label="{{ 'Chi tiết task' if lang == 'vi' else 'タスク詳細' }}" data-lenis-prevent>
+    <div id="hist-task-page-inner"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Trang lịch sử là layout dạng app: cao đúng 100% khung nhìn và cuộn bên trong
+// từng khung. Lenis (smooth scroll của dashboard) khi chạy ở đây sẽ "nuốt" sự kiện
+// lăn chuột nên các khung chỉ cuộn được khi kéo thanh cuộn. Tắt Lenis ở trang này
+// để mọi thanh cuộn dùng cơ chế cuộn gốc của trình duyệt.
+(function disableSmoothScrollHere() {
+    function kill() {
+        try {
+            if (window.lenis && typeof window.lenis.destroy === 'function') window.lenis.destroy();
+        } catch (e) { /* bỏ qua */ }
+        window.lenis = null;
+    }
+    kill();
+    document.addEventListener('DOMContentLoaded', kill);
+    window.addEventListener('load', kill);
+})();
+</script>
+<script>
+(function () {
+    const LANG = {{ lang | tojson }};
+    const VI = LANG === 'vi';
+    const USER_PROFILES = {{ user_profiles | tojson }};
+    // app.js dùng biến này để lấy avatar cho comment (createCommentItemHtml).
+    window.userProfilesDB = USER_PROFILES;
+    const T = VI ? {
+        taskRows: 'task', volumes: 'tập', comments: 'comment', range: 'khoảng dữ liệu',
+        vnVolumes: 'Các tập VN đảm nhận',
+        tap: 'Tập', chuong: 'Chương', job: 'Công việc', worker: 'Người làm', qc: 'QC',
+        dates: 'Thời gian', status: 'Trạng thái', sheetStatus: 'Sheet', cmt: 'Cmt', ck: 'Tiến độ', note: 'Ghi chú',
+        allComments: 'Comment theo tác phẩm', noResult: 'Không có dữ liệu.', loading: 'Đang tải...',
+        syncing: 'Đang đồng bộ...', syncDone: 'Đồng bộ xong', syncFail: 'Đồng bộ lỗi',
+        filterFrom: 'Từ ngày', filterTo: 'Đến ngày', filterWorker: 'Người làm', filterJob: 'Công việc',
+        all: 'Tất cả', apply: 'Lọc', reset: 'Xoá lọc',
+        todo: 'To Do', doing: 'In Progress', done: 'Completed',
+        pickTitle: 'Chọn một tác phẩm để xem lịch sử', volumes_: 'tập', notStarted: 'Chưa bắt đầu', started: 'O列：開始',
+        allRows: 'Tất cả dòng task của thẻ này', commentsOf: 'Comment của task',
+        oldTag: 'tập cũ',
+        oldNote: 'Tập có thông tin trước tuần trước được tính 100% checklist (dữ liệu gốc vẫn giữ nguyên).'
+    } : {
+        taskRows: '件', volumes: '巻', comments: 'コメント', range: '期間',
+        vnVolumes: 'VN担当巻',
+        tap: '巻', chuong: '話', job: '作業', worker: '作業者', qc: 'QC',
+        dates: '期間', status: 'ステータス', sheetStatus: 'シート', cmt: 'コメント', ck: '進捗', note: '備考',
+        allComments: '作品のコメント', noResult: 'データなし', loading: '読み込み中...',
+        syncing: '同期中...', syncDone: '同期完了', syncFail: '同期失敗',
+        filterFrom: '開始', filterTo: '終了', filterWorker: '作業者', filterJob: '作業内容',
+        all: 'すべて', apply: '絞り込み', reset: 'リセット',
+        todo: '未着手', doing: '進行中', done: '納品済み',
+        pickTitle: '作品を選択してください', volumes_: '巻', notStarted: '未着手', started: 'O列：開始',
+        allRows: 'このカードの全タスク行', commentsOf: 'タスクのコメント',
+        oldTag: '過去巻',
+        oldNote: '先週より前の巻はチェックリスト100%として表示しています（元データは変更していません）。'
+    };
+
+    const JOB_ORDER = ['Prep', 'Lettering', 'Lettering QC', 'Retouch', 'Lettering/Retouch'];
+    const STATUSES = [
+        { id: 'not-started', label: T.todo },
+        { id: 'in-progress', label: T.doing },
+        { id: 'delivered', label: T.done }
+    ];
+
+    let selected = '';
+    let view = 'kanban';
+    let lastData = null;
+    // Giá trị bộ lọc đang áp dụng (giữ lại sau mỗi lần render vì #detail-body
+    // bị vẽ lại, nếu không các ô lọc sẽ tự trắng ra).
+    let filterState = { from: '', to: '', worker: '', job: '' };
+
+    const $ = (id) => document.getElementById(id);
+
+    function esc(s) {
+        return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => (
+            { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+        ));
+    }
+
+    // ---------- avatar (khớp mờ, giống dashboard) ----------
+    const AV_LIST = Object.keys(USER_PROFILES || {}).map((k) => [k.toLowerCase(), (USER_PROFILES[k] || {}).avatar || '']);
+
+    function avatarFor(name) {
+        const n = String(name || '').toLowerCase().trim();
+        if (!n) return '';
+        for (let i = 0; i < AV_LIST.length; i++) {
+            const k = AV_LIST[i][0];
+            if (AV_LIST[i][1] && (k.indexOf(n) >= 0 || n.indexOf(k) >= 0)) return AV_LIST[i][1];
+        }
+        return '';
+    }
+
+    function workersHtml(workers) {
+        const list = String(workers || '').split(',').map((w) => w.trim()).filter(Boolean);
+        if (!list.length) return '<span class="muted">-</span>';
+        const avs = list.map((w, i) => {
+            const a = avatarFor(w);
+            const inner = a
+                ? '<img src="' + esc(a) + '" alt="" referrerpolicy="no-referrer" onerror="this.style.display=\'none\'">'
+                : esc((w[0] || '?').toUpperCase());
+            return '<span class="kb-av" title="' + esc(w) + '" style="' + (i ? 'margin-left:-7px;' : '') + '">' + inner + '</span>';
+        }).join('');
+        return '<span class="kb-avatars">' + avs + '</span><span style="margin-left:8px;">' + esc(list.join(', ')) + '</span>';
+    }
+
+    function jobTag(job) {
+        const j = String(job || '');
+        let cls = 'tag-Other';
+        if (j === 'Lettering') cls = 'tag-Lettering';
+        else if (j === 'Retouch') cls = 'tag-Retouch';
+        else if (j === 'Prep') cls = 'tag-Prep';
+        else if (j.indexOf('Lettering') === 0 && j.indexOf('Retouch') > 0) cls = 'tag-Both';
+        return '<span class="tag ' + cls + '">' + esc(j || '-') + '</span>';
+    }
+
+    function fmtDate(iso) {
+        if (!iso) return '';
+        const m = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})/);
+        return m ? (m[3] + '/' + m[2] + '/' + m[1]) : iso;
+    }
+
+    function pill(value, label) {
+        return '<div class="stat-pill"><div class="v">' + esc(value) + '</div><div class="k">' + esc(label) + '</div></div>';
+    }
+
+    // ---------- thống kê ----------
+    async function loadStats() {
+        try {
+            const r = await fetch('/api/history/stats');
+            const d = await r.json();
+            if (d.status !== 'success') return;
+            const s = d.data;
+            const range = (s.vn_date_range || s.date_range || []).filter(Boolean).join(' → ') || '-';
+            $('hist-stats').innerHTML =
+                pill(s.vn_tasks != null ? s.vn_tasks : s.tasks, 'task VN') +
+                pill(s.vn_titles != null ? s.vn_titles : '-', VI ? 'tác phẩm' : '作品') +
+                pill(s.task_comments, T.comments) +
+                pill(s.checklist_state, 'checklist') +
+                pill(range, T.range);
+        } catch (e) { /* im lặng */ }
+    }
+
+    // ---------- danh sách tác phẩm ----------
+    async function loadTitles(q) {
+        $('title-list').innerHTML = '<li class="empty">' + T.loading + '</li>';
+        const vn = $('vn-only').checked ? '1' : '0';
+        try {
+            const r = await fetch('/api/history/titles?vn=' + vn + '&limit=400&q=' + encodeURIComponent(q || ''));
+            const d = await r.json();
+            if (d.status !== 'success') throw new Error(d.message);
+            const items = d.titles || [];
+            $('title-count').textContent = items.length + ' / ' + (d.total || items.length);
+            if (!items.length) { $('title-list').innerHTML = '<li class="empty">' + T.noResult + '</li>'; return; }
+            $('title-list').innerHTML = items.map((t) => {
+                const vols = (t.taps || []).map((v) => '<span class="vol">' + esc(v) + '</span>').join('');
+                return '<li class="title-item' + (t.tac_pham === selected ? ' active' : '') + '" data-name="' + esc(t.tac_pham) + '">' +
+                    '<span class="n">' + esc(t.tac_pham) + '</span>' +
+                    (vols ? '<span class="vols" title="' + esc(T.vnVolumes) + '">' + vols + '</span>' : '') +
+                    '<span class="m">' + esc(t.row_count) + ' ' + T.taskRows +
+                    (t.last_date ? ' · ' + esc(fmtDate(t.last_date)) : '') + '</span>' +
+                '</li>';
+            }).join('');
+            Array.prototype.forEach.call($('title-list').querySelectorAll('.title-item'), (el) => {
+                el.addEventListener('click', () => selectTitle(el.getAttribute('data-name')));
+            });
+        } catch (e) {
+            $('title-list').innerHTML = '<li class="empty">' + esc(e.message) + '</li>';
+        }
+    }
+
+    function selectTitle(name) {
+        selected = name;
+        Array.prototype.forEach.call(document.querySelectorAll('.title-item'), (el) => {
+            el.classList.toggle('active', el.getAttribute('data-name') === name);
+        });
+        $('detail-title').textContent = name;
+        $('view-switch').style.display = 'inline-flex';
+        loadDetail();
+    }
+
+    // ---------- lọc ----------
+    function filtersHtml() {
+        const fs = filterState;
+        return '<div class="filters">' +
+            '<div><label>' + T.filterFrom + '</label><input type="date" id="f-from" value="' + esc(fs.from) + '"></div>' +
+            '<div><label>' + T.filterTo + '</label><input type="date" id="f-to" value="' + esc(fs.to) + '"></div>' +
+            '<div><label>' + T.filterWorker + '</label><input type="text" id="f-worker" placeholder="Tan..." value="' + esc(fs.worker) + '"></div>' +
+            '<div><label>' + T.filterJob + '</label><select id="f-job">' +
+                '<option value="">' + T.all + '</option>' +
+                JOB_ORDER.map((j) => '<option' + (j === fs.job ? ' selected' : '') + '>' + esc(j) + '</option>').join('') +
+            '</select></div>' +
+            '<div style="display:flex; align-items:flex-end; gap:8px;">' +
+                '<button class="btn btn-primary" onclick="window.__histApply()">' + T.apply + '</button>' +
+                '<button class="btn" onclick="window.__histReset()">' + T.reset + '</button>' +
+            '</div>' +
+        '</div>';
+    }
+
+    async function loadDetail() {
+        if (!selected) return;
+        // Phải đọc bộ lọc TRƯỚC khi xoá #detail-body, vì các ô lọc nằm trong đó.
+        const read = (id) => { const el = $(id); return el && el.value ? el.value : ''; };
+        filterState = { from: read('f-from'), to: read('f-to'),
+                        worker: read('f-worker'), job: read('f-job') };
+        $('detail-body').innerHTML = '<div class="empty">' + T.loading + '</div>';
+        const qs = new URLSearchParams({ tac_pham: selected });
+        qs.set('vn', $('vn-only').checked ? '1' : '0');
+        if (filterState.from) qs.set('from', filterState.from);
+        if (filterState.to) qs.set('to', filterState.to);
+        if (filterState.worker) qs.set('worker', filterState.worker);
+        if (filterState.job) qs.set('job_type', filterState.job);
+        try {
+            const r = await fetch('/api/history?' + qs.toString());
+            const d = await r.json();
+            if (d.status !== 'success') throw new Error(d.message);
+            lastData = d;
+            render(d);
+        } catch (e) {
+            $('detail-body').innerHTML = '<div class="warn">' + esc(e.message) + '</div>';
+        }
+    }
+
+    function render(d) {
+        const items = d.items || [];
+        const cards = groupCards(items);
+        const dates = items.map((i) => i.end_date || i.start_date).filter(Boolean).sort();
+        $('detail-meta').textContent =
+            cards.length + ' task · ' + items.length + ' ' + T.taskRows +
+            (dates.length ? ' · ' + fmtDate(dates[0]) + ' → ' + fmtDate(dates[dates.length - 1]) : '');
+
+        let html = filtersHtml();
+        if (cards.some(function (c) { return c.checklist_assumed; })) {
+            html += '<div class="muted" style="margin:-4px 0 12px;">&#9432; ' + T.oldNote + '</div>';
+        }
+        if (view === 'kanban') html += kanbanHtml(cards);
+        else html += tableHtml(items);
+        $('detail-body').innerHTML = html;
+    }
+
+    // Gộp các dòng task cùng "công việc + tập" thành 1 thẻ kanban.
+    function groupCards(items) {
+        const map = {};
+        const rank = { 'not-started': 0, 'in-progress': 1, 'delivered': 2 };
+        items.forEach((i) => {
+            const key = i.tp_key || i.volume_key || (i.tap + '_' + (i.job_type || ''));
+            let g = map[key];
+            if (!g) {
+                g = map[key] = {
+                    key: key, tp_key: i.tp_key, volume_key: i.volume_key, tap: i.tap,
+                    job_type: i.job_type, cong_viec: i.cong_viec,
+                    start_date: i.start_date, end_date: i.end_date,
+                    status_class: i.status_class, worker: i.worker, qc: i.qc,
+                    status: i.status, progress_flag: i.progress_flag,
+                    checked_count: i.checked_count || 0, progress: i.progress || 0,
+                    comments_count: i.comments_count || 0, note: i.note,
+                    checklist_assumed: !!i.checklist_assumed,
+                    is_vn: i.is_vn, rows: []
+                };
+            }
+            g.rows.push(i);
+            if (i.start_date && (!g.start_date || i.start_date < g.start_date)) g.start_date = i.start_date;
+            if (i.end_date && (!g.end_date || i.end_date > g.end_date)) g.end_date = i.end_date;
+            if (rank[i.status_class] > rank[g.status_class]) g.status_class = i.status_class;
+            g.checked_count = Math.max(g.checked_count, i.checked_count || 0);
+            g.progress = Math.max(g.progress, i.progress || 0);
+            g.checklist_assumed = g.checklist_assumed || !!i.checklist_assumed;
+            g.comments_count = Math.max(g.comments_count, i.comments_count || 0);
+            // gộp người làm + QC (bỏ trùng)
+            const wSet = [];
+            String(g.worker || '').split(',').concat(String(i.worker || '').split(',')).forEach((w) => {
+                const t = w.trim();
+                if (t && wSet.indexOf(t) < 0) wSet.push(t);
+            });
+            g.worker = wSet.join(', ');
+            const qSet = [];
+            String(g.qc || '').split(',').concat(String(i.qc || '').split(',')).forEach((w) => {
+                const t = w.trim();
+                if (t && t !== 'nan' && qSet.indexOf(t) < 0) qSet.push(t);
+            });
+            g.qc = qSet.join(', ');
+        });
+        return Object.keys(map).map((k) => map[k]);
+    }
+
+    function kanbanHtml(cards) {
+        if (!cards.length) return '<div class="empty">' + T.noResult + '</div>';
+        let html = '<div class="kb-board">';
+        STATUSES.forEach((st) => {
+            const inCol = cards.filter((c) => c.status_class === st.id);
+            html += '<div class="kb-col" data-status="' + st.id + '">' +
+                '<div class="kb-col-head"><span>' + esc(st.label) + '</span>' +
+                '<span class="count">' + inCol.length + '</span></div><div class="kb-cards">';
+            if (!inCol.length) {
+                html += '<div class="muted" style="padding:10px 4px;">—</div>';
+            } else {
+                const extraJobs = Array.from(new Set(inCol.map((c) => c.job_type || '')))
+                    .filter((j) => j && JOB_ORDER.indexOf(j) < 0);
+                const jobs = JOB_ORDER.concat(extraJobs);
+                jobs.forEach((jt) => {
+                    const group = inCol.filter((c) => (c.job_type || '') === jt);
+                    if (!group.length) return;
+                    html += '<div class="kb-group">' + esc(jt || '-') + ' · ' + group.length + '</div>';
+                    group.forEach((c) => { html += cardHtml(c); });
+                });
+            }
+            html += '</div></div>';
+        });
+        return html + '</div>';
+    }
+
+    function cardHtml(c) {
+        const assumed = !!c.checklist_assumed;
+        const pct = Math.min(100, Math.round((c.checked_count || 0) / 9 * 100));
+        const d1 = fmtDate(c.start_date), d2 = fmtDate(c.end_date);
+        return '<div class="kb-card status-' + esc(c.status_class) + '" data-key="' + esc(c.key) + '">' +
+            '<div class="kb-card-top">' + jobTag(c.cong_viec || c.job_type) +
+                (c.comments_count ? '<span class="kb-cmt" title="comment">&#128276; ' + esc(c.comments_count) + '</span>' : '') +
+            '</div>' +
+            '<div class="kb-title">' + esc(c.tp_key || c.volume_key || '-') + '</div>' +
+            ((d1 || d2) ? '<div class="kb-dates">' +
+                '<span class="pill">&#128197; ' + esc(d1 || '?') + ' ~ ' + esc(d2 || '?') + '</span>' +
+                '</div>' : '') +
+            '<div class="kb-row"><span style="display:flex; align-items:center;">' + workersHtml(c.worker) + '</span>' +
+                (c.qc ? '<span class="kb-qc">QC: ' + esc(c.qc) + '</span>' : '') +
+            '</div>' +
+            '<div class="kb-bar' + (assumed ? ' assumed' : '') + '"><i style="width:' + pct + '%"></i></div>' +
+            '<div class="kb-foot"><span>checklist ' + (c.checked_count || 0) + '/9 (' + pct + '%)' +
+                (assumed ? ' <span class="kb-assumed" title="' + esc(T.oldNote) + '">&#10003; ' + esc(T.oldTag) + '</span>' : '') +
+                '</span>' +
+                '<span>' + esc(c.progress_flag || c.status || '') + '</span></div>' +
+        '</div>';
+    }
+
+    function tableHtml(items) {
+        if (!items.length) return '<div class="empty">' + T.noResult + '</div>';
+        const today = new Date().toISOString().slice(0, 10);
+        return '<div class="tbl-scroll"><table class="hist-table"><thead><tr>' +
+            ['tap', 'chuong', 'job', 'worker', 'qc', 'dates', 'sheetStatus', 'cmt', 'ck', 'note']
+                .map((k) => '<th>' + T[k] + '</th>').join('') +
+            '</tr></thead><tbody>' + items.map((i) => {
+                const ck = i.checklist ? (i.checklist.checked + '/' + i.checklist.total) : '-';
+                const late = i.end_date && i.end_date < today && i.status_class !== 'delivered';
+                return '<tr data-key="' + esc(i.tp_key || i.volume_key || '') + '">' +
+                    '<td>' + esc(i.tap || '-') + '</td>' +
+                    '<td>' + esc(i.chuong || '-') + '</td>' +
+                    '<td>' + jobTag(i.cong_viec || i.job_type) + '</td>' +
+                    '<td>' + esc(i.worker || '-') + '</td>' +
+                    '<td>' + esc(i.qc || '-') + '</td>' +
+                    '<td>' + esc(fmtDate(i.start_date)) + '<br><span class="muted"' + (late ? ' style="color:#f43f5e;"' : '') + '>' + esc(fmtDate(i.end_date)) + '</span></td>' +
+                    '<td>' + esc(i.status || '-') + '</td>' +
+                    '<td>' + (i.comments_count ? '<strong>' + i.comments_count + '</strong>' : '-') + '</td>' +
+                    '<td>' + esc(ck) + (i.checklist_assumed ? ' <span class="kb-assumed" title="' + esc(T.oldNote) + '">&#10003;</span>' : '') + '</td>' +
+                    '<td>' + esc(i.note || '') + '</td>' +
+                '</tr>';
+            }).join('') + '</tbody></table></div>';
+    }
+
+    // ---------- trang chi tiết task (giống tab Task, chế độ chỉ đọc) ----------
+    function cardByKey(key) {
+        const data = lastData || { items: [] };
+        const cards = groupCards(data.items || []);
+        for (let i = 0; i < cards.length; i += 1) {
+            if (cards[i].key === key) return cards[i];
+        }
+        return null;
+    }
+
+    function fmtCommentTime(ts) {
+        if (!ts) return '';
+        const d = new Date(Number(ts) * 1000);
+        return isNaN(d.getTime()) ? String(ts) : d.toLocaleString(VI ? 'vi-VN' : 'ja-JP');
+    }
+
+    // Vẽ lại số ô đã tick của từng giai đoạn (dashboard tính riêng bằng JS).
+    function recountSteps(box) {
+        box.querySelectorAll('.step-col').forEach((col) => {
+            const boxes = col.querySelectorAll('input[data-checklist]');
+            if (!boxes.length) return;
+            let done = 0;
+            boxes.forEach((b) => { if (b.checked) done += 1; });
+            const pct = Math.round((done / boxes.length) * 100);
+            const cnt = col.querySelector('.step-count');
+            if (cnt) cnt.textContent = done + '/' + boxes.length;
+            const fill = col.querySelector('.step-progress-fill');
+            if (fill) fill.style.width = pct + '%';
+        });
+    }
+
+    // Khoá mọi thao tác ghi: logtime, import Notion/link, comment, checklist.
+    function lockTaskPage(box) {
+        box.classList.add('hist-readonly');
+        const handlers = ['onclick', 'onchange', 'oninput', 'onkeydown', 'onsubmit'];
+        box.querySelectorAll('[onclick], [onchange], [oninput], [onkeydown], [onsubmit]').forEach((el) => {
+            handlers.forEach((a) => el.removeAttribute(a));
+        });
+        box.querySelectorAll('input, select, textarea, button').forEach((el) => {
+            el.disabled = true;
+            el.setAttribute('tabindex', '-1');
+        });
+        // ...nhưng vẫn cho bấm để thoát khỏi trang chi tiết.
+        box.querySelectorAll('.task-back-btn, .task-crumb-root, .task-page-close-btn').forEach((el) => {
+            el.disabled = false;
+            el.removeAttribute('tabindex');
+            el.onclick = (ev) => { ev.preventDefault(); ev.stopPropagation(); closeModal(); };
+        });
+        // Vẫn cho copy câu report logtime trong chế độ read-only.
+        box.querySelectorAll('.logtime-report-copy').forEach((el) => {
+            el.disabled = false;
+            el.removeAttribute('tabindex');
+            const section = el.closest('.logtime-history-inline');
+            if (section) el.onclick = () => copyLogtimeReport(section.dataset.index);
+        });
+        // Nút sửa link / cài đặt link (phần "import Notion") bị khoá.
+        box.querySelectorAll('.task-link-edit-btn, .btn-manage-links').forEach((el) => {
+            el.classList.add('hist-locked');
+            el.removeAttribute('onclick');
+        });
+        // Chặn form tự submit (đổi URL / gửi dữ liệu) khi đã gỡ onsubmit.
+        box.querySelectorAll('form').forEach((f) => {
+            f.action = 'javascript:void(0)';
+            f.addEventListener('submit', (ev) => { ev.preventDefault(); ev.stopPropagation(); });
+        });
+        recountSteps(box);
+    }
+
+    // Hiện comment đọc từ kho lưu trữ (thay vì comment live trên Supabase).
+    function fillArchiveComments(box, comments, tpKey) {
+        const list = box.querySelector('.handover-comments-list');
+        if (!list || !comments || !comments.length) return;
+        list.innerHTML = comments.map((c) => createCommentItemHtml({
+            id: c.comment_id,
+            user: c.author || '',
+            message: c.message || '',
+            tag: c.tag || '',
+            time: fmtCommentTime(c.ts)
+        }, tpKey)).join('');
+    }
+
+    async function openTaskPage(key) {
+        const card = cardByKey(key);
+        if (!card || !selected) return;
+        const page = $('hist-task-page');
+        const box = $('hist-task-page-inner');
+        box.innerHTML = '<div class="hist-loading">' + T.loading + '</div>';
+        page.classList.add('open');
+        page.scrollTop = 0;
+        document.body.style.overflow = 'hidden';
+
+        const qs = new URLSearchParams({ tac_pham: selected });
+        if (card.tp_key) qs.set('tp_key', card.tp_key);
+        if (card.volume_key) qs.set('volume_key', card.volume_key);
+        try {
+            const r = await fetch('/api/history/task_detail?' + qs.toString());
+            const d = await r.json();
+            if (d.status !== 'success') throw new Error(d.message || 'Error');
+            box.innerHTML = d.html;
+            lockTaskPage(box);
+            fillArchiveComments(box, d.comments, card.tp_key);
+            // Load lịch sử logtime inline cho task vừa inject
+            if (typeof initInlineLogtimeHistory === 'function') initInlineLogtimeHistory();
+        } catch (e) {
+            box.innerHTML = '<div class="hist-loading" style="color:#be123c;">' +
+                esc(e.message || 'Error') + '</div>';
+        }
+    }
+
+    // ---------- modal ----------
+    function openCard(key) {
+        const data = lastData || { items: [], comments: [] };
+        const cards = groupCards(data.items || []);
+        const card = cards.filter((c) => c.key === key)[0];
+        if (!card) return;
+        $('modal-title').textContent = card.tp_key || card.volume_key || key;
+        $('modal-sub').textContent = (card.rows.length) + ' ' + T.taskRows +
+            (card.worker ? ' · ' + card.worker : '') + (card.qc ? ' · QC: ' + card.qc : '');
+
+        let html = '<div class="muted" style="margin-bottom:8px;">' + T.allRows + '</div>';
+        html += '<div class="tbl-scroll"><table class="hist-table"><thead><tr>' +
+            ['tap', 'chuong', 'job', 'worker', 'qc', 'dates', 'sheetStatus', 'ck', 'note']
+                .map((k) => '<th>' + T[k] + '</th>').join('') +
+            '</tr></thead><tbody>' + card.rows.map((i) => {
+                const ck = i.checklist ? (i.checklist.checked + '/' + i.checklist.total) : '-';
+                return '<tr>' +
+                    '<td>' + esc(i.tap || '-') + '</td>' +
+                    '<td>' + esc(i.chuong || '-') + '</td>' +
+                    '<td>' + jobTag(i.cong_viec || i.job_type) + '</td>' +
+                    '<td>' + esc(i.worker || '-') + '</td>' +
+                    '<td>' + esc(i.qc || '-') + '</td>' +
+                    '<td>' + esc(fmtDate(i.start_date)) + ' ~ ' + esc(fmtDate(i.end_date)) + '</td>' +
+                    '<td>' + esc(i.status || '-') + '</td>' +
+                    '<td>' + esc(ck) + (i.checklist_assumed ? ' <span class="kb-assumed" title="' + esc(T.oldNote) + '">&#10003;</span>' : '') + '</td>' +
+                    '<td>' + esc(i.note || '') + '</td>' +
+                '</tr>';
+            }).join('') + '</tbody></table></div>';
+
+        $('modal-body').innerHTML = html;
+        $('hist-modal').classList.add('on');
+    }
+
+    window.closeModal = function () {
+        $('hist-modal').classList.remove('on');
+        const page = $('hist-task-page');
+        if (page) page.classList.remove('open');
+        document.body.style.overflow = '';
+    };
+    $('hist-modal').addEventListener('click', (e) => { if (e.target === $('hist-modal')) closeModal(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+
+    // ---------- sự kiện ----------
+    window.__histApply = loadDetail;
+    window.__histReset = function () {
+        filterState = { from: '', to: '', worker: '', job: '' };
+        // Phải xoá cả giá trị trong DOM, vì loadDetail() đọc lại từ DOM.
+        ['f-from', 'f-to', 'f-worker', 'f-job'].forEach((id) => {
+            const el = $(id);
+            if (el) el.value = '';
+        });
+        loadDetail();
+    };
+
+    window.triggerSync = async function () {
+        const btn = $('btn-sync');
+        btn.disabled = true;
+        const label = btn.querySelector('span');
+        const old = label.textContent;
+        label.textContent = T.syncing;
+        try {
+            const r = await fetch('/api/history/sync?wait=1', { method: 'POST' });
+            const d = await r.json();
+            label.textContent = d.status === 'success' ? T.syncDone : T.syncFail;
+            await loadStats();
+            loadTitles($('q').value);
+            if (selected) loadDetail();
+        } catch (e) {
+            label.textContent = T.syncFail;
+        }
+        setTimeout(() => { label.textContent = old; btn.disabled = false; }, 1800);
+    };
+
+    $('detail-body').addEventListener('click', (e) => {
+        const card = e.target.closest ? e.target.closest('.kb-card') : null;
+        if (card) { openTaskPage(card.getAttribute('data-key')); return; }
+        const row = e.target.closest ? e.target.closest('tr[data-key]') : null;
+        if (row) openCard(row.getAttribute('data-key'));
+    });
+
+    // Enter trong ô lọc = bấm Lọc
+    $('detail-body').addEventListener('keydown', (e) => {
+        const id = (e.target && e.target.id) || '';
+        if (e.key === 'Enter' && (id === 'f-from' || id === 'f-to' || id === 'f-worker')) {
+            e.preventDefault();
+            loadDetail();
+        }
+    });
+
+    Array.prototype.forEach.call($('view-switch').querySelectorAll('button'), (b) => {
+        b.addEventListener('click', () => {
+            view = b.getAttribute('data-view');
+            Array.prototype.forEach.call($('view-switch').querySelectorAll('button'), (x) => x.classList.toggle('on', x === b));
+            if (lastData) render(lastData);
+        });
+    });
+
+    $('vn-only').addEventListener('change', () => {
+        loadTitles($('q').value);
+        if (selected) loadDetail();
+    });
+
+    let timer = null;
+    $('q').addEventListener('input', function (e) {
+        clearTimeout(timer);
+        const v = e.target.value;
+        timer = setTimeout(() => loadTitles(v), 260);
+    });
+
+    loadStats();
+    loadTitles('');
+})();
+</script>
+{% endblock %}

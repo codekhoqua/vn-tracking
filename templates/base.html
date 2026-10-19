@@ -24,6 +24,30 @@
             if (savedTheme === 'dark') {
                 document.documentElement.classList.add('dark-theme');
             }
+
+            // Áp theme cho cả <body> (các override sáng dùng body:not(.dark-theme)).
+            // Cần thiết cho trang con trong iframe (Lịch sử task, LSA Drive, PSD Tool...).
+            function applyBodyTheme(isDark) {
+                if (document.body) {
+                    document.body.classList.toggle('dark-theme', isDark);
+                }
+            }
+            if (document.body) {
+                applyBodyTheme(savedTheme === 'dark');
+            } else {
+                document.addEventListener('DOMContentLoaded', function() {
+                    applyBodyTheme(localStorage.getItem('vn_tracking_theme') === 'dark');
+                });
+            }
+
+            // Đồng bộ theme khi trang cha (Dashboard) bật/tắt chế độ sáng-tối.
+            window.addEventListener('message', function(e) {
+                if (e.data && e.data.type === 'theme_change') {
+                    var isDark = e.data.theme === 'dark';
+                    document.documentElement.classList.toggle('dark-theme', isDark);
+                    document.body.classList.toggle('dark-theme', isDark);
+                }
+            });
         })();
     </script>
     {% block head %}{% endblock %}

@@ -6,6 +6,19 @@ SUPABASE_URL: "https://YOUR-PROJECT.supabase.co"
 SUPABASE_SECRET_KEY: "sb_secret_REPLACE_ME"
 SUPABASE_BUCKET: "drive"
 
+# ===== Kho lưu trữ dài hạn (task / comment / checklist / link) =====
+# Tạo DB Turso rồi dán vào đây. Xem README mục "Kho lưu trữ dài hạn".
+#   turso db create vn-tracking-archive
+#   turso db show vn-tracking-archive --url
+#   turso db tokens create vn-tracking-archive
+# Nếu để trống, app tự dùng SQLite local tại data/vn_tracking_archive.db
+TURSO_DATABASE_URL: ""
+TURSO_AUTH_TOKEN: ""
+# Chu kỳ tự đồng bộ archive (giây), mặc định 900 = 15 phút
+ARCHIVE_SYNC_INTERVAL: "900"
+# Token cho endpoint cron /api/archive/cron?token=...
+ARCHIVE_CRON_TOKEN: ""
+
 SECRET_KEY: "change-me-to-a-random-string"
 GROQ_API_KEY: ""
 TZ: "Asia/Ho_Chi_Minh"

@@ -6,7 +6,7 @@ Theo dõi task theo tuần, checklist giao nhận, logtime, drive tài nguyên, 
 
 - Backend: Python / Flask 3 + Flask-SocketIO
 - Frontend: Jinja2, Vanilla CSS, Vanilla JS (không bundler)
-- Dữ liệu: Google Sheets (đọc/ghi) + Supabase Storage (trạng thái JSON, drive)
+- Dữ liệu: Google Sheets (đọc/ghi) + **DB SQL cho task/comment/checklist/link** (Turso, fallback SQLite) + Supabase Storage (ảnh, drive, pet, radio)
 - Ngôn ngữ: Tiếng Việt / 日本語
 - Giao diện: Light / Dark, responsive
 
@@ -19,6 +19,7 @@ Theo dõi task theo tuần, checklist giao nhận, logtime, drive tài nguyên, 
 | Cộng tác | Comment bàn giao, quick tag, thông báo realtime, Team Chat, bot dịch `@bot` |
 | Thời gian | Time tracker theo session + lịch sử, logtime ghi trực tiếp lên Google Sheet |
 | LSA Drive | Quản lý file/folder trên Supabase Storage (fallback filesystem), upload trực tiếp |
+| Lịch sử task | Tra task cũ theo tác phẩm (SQL/Turso), Kanban như dashboard, mở chi tiết task chỉ đọc |
 | Nghỉ phép | Form nhiều bước, nén & upload ảnh xác nhận lên Google Drive, tạo Calendar event, email admin |
 | Tiện ích | Weather + album filmstrip, Lofi Radio (DJ chung, queue, automix), thú cưng 3D |
 | Quản trị | Phân quyền member/admin, đổi mật khẩu, cấu hình email nghỉ phép |
@@ -28,6 +29,8 @@ Theo dõi task theo tuần, checklist giao nhận, logtime, drive tài nguyên, 
 ```
 .
 ├── app.py                     # Toàn bộ backend: routes, socket events, tích hợp
+├── task_archive.py            # Kho lưu trữ dài hạn: schema + đọc/ghi task
+├── archive_store.py           # Backend lưu trữ: Turso (HTTP) hoặc SQLite
 ├── requirements.txt
 ├── Dockerfile                 # Gunicorn + eventlet cho Cloud Run
 ├── vercel.json                # Cấu hình deploy serverless
@@ -41,15 +44,17 @@ Theo dõi task theo tuần, checklist giao nhận, logtime, drive tài nguyên, 
 │   └── PRODUCT.md             # Bối cảnh sản phẩm, người dùng, phạm vi
 │
 ├── scripts/
+│   ├── archive_sync.py        # Backfill/đồng bộ kho lưu trữ dài hạn (CLI)
+│   ├── turso_setup.py         # Tạo DB Turso + ghi cấu hình + backfill (không cần CLI)
 │   ├── build_docx.py          # Xuất tài liệu PSD từ Notion ra .docx
 │   └── convert_fbx_to_glb.py  # Convert model thú cưng FBX → GLB
 │
 ├── integrations/
 │   └── google_apps_script.js  # Web App: upload Drive, Calendar, email
 │
-├── templates/                 # base / login / dashboard / drive / calendar / psd_tool
+├── templates/                 # base / login / dashboard / drive / calendar / psd_tool / history
 ├── static/                    # css, js, audio, images, models, lottie, weather_album
-└── data/                      # Dữ liệu runtime (đơn nghỉ phép, file đính kèm)
+└── data/                      # Dữ liệu runtime (đơn nghỉ phép, file đính kèm, archive SQLite)
 ```
 
 Thư mục `static/weather_album/` và `data/` chứa dữ liệu người dùng; `data/leave_requests.json`,
@@ -83,6 +88,11 @@ Trên Docker/Cloud Run/Vercel, truyền biến môi trường trực tiếp.
 | `SUPABASE_URL` | Có* | URL project Supabase |
 | `SUPABASE_SECRET_KEY` | Có* | Secret key (bucket private) |
 | `SUPABASE_BUCKET` | Không | Tên bucket, mặc định `drive` |
+| `TURSO_DATABASE_URL` | Không** | URL DB Turso (`libsql://...`) chứa kho lưu trữ task |
+| `TURSO_AUTH_TOKEN` | Không** | Token Turso (`turso db tokens create`) |
+| `ARCHIVE_SYNC_INTERVAL` | Không | Chu kỳ tự đồng bộ archive, mặc định `900` giây |
+| `ARCHIVE_CRON_TOKEN` | Không | Token cho endpoint cron `/api/archive/cron?token=...` |
+| `ARCHIVE_SQLITE_PATH` | Không | Đường dẫn SQLite khi không dùng Turso |
 | `SECRET_KEY` | Nên đổi | Khoá session Flask |
 | `GROQ_API_KEY` | Không | Bật AI insight (LLaMA 3.1) |
 | `TZ` | Không | Mặc định `Asia/Ho_Chi_Minh` |
@@ -96,8 +106,138 @@ Trên Docker/Cloud Run/Vercel, truyền biến môi trường trực tiếp.
 
 \* Nếu thiếu Supabase, app chạy fallback với filesystem `drive_data/`.
 
+\** Nếu thiếu Turso, app tự dùng SQLite local `data/vn_tracking_archive.db`.
+Trên Vercel (filesystem read-only) thì dùng `/tmp` — dữ liệu sẽ mất khi
+instance tái tạo, nên production bắt buộc cấu hình Turso.
+
+## Kho lưu trữ dài hạn (archive)
+
+### Vì sao cần
+
+Sheet của JP chỉ giữ **~3 tuần** task (các tab `After week`, `Data Sort` bị
+luân chuyển), nên task của tháng cũ bị mất khỏi web. Comment/checklist trước
+đây lưu trên Supabase Storage dưới dạng **một file JSON duy nhất** bị ghi đè
+liên tục — chỉ giữ trạng thái mới nhất, không có lịch sử.
+
+### Kiến trúc sau khi đổi
+
+| Dữ liệu | Nơi lưu | Lịch sử |
+| --- | --- | --- |
+| Task (作品名 / tập / chương / người làm / status) | DB SQL bảng `tasks` | Có — mỗi lần sync ghi thêm |
+| Comment task | DB SQL bảng `task_comments` | Có — kèm `timestamp` thật |
+| Checklist tick | `checklist_state` + `checklist_events` | Có — event ghi cả **người tick** |
+| Link Mikan/Notion/Asana/Dropbox | DB SQL bảng `task_links` | Bản mới nhất |
+| Ảnh album, file drive, pet, radio, online users | Supabase Storage (giữ nguyên) | — |
+
+Các file `_system/checklists.json`, `_system/task_comments.json`,
+`_system/task_links.json` trên Supabase vẫn được ghi song song như **bản
+mirror/dự phòng**; khi đọc thì DB SQL là nguồn chính.
+
+### Tạo DB Turso
+
+Turso CLI **không có bản Windows** (chỉ macOS/Linux). Trên Windows dùng script
+có sẵn — script gọi Turso Platform API qua HTTPS nên không cần cài gì thêm:
+
+```powershell
+# 1. Vào https://app.turso.tech -> Account -> API Tokens -> Create token
+#    (token dạng JWT rất dài, bắt đầu bằng eyJ...)
+# 2. Chạy:
+set TURSO_API_TOKEN=<dán_token>
+python scripts/turso_setup.py
+```
+
+Script tự làm hết: tạo database `vn-tracking-archive` → sinh auth token →
+ghi `TURSO_DATABASE_URL` + `TURSO_AUTH_TOKEN` vào `env_vars.yaml` → tạo schema
+→ backfill toàn bộ task + comment/checklist/link. Xem thêm:
+
+```powershell
+python scripts/turso_setup.py --help
+python scripts/turso_setup.py --dry-run          # chỉ xem sẽ làm gì
+python scripts/turso_setup.py --location aws-ap-northeast-1
+```
+
+Trên macOS/Linux (hoặc Cloud Shell) vẫn có thể dùng CLI như thường:
+
+```bash
+turso auth login
+turso db create vn-tracking-archive
+turso db show vn-tracking-archive --url          # -> libsql://...
+turso db tokens create vn-tracking-archive       # -> token
+```
+
+Sau đó restart app. Trên Cloud Run / Vercel nhớ thêm 2 biến
+`TURSO_DATABASE_URL` + `TURSO_AUTH_TOKEN` vào Environment Variables.
+
+> Chưa cấu hình Turso thì app vẫn chạy bình thường với SQLite local — trang
+> `/history` hoạt động ngay, chỉ không dùng chung được giữa các máy.
+
+### Backfill & đồng bộ
+
+```bash
+python scripts/archive_sync.py                 # kéo task + comment/checklist/link
+python scripts/archive_sync.py --sheets-only   # chỉ task từ Google Sheet
+python scripts/archive_sync.py --state-only    # chỉ state từ Supabase
+python scripts/archive_sync.py --stats         # xem thống kê
+python scripts/archive_sync.py --titles 20      # liệt kê tác phẩm
+```
+
+Trong app, archive tự đồng bộ nền mỗi `ARCHIVE_SYNC_INTERVAL` giây khi có
+người mở Dashboard, và có thể gọi tay bằng nút **Đồng bộ ngay** trên trang
+`/history`. Với scheduler bên ngoài, dùng:
+
+```
+GET https://<domain>/api/archive/cron?token=<ARCHIVE_CRON_TOKEN>
+```
+
+### Xem lịch sử
+
+Trong app: **Tools → Lịch sử task** (mở dạng trang con giống *LSA Drive*, có
+nút *Trở về Dashboard* + Esc để đóng). Đường dẫn trực tiếp là `/history`.
+
+Gõ tên tác phẩm để tra toàn bộ tập/chương từng làm, lọc theo ngày/người
+làm/loại việc, và xem mọi comment của tác phẩm đó.
+
+Bấm vào một thẻ Kanban sẽ mở **đúng trang chi tiết task như tab Task** của
+dashboard, đầy đủ checklist 9 bước, trạng thái thật tại thời điểm lưu, link
+Mikan/Notion/Asana/Dropbox, time tracker và comment lịch sử — nhưng ở chế độ
+**chỉ đọc**: logtime, import Notion/link và ô gửi comment đều bị khoá.
+
+Với tập cũ (đã qua tuần trước), checklist được hiển thị 100% vì trước đây
+không lưu state; thẻ có gắn dấu ✓ và có dòng nhắc trong trang chi tiết.
+
+Vì Turso là SQLite, muốn soi DB trực tiếp:
+
+```bash
+turso db shell vn-tracking-archive
+turso db shell vn-tracking-archive "SELECT tac_pham, COUNT(*) FROM tasks GROUP BY tac_pham ORDER BY 2 DESC LIMIT 20"
+```
+
+Hoặc dùng `turso db dump` / `turso db shell .dump` để tải về mở bằng DB Browser.
+
 > Không commit `env_vars.yaml` và `credentials.json`. Nếu các khoá từng bị lộ, hãy rotate
 > (Supabase secret, Groq, service account, Cloudflare tunnel).
+
+## Bảo mật
+
+### Sheet tài khoản (`Pass`) — đã vá
+
+Trước đây `load_users_from_sheet()` đọc sheet bằng **CSV export công khai**, nên bất kỳ ai
+có link đều đọc được **mật khẩu dạng plaintext** của toàn bộ tài khoản. Nay hàm này đọc
+bằng **service account** (`credentials.json` hoặc `GOOGLE_CREDENTIALS` /
+`GOOGLE_CREDENTIALS_B64`), và chỉ fallback về CSV nếu không có credentials.
+
+Việc cần làm để đóng lỗ hổng (chỉ cần làm 1 lần):
+
+1. Mở sheet `Pass` → **Share** → General access → **Restricted**.
+2. Giữ quyền cho service account `logtime-sa@logtime-app-3366.iam.gserviceaccount.com`
+   (đã kiểm tra là account này đọc được, không cần cấp thêm).
+
+Sheet JP master cũng đã chuyển sang đọc qua service account
+(`task_archive.fetch_sheet_rows`) nên có thể khoá luôn cùng cách.
+
+> Còn lại: cột `Password` trong sheet vẫn lưu plaintext. Muốn bỏ hẳn thì phải
+> chuyển sang hash — kèm sửa Apps Script đổi mật khẩu (đang so sánh mật khẩu cũ
+> trực tiếp trên sheet), nếu không sẽ hỏng luồng đổi mật khẩu.
 
 ## Deploy
 
@@ -125,7 +265,8 @@ Checklist, comment, task links, drive, logtime vẫn hoạt động bình thư�
 
 ## Ghi chú vận hành
 
-- Dữ liệu task/user đọc từ Google Sheets CSV (cache 180–300 giây).
+- Dữ liệu task/user đọc từ Google Sheets qua **service account** (`credentials.json`),
+  fallback CSV export công khai (cache 180–300 giây).
 - Logtime ghi vào sheet `日報`; time tracker ghi vào `JPメンバー`; cần chia sẻ sheet cho
   service account trong `credentials.json`.
 - Thư mục `drive_data/` và `__pycache__/` được tạo tự động, không commit.

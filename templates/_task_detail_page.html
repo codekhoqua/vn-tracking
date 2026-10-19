@@ -1,0 +1,131 @@
+{# ------------------------------------------------------------------
+   Trang chi tiết 1 thẻ task (công việc + tập) - dùng chung dashboard và lịch sử.
+   Biến cần có: row, tp_key, tp_name_display, worker, page_id, modal_id,
+                lang, users, checked_ids_dict, checklist_api, hist_lock (tuỳ chọn)
+
+   page_id  : khoá dùng cho thuộc tính id của các ô checklist (vd "nay_3")
+   modal_id : khoá của chính overlay (vd "nay-3" — dashboard dùng dấu gạch ngang)
+   ------------------------------------------------------------------ #}
+{% if hist_lock %}<div class="hist-task-page-body">{% else %}<div class="modal-overlay task-detail-page-view" id="modal-{{ modal_id }}" role="region" aria-label="{{ tp_name_display }}" data-lenis-prevent>{% endif %}
+    <div class="task-page-container">
+        {% set _back_label = ('Trở về Lịch sử task' if lang == 'vi' else 'タスク履歴に戻る') if hist_lock else ('Trở về Dashboard' if lang == 'vi' else 'ダッシュボードに戻る') %}
+        {% set _root_label = ('Lịch sử task' if lang == 'vi' else 'タスク履歴') if hist_lock else 'Dashboard' %}
+        <!-- Top Navigation / Breadcrumbs -->
+        <div class="task-page-nav-bar">
+            <div class="task-page-breadcrumbs">
+                <button type="button" class="task-back-btn" onclick="closeModal('{{ modal_id }}', '{{ tp_key }}')" title="{{ _back_label }}">
+                    <i class="fas fa-chevron-left"></i>
+                    <span>{{ _back_label }}</span>
+                </button>
+                <span class="task-crumb-sep">/</span>
+                <span class="task-crumb-root" onclick="closeModal('{{ modal_id }}', '{{ tp_key }}')">{{ _root_label }}</span>
+                <span class="task-crumb-sep">/</span>
+                <span class="task-crumb-current">Task</span>
+            </div>
+
+            <div class="task-page-top-actions">
+                <button class="export-project-btn" title="Export Project (DB_作品管理)" onclick="exportProjectNotionCSV('{{ tp_key }}')">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                    </svg>
+                </button>
+                <button class="export-btn" title="Export Task (DB_工程管理)" onclick="exportSingleNotionCSV('{{ tp_key }}')">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7 10 12 15 17 10"></polyline>
+                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                    </svg>
+                </button>
+                <button class="task-page-close-btn" onclick="closeModal('{{ modal_id }}', '{{ tp_key }}')" title="{{ ('Đóng task' if lang == 'vi' else 'タスクを閉じる') if hist_lock else ('Đóng trang' if lang == 'vi' else '閉じる') }} (Esc)">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        {%- if hist_lock %}
+        <!-- Chế độ xem lịch sử: chỉ đọc -->
+        <div class="hist-lock-banner">
+            <span class="hlb-icon">&#128274;</span>
+            <span>{{ 'Chế độ xem lịch sử — chỉ đọc. Logtime, import Notion và comment đã bị khoá để không làm thay đổi dữ liệu thật.' if lang == 'vi' else '履歴表示（閲覧のみ）。Logtime・Notion取り込み・コメントは実際のデータを変更しないようロックされています。' }}</span>
+        </div>
+        {% endif %}
+
+        <!-- Task Page Hero Title & Worker Header -->
+        <div class="task-page-header">
+            <div class="task-page-title-block">
+                <h1 class="task-page-main-title">{{ tp_name_display }}</h1>
+                <div class="task-page-worker-row">
+                    <div class="worker-avatars-group" style="display: flex;">
+                        {% set workers = worker.split(',') if worker else [] %}
+                        {% for w in workers %}
+                        {% set w_trim = w.strip() %}
+                        {% set ns = namespace(found_avatar=none) %}
+                        {% if user_profiles %}
+                        {% for k, v in user_profiles.items() %}
+                        {% if k|lower in w_trim|lower or w_trim|lower in k|lower %}
+                        {% set ns.found_avatar = v.avatar %}
+                        {% endif %}
+                        {% endfor %}
+                        {% endif %}
+                        <span class="worker-avatar"
+                            style="{% if not loop.first %}margin-left: -8px;{% endif %} border: 2px solid var(--surface-card); position: relative; z-index: {{ 10 - loop.index0 }};"
+                            title="{{ w_trim }}">
+                            {% if ns.found_avatar %}
+                            <img src="{{ ns.found_avatar }}" alt="Avatar" class="avatar-img"
+                                referrerpolicy="no-referrer"
+                                onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                            <span class="avatar-fallback" style="display:none;">{{ w_trim[0]|upper if w_trim else 'U' }}</span>
+                            {% else %}
+                            {{ w_trim[0]|upper if w_trim else 'U' }}
+                            {% endif %}
+                        </span>
+                        {% endfor %}
+                    </div>
+                    <span class="task-page-worker-name">{{ worker }}</span>
+                    {% if row.get('QC Nội bộ') and row.get('QC Nội bộ')|string|trim|lower not in ['nan', 'none', ''] %}
+                    <div class="qc-badge"
+                        style="font-size: 0.82rem; color: #f59e0b; background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.35); padding: 3px 10px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; font-weight: 700;"
+                        title="QC Nội bộ">
+                        <i class="fas fa-clipboard-check"></i> QC: {{ row.get('QC Nội bộ') }}
+                    </div>
+                    {% endif %}
+
+                    <!-- GHOST AVATARS CONTAINER -->
+                    <div class="ghost-avatars" data-tp-key="{{ tp_key }}"
+                        style="display: flex; gap: -5px; align-items: center; margin-left: 10px;">
+                        <!-- Avatars injected by JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Task Page Master Layout -->
+        <div class="task-master-layout">
+            <!-- LEFT MAIN STAGE: Workflow & Collaboration -->
+            <div class="task-main-col">
+                {{ render_task_links(tp_key, page_id, lang, row, archive_links if archive_links is defined else none) }}
+                {{ render_task_steps(tp_key, page_id, lang, checklist_api, checked_ids_dict) }}
+                {{ render_task_handover(tp_key, page_id, lang, row) }}
+            </div>
+
+            <!-- RIGHT SIDEBAR: Time Tracking & Logtime Control Deck -->
+            <div class="task-side-col">
+                {{ render_task_tracker(tp_key, page_id, lang) }}
+                
+                <div class="task-page-logtime-card">
+                    <div class="task-page-logtime-header">
+                        <div class="task-page-logtime-title">
+                            <span class="logtime-icon-circle"><i class="fas fa-clock"></i></span>
+                            <span>{{ 'Nhập Logtime' if lang == 'vi' else 'Logtime入力' }}</span>
+                        </div>
+                    </div>
+                    {{ render_logtime_form(row, page_id, t, users, lang) }}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

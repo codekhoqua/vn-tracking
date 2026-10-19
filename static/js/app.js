@@ -37,13 +37,17 @@
             '#profile-panel',
             '.pet-flyout-panel',
             '#pet-panel',
+            '.filter-drawer',
+            '#filter-drawer',
             '.modal',
             '.modal-dialog',
             '.modal-content',
             '.table-responsive',
             '.table-container',
+            '.table-wrapper',
             '.flatpickr-calendar',
             '.dropdown-menu',
+            '.lang-dropdown',
             '.notification-panel'
         ].join(', ');
 
@@ -357,7 +361,7 @@ document.addEventListener('DOMContentLoaded', () => {
     mainNavItems.forEach((item, index) => {
         item.addEventListener('click', () => {
             // Close any open tool page views when navigating main dashboard/table
-            ['drive', 'calendar', 'psd', 'role'].forEach(t => {
+            ['drive', 'calendar', 'psd', 'role', 'history'].forEach(t => {
                 const el = document.getElementById(`page-view-${t}`);
                 if (el && el.classList.contains('open')) closeToolPage(t);
             });
@@ -407,6 +411,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const navDrive = document.getElementById('nav-drive');
     if (navDrive) {
         navDrive.addEventListener('mouseenter', preloadDriveIframe, { once: true });
+    }
+
+    // Preload Lịch sử task iframe on hover (nặng hơn drive nên chỉ load khi cần)
+    function preloadHistoryIframe() {
+        const iframe = document.getElementById('history-page-iframe');
+        if (iframe && (!iframe.src || iframe.src === window.location.href || iframe.src.endsWith('/'))) {
+            iframe.src = '/history';
+        }
+    }
+    const navHistory = document.getElementById('nav-history');
+    if (navHistory) {
+        navHistory.addEventListener('mouseenter', preloadHistoryIframe, { once: true });
     }
     if ('requestIdleCallback' in window) {
         window.requestIdleCallback(() => setTimeout(preloadDriveIframe, 1000));
@@ -3451,6 +3467,12 @@ function openModal(tabKey, cardName) {
                         loadTrackerHistory(tIndex, tTpKey);
                     }
                 }
+
+                // Load Logtime History (inline dưới form logtime)
+                const logtimeInline = modal.querySelector('.logtime-history-inline');
+                if (logtimeInline) {
+                    loadInlineLogtimeHistory(logtimeInline);
+                }
             });
         }
     }
@@ -3510,6 +3532,11 @@ function openToolPage(toolKey) {
         const iframe = document.getElementById('psd-page-iframe');
         if (iframe && (!iframe.src || iframe.src === window.location.href || iframe.src.endsWith('/'))) {
             iframe.src = '/psd-tool';
+        }
+    } else if (toolKey === 'history') {
+        const iframe = document.getElementById('history-page-iframe');
+        if (iframe && (!iframe.src || iframe.src === window.location.href || iframe.src.endsWith('/'))) {
+            iframe.src = '/history';
         }
     }
 
@@ -3578,6 +3605,17 @@ function closeToolPage(toolKey) {
         }
     }
 
+    // Lịch sử task: đóng trang thì trả iframe về danh sách tác phẩm
+    // (trang chi tiết task trong lịch sử không có thanh điều hướng riêng).
+    if (toolKey === 'history') {
+        const iframe = document.getElementById('history-page-iframe');
+        try {
+            if (iframe && iframe.contentWindow && typeof iframe.contentWindow.closeModal === 'function') {
+                iframe.contentWindow.closeModal();
+            }
+        } catch (_) {}
+    }
+
     // Hide tools highlight pill
     const toolsHl = document.getElementById('sidebar-tools-hl');
     if (toolsHl) toolsHl.style.opacity = '0';
@@ -3615,6 +3653,12 @@ function closePsdToolPage() { closeToolPage('psd'); }
 
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
+        // Modal "Thêm thành viên" ưu tiên đóng trước, không đóng luôn trang tool
+        const amModal = document.getElementById('am-modal');
+        if (amModal && amModal.classList.contains('open')) {
+            closeAddMemberModal();
+            return;
+        }
         document.querySelectorAll('.modal-overlay.open').forEach(m => {
             m.classList.remove('open');
         });
@@ -4239,9 +4283,7 @@ function showLogtimeSaveModal(state, isVi) {
                 try { window._duoAnim.destroy(); } catch (e) {}
                 window._duoAnim = null;
             }
-            if (typeof window.triggerAutoReloadOnTaskDone === 'function') {
-                window.triggerAutoReloadOnTaskDone();
-            }
+            // Không auto reload sau khi logtime xong (chỉ task finish mới reload).
         };
 
         overlay.onclick = function(e) {
@@ -4276,6 +4318,13 @@ function executeLogtimeSubmit(form, formId, data) {
                 logtimeCooldowns[formId] = Date.now();
                 showLogtimeSaveModal('success', isVi);
                 if (typeof handlePetXPResponse === 'function') handlePetXPResponse(result);
+                // Cập nhật lại lịch sử inline ngay dưới form
+                const wrap = form.closest('.logtime-form');
+                const inline = wrap ? wrap.querySelector('.logtime-history-inline') : null;
+                if (inline) {
+                    inline.dataset.loading = '';
+                    loadInlineLogtimeHistory(inline);
+                }
             } else {
                 showLogtimeSaveModal('close', isVi);
                 showToast('❌ ' + (result.message || (isVi ? 'Có lỗi xảy ra.' : 'エラーが発生しました。')), 'error');
@@ -4286,6 +4335,382 @@ function executeLogtimeSubmit(form, formId, data) {
             showToast(isVi ? '❌ Lỗi kết nối!' : '❌ 接続エラー！', 'error');
         })
         .finally(() => { btn.disabled = false; btn.innerHTML = orig; });
+}
+
+// ===================== LOGTIME HISTORY =====================
+function _lthEsc(v) {
+    return String(v == null ? '' : v).replace(/[&<>"']/g, function(c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+}
+
+function openLogtimeHistory(form) {
+    const isVi = typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi';
+    // Giống "Lịch sử bấm giờ": mở ra xem TẤT CẢ lượt log của task (mọi người).
+    // Muốn lọc riêng ai thì gõ vào ô Người làm.
+    let worker = '', tp = '', cv = '', tap = '', chuong = '';
+    if (form) {
+        // Lấy luôn người làm đang chọn trong form -> lịch sử follow theo người đó
+        const wEl = form.querySelector('[name="nguoi_thuc_hien"]');
+        if (wEl) worker = wEl.value || '';
+        const tpEl = form.querySelector('[name="tac_pham"]');
+        if (tpEl) tp = tpEl.value || '';
+        const cvEl = form.querySelector('[name="cong_viec"]');
+        if (cvEl) cv = cvEl.value || '';
+        const tapEl = form.querySelector('[name="tap"]');
+        if (tapEl) tap = tapEl.value || '';
+        const chEl = form.querySelector('[name="chuong"]');
+        if (chEl) chuong = chEl.value || '';
+    }
+
+    let overlay = document.getElementById('logtime-history-overlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'logtime-history-overlay';
+        overlay.className = 'modal-overlay';
+        overlay.style.zIndex = '100004';
+        document.body.appendChild(overlay);
+
+        if (!document.getElementById('logtime-history-style')) {
+            const style = document.createElement('style');
+            style.id = 'logtime-history-style';
+            style.innerHTML = `
+                .lth-wrap { max-width: 1120px; width: 94%; max-height: 88vh; display: flex; flex-direction: column; background: var(--surface, #fff); border: 1px solid var(--border, #e5e7eb); border-radius: 20px; box-shadow: 0 24px 60px rgba(0,0,0,.28); overflow: hidden; }
+                .lth-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border, #e5e7eb); }
+                .lth-title { font-weight: 800; font-size: 1.05rem; color: var(--text, #111827); display: flex; align-items: center; gap: 8px; }
+                .lth-close { border: none; background: transparent; font-size: 1.3rem; cursor: pointer; color: var(--text-3, #6b7280); line-height: 1; padding: 6px 10px; border-radius: 8px; }
+                .lth-close:hover { background: rgba(0,0,0,.06); }
+                .lth-filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding: 12px 20px; border-bottom: 1px solid var(--border, #e5e7eb); }
+                .lth-filters input { padding: 8px 10px; border: 1px solid var(--border, #d1d5db); border-radius: 10px; background: var(--surface, #fff); color: var(--text, #111827); font-size: .85rem; }
+                .lth-filters input[type="date"] { width: 148px; }
+                .lth-btn { padding: 8px 14px; border-radius: 10px; border: 1px solid var(--border, #d1d5db); background: var(--surface, #fff); color: var(--text, #111827); cursor: pointer; font-size: .85rem; font-weight: 600; }
+                .lth-btn:hover { border-color: var(--primary, #6366f1); color: var(--primary, #6366f1); }
+                .lth-btn.primary { background: var(--primary, #6366f1); border-color: var(--primary, #6366f1); color: #fff; }
+                .lth-summary { padding: 10px 20px; font-size: .82rem; color: var(--text-3, #6b7280); border-bottom: 1px solid var(--border, #e5e7eb); }
+                .lth-body { overflow: auto; padding: 0 20px 20px; }
+                .lth-table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+                .lth-table th { position: sticky; top: 0; background: var(--surface, #fff); text-align: left; padding: 10px 8px; border-bottom: 2px solid var(--border, #e5e7eb); white-space: nowrap; color: var(--text-3, #6b7280); font-weight: 700; z-index: 1; }
+                .lth-table td { padding: 8px; border-bottom: 1px solid var(--border, #f1f5f9); color: var(--text, #111827); vertical-align: top; }
+                .lth-table tr:hover td { background: rgba(99,102,241,.05); }
+                .lth-pill { display: inline-block; padding: 2px 8px; border-radius: 999px; background: rgba(99,102,241,.12); color: var(--primary, #6366f1); font-weight: 700; font-size: .75rem; white-space: nowrap; }
+                .lth-task-chip { font-size: .78rem; font-weight: 700; color: var(--primary, #6366f1); background: rgba(99,102,241,.12); padding: 3px 10px; border-radius: 999px; max-width: 460px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+                .lth-filters select { padding: 8px 10px; border: 1px solid var(--border, #d1d5db); border-radius: 10px; background: var(--surface, #fff); color: var(--text, #111827); font-size: .85rem; }
+                .lth-empty, .lth-loading { padding: 48px 20px; text-align: center; color: var(--text-3, #6b7280); }
+            `;
+            document.head.appendChild(style);
+        }
+    }
+
+    overlay.dataset.tp = tp;
+    overlay.dataset.cv = cv;
+    overlay.dataset.tap = tap;
+    overlay.dataset.chuong = chuong;
+    overlay.dataset.worker = worker;
+
+    const volLabel = tap
+        ? (isVi ? `Tập ${tap}` : `第${tap}巻`)
+        : (chuong ? (isVi ? `Ch. ${chuong}` : `第${chuong}話`) : '');
+    const taskChipText = [tp, volLabel, cv, worker ? '👤 ' + worker : ''].filter(Boolean).join(' · ');
+    const taskChip = tp
+        ? `<span class="lth-task-chip" title="${_lthEsc(taskChipText)}">${_lthEsc(taskChipText)}</span>`
+        : '';
+
+    overlay.innerHTML = `
+        <div class="lth-wrap">
+            <div class="lth-head">
+                <div class="lth-title"><i class="fas fa-history" style="color: var(--primary);"></i> ${isVi ? 'Lịch sử Logtime' : 'Logtime履歴'} ${taskChip}</div>
+                <button type="button" class="lth-close" onclick="closeLogtimeHistory()" title="${isVi ? 'Đóng' : '閉じる'}">✕</button>
+            </div>
+            <div class="lth-filters">
+                <select id="lth-scope" ${tp ? '' : 'disabled'}>
+                    <option value="task" ${tp ? 'selected' : ''}>${isVi ? 'Chỉ task này' : 'このタスクのみ'}</option>
+                    <option value="task_work">${isVi ? 'Task + công việc' : 'タスク＋作業内容'}</option>
+                    <option value="all" ${tp ? '' : 'selected'}>${isVi ? 'Tất cả' : 'すべて'}</option>
+                </select>
+                <input id="lth-worker" type="text" placeholder="${isVi ? 'Người làm...' : '作業者...'}" title="${isVi ? 'Để trống để xem tất cả người làm' : '空欄なら全員表示'}" value="${_lthEsc(worker)}" style="width: 160px;">
+                <input id="lth-from" type="date" title="${isVi ? 'Từ ngày' : '開始日'}">
+                <input id="lth-to" type="date" title="${isVi ? 'Đến ngày' : '終了日'}">
+                <input id="lth-q" type="text" placeholder="${isVi ? 'Tìm trong task...' : 'タスク内検索...'}" style="flex: 1; min-width: 160px;">
+                <button type="button" class="lth-btn primary" onclick="loadLogtimeHistory(false)">${isVi ? 'Tìm' : '検索'}</button>
+                <button type="button" class="lth-btn" onclick="loadLogtimeHistory(true)" title="${isVi ? 'Tải lại' : '更新'}">↻</button>
+            </div>
+            <div id="lth-summary" class="lth-summary"></div>
+            <div id="lth-body" class="lth-body"><div class="lth-loading">${isVi ? 'Đang tải...' : '読み込み中...'}</div></div>
+        </div>`;
+    overlay.classList.add('open');
+    overlay.onclick = function(e) { if (e.target === overlay) closeLogtimeHistory(); };
+
+    ['lth-worker', 'lth-q'].forEach(function(id) {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') { e.preventDefault(); loadLogtimeHistory(false); }
+        });
+    });
+
+    const scopeEl = document.getElementById('lth-scope');
+    if (scopeEl) scopeEl.addEventListener('change', function() { loadLogtimeHistory(false); });
+
+    loadLogtimeHistory(false);
+}
+
+function closeLogtimeHistory() {
+    const overlay = document.getElementById('logtime-history-overlay');
+    if (overlay) overlay.classList.remove('open');
+}
+
+function loadLogtimeHistory(force) {
+    const isVi = typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi';
+    const body = document.getElementById('lth-body');
+    const summary = document.getElementById('lth-summary');
+    if (!body) return;
+
+    const worker = (document.getElementById('lth-worker') || {}).value || '';
+    const from = (document.getElementById('lth-from') || {}).value || '';
+    const to = (document.getElementById('lth-to') || {}).value || '';
+    const q = (document.getElementById('lth-q') || {}).value || '';
+
+    const overlay = document.getElementById('logtime-history-overlay');
+    const scope = (document.getElementById('lth-scope') || {}).value || 'all';
+    const tp = (overlay && overlay.dataset.tp) || '';
+    const cv = (overlay && overlay.dataset.cv) || '';
+    const tap = (overlay && overlay.dataset.tap) || '';
+    const chuong = (overlay && overlay.dataset.chuong) || '';
+
+    const params = new URLSearchParams({ limit: '200' });
+    // Mặc định chỉ xem lịch sử của đúng task đang mở:
+    // tên truyện + TẬP (単行本) hoặc CHƯƠNG (weekly), giống "lịch sử bấm giờ"
+    if (scope === 'task' || scope === 'task_work') {
+        if (tp) params.set('tac_pham', tp);
+        if (tap) params.set('tap', tap);
+        if (chuong) params.set('chuong', chuong);
+    }
+    if (cv && scope === 'task_work') params.set('cong_viec', cv);
+    if (worker) params.set('worker', worker);
+    if (from) params.set('date_from', from);
+    if (to) params.set('date_to', to);
+    if (q) params.set('q', q);
+    if (force) params.set('refresh', '1');
+
+    body.innerHTML = `<div class="lth-loading">${isVi ? 'Đang tải...' : '読み込み中...'}</div>`;
+    if (summary) summary.textContent = '';
+
+    fetch('/api/logtime/history?' + params.toString())
+        .then(function(r) { return r.json(); })
+        .then(function(res) {
+            if (!res || res.status !== 'ok') throw new Error((res && res.message) || 'Error');
+            renderLogtimeHistory(res, isVi);
+        })
+        .catch(function(err) {
+            body.innerHTML = `<div class="lth-empty">❌ ${_lthEsc(err.message || 'Error')}</div>`;
+        });
+}
+
+function renderLogtimeHistory(res, isVi) {
+    const body = document.getElementById('lth-body');
+    const summary = document.getElementById('lth-summary');
+    const rows = res.rows || [];
+
+    if (!rows.length) {
+        body.innerHTML = `<div class="lth-empty">${isVi ? 'Chưa có bản ghi nào.' : '履歴がありません。'}</div>`;
+        if (summary) summary.textContent = '';
+        return;
+    }
+
+    if (summary) {
+        summary.innerHTML = `<strong>${rows.length}</strong> ${isVi ? 'bản ghi' : '件'} · <strong>${res.total_hours || 0}</strong> ${isVi ? 'giờ' : '時間'} · <strong>${res.total_pages || 0}</strong> page`;
+    }
+
+    const head = isVi
+        ? ['Ngày', 'Loại', 'Công việc', 'Tác phẩm', 'Ch.', 'Tập', 'Tổng trang', 'Người làm', 'Page', 'Giờ', 'Độ khó', 'Ghi chú']
+        : ['日付', 'カテゴリ', '作業内容', '作品名', '話', '巻', '総ページ', '作業者', 'ページ', '時間', '難易度', 'メモ'];
+
+    let html = '<table class="lth-table"><thead><tr>' +
+        head.map(function(h) { return '<th>' + h + '</th>'; }).join('') +
+        '</tr></thead><tbody>';
+
+    rows.forEach(function(r) {
+        html += '<tr>'
+            + '<td>' + _lthEsc(r.date) + '</td>'
+            + '<td>' + _lthEsc(r.category) + '</td>'
+            + '<td>' + _lthEsc(r.cong_viec) + '</td>'
+            + '<td><strong>' + _lthEsc(r.tac_pham) + '</strong></td>'
+            + '<td>' + _lthEsc(r.chuong) + '</td>'
+            + '<td>' + _lthEsc(r.tap) + '</td>'
+            + '<td>' + _lthEsc(r.so_trang_tong) + '</td>'
+            + '<td><span class="lth-pill">' + _lthEsc(r.nguoi_thuc_hien) + '</span></td>'
+            + '<td>' + _lthEsc(r.so_page) + '</td>'
+            + '<td>' + _lthEsc(r.so_gio) + '</td>'
+            + '<td>' + _lthEsc(r.difficulty) + '</td>'
+            + '<td>' + _lthEsc(r.ghi_chu) + '</td>'
+            + '</tr>';
+    });
+
+    html += '</tbody></table>';
+    body.innerHTML = html;
+}
+
+// ===================== INLINE LOGTIME HISTORY (dưới form) =====================
+function initInlineLogtimeHistory() {
+    // 1) Load ngay các section đang hiển thị (task detail page / modal đã mở)
+    document.querySelectorAll('.logtime-history-inline').forEach(function(el) {
+        if (el.dataset.lthInit === '1') return;
+        el.dataset.lthInit = '1';
+        const overlay = el.closest('.modal-overlay');
+        if (!overlay || overlay.classList.contains('open')) {
+            loadInlineLogtimeHistory(el);
+        }
+    });
+
+    // 2) Modal drive mở bằng classList.add('open') -> bắt mutation để load đúng section
+    if (window._lthModalObserver) return;
+    window._lthModalObserver = new MutationObserver(function(mutations) {
+        mutations.forEach(function(m) {
+            const el = m.target;
+            if (!el.classList || !el.classList.contains('modal-overlay')) return;
+            if (!el.classList.contains('open')) return;
+            const section = el.querySelector('.logtime-history-inline');
+            if (section) loadInlineLogtimeHistory(section);
+        });
+    });
+    document.querySelectorAll('.modal-overlay').forEach(function(el) {
+        window._lthModalObserver.observe(el, { attributes: true, attributeFilter: ['class'] });
+    });
+}
+
+function loadInlineLogtimeHistory(section) {
+    if (!section || section.dataset.loading === '1') return;
+    const index = section.dataset.index;
+    const listEl = document.getElementById('logtime-history-list-' + index);
+    if (!listEl) return;
+
+    const isVi = typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi';
+    section.dataset.loading = '1';
+
+    // Đúng task: tên truyện + tập/chương + công việc (giống lịch sử bấm giờ)
+    const params = new URLSearchParams({ limit: '200' });
+    if (section.dataset.tacPham) params.set('tac_pham', section.dataset.tacPham);
+    if (section.dataset.tap) params.set('tap', section.dataset.tap);
+    if (section.dataset.chuong) params.set('chuong', section.dataset.chuong);
+    if (section.dataset.congViec) params.set('cong_viec', section.dataset.congViec);
+
+    fetch('/api/logtime/history?' + params.toString())
+        .then(function(r) { return r.json(); })
+        .then(function(res) {
+            if (!res || res.status !== 'ok') throw new Error((res && res.message) || 'Error');
+            renderInlineLogtimeHistory(section, res, isVi);
+        })
+        .catch(function(err) {
+            listEl.innerHTML = '<div class="logtime-history-empty">❌ ' + _lthEsc(err.message || 'Error') + '</div>';
+        })
+        .finally(function() { section.dataset.loading = ''; });
+}
+
+function renderInlineLogtimeHistory(section, res, isVi) {
+    const index = section.dataset.index;
+    const listEl = document.getElementById('logtime-history-list-' + index);
+    const totalEl = document.getElementById('logtime-history-total-' + index);
+    const countEl = document.getElementById('logtime-history-count-' + index);
+    const reportLine = document.getElementById('logtime-report-line-' + index);
+    const reportText = document.getElementById('logtime-report-text-' + index);
+    const rows = res.rows || [];
+
+    // Tổng thời gian = sum giờ của đúng task (quy ra phút)
+    let totalMinutes = 0;
+    let totalPages = 0;
+    rows.forEach(function(r) {
+        const h = parseFloat(r.so_gio);
+        if (!isNaN(h)) totalMinutes += Math.round(h * 60);
+        const p = parseFloat(r.so_page);
+        if (!isNaN(p)) totalPages += p;
+    });
+    const H = Math.floor(totalMinutes / 60);
+    const M = totalMinutes % 60;
+
+    if (totalEl) {
+        totalEl.textContent = rows.length ? `TỔNG: ${H}時間${M}分` : '';
+        totalEl.style.display = rows.length ? 'inline-block' : 'none';
+    }
+    if (countEl) {
+        const pagesTxt = totalPages > 0
+            ? ' · ' + (Number.isInteger(totalPages) ? totalPages : totalPages.toFixed(1)) + ' page'
+            : '';
+        countEl.textContent = rows.length ? (rows.length + ' LOG' + pagesTxt) : '';
+    }
+
+    if (!rows.length) {
+        listEl.innerHTML = '<div class="logtime-history-empty">' +
+            (isVi ? 'Chưa có log nào cho task này' : 'このタスクの履歴はありません') + '</div>';
+        if (reportLine) reportLine.style.display = 'none';
+        return;
+    }
+
+    // Mỗi log = 1 thẻ hiện đủ từng ô dữ liệu (không cuộn ngang)
+    const L = isVi
+        ? { tacPham: 'Tác phẩm', chuong: 'Ch.', tap: 'Tập', tongTrang: 'Tổng trang', nguoiLam: 'Người làm', page: 'Page', doKho: 'Độ khó', ghiChu: 'Ghi chú' }
+        : { tacPham: '作品名', chuong: '話', tap: '巻', tongTrang: '総ページ', nguoiLam: '作業者', page: 'ページ', doKho: '難易度', ghiChu: 'メモ' };
+
+    const field = function(label, val, full) {
+        if (val === undefined || val === null || String(val).trim() === '') return '';
+        return '<span class="logtime-history-field' + (full ? ' full' : '') + '"><b>' +
+            label + '</b>' + _lthEsc(val) + '</span>';
+    };
+
+    let html = '<div class="logtime-history-cards">';
+    rows.forEach(function(r) {
+        html += '<div class="logtime-history-card">'
+            + '<div class="logtime-history-card-top">'
+            +   '<span class="logtime-history-card-date">' + _lthEsc(r.date) + '</span>'
+            +   '<span class="logtime-history-pill">' + _lthEsc(r.category) + '</span>'
+            +   '<span class="logtime-history-pill">' + _lthEsc(r.cong_viec) + '</span>'
+            +   '<span class="logtime-history-card-hours">' + _lthEsc(r.so_gio) + 'h</span>'
+            + '</div>'
+            + '<div class="logtime-history-fields">'
+            +   field(L.tacPham, r.tac_pham)
+            +   field(L.chuong, r.chuong)
+            +   field(L.tap, r.tap)
+            +   field(L.tongTrang, r.so_trang_tong)
+            +   field(L.nguoiLam, r.nguoi_thuc_hien)
+            +   field(L.page, r.so_page)
+            +   field(L.doKho, r.difficulty)
+            +   field(L.ghiChu, r.ghi_chu, true)
+            + '</div>'
+            + '</div>';
+    });
+    html += '</div>';
+    listEl.innerHTML = html;
+
+    // Câu report copy nhanh: レタッチ作業時間：6時間0分
+    const workType = section.dataset.congViec || '';
+    if (reportLine && reportText) {
+        reportText.textContent = workType + '作業時間：' + H + '時間' + M + '分';
+        reportLine.style.display = 'flex';
+    }
+}
+
+function copyLogtimeReport(index) {
+    const el = document.getElementById('logtime-report-text-' + index);
+    if (!el) return;
+    const text = el.textContent || '';
+    const isVi = typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi';
+    const done = function() {
+        if (window.showToast) showToast(isVi ? '📋 Đã copy: ' + text : '📋 コピー: ' + text, 'success');
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done).catch(function() {});
+    } else {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand('copy'); done(); } catch (e) {}
+        document.body.removeChild(ta);
+    }
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initInlineLogtimeHistory);
+} else {
+    initInlineLogtimeHistory();
 }
 
 // ===================== UTILS =====================
@@ -5230,6 +5655,424 @@ function updateRole(username, btn) {
             showToast('Lỗi kết nối!', 'error');
         });
 }
+
+function deleteMember(username, btn) {
+    const isVi = (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi');
+    const msg = isVi
+        ? `Xóa thành viên "${username}"?\nTài khoản sẽ bị xóa khỏi sheet và không thể đăng nhập nữa.`
+        : `メンバー "${username}" を削除しますか？\nアカウントはシートから削除され、ログインできなくなります。`;
+    if (!window.confirm(msg)) return;
+
+    const originalHtml = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="loading-spinner" style="width: 14px; height: 14px; border: 2px solid rgba(239,68,68,0.3); border-radius: 50%; border-top-color: #ef4444; animation: spin 1s linear infinite; display: inline-block;"></span>';
+    }
+
+    fetch('/api/users/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: username })
+    })
+        .then(r => r.json())
+        .then(data => {
+            if (btn) { btn.disabled = false; btn.innerHTML = originalHtml; }
+            if (data && data.success) {
+                showToast('🗑️ ' + (data.message || (isVi ? 'Đã xóa: ' : '削除しました: ') + username), 'success');
+
+                const row = btn ? btn.closest('[data-member-row]') : null;
+                if (row) {
+                    row.style.transition = 'opacity .2s ease';
+                    row.style.opacity = '0';
+                    setTimeout(() => row.remove(), 200);
+                }
+                const countEl = document.getElementById('role-member-count');
+                if (countEl) {
+                    const n = parseInt(countEl.textContent, 10);
+                    if (!isNaN(n) && n > 0) countEl.textContent = n - 1;
+                }
+            } else {
+                showToast('❌ ' + ((data && data.message) || (isVi ? 'Không thể xóa thành viên' : '削除できませんでした')), 'error');
+            }
+        })
+        .catch(() => {
+            if (btn) { btn.disabled = false; btn.innerHTML = originalHtml; }
+            showToast(isVi ? '❌ Lỗi kết nối!' : '❌ 接続エラー！', 'error');
+        });
+}
+window.deleteMember = deleteMember;
+
+// ===================== THÊM THÀNH VIÊN (TRANG PHÂN QUYỀN) =====================
+function openAddMemberModal() {
+    const modal = document.getElementById('am-modal');
+    const overlay = document.getElementById('am-overlay');
+    if (!modal) return;
+
+    ['am-username', 'am-password', 'am-fullname', 'am-birth-year', 'am-team', 'am-msnv', 'am-gmail', 'am-avatar']
+        .forEach(function(id) {
+            const el = document.getElementById(id);
+            if (el) el.value = '';
+        });
+    const roleEl = document.getElementById('am-role');
+    if (roleEl) roleEl.value = 'member';
+    const genderEl = document.getElementById('am-gender');
+    if (genderEl) genderEl.value = '';
+    const errEl = document.getElementById('am-error');
+    if (errEl) { errEl.textContent = ''; errEl.style.display = 'none'; }
+    const btn = document.getElementById('am-submit');
+    if (btn) btn.disabled = false;
+    clearAddMemberAvatar();
+
+    overlay && overlay.classList.add('open');
+    modal.classList.add('open');
+    setTimeout(function() {
+        const u = document.getElementById('am-username');
+        if (u) u.focus();
+    }, 80);
+}
+
+function closeAddMemberModal() {
+    const modal = document.getElementById('am-modal');
+    const overlay = document.getElementById('am-overlay');
+    if (modal) modal.classList.remove('open');
+    if (overlay) overlay.classList.remove('open');
+}
+
+function insertMemberRow(username, info) {
+    const firstRow = document.querySelector('#page-view-role [data-member-row]');
+    const container = firstRow ? firstRow.parentElement : null;
+    if (!container) return;
+
+    const isVi = (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi');
+    const fullname = (info && info.fullname) || username;
+    const role = (info && info.role) || 'member';
+    const avatar = (info && info.avatar) || '';
+    const initial = (fullname || username).charAt(0).toUpperCase();
+    const imgTag = avatar
+        ? '<img src="' + escapeHtml(avatar) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove();">'
+        : '';
+    const opt = function(v, label) {
+        return '<option value="' + v + '"' + (role === v ? ' selected' : '') + '>' + label + '</option>';
+    };
+    const safeUser = escapeHtml(username);
+    const selectId = 'role-select-' + safeUser.replace(/ /g, '_').replace(/\./g, '_');
+
+    const row = document.createElement('div');
+    row.setAttribute('data-member-row', username);
+    row.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--border);';
+    row.innerHTML =
+        '<div style="display: flex; align-items: center; gap: 12px;">' +
+            '<div class="role-avatar clickable" title="' + (isVi ? 'Đổi ảnh đại diện' : 'アイコンを変更') + '" onclick="pickMemberAvatar(\'' + safeUser + '\')">' +
+                '<span>' + escapeHtml(initial) + '</span>' + imgTag +
+            '</div>' +
+            '<div>' +
+                '<div style="font-weight: 600; font-size: 0.95rem; color: var(--text);">' + escapeHtml(fullname) + '</div>' +
+                '<div style="font-size: 0.82rem; color: var(--text-3);">@' + safeUser + '</div>' +
+            '</div>' +
+        '</div>' +
+        '<div style="display: flex; gap: 10px; align-items: center;">' +
+            '<select id="' + selectId + '" style="padding: 7px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-page); color: var(--text); font-size: 0.88rem; outline: none; cursor: pointer;">' +
+                opt('admin', 'Admin') + opt('leader', 'Leader') + opt('member', 'Member') +
+            '</select>' +
+            '<button class="btn btn-primary" style="padding: 7px 16px; font-size: 0.85rem; display: flex; align-items: center; gap: 5px; min-width: 65px; justify-content: center;" onclick="updateRole(\'' + safeUser + '\', this)">' +
+                '<i class="fas fa-save" style="font-size: 0.8rem;"></i><span>' + (isVi ? 'Lưu' : '保存') + '</span>' +
+            '</button>' +
+            '<button type="button" class="role-delete-btn" title="' + (isVi ? 'Xóa thành viên' : 'メンバーを削除') + '" onclick="deleteMember(\'' + safeUser + '\', this)">' +
+                '<i class="fas fa-trash-alt"></i>' +
+            '</button>' +
+        '</div>';
+
+    container.appendChild(row);
+
+    const countEl = document.getElementById('role-member-count');
+    if (countEl) {
+        const n = parseInt(countEl.textContent, 10);
+        if (!isNaN(n)) countEl.textContent = n + 1;
+    }
+    try { row.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {}
+}
+
+function submitAddMember() {
+    const isVi = (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi');
+    const val = function(id) {
+        const el = document.getElementById(id);
+        return el ? el.value.trim() : '';
+    };
+    const errEl = document.getElementById('am-error');
+    const showErr = function(msg) {
+        if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; }
+    };
+
+    const username = val('am-username');
+    const password = val('am-password');
+    if (!username || !password) {
+        showErr(isVi ? 'Vui lòng nhập Tên đăng nhập và Mật khẩu.' : 'ログイン名とパスワードを入力してください。');
+        return;
+    }
+
+    const payload = {
+        username: username,
+        password: password,
+        fullname: val('am-fullname'),
+        role: val('am-role') || 'member',
+        gender: val('am-gender'),
+        birth_year: val('am-birth-year'),
+        team: val('am-team'),
+        msnv: val('am-msnv'),
+        gmail: val('am-gmail'),
+        avatar: val('am-avatar')
+    };
+
+    const btn = document.getElementById('am-submit');
+    const originalHtml = btn ? btn.innerHTML : '';
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; }
+    if (errEl) errEl.style.display = 'none';
+
+    fetch('/api/users/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (btn) { btn.disabled = false; btn.innerHTML = originalHtml; }
+            if (data && data.success) {
+                closeAddMemberModal();
+                showToast('✅ ' + (data.message || (isVi ? 'Đã thêm thành viên' : 'メンバーを追加しました')), 'success');
+                insertMemberRow(username, data.user || { fullname: payload.fullname, role: payload.role, avatar: '' });
+
+                // Ảnh chọn từ máy -> up lên DB rồi gắn vào avatar
+                const pendingFile = window.__addMemberAvatarFile;
+                window.__addMemberAvatarFile = null;
+                if (pendingFile) {
+                    uploadUserAvatar(username, pendingFile, function(res) {
+                        if (res && res.success && res.url) {
+                            const row = findMemberRow(username);
+                            const avatarEl = row ? row.querySelector('.role-avatar') : null;
+                            if (avatarEl) setAvatarImage(avatarEl, res.url + '?t=' + Date.now());
+                        }
+                    });
+                }
+            } else {
+                showErr((data && data.message) || (isVi ? 'Không thể thêm thành viên.' : '追加できませんでした。'));
+            }
+        })
+        .catch(function() {
+            if (btn) { btn.disabled = false; btn.innerHTML = originalHtml; }
+            showErr(isVi ? '❌ Lỗi kết nối!' : '❌ 接続エラー！');
+        });
+}
+
+window.openAddMemberModal = openAddMemberModal;
+window.closeAddMemberModal = closeAddMemberModal;
+window.submitAddMember = submitAddMember;
+window.insertMemberRow = insertMemberRow;
+
+// ---- Avatar: chọn ảnh từ máy, lưu thẳng vào DB (không cần Google Drive) ----
+const AVATAR_MAX_UPLOAD = 5 * 1024 * 1024;
+
+function findMemberRow(username) {
+    const rows = document.querySelectorAll('#page-view-role [data-member-row]');
+    for (let i = 0; i < rows.length; i++) {
+        if (rows[i].getAttribute('data-member-row') === username) return rows[i];
+    }
+    return null;
+}
+
+function setAvatarImage(avatarEl, src) {
+    if (!avatarEl) return;
+    let img = avatarEl.querySelector('img');
+    if (!img) {
+        img = document.createElement('img');
+        img.alt = '';
+        img.setAttribute('referrerpolicy', 'no-referrer');
+        img.onerror = function() { this.remove(); };
+        avatarEl.appendChild(img);
+    }
+    img.style.display = '';
+    img.src = src;
+}
+
+function uploadUserAvatar(username, file, onDone) {
+    const isVi = (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi');
+    const fd = new FormData();
+    fd.append('username', username);
+    fd.append('file', file);
+    return fetch('/api/users/avatar', { method: 'POST', body: fd })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data && data.success) {
+                showToast('✅ ' + (data.message || (isVi ? 'Đã lưu avatar' : 'アイコンを保存しました')), 'success');
+                if (onDone) onDone(data);
+                return data;
+            }
+            showToast('❌ ' + ((data && data.message) || (isVi ? 'Không lưu được avatar' : '保存できませんでした')), 'error');
+            if (onDone) onDone(data);
+            return data;
+        })
+        .catch(function() {
+            showToast(isVi ? '❌ Lỗi kết nối!' : '❌ 接続エラー！', 'error');
+            if (onDone) onDone(null);
+            return null;
+        });
+}
+
+function pickMemberAvatar(username) {
+    window.__avatarTargetUser = username;
+    const inp = document.getElementById('member-avatar-file');
+    if (inp) { inp.value = ''; inp.click(); }
+}
+
+function onMemberAvatarFilePicked(input) {
+    const file = input.files && input.files[0];
+    const username = window.__avatarTargetUser;
+    input.value = '';
+    if (!file || !username) return;
+    const isVi = (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi');
+    if (file.size > AVATAR_MAX_UPLOAD) {
+        showToast(isVi ? '❌ Ảnh quá lớn (tối đa 5MB)' : '❌ 画像が大きすぎます（最大5MB）', 'error');
+        return;
+    }
+    const row = findMemberRow(username);
+    const avatarEl = row ? row.querySelector('.role-avatar') : null;
+    if (avatarEl) avatarEl.classList.add('uploading');
+
+    const reader = new FileReader();
+    reader.onload = function(ev) { setAvatarImage(avatarEl, ev.target.result); };
+    reader.readAsDataURL(file);
+
+    uploadUserAvatar(username, file, function(res) {
+        if (avatarEl) avatarEl.classList.remove('uploading');
+        if (res && res.success && res.url) {
+            setAvatarImage(avatarEl, res.url + '?t=' + Date.now());
+        }
+    });
+}
+
+function onAddMemberAvatarPick(input) {
+    const file = input.files && input.files[0];
+    const isVi = (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi');
+    if (!file) return;
+    if (file.size > AVATAR_MAX_UPLOAD) {
+        showToast(isVi ? '❌ Ảnh quá lớn (tối đa 5MB)' : '❌ 画像が大きすぎます（最大5MB）', 'error');
+        input.value = '';
+        return;
+    }
+    window.__addMemberAvatarFile = file;
+    const prev = document.getElementById('am-avatar-preview-img');
+    const icon = document.querySelector('#am-avatar-preview i');
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+        if (prev) { prev.src = ev.target.result; prev.style.display = 'block'; }
+        if (icon) icon.style.display = 'none';
+    };
+    reader.readAsDataURL(file);
+    const clearBtn = document.getElementById('am-avatar-clear');
+    if (clearBtn) clearBtn.style.display = '';
+}
+
+function clearAddMemberAvatar() {
+    window.__addMemberAvatarFile = null;
+    const inp = document.getElementById('am-avatar-file');
+    if (inp) inp.value = '';
+    const prev = document.getElementById('am-avatar-preview-img');
+    if (prev) { prev.removeAttribute('src'); prev.style.display = 'none'; }
+    const icon = document.querySelector('#am-avatar-preview i');
+    if (icon) icon.style.display = '';
+    const clearBtn = document.getElementById('am-avatar-clear');
+    if (clearBtn) clearBtn.style.display = 'none';
+}
+
+window.pickMemberAvatar = pickMemberAvatar;
+window.onMemberAvatarFilePicked = onMemberAvatarFilePicked;
+window.onAddMemberAvatarPick = onAddMemberAvatarPick;
+window.clearAddMemberAvatar = clearAddMemberAvatar;
+
+// ---- Đổi avatar của chính mình (panel thông tin cá nhân) ----
+function setProfileAvatar(src) {
+    const box = document.getElementById('profile-panel-avatar');
+    if (!box) return;
+    let img = box.querySelector('img.avatar-img');
+    const fallback = box.querySelector('.avatar-fallback');
+    if (!img) {
+        img = document.createElement('img');
+        img.className = 'avatar-img';
+        img.alt = 'Avatar';
+        img.setAttribute('referrerpolicy', 'no-referrer');
+        img.onerror = function() {
+            this.style.display = 'none';
+            if (fallback) fallback.style.display = 'flex';
+        };
+        box.insertBefore(img, box.firstChild);
+    }
+    img.style.display = '';
+    img.src = src;
+    if (fallback) fallback.style.display = 'none';
+}
+
+function setChipAvatar(el, src) {
+    if (!el) return;
+    let img = el.querySelector('img');
+    if (!img) {
+        el.innerHTML = '';
+        img = document.createElement('img');
+        img.alt = '';
+        img.setAttribute('referrerpolicy', 'no-referrer');
+        el.appendChild(img);
+    }
+    img.style.display = '';
+    img.src = src;
+}
+
+function pickProfileAvatar() {
+    const inp = document.getElementById('profile-avatar-file');
+    if (inp) { inp.value = ''; inp.click(); }
+}
+
+function onProfileAvatarFilePicked(input) {
+    const file = input.files && input.files[0];
+    input.value = '';
+    if (!file) return;
+    const isVi = (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi');
+    if (file.size > AVATAR_MAX_UPLOAD) {
+        showToast(isVi ? '❌ Ảnh quá lớn (tối đa 5MB)' : '❌ 画像が大きすぎます（最大5MB）', 'error');
+        return;
+    }
+
+    const panel = document.getElementById('profile-panel');
+    const username = panel ? panel.getAttribute('data-username') : '';
+    if (!username) return;
+
+    const box = document.getElementById('profile-panel-avatar');
+    if (box) box.classList.add('uploading');
+
+    const reader = new FileReader();
+    reader.onload = function(ev) { setProfileAvatar(ev.target.result); };
+    reader.readAsDataURL(file);
+
+    uploadUserAvatar(username, file, function(res) {
+        if (box) box.classList.remove('uploading');
+        if (!res || !res.success || !res.url) return;
+        const bust = res.url + '?t=' + Date.now();
+        setProfileAvatar(bust);
+
+        // Cập nhật avatar nhỏ ở sidebar
+        const chip = document.querySelector('.user-card .user-avatar');
+        if (chip) setChipAvatar(chip, bust);
+        const mobileChip = document.getElementById('mobile-avatar-btn');
+        if (mobileChip) setChipAvatar(mobileChip, bust);
+
+        try {
+            if (typeof userProfilesDB !== 'undefined' && userProfilesDB[username]) {
+                userProfilesDB[username].avatar = res.url;
+            }
+        } catch (e) {}
+    });
+}
+
+window.pickProfileAvatar = pickProfileAvatar;
+window.onProfileAvatarFilePicked = onProfileAvatarFilePicked;
+window.setProfileAvatar = setProfileAvatar;
 
 
 
@@ -10747,7 +11590,7 @@ async function uploadAttachmentToGDriveDirectly() {
     if (btnTxt) btnTxt.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang tải lên Drive...';
     if (statusBox) {
         statusBox.style.display = 'block';
-        statusBox.innerHTML = '<span style="color: #94a3b8;"><i class="fas fa-spinner fa-spin"></i> Đang kết nối Google Drive...</span>';
+        statusBox.innerHTML = '<span style="color: var(--text-3);"><i class="fas fa-spinner fa-spin"></i> Đang kết nối Google Drive...</span>';
     }
 
     try {
@@ -10770,7 +11613,7 @@ async function uploadAttachmentToGDriveDirectly() {
                 btn.disabled = true;
             }
             if (statusBox) {
-                statusBox.innerHTML = `<span style="color: #34d399; font-weight: 600;"><i class="fas fa-check-circle"></i> Đã lưu vào Drive</span> <a href="${data.gdrive_link}" target="_blank" style="color: #60a5fa; text-decoration: underline; margin-left: 8px; font-weight: 500;">Mở xem trên Drive <i class="fas fa-external-link-alt" style="font-size: 0.72rem;"></i></a>`;
+                statusBox.innerHTML = `<span style="color: var(--accent-emerald); font-weight: 600;"><i class="fas fa-check-circle"></i> Đã lưu vào Drive</span> <a href="${data.gdrive_link}" target="_blank" style="color: var(--primary); text-decoration: underline; margin-left: 8px; font-weight: 500;">Mở xem trên Drive <i class="fas fa-external-link-alt" style="font-size: 0.72rem;"></i></a>`;
             }
             updateLeaveSubmitButtonState();
             if (typeof showToast === 'function') showToast('✅ Tải ảnh lên Google Drive thành công!', 'success');
@@ -10780,7 +11623,7 @@ async function uploadAttachmentToGDriveDirectly() {
             if (btnTxt) btnTxt.innerHTML = '<i class="fas fa-redo"></i> Thử lại tải lên Drive';
             const note = data.gdrive_error || 'Thư mục Drive chưa cấp quyền cho bot';
             if (statusBox) {
-                statusBox.innerHTML = `<span style="color: #f87171;"><i class="fas fa-exclamation-triangle"></i> ${note}</span>`;
+                statusBox.innerHTML = `<span style="color: var(--accent-rose);"><i class="fas fa-exclamation-triangle"></i> ${note}</span>`;
             }
             updateLeaveSubmitButtonState();
             if (typeof showToast === 'function') showToast(`⚠️ ${note}`, 'warning');
@@ -10790,7 +11633,7 @@ async function uploadAttachmentToGDriveDirectly() {
         if (btn) btn.disabled = false;
         if (btnTxt) btnTxt.innerHTML = '<i class="fas fa-redo"></i> Thử lại tải lên Drive';
         if (statusBox) {
-            statusBox.innerHTML = `<span style="color: #f87171;">Lỗi kết nối: ${err.message}</span>`;
+            statusBox.innerHTML = `<span style="color: var(--accent-rose);">Lỗi kết nối: ${err.message}</span>`;
         }
         updateLeaveSubmitButtonState();
     } finally {
