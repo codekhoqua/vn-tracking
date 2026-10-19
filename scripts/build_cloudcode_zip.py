@@ -3,6 +3,7 @@ r"""Đóng gói zip FULL để upload lên Cloudcode (Pterodactyl panel).
 
 Quy ước duy nhất:
 - Chỉ tạo MỘT bản full: kèm env_vars.yaml, credentials.json và data/*.json.
+- KHÔNG kèm DB archive (data/vn_tracking_archive.db*) để không đè dữ liệu trên server.
 - Entry trong zip dùng dấu `/` (POSIX). Nếu dùng `\` của Windows, panel Linux
   sẽ không tạo thư mục templates/static -> TemplateNotFound / 404.
 - Nội dung phẳng ở gốc zip (không bọc thư mục project).
@@ -25,6 +26,15 @@ EXCLUDE_DIRS = {
 }
 EXCLUDE_FILES = {'.DS_Store', 'Thumbs.db'}
 EXCLUDE_SUFFIXES = ('.pyc', '.pyo', '.log', '.zip', '.msi', '.bak')
+# DB archive (task/comment/checklist/link/avatar) KHÔNG đóng vào zip:
+# - upload zip sẽ đè mất dữ liệu thật đang chạy trên server
+# - kèm .db-wal/.db-shm khi app đang chạy dễ gây DB không nhất quán
+# Bảng user_avatars tự được tạo khi app khởi động (ensure_schema).
+EXCLUDE_DB_NAMES = (
+    'vn_tracking_archive.db',
+    'vn_tracking_archive.db-wal',
+    'vn_tracking_archive.db-shm',
+)
 
 
 def app_version():
@@ -45,6 +55,8 @@ def should_skip(rel_path):
     if any(p in EXCLUDE_DIRS for p in parts[:-1]):
         return True
     name = parts[-1]
+    if name in EXCLUDE_DB_NAMES:
+        return True
     return name in EXCLUDE_FILES or name.endswith(EXCLUDE_SUFFIXES)
 
 
