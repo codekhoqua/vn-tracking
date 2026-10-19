@@ -13,6 +13,9 @@ Luôn đóng gói **bản FULL**:
   - `credentials.json`
   - `data/leave_requests.json`, `data/leave_admin_config.json`
 - Loại trừ:
+  - `data/vn_tracking_archive.db` (+ `.db-wal`, `.db-shm`) — DB thật đang chạy trên
+    server, đóng vào zip sẽ **đè mất dữ liệu** (task/comment/checklist/link/avatar).
+    Bảng `user_avatars` tự được tạo khi app khởi động.
   - `.git/`, `__pycache__/`, `drive_data/`, `.venv/`
   - `*.pyc`, `*.log`, `*.zip`, `*.msi`
   - `data/leave_attachments/`
@@ -45,6 +48,15 @@ Script luôn tạo **một bản full duy nhất** (kèm `env_vars.yaml`, `crede
 tự tạo entry thư mục (`templates/`, `static/`, ...) và đường dẫn POSIX.
 
 > Zip chứa secret (Supabase key, service account Google). Chỉ lưu nội bộ, không upload nơi công khai.
+
+## Avatar & DB archive
+
+- Ảnh avatar lưu trong bảng `user_avatars` của DB archive (không up Google Drive).
+- Sheet "Pass" cột `Avatar` chỉ lưu URL ngắn `/api/avatar/<username>`.
+- Nếu server **không** cấu hình Turso: DB là file `data/vn_tracking_archive.db` trên
+  server. Redeploy không đè file này nên avatar giữ nguyên.
+- Nếu muốn dữ liệu bền vững nhiều instance: đặt `TURSO_DATABASE_URL` +
+  `TURSO_AUTH_TOKEN` trong `env_vars.yaml` trên server.
 
 ## Cập nhật server đang chạy
 
