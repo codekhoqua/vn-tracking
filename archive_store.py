@@ -97,9 +97,15 @@ def _decode_cell(cell):
             return None
     if ctype == "blob":
         import base64
-        raw = cell.get("base64") or ""
+        raw = (cell.get("base64") or "").replace("\n", "").replace("\r", "").strip()
+        # Turso có thể trả base64 KHÔNG kèm phần đệm '=' (khi độ dài ảnh không
+        # chia hết cho 3) -> b64decode ném lỗi và ta trả về chuỗi base64 thay vì
+        # ảnh (avatar hiện chữ cái đầu). Thêm lại phần đệm trước khi giải mã.
+        pad = (-len(raw)) % 4
+        if pad:
+            raw += "=" * pad
         try:
-            return base64.b64decode(raw)
+            return base64.b64decode(raw, validate=False)
         except Exception:
             return raw
     return cell.get("value")
