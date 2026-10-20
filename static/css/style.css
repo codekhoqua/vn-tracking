@@ -2866,6 +2866,14 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
     gap: 4px;
     line-height: 1.4;
 }
+
+/* Checklist: badge cùng bề rộng để checkbox của mọi dòng thẳng hàng dọc. */
+.task-row .platform-badge {
+    width: 74px;
+    justify-content: center;
+    text-align: center;
+    white-space: nowrap;
+}
 .platform-badge.notion {
     background: rgba(255, 255, 255, 0.08);
     color: #f4f4f5;
