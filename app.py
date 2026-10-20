@@ -101,6 +101,31 @@ socketio = SocketIO(app, cors_allowed_origins="*", async_mode=_SOCKETIO_ASYNC_MO
 SERVER_START_TIME = int(time.time())
 _APP_VERSION_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'templates', 'dashboard.html')
 _app_version_cache = {'value': None, 'mtime': None}
+_BUILD_ID_CACHE = {'value': None, 'expires': 0.0, 'stamp': None}
+
+
+def _latest_code_mtime():
+    """mtime mới nhất của code/template/css/js -> đổi khi deploy bản mới."""
+    base = os.path.dirname(os.path.abspath(__file__))
+    paths = [
+        os.path.join(base, 'app.py'),
+        os.path.join(base, 'archive_store.py'),
+        os.path.join(base, 'task_archive.py'),
+        os.path.join(base, 'title_readings.py'),
+    ]
+    for sub in ('templates', os.path.join('static', 'css'), os.path.join('static', 'js')):
+        root_dir = os.path.join(base, sub)
+        for root, _dirs, names in os.walk(root_dir):
+            for name in names:
+                paths.append(os.path.join(root, name))
+
+    latest = 0
+    for p in paths:
+        try:
+            latest = max(latest, os.path.getmtime(p))
+        except OSError:
+            pass
+    return int(latest)
 
 
 def get_current_app_version():
@@ -135,8 +160,27 @@ def get_current_app_version():
     return _app_version_cache['value'] or 'dev'
 
 def get_current_build_id():
-    cur_ver = get_current_app_version()
-    return f"{cur_ver}_{SERVER_START_TIME}"
+    # Build id dựa trên mtime code/template/css/js (ổn định giữa các worker).
+    # Trước đây dùng SERVER_START_TIME: nếu chạy nhiều process, mỗi worker trả
+    # một build id khác nhau -> client auto-reload bị lặp vô hạn.
+    now = time.time()
+    cached = _BUILD_ID_CACHE
+    if cached['value'] and now < cached['expires']:
+        return cached['value']
+
+    stamp = _latest_code_mtime()
+
+    # Đang giải nén / vừa ghi file: chờ ~3s cho ổn định rồi mới đổi build id,
+    # tránh client reload đúng lúc file còn đang được ghi.
+    if cached['value'] and cached.get('stamp') != stamp and stamp > now - 3:
+        cached['expires'] = now + 1.0
+        return cached['value']
+
+    value = f"{get_current_app_version()}_{stamp}"
+    cached['value'] = value
+    cached['stamp'] = stamp
+    cached['expires'] = now + 3.0
+    return value
 
 # 2. CƠ SỞ DỮ LIỆU TÀI KHOẢN VÀ LINK DỮ LIỆU
 # =====================================================================
