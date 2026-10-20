@@ -71,3 +71,4 @@ model/
 _archive*/
 
 data/users_cache.json
+logs/
