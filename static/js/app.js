@@ -48,6 +48,7 @@
             '.flatpickr-calendar',
             '.dropdown-menu',
             '.lang-dropdown',
+            '.vn-select-menu',
             '.notification-panel'
         ].join(', ');
 
@@ -12284,6 +12285,9 @@ function openVnSelectMenu(sel) {
 
     const menu = document.createElement('div');
     menu.className = 'vn-select-menu';
+    // Lenis chặn wheel mặc định -> đánh dấu để menu cuộn native
+    menu.setAttribute('data-lenis-prevent', '');
+    menu.setAttribute('data-lenis-prevent-touch', '');
 
     Array.from(sel.options).forEach((opt) => {
         const item = document.createElement('div');
