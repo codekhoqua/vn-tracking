@@ -9,7 +9,7 @@
 {% if hist_lock %}<div class="hist-task-page-body">{% else %}<div class="modal-overlay task-detail-page-view" id="modal-{{ modal_id }}" role="region" aria-label="{{ tp_name_display }}" data-lenis-prevent>{% endif %}
     <div class="task-page-container">
         {% set _back_label = ('Trở về History Task' if lang == 'vi' else 'History Task に戻る') if hist_lock else ('Trở về Dashboard' if lang == 'vi' else 'ダッシュボードに戻る') %}
-        {% set _root_label = 'History Task' if hist_lock else 'Dashboard' %}
+        {% set _root_label = 'History Task' if hist_lock else ('Dashboard' if lang == 'vi' else 'ダッシュボード') %}
         <!-- Top Navigation / Breadcrumbs -->
         <div class="task-page-nav-bar">
             <div class="task-page-breadcrumbs">
@@ -20,7 +20,7 @@
                 <span class="task-crumb-sep">/</span>
                 <span class="task-crumb-root" onclick="closeModal('{{ modal_id }}', '{{ tp_key }}')">{{ _root_label }}</span>
                 <span class="task-crumb-sep">/</span>
-                <span class="task-crumb-current">Task</span>
+                <span class="task-crumb-current">{{ 'Task' if lang == 'vi' else 'タスク' }}</span>
             </div>
 
             <div class="task-page-top-actions">

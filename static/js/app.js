@@ -3764,6 +3764,14 @@ function updateTaskProgressLocally(tpKey, modalBody) {
     const checkedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
     const progress = Math.round((checkedCount / total) * 100);
 
+    // Global checklist counter + bar (card header)
+    if (modalBody) {
+        const cardTotal = modalBody.querySelector('.checklist-total');
+        if (cardTotal) cardTotal.textContent = `${checkedCount}/${total}`;
+        const cardBar = modalBody.querySelector('.checklist-card-bar i');
+        if (cardBar) cardBar.style.width = `${progress}%`;
+    }
+
     // Update step phase counters & progress fills
     if (modalBody) {
         const s1Cbs = modalBody.querySelectorAll('input[data-check-id="t1"], input[data-check-id="t2"]');

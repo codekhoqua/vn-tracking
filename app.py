@@ -1854,7 +1854,7 @@ def render_task_links_html(tac_pham_key, index, lang, task_links_dict=None):
     return f'''
     <div class="task-links-box" id="task_links_{index}" data-tp-key="{tac_pham_key}">
         <div class="task-links-header">
-            <span class="task-links-title"><i class="fas fa-link" style="color: var(--primary); margin-right: 6px;"></i>{ "Liên kết làm việc:" if lang == "vi" else "作業リンク:" }</span>
+            <span class="task-links-title"><i class="fas fa-link" style="color: var(--primary); margin-right: 6px;"></i>{ "Liên kết làm việc" if lang == "vi" else "作業リンク" }</span>
             <button type="button" class="btn-manage-links" onclick="openEditTaskLinksModal('{tac_pham_key}')" title="{ 'Cài đặt liên kết' if lang == "vi" else 'リンク設定' }">
                 <i class="fas fa-cog"></i> { "Cài đặt link" if lang == "vi" else "設定" }
             </button>
@@ -1878,7 +1878,27 @@ def render_task_steps_html(tac_pham_key, index, lang, checked_ids=None):
     def ch(tid):
         return 'checked' if tid in checked_ids else ''
 
+    phase_ids = {1: ('t1', 't2'), 2: ('t3', 't4', 't5'), 3: ('t6', 't7', 't8', 't9')}
+
+    def pcount(step):
+        ids = phase_ids[step]
+        done = sum(1 for i in ids if i in checked_ids)
+        return done, len(ids), round(done / len(ids) * 100) if ids else 0
+
+    d1, n1, p1 = pcount(1)
+    d2, n2, p2 = pcount(2)
+    d3, n3, p3 = pcount(3)
+    total_done, total_all = d1 + d2 + d3, n1 + n2 + n3
+    total_pct = round(total_done / total_all * 100) if total_all else 0
+    checklist_label = 'Checklist' if lang == 'vi' else 'チェックリスト'
+
     return f'''
+    <div class="checklist-card">
+        <div class="checklist-card-head">
+            <span class="checklist-card-title">{checklist_label}</span>
+            <span class="checklist-total" id="checklist_total_{index}">{total_done}/{total_all}</span>
+        </div>
+        <div class="checklist-card-bar"><i id="checklist_bar_{index}" style="width:{total_pct}%"></i></div>
     <div class="checklist-grid" data-tp-key="{tac_pham_key}">
         <!-- GIAI ĐOẠN 1: CHUẨN BỊ -->
         <div class="step-col" data-step="1">
@@ -1890,9 +1910,9 @@ def render_task_steps_html(tac_pham_key, index, lang, checked_ids=None):
                         <span class="step-sub">{l.get('phase1_sub', 'Khởi tạo & nhận việc')}</span>
                     </div>
                 </div>
-                <span class="step-count" id="count_s1_{index}">0/2</span>
+                <span class="step-count{' complete' if d1 == n1 else ''}" id="count_s1_{index}">{d1}/{n1}{' ✓' if d1 == n1 else ''}</span>
             </div>
-            <div class="step-progress-bar"><div class="step-progress-fill" id="bar_s1_{index}"></div></div>
+            <div class="step-progress-bar"><div class="step-progress-fill" id="bar_s1_{index}" style="width:{p1}%"></div></div>
 
             <div class="step-items">
                 <div class="task-row">
@@ -1929,9 +1949,9 @@ def render_task_steps_html(tac_pham_key, index, lang, checked_ids=None):
                         <span class="step-sub">{l.get('phase2_sub', 'Báo Asana & cập nhật')}</span>
                     </div>
                 </div>
-                <span class="step-count" id="count_s2_{index}">0/3</span>
+                <span class="step-count{' complete' if d2 == n2 else ''}" id="count_s2_{index}">{d2}/{n2}{' ✓' if d2 == n2 else ''}</span>
             </div>
-            <div class="step-progress-bar"><div class="step-progress-fill" id="bar_s2_{index}"></div></div>
+            <div class="step-progress-bar"><div class="step-progress-fill" id="bar_s2_{index}" style="width:{p2}%"></div></div>
 
             <div class="step-items">
                 <div class="task-row">
@@ -1991,9 +2011,9 @@ def render_task_steps_html(tac_pham_key, index, lang, checked_ids=None):
                         <span class="step-sub">{l.get('phase3_sub', 'Hoàn thành & bàn giao')}</span>
                     </div>
                 </div>
-                <span class="step-count" id="count_s3_{index}">0/4</span>
+                <span class="step-count{' complete' if d3 == n3 else ''}" id="count_s3_{index}">{d3}/{n3}{' ✓' if d3 == n3 else ''}</span>
             </div>
-            <div class="step-progress-bar"><div class="step-progress-fill" id="bar_s3_{index}"></div></div>
+            <div class="step-progress-bar"><div class="step-progress-fill" id="bar_s3_{index}" style="width:{p3}%"></div></div>
 
             <div class="step-items">
                 <div class="task-row">
@@ -2022,17 +2042,6 @@ def render_task_steps_html(tac_pham_key, index, lang, checked_ids=None):
                     </label>
                 </div>
 
-                <!-- Template Card Deliver -->
-                <div class="msg-template-card">
-                    <div class="msg-template-header">
-                        <span class="msg-template-label"><i class="far fa-paper-plane"></i> {l.get('tmpl_deliver', 'Mẫu báo giao hàng')}</span>
-                        <button type="button" class="btn-copy-action" onclick="copyText(this, 'msg_t8_{index}')" title="{l.get('copy_deliver', 'Sao chép')}">
-                            <i class="far fa-clone"></i> <span>{l.get('copy_deliver', 'Copy')}</span>
-                        </button>
-                    </div>
-                    <div class="msg-template-body" id="msg_t8_{index}">納品いたしました。&#10;ご確認のほどよろしくお願いいたします。</div>
-                </div>
-
                 <div class="task-row">
                     <span class="platform-badge mikan">Mikan</span>
                     <label class="check-label">
@@ -2043,6 +2052,20 @@ def render_task_steps_html(tac_pham_key, index, lang, checked_ids=None):
                 </div>
             </div>
         </div>
+    </div>
+
+    <!-- Mẫu tin nhắn giao hàng (full width dưới 3 giai đoạn) -->
+    <div class="checklist-deliver">
+        <div class="msg-template-card">
+            <div class="msg-template-header">
+                <span class="msg-template-label"><i class="far fa-paper-plane"></i> {l.get('tmpl_deliver', 'Mẫu báo giao hàng')}</span>
+                <button type="button" class="btn-copy-action" onclick="copyText(this, 'msg_t8_{index}')" title="{l.get('copy_deliver', 'Sao chép')}">
+                    <i class="far fa-clone"></i> <span>{l.get('copy_deliver', 'Copy')}</span>
+                </button>
+            </div>
+            <div class="msg-template-body" id="msg_t8_{index}">納品いたしました。&#10;ご確認のほどよろしくお願いいたします。</div>
+        </div>
+    </div>
     </div>
     '''
 
@@ -2225,11 +2248,11 @@ def render_logtime_form_html(row, index, t, users, lang):
             <div class="form-row cols-4" style="margin-top: 16px;">
                 <div class="form-group">
                     <label>{t['f_pages']} <span style="color: #f43f5e; font-weight: bold; margin-left: 2px;">*</span></label>
-                    <input type="number" name="so_page" min="0" step="1" required placeholder="Số page hoàn thành...">
+                    <input type="number" name="so_page" min="0" step="1" required placeholder="{'Số page hoàn thành...' if lang == 'vi' else '完了ページ数...'}">
                 </div>
                 <div class="form-group">
                     <label>{t['f_total_pages']} <span style="color: #f43f5e; font-weight: bold; margin-left: 2px;">*</span></label>
-                    <input type="number" name="so_trang_tong" value="{so_trang if so_trang else ''}" min="0" step="1" required placeholder="Ví dụ: 200">
+                    <input type="number" name="so_trang_tong" value="{so_trang if so_trang else ''}" min="0" step="1" required placeholder="{'Ví dụ: 200' if lang == 'vi' else '例: 200'}">
                 </div>
                 <div class="form-group">
                     <label>{t['f_hours']} <span style="color: #f43f5e; font-weight: bold; margin-left: 2px;">*</span></label>
