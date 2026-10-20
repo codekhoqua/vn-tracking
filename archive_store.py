@@ -11,7 +11,12 @@ Có 2 backend cùng chung một interface rất nhỏ:
 Cả hai cùng cung cấp:
 
     execute(sql, args=())   -> (columns, rows)
+    query_many(statements)  -> [(columns, rows), ...]   # 1 request cho N query
     batch(statements)       -> int          # số statement đã gửi
+
+Lưu ý hiệu năng (Turso): endpoint ở nước ngoài nên **mỗi HTTP request tốn
+~0.25s** (bắt tay TLS mới thì ~1s). Vì vậy store dùng kết nối keep-alive
+(``requests.Session``) và gộp nhiều query vào 1 request qua ``query_many``.
 
 Không phụ thuộc package ngoài (chỉ dùng ``requests`` đã có sẵn trong
 requirements.txt).
@@ -100,6 +105,18 @@ def _decode_cell(cell):
     return cell.get("value")
 
 
+def _decode_result(item):
+    """Giải mã 1 item ``type=ok`` của Hrana/HTTP v2 thành (cols, rows)."""
+    response = (item or {}).get("response") or {}
+    result = response.get("result") or {}
+    cols = [c.get("name") for c in (result.get("cols") or [])]
+    rows = [
+        tuple(_decode_cell(cell) for cell in row)
+        for row in (result.get("rows") or [])
+    ]
+    return cols, rows
+
+
 # =====================================================================
 # Turso HTTP (libSQL over HTTP v2)
 # =====================================================================
@@ -115,6 +132,7 @@ class TursoStore:
         self.endpoint = base + "/v2/pipeline"
         self.token = token
         self.timeout = timeout
+        self._local = threading.local()
 
     def _headers(self):
         return {
@@ -122,14 +140,30 @@ class TursoStore:
             "Content-Type": "application/json",
         }
 
-    def _send(self, requests_body):
+    def _session(self):
+        """Session riêng cho từng thread - giữ kết nối để khỏi bắt tay TLS lại.
+
+        Không tái dùng kết nối thì mỗi query mất ~1s (TLS handshake tới Turso),
+        tái dùng chỉ còn ~0.25s.
+        """
         if requests is None:
             raise ArchiveStoreError("Thiếu package requests")
+        sess = getattr(self._local, "session", None)
+        if sess is None:
+            sess = requests.Session()
+            adapter = requests.adapters.HTTPAdapter(
+                pool_connections=4, pool_maxsize=8, max_retries=0)
+            sess.mount("https://", adapter)
+            sess.mount("http://", adapter)
+            self._local.session = sess
+        return sess
+
+    def _send(self, requests_body):
         payload = {"requests": list(requests_body) + [{"type": "close"}]}
         last_err = None
         for attempt in range(3):
             try:
-                resp = requests.post(
+                resp = self._session().post(
                     self.endpoint,
                     headers=self._headers(),
                     json=payload,
@@ -149,6 +183,8 @@ class TursoStore:
                 raise
             except Exception as exc:  # lỗi mạng -> thử lại
                 last_err = exc
+                # kết nối cũ có thể hỏng -> bỏ session để lần sau tạo mới
+                self._local.session = None
                 time.sleep(0.4 * (attempt + 1))
         raise ArchiveStoreError("Không gọi được Turso: %s" % last_err)
 
@@ -163,14 +199,26 @@ class TursoStore:
         results = self._send([{"type": "execute", "stmt": self._stmt(sql, args)}])
         if not results:
             return [], []
-        response = results[0].get("response") or {}
-        result = response.get("result") or {}
-        cols = [c.get("name") for c in (result.get("cols") or [])]
-        rows = [
-            tuple(_decode_cell(cell) for cell in row)
-            for row in (result.get("rows") or [])
-        ]
-        return cols, rows
+        return _decode_result(results[0])
+
+    def query_many(self, statements):
+        """Chạy nhiều query trong 1 HTTP request -> [(cols, rows), ...].
+
+        Turso trả về cùng thời gian cho 1 hay 8 query trong 1 request, nên gộp
+        lại giúp API nhiều query nhanh hơn nhiều lần.
+        """
+        prepared = [(s[0], s[1] if len(s) > 1 else ()) for s in statements]
+        out = []
+        for start in range(0, len(prepared), CHUNK_SIZE):
+            chunk = prepared[start:start + CHUNK_SIZE]
+            body = [
+                {"type": "execute", "stmt": self._stmt(sql, args)}
+                for sql, args in chunk
+            ]
+            results = self._send(body)
+            for item in results[:len(chunk)]:
+                out.append(_decode_result(item))
+        return out
 
     def batch(self, statements):
         statements = [(s[0], s[1] if len(s) > 1 else ()) for s in statements]
@@ -218,6 +266,15 @@ class SqliteStore:
             return cols, cur.fetchall()
         conn.commit()
         return [], []
+
+    def query_many(self, statements):
+        """SQLite local: chạy lần lượt (không tốn mạng nên không cần gộp)."""
+        out = []
+        for item in statements:
+            sql = item[0]
+            args = item[1] if len(item) > 1 else ()
+            out.append(self.execute(sql, args))
+        return out
 
     def batch(self, statements):
         conn = self._conn()
