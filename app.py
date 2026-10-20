@@ -702,6 +702,7 @@ def save_supabase_checklists(data, actor=None):
         if _archive_db_ready():
             try:
                 task_archive.save_checklists(data, actor=actor)
+                history_cache_clear()
             except Exception as e:
                 print("Error saving checklists to archive DB:", e)
         # 2. Mirror sang Supabase Storage để giữ tương thích ngược
@@ -752,6 +753,7 @@ def save_supabase_task_comments(data):
         if _archive_db_ready():
             try:
                 task_archive.save_comments(data)
+                history_cache_clear()
             except Exception as e:
                 print("Error saving task comments to archive DB:", e)
         try:
@@ -801,6 +803,7 @@ def save_supabase_task_links(data):
         if _archive_db_ready():
             try:
                 task_archive.save_task_links(data)
+                history_cache_clear()
             except Exception as e:
                 print("Error saving task links to archive DB:", e)
         try:
@@ -3814,6 +3817,62 @@ def history_user_profiles():
     return data or cached or {}
 
 
+# --- Cache ngắn cho API lịch sử ------------------------------------
+# Turso nằm ở nước ngoài: mỗi query ~0.25s. Cache vài chục giây giúp mở lại
+# trang lịch sử là hiện ngay, đồng thời giảm số request lên Turso.
+HISTORY_STATS_TTL = int(os.environ.get('HISTORY_STATS_TTL', '20'))
+HISTORY_TITLES_TTL = int(os.environ.get('HISTORY_TITLES_TTL', '60'))
+HISTORY_LIST_TTL = int(os.environ.get('HISTORY_LIST_TTL', '30'))
+_history_api_cache = {}
+_history_api_lock = threading.Lock()
+
+
+def history_api_cached(key, ttl, producer):
+    """Trả kết quả đã cache theo ``key`` trong ``ttl`` giây (nếu có)."""
+    now = time.time()
+    with _history_api_lock:
+        hit = _history_api_cache.get(key)
+        if hit and (now - hit[0]) < ttl:
+            return hit[1]
+    value = producer()
+    with _history_api_lock:
+        _history_api_cache[key] = (time.time(), value)
+        if len(_history_api_cache) > 300:
+            old = sorted(_history_api_cache.items(), key=lambda kv: kv[1][0])[:150]
+            for k, _v in old:
+                _history_api_cache.pop(k, None)
+    return value
+
+
+def history_cache_clear():
+    """Xoá cache API lịch sử (gọi sau khi ghi dữ liệu mới)."""
+    with _history_api_lock:
+        _history_api_cache.clear()
+    _worker_names_cache['at'] = 0.0
+
+
+# Danh sách người thực hiện (gộp từ mọi dòng task) — 1 query Turso ~0.27s
+# nên cache lại, hầu như không đổi giữa các lần mở thẻ.
+_worker_names_cache = {'at': 0.0, 'data': []}
+WORKER_NAMES_TTL = int(os.environ.get('WORKER_NAMES_TTL', '600'))
+
+
+def archive_worker_names():
+    """Tên người thực hiện, cache 10 phút."""
+    now = time.time()
+    cached = _worker_names_cache['data']
+    if cached and (now - _worker_names_cache['at']) < WORKER_NAMES_TTL:
+        return cached
+    try:
+        names = task_archive.worker_names()
+    except Exception:
+        return cached
+    if names:
+        _worker_names_cache['data'] = names
+        _worker_names_cache['at'] = now
+    return names or cached
+
+
 def _archive_detail_row(detail):
     """Đổi dòng archive thành dict theo tên cột tiếng Việt của dashboard.
 
@@ -3863,6 +3922,7 @@ def archive_run_sync(log_fn=print):
     except Exception as exc:
         result['state'] = {'error': str(exc)}
         log_fn(f"archive sync state lỗi: {exc}")
+    history_cache_clear()
     return result
 
 
@@ -3926,7 +3986,7 @@ def api_history_stats():
     if not archive_available():
         return jsonify({"status": "error", "message": ARCHIVE_IMPORT_ERROR}), 500
     try:
-        data = task_archive.stats()
+        data = dict(history_api_cached('stats', HISTORY_STATS_TTL, task_archive.stats))
         data['sync'] = dict(_archive_sync_state)
         data['interval'] = ARCHIVE_SYNC_INTERVAL
         return jsonify({"status": "success", "data": data})
@@ -3947,10 +4007,15 @@ def api_history_titles():
     except ValueError:
         limit = 300
     try:
-        titles = task_archive.list_titles(limit=limit, vn_only=vn_only, q=query or None)
-        total = task_archive.count_titles(vn_only=vn_only, q=query or None)
-        for item in titles:
-            item['reading'] = title_reading_for(item.get('tac_pham'))
+        def _build_titles():
+            rows, total = task_archive.titles_page(
+                limit=limit, vn_only=vn_only, q=query or None)
+            for item in rows:
+                item['reading'] = title_reading_for(item.get('tac_pham'))
+            return rows, total
+
+        titles, total = history_api_cached(
+            ('titles', limit, vn_only, query), HISTORY_TITLES_TTL, _build_titles)
         return jsonify({
             "status": "success", "total": total, "titles": titles,
             "vn_only": vn_only,
@@ -3970,17 +4035,35 @@ def api_history():
     if not tac_pham:
         return jsonify({"status": "error", "message": "Thiếu tac_pham"}), 400
 
+    date_from = (request.args.get('from') or '').strip() or None
+    date_to = (request.args.get('to') or '').strip() or None
+    worker = (request.args.get('worker') or '').strip() or None
+    job_type = (request.args.get('job_type') or '').strip() or None
+    vn_only = request.args.get('vn', '1') != '0'
     try:
-        items = task_archive.history_for_title(
-            tac_pham,
-            date_from=(request.args.get('from') or '').strip() or None,
-            date_to=(request.args.get('to') or '').strip() or None,
-            worker=(request.args.get('worker') or '').strip() or None,
-            job_type=(request.args.get('job_type') or '').strip() or None,
-            limit=min(int(request.args.get('limit', 2000)), 5000),
-            vn_only=(request.args.get('vn', '1') != '0'),
+        limit = min(int(request.args.get('limit', 2000)), 5000)
+    except ValueError:
+        limit = 2000
+
+    try:
+        def _build_history():
+            rows = task_archive.history_for_title(
+                tac_pham,
+                date_from=date_from,
+                date_to=date_to,
+                worker=worker,
+                job_type=job_type,
+                limit=limit,
+                vn_only=vn_only,
+            )
+            cmts = task_archive.all_comments_for_title(tac_pham, limit=1000)
+            return rows, cmts
+
+        items, comments = history_api_cached(
+            ('history', tac_pham, date_from, date_to, worker, job_type, limit, vn_only),
+            HISTORY_LIST_TTL,
+            _build_history,
         )
-        comments = task_archive.all_comments_for_title(tac_pham, limit=1000)
         return jsonify({
             "status": "success",
             "tac_pham": tac_pham,
@@ -4010,46 +4093,49 @@ def api_history_task_detail():
         return jsonify({"status": "error", "message": "Thiếu tac_pham"}), 400
 
     try:
-        detail = task_archive.task_detail(
-            tac_pham, tp_key=tp_key or None, volume_key=volume_key or None)
-        if not detail:
-            return jsonify({"status": "error",
-                            "message": "Không tìm thấy task trong kho lưu trữ"}), 404
-
         lang = session.get('lang', 'vi')
         t = DICT_LANG.get(lang, DICT_LANG['vi'])
-        try:
-            users = task_archive.worker_names()
-        except Exception:
-            users = []
 
-        row = _archive_detail_row(detail)
-        html = render_template(
-            '_task_detail_page.html',
-            lang=lang,
-            t=t,
-            users=users,
-            user_profiles=history_user_profiles(),
-            row=row,
-            worker=row['Người thực hiện'],
-            tp_key=detail['tp_key'],
-            tp_name_display=detail['tp_key'],
-            tp_reading=title_reading_for(tac_pham),
-            page_id='hist',
-            modal_id='hist',
-            checked_ids_dict={detail['tp_key']: detail['checked_ids']},
-            archive_links={detail['tp_key']: detail['links']},
-            checklist_api='',
-            hist_lock=True,
-        )
-        return jsonify({
-            "status": "success",
-            "html": html,
-            "tp_key": detail['tp_key'],
-            "volume_key": detail['volume_key'],
-            "checklist_assumed": detail['checklist_assumed'],
-            "comments": detail['comments'],
-        })
+        def _build_detail():
+            detail = task_archive.task_detail(
+                tac_pham, tp_key=tp_key or None, volume_key=volume_key or None)
+            if not detail:
+                return None
+            row = _archive_detail_row(detail)
+            html = render_template(
+                '_task_detail_page.html',
+                lang=lang,
+                t=t,
+                users=archive_worker_names(),
+                user_profiles=history_user_profiles(),
+                row=row,
+                worker=row['Người thực hiện'],
+                tp_key=detail['tp_key'],
+                tp_name_display=detail['tp_key'],
+                tp_reading=title_reading_for(tac_pham),
+                page_id='hist',
+                modal_id='hist',
+                checked_ids_dict={detail['tp_key']: detail['checked_ids']},
+                archive_links={detail['tp_key']: detail['links']},
+                checklist_api='',
+                hist_lock=True,
+            )
+            return {
+                "status": "success",
+                "html": html,
+                "tp_key": detail['tp_key'],
+                "volume_key": detail['volume_key'],
+                "checklist_assumed": detail['checklist_assumed'],
+                "comments": detail['comments'],
+            }
+
+        payload = history_api_cached(
+            ('task_detail', lang, tac_pham, tp_key, volume_key),
+            HISTORY_LIST_TTL, _build_detail)
+        if payload is None:
+            return jsonify({"status": "error",
+                            "message": "Không tìm thấy task trong kho lưu trữ"}), 404
+        return jsonify(payload)
     except Exception as exc:
         return jsonify({"status": "error", "message": str(exc)}), 500
 

@@ -632,6 +632,17 @@ def canonical_rows_from_sheet(rows, source, snapshot_at, today=None):
 # =====================================================================
 # Ghi vào DB
 # =====================================================================
+def _norm_cell(value):
+    """Chuẩn hoá 1 ô để so sánh kiểu/giá trị giữa Python và DB."""
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "1" if value else "0"
+    if isinstance(value, float) and value.is_integer():
+        return str(int(value))
+    return str(value)
+
+
 def save_tasks(items, store=None, snapshot_at=None):
     """Ghi danh sách task canonical vào bảng ``tasks``. Trả về số dòng gửi."""
     items = [it for it in items if it.get("tac_pham")]
@@ -660,12 +671,35 @@ def save_tasks(items, store=None, snapshot_at=None):
         f"INSERT INTO tasks ({', '.join(cols)}) VALUES ({placeholders}) "
         f"ON CONFLICT(hash) DO UPDATE SET {updates}, last_seen_at=excluded.last_seen_at"
     )
+
+    # Bỏ qua dòng KHÔNG đổi: DB ở nước ngoài nên ghi lại 2700 dòng tốn ~60s
+    # (mỗi dòng ~20ms), trong khi đọc hết chỉ ~2s. Đọc trước rồi chỉ ghi dòng
+    # mới / dòng có thay đổi / dòng cần bật is_vn.
+    # Không so sánh cột ``source``: mỗi task xuất hiện ở nhiều tab sheet với
+    # source khác nhau, nếu so cả source thì lần sync nào cũng ghi lại ~300 dòng
+    # (mỗi dòng ~20ms) mà thông tin không thay đổi gì.
+    existing = {}
+    try:
+        select_cols = ", ".join(["hash"] + _COLS)
+        _cols_got, rows_ex = store.execute(f"SELECT {select_cols} FROM tasks")
+        for r in rows_ex:
+            existing[r[0]] = tuple(_norm_cell(v) for v in r[1:])
+    except Exception as exc:  # đọc không được thì ghi như cũ (an toàn)
+        print("Không đọc được tasks để so sánh, sẽ ghi toàn bộ:", exc)
+        existing = {}
+
     statements = []
     for it in items:
         args = [it["hash"], snapshot_at, snapshot_at, it.get("source", "")]
         args += [it.get(c) for c in _COLS]
+        if existing:
+            sig = tuple(_norm_cell(it.get(c)) for c in _COLS)
+            if existing.get(it["hash"]) == sig:
+                continue
         statements.append((sql, args))
-    store.batch(statements)
+
+    if statements:
+        store.batch(statements)
     return len(statements)
 
 
@@ -683,6 +717,16 @@ def save_comments(comments_db, store=None, snapshot_at=None):
     statements = []
     seen = set()
     keep_ids = {}
+
+    # Đọc comment hiện có để bỏ qua dòng không đổi (DB ở nước ngoài: mỗi dòng
+    # ghi tốn ~20ms, comment có thể lên tới hàng nghìn dòng).
+    existing = {}
+    try:
+        for r in _fetchall(store, "SELECT hash, message, tag FROM task_comments"):
+            existing[r[0]] = (_norm_cell(r[1]), _norm_cell(r[2]))
+    except Exception:
+        existing = {}
+
     for tp_key, items in (comments_db or {}).items():
         if not isinstance(items, list):
             continue
@@ -716,9 +760,12 @@ def save_comments(comments_db, store=None, snapshot_at=None):
                 _dt.datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M:%S")
                 if ts else None
             )
+            tag = _clean_cell(c.get("tag"))
+            if existing and existing.get(h) == (_norm_cell(message), _norm_cell(tag)):
+                continue
             statements.append((sql, [
                 comment_id, h, tp_key, volume_key, author, message,
-                _clean_cell(c.get("tag")), ts, created_at, snapshot_at,
+                tag, ts, created_at, snapshot_at,
             ]))
     if statements:
         store.batch(statements)
@@ -752,8 +799,8 @@ def save_checklists(checklists_db, store=None, snapshot_at=None, actor=None):
 
     # 1. Lấy trạng thái hiện có để so sánh
     current = {}
-    for r in _fetchall(store, "SELECT tp_key, box_id, checked FROM checklist_state"):
-        current[(r[0], r[1])] = r[2]
+    for r in _fetchall(store, "SELECT tp_key, box_id, checked, rewarded FROM checklist_state"):
+        current[(r[0], r[1])] = (_norm_cell(r[2]), _norm_cell(r[3]))
 
     state_sql = (
         "INSERT INTO checklist_state (tp_key, volume_key, box_id, checked, rewarded, updated_at) "
@@ -774,20 +821,22 @@ def save_checklists(checklists_db, store=None, snapshot_at=None, actor=None):
             if box_id.startswith("_"):
                 continue
             checked = 1 if flag else 0
+            prev = current.get((tp_key, box_id))
+            if prev == (str(checked), str(rewarded)):
+                continue  # không đổi -> khỏi ghi (mỗi dòng ghi tốn ~20ms)
+            changes += 1
             state_stmts.append((state_sql, [
                 tp_key, volume_key, box_id, checked, rewarded, snapshot_at,
             ]))
-            if current.get((tp_key, box_id)) != checked:
-                changes += 1
-                event_stmts.append((
-                    "INSERT INTO checklist_events "
-                    "(hash, tp_key, volume_key, box_id, checked, actor, changed_at) "
-                    "VALUES (?,?,?,?,?,?,?) ON CONFLICT(hash) DO NOTHING",
-                    [
-                        _hash("ckevent", tp_key, box_id, checked, snapshot_at),
-                        tp_key, volume_key, box_id, checked, actor, snapshot_at,
-                    ],
-                ))
+            event_stmts.append((
+                "INSERT INTO checklist_events "
+                "(hash, tp_key, volume_key, box_id, checked, actor, changed_at) "
+                "VALUES (?,?,?,?,?,?,?) ON CONFLICT(hash) DO NOTHING",
+                [
+                    _hash("ckevent", tp_key, box_id, checked, snapshot_at),
+                    tp_key, volume_key, box_id, checked, actor, snapshot_at,
+                ],
+            ))
 
     if state_stmts:
         store.batch(state_stmts)
@@ -873,6 +922,15 @@ def save_task_links(links_db, store=None, snapshot_at=None):
     )
     statements = []
     keep = {}
+
+    # Đọc link hiện có để bỏ qua dòng không đổi
+    existing = {}
+    try:
+        for r in _fetchall(store, "SELECT tp_key, slot, url FROM task_links"):
+            existing[(r[0], r[1])] = _norm_cell(r[2])
+    except Exception:
+        existing = {}
+
     for tp_key, links in (links_db or {}).items():
         if not isinstance(links, dict):
             continue
@@ -883,6 +941,8 @@ def save_task_links(links_db, store=None, snapshot_at=None):
             keep[tp_key].add(str(slot))
             if not url:
                 continue
+            if existing and existing.get((tp_key, str(slot))) == url:
+                continue  # link không đổi
             statements.append((sql, [tp_key, volume_key, str(slot), url, snapshot_at]))
     if statements:
         store.batch(statements)
@@ -922,6 +982,21 @@ def _fetchall(store, sql, args=()):
     return rows
 
 
+def _fetch_many(store, statements):
+    """Chạy nhiều query trong 1 HTTP request (Turso) -> [rows, rows, ...].
+
+    Turso ở nước ngoài: 8 request riêng ~8.5s, gộp 1 request ~0.26s.
+    """
+    if hasattr(store, "query_many"):
+        return [rows for _cols, rows in store.query_many(statements)]
+    out = []
+    for item in statements:
+        sql = item[0]
+        args = item[1] if len(item) > 1 else ()
+        out.append(_fetchall(store, sql, args))
+    return out
+
+
 def _tap_sort_key(v):
     """Sắp xếp số tập: ưu tiên dạng số (1, 2, 10...) rồi mới tới chuỗi khác."""
     try:
@@ -930,19 +1005,17 @@ def _tap_sort_key(v):
         return (1, 0.0, str(v))
 
 
-def list_titles(store=None, limit=500, vn_only=True, q=None):
-    """Danh sách tác phẩm (mặc định chỉ task VN) + số liệu tổng hợp."""
-    store = store or get_store()
-    ensure_schema(store)
-
+def _titles_queries(limit, vn_only, q):
+    """Dựng 3 câu query cho trang danh sách tác phẩm (dùng chung cho gộp request)."""
     where = ["is_vn = 1"] if vn_only else []
     args = []
     if q:
         where.append("tac_pham LIKE ?")
         args.append(f"%{q}%")
     where_sql = ("WHERE " + " AND ".join(where)) if where else ""
+    since = (_dt.date.today() - _dt.timedelta(days=28)).isoformat()
 
-    rows = _fetchall(store, f"""
+    titles_sql = f"""
         SELECT tac_pham,
                COUNT(DISTINCT COALESCE(NULLIF(tap, ''), '-')) AS tap_count,
                COUNT(*) AS row_count,
@@ -954,21 +1027,38 @@ def list_titles(store=None, limit=500, vn_only=True, q=None):
         GROUP BY tac_pham
         ORDER BY MAX(COALESCE(end_date, start_date)) DESC
         LIMIT ?
-    """, [(_dt.date.today() - _dt.timedelta(days=28)).isoformat()] + args + [limit])
-
-    # Số tập VN đảm nhận. Gộp trùng theo tập: 1 tập có cả 写植 và レタッチ chỉ hiện 1 lần.
-    taps_map = {}
-    for tp, tap in _fetchall(store, f"""
+    """
+    taps_sql = f"""
         SELECT tac_pham, tap FROM tasks
         {where_sql}
         GROUP BY tac_pham, tap
-    """, list(args)):
+    """
+    count_sql = f"SELECT COUNT(DISTINCT tac_pham) FROM tasks {where_sql}"
+    return (
+        (titles_sql, [since] + list(args) + [limit]),
+        (taps_sql, list(args)),
+        (count_sql, list(args)),
+    )
+
+
+def titles_page(store=None, limit=500, vn_only=True, q=None):
+    """Danh sách tác phẩm + tổng số, gộp 3 query vào 1 request.
+
+    Trả ``(titles, total)``. Dùng cho ``/api/history/titles``.
+    """
+    store = store or get_store()
+    ensure_schema(store)
+    titles_q, taps_q, count_q = _titles_queries(limit, vn_only, q)
+    rows, taps_rows, count_rows = _fetch_many(store, [titles_q, taps_q, count_q])
+
+    taps_map = {}
+    for tp, tap in taps_rows:
         value = (tap or "").strip()
         if not value or value == "-":
             continue
         taps_map.setdefault(tp, []).append(value)
 
-    return [
+    titles = [
         {
             "tac_pham": r[0], "tap_count": r[1], "row_count": r[2],
             "first_date": r[3], "last_date": r[4], "recent_count": r[5] or 0,
@@ -976,20 +1066,18 @@ def list_titles(store=None, limit=500, vn_only=True, q=None):
         }
         for r in rows
     ]
+    total = count_rows[0][0] if count_rows else 0
+    return titles, total
+
+
+def list_titles(store=None, limit=500, vn_only=True, q=None):
+    """Danh sách tác phẩm (mặc định chỉ task VN) + số liệu tổng hợp."""
+    return titles_page(store=store, limit=limit, vn_only=vn_only, q=q)[0]
 
 
 def count_titles(store=None, vn_only=True, q=None):
     """Tổng số tác phẩm (không bị giới hạn bởi ``limit``)."""
-    store = store or get_store()
-    ensure_schema(store)
-    where = ["is_vn = 1"] if vn_only else []
-    args = []
-    if q:
-        where.append("tac_pham LIKE ?")
-        args.append(f"%{q}%")
-    where_sql = ("WHERE " + " AND ".join(where)) if where else ""
-    rows = _fetchall(store, f"SELECT COUNT(DISTINCT tac_pham) FROM tasks {where_sql}", args)
-    return rows[0][0] if rows else 0
+    return titles_page(store=store, limit=1, vn_only=vn_only, q=q)[1]
 
 
 def history_for_title(tac_pham, store=None, date_from=None, date_to=None,
@@ -1050,26 +1138,34 @@ def history_for_title(tac_pham, store=None, date_from=None, date_to=None,
     vkeys = list({i["volume_key"] for i in items if i["volume_key"]})
     comments = {}
     progress = {}
+    # 2 query tổng hợp gửi chung 1 request (Turso: ~0.26s thay vì 2 request)
+    agg = []
     if tp_keys:
         marks = ", ".join("?" for _ in tp_keys)
-        for r in _fetchall(store, f"""
+        agg.append((f"""
             SELECT tp_key, SUM(checked), COUNT(*) FROM checklist_state
             WHERE tp_key IN ({marks})
             GROUP BY tp_key
-        """, tp_keys):
+        """, tp_keys))
+    if vkeys:
+        marks = ", ".join("?" for _ in vkeys)
+        agg.append((f"""
+            SELECT volume_key, COUNT(*) FROM task_comments
+            WHERE volume_key IN ({marks}) GROUP BY volume_key
+        """, vkeys))
+
+    if agg:
+        agg_rows = _fetch_many(store, agg)
+        for r in agg_rows[0] if tp_keys else []:
             total = r[2] or 0
             checked = r[1] or 0
             progress[r[0]] = {
                 "checked": checked, "total": total,
                 "percent": min(100, int(checked / CHECKLIST_BOXES * 100)) if total else 0,
             }
-    if vkeys:
-        marks = ", ".join("?" for _ in vkeys)
-        for r in _fetchall(store, f"""
-            SELECT volume_key, COUNT(*) FROM task_comments
-            WHERE volume_key IN ({marks}) GROUP BY volume_key
-        """, vkeys):
-            comments[r[0]] = r[1]
+        if vkeys:
+            for r in agg_rows[1] if tp_keys else agg_rows[0]:
+                comments[r[0]] = r[1]
 
     for i in items:
         vk = i["volume_key"]
@@ -1153,29 +1249,50 @@ def task_detail(tac_pham, tp_key=None, volume_key=None, store=None):
     vk = task["volume_key"]
     assumed = bool(task.get("checklist_assumed"))
 
+    # 3 query độc lập (ô checklist / link / comment) -> gửi chung 1 request
+    batch = []
+    if not assumed:
+        batch.append((
+            "SELECT box_id FROM checklist_state WHERE tp_key = ? AND checked = 1",
+            [key],
+        ))
+    if key:
+        batch.append(("SELECT slot, url FROM task_links WHERE tp_key = ?", [key]))
+    if vk:
+        batch.append(("""
+            SELECT comment_id, author, message, tag, ts, created_at, tp_key
+            FROM task_comments WHERE volume_key = ? ORDER BY ts ASC
+        """, [vk]))
+
+    box_rows, link_rows, comment_rows = [], [], []
+    if batch:
+        res = _fetch_many(store, batch)
+        idx = 0
+        if not assumed:
+            box_rows = res[idx]
+            idx += 1
+        if key:
+            link_rows = res[idx]
+            idx += 1
+        if vk:
+            comment_rows = res[idx]
+
     if assumed:
         # thẻ cũ: coi như đã tick đủ 9 ô cho khớp với thẻ Kanban
         checked_ids = [f"t{i}" for i in range(1, CHECKLIST_BOXES + 1)]
     else:
-        checked_ids = [r[0] for r in _fetchall(store,
-            "SELECT box_id FROM checklist_state WHERE tp_key = ? AND checked = 1", [key])]
+        checked_ids = [r[0] for r in box_rows]
 
     links = {}
-    if key:
-        for r in _fetchall(store, "SELECT slot, url FROM task_links WHERE tp_key = ?", [key]):
-            if r[1]:
-                links[r[0]] = r[1]
+    for r in link_rows:
+        if r[1]:
+            links[r[0]] = r[1]
 
-    comments = []
-    if vk:
-        comments = [
-            {"comment_id": r[0], "author": r[1], "message": r[2], "tag": r[3],
-             "ts": r[4], "created_at": r[5], "tp_key": r[6]}
-            for r in _fetchall(store, """
-                SELECT comment_id, author, message, tag, ts, created_at, tp_key
-                FROM task_comments WHERE volume_key = ? ORDER BY ts ASC
-            """, [vk])
-        ]
+    comments = [
+        {"comment_id": r[0], "author": r[1], "message": r[2], "tag": r[3],
+         "ts": r[4], "created_at": r[5], "tp_key": r[6]}
+        for r in comment_rows
+    ]
 
     return {
         "task": task, "tp_key": key, "volume_key": vk,
@@ -1218,19 +1335,25 @@ def all_comments_for_title(tac_pham, store=None, limit=1000):
 def stats(store=None):
     store = store or get_store()
     ensure_schema(store)
+    tables = ("tasks", "task_comments", "checklist_state",
+              "checklist_events", "task_links")
     out = {}
-    for table in ("tasks", "task_comments", "checklist_state",
-                  "checklist_events", "task_links"):
-        rows = _fetchall(store, f"SELECT COUNT(*) FROM {table}")
+    # 7 query đếm/thống kê -> gộp vào 1 request (Turso: ~0.26s thay vì ~9s)
+    results = _fetch_many(store, [
+        *[(f"SELECT COUNT(*) FROM {t}", ()) for t in tables],
+        ("SELECT MIN(start_date), MAX(COALESCE(end_date, start_date)) FROM tasks", ()),
+        ("SELECT COUNT(*), COUNT(DISTINCT tac_pham) FROM tasks WHERE is_vn = 1", ()),
+        ("SELECT MIN(start_date), MAX(COALESCE(end_date, start_date)) FROM tasks WHERE is_vn = 1", ()),
+    ])
+    for table, rows in zip(tables, results):
         out[table] = rows[0][0] if rows else 0
-    rows = _fetchall(store, "SELECT MIN(start_date), MAX(COALESCE(end_date, start_date)) FROM tasks")
+    rows = results[len(tables)]
     if rows:
         out["date_range"] = [rows[0][0], rows[0][1]]
-    rows = _fetchall(store, "SELECT COUNT(*), COUNT(DISTINCT tac_pham) FROM tasks WHERE is_vn = 1")
+    rows = results[len(tables) + 1]
     if rows:
         out["vn_tasks"], out["vn_titles"] = rows[0][0], rows[0][1]
-    rows = _fetchall(store, "SELECT MIN(start_date), MAX(COALESCE(end_date, start_date)) "
-                            "FROM tasks WHERE is_vn = 1")
+    rows = results[len(tables) + 2]
     if rows:
         out["vn_date_range"] = [rows[0][0], rows[0][1]]
     out.update(describe_store())
@@ -1247,10 +1370,14 @@ def sync_sheets(sheet_id=SHEET_ID, tabs=None, store=None,
     ensure_schema(store)
     tabs = tabs or ["Schedule management - ALL", "VN-task"]
     started = now_iso()
-    total = 0
     per_tab = {}
     today = _dt.date.today()
 
+    # Gộp các tab lại theo ``hash`` trước khi ghi: cùng một task xuất hiện ở
+    # cả tab ALL lẫn VN-task nhưng lệch vài ô (category/pc_staff/sched_*).
+    # Nếu ghi từng tab riêng thì lần sync nào 2 tab cũng ghi đè nhau ~300 dòng
+    # (mỗi dòng ~20ms) mà dữ liệu vẫn nhảy qua lại.
+    merged = {}
     for name in tabs:
         gid = SHEET_TABS.get(name)
         try:
@@ -1261,14 +1388,32 @@ def sync_sheets(sheet_id=SHEET_ID, tabs=None, store=None,
                 progress(f"  ! {name}: {exc}")
             continue
         items = canonical_rows_from_sheet(rows, name, started, today=today)
-        n = save_tasks(items, store=store, snapshot_at=started)
-        per_tab[name] = {"rows": len(rows), "saved": n}
-        total += n
+        for it in items:
+            h = it.get("hash")
+            if not h:
+                continue
+            cur = merged.get(h)
+            if cur is None:
+                merged[h] = dict(it)
+                continue
+            # giữ giá trị không rỗng; is_vn = 1 nếu bất kỳ tab nào đánh dấu VN
+            for c in _COLS:
+                if not _norm_cell(cur.get(c)) and _norm_cell(it.get(c)):
+                    cur[c] = it.get(c)
+            if _norm_cell(it.get("is_vn")) == "1":
+                cur["is_vn"] = 1
+            if it.get("source"):
+                cur["source"] = it.get("source")
+        per_tab[name] = {"rows": len(rows), "items": len(items)}
         if progress:
-            progress(f"  {name}: {len(rows)} dòng -> lưu {n}")
+            progress(f"  {name}: {len(rows)} dòng -> {len(items)} task")
 
-    log_sync("sheets", started, inserted=total, store=store)
-    return {"saved": total, "tabs": per_tab, "started_at": started}
+    n = save_tasks(list(merged.values()), store=store, snapshot_at=started)
+    if progress:
+        progress(f"  -> lưu {n} dòng (đã gộp {len(merged)} task)")
+
+    log_sync("sheets", started, inserted=n, store=store)
+    return {"saved": n, "merged": len(merged), "tabs": per_tab, "started_at": started}
 
 
 def sync_supabase_state(url, key, bucket="drive", store=None, progress=None):
