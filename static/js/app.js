@@ -49,6 +49,8 @@
             '.dropdown-menu',
             '.lang-dropdown',
             '.vn-select-menu',
+            '.lth-wrap',
+            '.lth-body',
             '.notification-panel'
         ].join(', ');
 
@@ -4415,6 +4417,10 @@ function openLogtimeHistory(form) {
     overlay.dataset.tap = tap;
     overlay.dataset.chuong = chuong;
     overlay.dataset.worker = worker;
+
+    // Lenis chặn wheel mặc định -> cho phép bảng lịch sử cuộn native
+    overlay.setAttribute('data-lenis-prevent', '');
+    overlay.setAttribute('data-lenis-prevent-touch', '');
 
     const volLabel = tap
         ? (isVi ? `Tập ${tap}` : `第${tap}巻`)
