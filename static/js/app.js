@@ -12290,26 +12290,25 @@ function openVnSelectMenu(sel) {
     menu.setAttribute('data-lenis-prevent-touch', '');
 
     Array.from(sel.options).forEach((opt) => {
+        if (opt.disabled) return; // bỏ option placeholder "--"
+
         const item = document.createElement('div');
         item.className = 'vn-select-option';
         if (opt.selected) item.classList.add('selected');
-        if (opt.disabled) item.classList.add('disabled');
         item.textContent = (opt.textContent || '').trim();
         item.dataset.value = opt.value;
 
-        if (!opt.disabled) {
-            item.addEventListener('mousedown', (ev) => ev.preventDefault());
-            item.addEventListener('mouseenter', () => {
-                menu.querySelectorAll('.vn-select-option.active').forEach(el => el.classList.remove('active'));
-                item.classList.add('active');
-            });
-            item.addEventListener('click', () => {
-                sel.value = opt.value;
-                sel.dispatchEvent(new Event('change', { bubbles: true }));
-                closeVnSelectMenu();
-                sel.focus({ preventScroll: true });
-            });
-        }
+        item.addEventListener('mousedown', (ev) => ev.preventDefault());
+        item.addEventListener('mouseenter', () => {
+            menu.querySelectorAll('.vn-select-option.active').forEach(el => el.classList.remove('active'));
+            item.classList.add('active');
+        });
+        item.addEventListener('click', () => {
+            sel.value = opt.value;
+            sel.dispatchEvent(new Event('change', { bubbles: true }));
+            closeVnSelectMenu();
+            sel.focus({ preventScroll: true });
+        });
         menu.appendChild(item);
     });
 
