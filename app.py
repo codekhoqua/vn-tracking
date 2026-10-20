@@ -4174,6 +4174,51 @@ def api_history_titles():
         return jsonify({"status": "error", "message": str(exc)}), 500
 
 
+@app.route('/api/history/workers')
+def api_history_workers():
+    """Danh sách người làm (cho ô tìm kiếm + datalist ở History Task)."""
+    if not session.get('logged_in'):
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+    if not archive_available():
+        return jsonify({"status": "error", "message": ARCHIVE_IMPORT_ERROR}), 500
+    try:
+        return jsonify({"status": "success", "workers": archive_worker_names()})
+    except Exception as exc:
+        return jsonify({"status": "error", "message": str(exc)}), 500
+
+
+@app.route('/api/history/worker')
+def api_history_worker():
+    """Tìm theo người làm -> tất cả tác phẩm người đó tham gia + tổng số."""
+    if not session.get('logged_in'):
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+    if not archive_available():
+        return jsonify({"status": "error", "message": ARCHIVE_IMPORT_ERROR}), 500
+
+    worker = (request.args.get('worker') or '').strip()
+    query = (request.args.get('q') or '').strip()
+    vn_only = (request.args.get('vn', '1') != '0')
+    if not worker:
+        return jsonify({
+            "status": "success", "worker": "", "total_titles": 0,
+            "total_tasks": 0, "titles": [],
+        })
+
+    try:
+        def _build_worker():
+            data = task_archive.worker_titles(worker, vn_only=vn_only, q=query or None)
+            for item in data.get('titles', []):
+                item['reading'] = title_reading_for(item.get('tac_pham'))
+            return data
+
+        data = history_api_cached(
+            ('worker', worker.lower(), query.lower(), vn_only),
+            HISTORY_TITLES_TTL, _build_worker)
+        return jsonify({"status": "success", **data})
+    except Exception as exc:
+        return jsonify({"status": "error", "message": str(exc)}), 500
+
+
 @app.route('/api/history')
 def api_history():
     if not session.get('logged_in'):
