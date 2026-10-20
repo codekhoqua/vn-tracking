@@ -10411,12 +10411,83 @@ async function executeSaveTracker(index, tpKey, durationMinutes, finalStartTime,
     }
 }
 
+function showConfirmDialog(opts) {
+    const isVi = typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi';
+    const o = Object.assign({
+        title: isVi ? 'Xác nhận' : '確認',
+        message: '',
+        confirmText: isVi ? 'Xác nhận' : 'OK',
+        cancelText: isVi ? 'Hủy' : 'キャンセル',
+        danger: false
+    }, opts || {});
+
+    return new Promise((resolve) => {
+        const overlay = document.createElement('div');
+        overlay.className = 'vn-confirm-overlay';
+        overlay.innerHTML = `
+            <div class="vn-confirm-card" role="dialog" aria-modal="true" aria-labelledby="vn-confirm-title">
+                <div class="vn-confirm-head">
+                    <span class="vn-confirm-icon${o.danger ? '' : ' safe'}"><i class="fas ${o.danger ? 'fa-trash-alt' : 'fa-circle-info'}"></i></span>
+                    <div>
+                        <div class="vn-confirm-title" id="vn-confirm-title"></div>
+                        <div class="vn-confirm-msg"></div>
+                    </div>
+                </div>
+                <div class="vn-confirm-actions">
+                    <button type="button" class="vn-confirm-btn cancel"></button>
+                    <button type="button" class="vn-confirm-btn ${o.danger ? 'danger' : 'primary'}"></button>
+                </div>
+            </div>`;
+
+        overlay.querySelector('.vn-confirm-title').textContent = o.title;
+        const msgEl = overlay.querySelector('.vn-confirm-msg');
+        if (o.message) msgEl.textContent = o.message;
+        else msgEl.remove();
+
+        const cancelBtn = overlay.querySelector('.vn-confirm-btn.cancel');
+        const okBtn = overlay.querySelector('.vn-confirm-btn:not(.cancel)');
+        cancelBtn.textContent = o.cancelText;
+        okBtn.textContent = o.confirmText;
+
+        const onKey = (e) => {
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                close(false);
+            }
+        };
+
+        function close(val) {
+            document.removeEventListener('keydown', onKey);
+            overlay.remove();
+            resolve(val);
+        }
+
+        cancelBtn.addEventListener('click', () => close(false));
+        okBtn.addEventListener('click', () => close(true));
+        overlay.addEventListener('mousedown', (e) => {
+            if (e.target === overlay) close(false);
+        });
+        document.addEventListener('keydown', onKey);
+        document.body.appendChild(overlay);
+        okBtn.focus();
+    });
+}
+
 async function deleteTrackerSession(index, tpKey) {
     const isVi = typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi';
     const trackerBox = document.getElementById(`tracker_${index}`);
     const sessionCode = trackerBox?.getAttribute('data-session') || '';
-    
-    if (!confirm(isVi ? 'Bạn có chắc chắn muốn xóa toàn bộ lịch sử bấm giờ này?' : 'このタスクのすべての計測履歴を削除してもよろしいですか？')) {
+
+    const ok = await showConfirmDialog({
+        title: isVi ? 'Xóa session bấm giờ?' : '計測セッションを削除しますか？',
+        message: isVi
+            ? 'Toàn bộ lịch sử bấm giờ của task này sẽ bị xóa và không thể khôi phục.'
+            : 'このタスクの計測履歴がすべて削除され、元に戻せません。',
+        confirmText: isVi ? 'Xóa session' : '削除する',
+        cancelText: isVi ? 'Hủy' : 'キャンセル',
+        danger: true
+    });
+    if (!ok) {
         return;
     }
 
@@ -10454,7 +10525,16 @@ async function deleteTrackerLogItem(index, rowIndex, tpKey) {
     const trackerBox = document.getElementById(`tracker_${index}`);
     const sessionCode = trackerBox?.getAttribute('data-session') || '';
 
-    if (!confirm(isVi ? 'Bạn có chắc chắn muốn xóa lượt bấm giờ này?' : 'この計測履歴を削除してもよろしいですか？')) {
+    const ok = await showConfirmDialog({
+        title: isVi ? 'Xóa lượt bấm giờ?' : 'この計測履歴を削除しますか？',
+        message: isVi
+            ? 'Lượt bấm giờ này sẽ bị xóa và không thể khôi phục.'
+            : 'この計測履歴を削除します。元に戻せません。',
+        confirmText: isVi ? 'Xóa' : '削除する',
+        cancelText: isVi ? 'Hủy' : 'キャンセル',
+        danger: true
+    });
+    if (!ok) {
         return;
     }
 
