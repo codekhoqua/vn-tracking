@@ -57,7 +57,7 @@
         <!-- Task Page Hero Title & Worker Header -->
         <div class="task-page-header">
             <div class="task-page-title-block">
-                <h1 class="task-page-main-title">{{ tp_name_display }}</h1>
+                <h1 class="task-page-main-title">{{ tp_name_display }}{% if tp_reading %}<span class="task-title-reading"> / {{ tp_reading }}</span>{% endif %}</h1>
                 <div class="task-page-worker-row">
                     <div class="worker-avatars-group" style="display: flex;">
                         {% set workers = worker.split(',') if worker else [] %}

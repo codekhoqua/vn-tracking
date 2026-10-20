@@ -10,3 +10,5 @@ google-auth
 oauth2client
 Pillow>=10.4.0
 python-dateutil>=2.8.2
+# Optional: auto Japanese title -> romaji when not in data/title_readings.json
+pykakasi>=2.2.1

@@ -63,6 +63,22 @@ except Exception as _archive_import_exc:  # pragma: no cover
     ARCHIVE_IMPORT_ERROR = str(_archive_import_exc)
     print("Không import được task_archive:", _archive_import_exc)
 
+try:
+    import title_readings
+except Exception as _tr_import_exc:  # pragma: no cover
+    title_readings = None
+    print("Không import được title_readings:", _tr_import_exc)
+
+
+def title_reading_for(tac_pham):
+    """Phiên âm tên tác phẩm (rỗng nếu chưa có)."""
+    if title_readings is None:
+        return ''
+    try:
+        return title_readings.reading_for(tac_pham)
+    except Exception:
+        return ''
+
 app = Flask(__name__)
 
 DRIVE_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "drive_data")
@@ -2412,6 +2428,7 @@ def process_dashboard_data():
             r['tp_key'] = tp_key
             r['tp_name'] = tp_key
             r['volume_key'] = vol_key
+            r['tp_reading'] = title_reading_for(tp)
             
 
 
@@ -2503,6 +2520,7 @@ def process_dashboard_data():
             data.append({
                 "key": tp_key,
                 "name": tp_name,
+                "reading": row.get('tp_reading', ''),
                 "worker": worker,
                 "qc_person": qc_person,
                 "progress": progress,
@@ -3931,6 +3949,8 @@ def api_history_titles():
     try:
         titles = task_archive.list_titles(limit=limit, vn_only=vn_only, q=query or None)
         total = task_archive.count_titles(vn_only=vn_only, q=query or None)
+        for item in titles:
+            item['reading'] = title_reading_for(item.get('tac_pham'))
         return jsonify({
             "status": "success", "total": total, "titles": titles,
             "vn_only": vn_only,
@@ -4014,6 +4034,7 @@ def api_history_task_detail():
             worker=row['Người thực hiện'],
             tp_key=detail['tp_key'],
             tp_name_display=detail['tp_key'],
+            tp_reading=title_reading_for(tac_pham),
             page_id='hist',
             modal_id='hist',
             checked_ids_dict={detail['tp_key']: detail['checked_ids']},
