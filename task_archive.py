@@ -1478,6 +1478,17 @@ def migrate_from_env(store=None, progress=None):
 # Avatar thành viên - lưu thẳng vào DB (không cần Google Drive)
 # =====================================================================
 AVATAR_MAX_BYTES = 3 * 1024 * 1024
+_AVATAR_CACHE = {}
+_AVATAR_CACHE_LOCK = threading.Lock()
+AVATAR_CACHE_TTL = 3600
+
+
+def _avatar_cache_drop(username=None):
+    with _AVATAR_CACHE_LOCK:
+        if username:
+            _AVATAR_CACHE.pop((username or "").strip(), None)
+        else:
+            _AVATAR_CACHE.clear()
 
 
 def save_user_avatar(username, data, mime="image/jpeg"):
@@ -1498,14 +1509,25 @@ def save_user_avatar(username, data, mime="image/jpeg"):
         "mime=excluded.mime, data=excluded.data, updated_at=excluded.updated_at",
         (username, mime or "image/jpeg", bytes(data), now_iso()),
     )
+    _avatar_cache_drop(username)
     return True
 
 
 def get_user_avatar(username):
-    """Trả {"mime", "data"} hoặc None nếu user chưa có avatar trong DB."""
+    """Trả {"mime", "data"} hoặc None nếu user chưa có avatar trong DB.
+
+    Ảnh nằm trong Turso (nước ngoài) nên mỗi lần lấy tốn ~0.3-0.6s; trang nào
+    cũng có 8 avatar -> cache trong RAM để hiện tức thì.
+    """
     username = (username or "").strip()
     if not username:
         return None
+    now = time.time()
+    with _AVATAR_CACHE_LOCK:
+        hit = _AVATAR_CACHE.get(username)
+        if hit and (now - hit["at"]) < AVATAR_CACHE_TTL:
+            return {"mime": hit["mime"], "data": hit["data"]}
+
     store = get_store()
     ensure_schema(store)
     _cols, rows = store.execute(
@@ -1521,7 +1543,23 @@ def get_user_avatar(username):
             data = base64.b64decode(data)
         except Exception:
             data = data.encode("utf-8")
-    return {"mime": mime or "image/jpeg", "data": bytes(data)}
+    mime = mime or "image/jpeg"
+    data = bytes(data)
+    with _AVATAR_CACHE_LOCK:
+        _AVATAR_CACHE[username] = {"mime": mime, "data": data, "at": now}
+        if len(_AVATAR_CACHE) > 64:
+            oldest = sorted(_AVATAR_CACHE.items(), key=lambda kv: kv[1]["at"])[:32]
+            for k, _v in oldest:
+                _AVATAR_CACHE.pop(k, None)
+    return {"mime": mime, "data": data}
+
+
+def list_avatar_users(store=None):
+    """Danh sách username đang có avatar trong DB (để nạp sẵn cache)."""
+    store = store or get_store()
+    ensure_schema(store)
+    _cols, rows = store.execute("SELECT username FROM user_avatars")
+    return [r[0] for r in rows]
 
 
 def delete_user_avatar(username):
@@ -1529,4 +1567,5 @@ def delete_user_avatar(username):
     ensure_schema(store)
     store.execute("DELETE FROM user_avatars WHERE username = ?",
                   ((username or "").strip(),))
+    _avatar_cache_drop(username)
     return True

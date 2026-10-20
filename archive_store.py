@@ -132,7 +132,12 @@ class TursoStore:
         self.endpoint = base + "/v2/pipeline"
         self.token = token
         self.timeout = timeout
-        self._local = threading.local()
+        # Dùng CHUNG 1 session cho mọi thread: Flask dev server tạo thread mới
+        # cho mỗi request, nếu session để theo thread thì request nào cũng phải
+        # bắt tay TLS lại (~1s). Session dùng chung + pool của urllib3 vẫn xử
+        # lý được nhiều request song song và giữ kết nối luôn ấm.
+        self._session_obj = None
+        self._session_lock = threading.Lock()
 
     def _headers(self):
         return {
@@ -141,22 +146,35 @@ class TursoStore:
         }
 
     def _session(self):
-        """Session riêng cho từng thread - giữ kết nối để khỏi bắt tay TLS lại.
+        """Session dùng chung, giữ kết nối để khỏi bắt tay TLS lại.
 
         Không tái dùng kết nối thì mỗi query mất ~1s (TLS handshake tới Turso),
         tái dùng chỉ còn ~0.25s.
         """
         if requests is None:
             raise ArchiveStoreError("Thiếu package requests")
-        sess = getattr(self._local, "session", None)
-        if sess is None:
-            sess = requests.Session()
-            adapter = requests.adapters.HTTPAdapter(
-                pool_connections=4, pool_maxsize=8, max_retries=0)
-            sess.mount("https://", adapter)
-            sess.mount("http://", adapter)
-            self._local.session = sess
-        return sess
+        sess = self._session_obj
+        if sess is not None:
+            return sess
+        with self._session_lock:
+            if self._session_obj is None:
+                sess = requests.Session()
+                adapter = requests.adapters.HTTPAdapter(
+                    pool_connections=8, pool_maxsize=8, max_retries=0)
+                sess.mount("https://", adapter)
+                sess.mount("http://", adapter)
+                self._session_obj = sess
+            return self._session_obj
+
+    def _reset_session(self):
+        """Bỏ session hiện tại (kết nối có thể đã hỏng) để lần sau tạo mới."""
+        with self._session_lock:
+            sess, self._session_obj = self._session_obj, None
+        if sess is not None:
+            try:
+                sess.close()
+            except Exception:
+                pass
 
     def _send(self, requests_body):
         payload = {"requests": list(requests_body) + [{"type": "close"}]}
@@ -184,7 +202,7 @@ class TursoStore:
             except Exception as exc:  # lỗi mạng -> thử lại
                 last_err = exc
                 # kết nối cũ có thể hỏng -> bỏ session để lần sau tạo mới
-                self._local.session = None
+                self._reset_session()
                 time.sleep(0.4 * (attempt + 1))
         raise ArchiveStoreError("Không gọi được Turso: %s" % last_err)
 
