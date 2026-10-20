@@ -418,6 +418,7 @@ def load_users_dataframe(url):
 # và danh sách thành viên (ở lịch sử, kanban, task, biểu đồ, trang Role).
 # Giờ giữ lại bản đọc được gần nhất: trong RAM và trong data/users_cache.json.
 _USERS_FALLBACK = {'data': {}}
+_USERS_CACHE_LOCK = threading.Lock()
 
 
 def _users_cache_path():
@@ -435,15 +436,25 @@ def _read_users_cache_file():
 
 
 def _write_users_cache_file(users):
+    """Ghi bản users gần nhất ra file (an toàn khi nhiều thread cùng gọi)."""
+    path = _users_cache_path()
+    tmp = None
     try:
-        path = _users_cache_path()
         os.makedirs(os.path.dirname(path), exist_ok=True)
-        tmp = path + '.tmp'
-        with open(tmp, 'w', encoding='utf-8') as fh:
-            json.dump(users, fh, ensure_ascii=False)
-        os.replace(tmp, path)
+        with _USERS_CACHE_LOCK:
+            tmp = f"{path}.{os.getpid()}.{int(time.time() * 1000)}.tmp"
+            with open(tmp, 'w', encoding='utf-8') as fh:
+                json.dump(users, fh, ensure_ascii=False)
+            os.replace(tmp, path)
+            tmp = None
     except Exception as exc:
         print('Không ghi được cache users:', exc)
+    finally:
+        if tmp:
+            try:
+                os.remove(tmp)
+            except Exception:
+                pass
 
 
 @cached(ttl=300)
@@ -3927,20 +3938,27 @@ def build_titles_payload(limit=300, vn_only=True, query=None):
 
 def archive_warm_cache():
     """Nạp sẵn stats + danh sách tác phẩm + avatar để lần mở trang sau là tức thì."""
-    if not archive_available():
-        return
+    if archive_available():
+        try:
+            history_api_cached('stats', HISTORY_STATS_TTL, task_archive.stats)
+            history_api_cached(('titles', 300, True, None), HISTORY_TITLES_TTL,
+                               lambda: build_titles_payload(300, True, None))
+        except Exception as exc:
+            print('Không nạp sẵn cache lịch sử:', exc)
+        # Avatar: mỗi ảnh 1 query Turso (~0.3s) nên nạp sẵn vào RAM.
+        try:
+            for uname in task_archive.list_avatar_users():
+                task_archive.get_user_avatar(uname)
+        except Exception as exc:
+            print('Không nạp sẵn avatar:', exc)
+    # Radio + danh sách online: nạp sẵn để lần mở trang đầu không phải chờ
+    # Supabase (mỗi lần đọc là list folder + tải N file presence).
     try:
-        history_api_cached('stats', HISTORY_STATS_TTL, task_archive.stats)
-        history_api_cached(('titles', 300, True, None), HISTORY_TITLES_TTL,
-                           lambda: build_titles_payload(300, True, None))
+        _radio_read_state(force=True)
+        _presence_read_dir(RADIO_LISTENERS_DIR, force=True)
+        _presence_read_dir(ONLINE_USERS_DIR, force=True)
     except Exception as exc:
-        print('Không nạp sẵn cache lịch sử:', exc)
-    # Avatar: mỗi ảnh 1 query Turso (~0.3s) nên nạp sẵn vào RAM.
-    try:
-        for uname in task_archive.list_avatar_users():
-            task_archive.get_user_avatar(uname)
-    except Exception as exc:
-        print('Không nạp sẵn avatar:', exc)
+        print('Không nạp sẵn radio/presence:', exc)
 
 
 def archive_warm_cache_async():
@@ -4161,7 +4179,7 @@ def api_history():
 
     try:
         def _build_history():
-            rows = task_archive.history_for_title(
+            rows, cmts = task_archive.history_for_title(
                 tac_pham,
                 date_from=date_from,
                 date_to=date_to,
@@ -4169,8 +4187,8 @@ def api_history():
                 job_type=job_type,
                 limit=limit,
                 vn_only=vn_only,
+                include_comments=True,
             )
-            cmts = task_archive.all_comments_for_title(tac_pham, limit=1000)
             return rows, cmts
 
         items, comments = history_api_cached(
@@ -4329,7 +4347,14 @@ def is_protected_system_path(path):
     return False
 
 
+# Session dùng chung cho mọi request Supabase: giữ kết nối TLS để mỗi lần
+# đọc/ghi file (presence, radio, ảnh...) không phải bắt tay lại (~0.3-1s).
 _sb_session = requests.Session()
+_sb_adapter = requests.adapters.HTTPAdapter(
+    pool_connections=16, pool_maxsize=16, max_retries=1)
+_sb_session.mount('https://', _sb_adapter)
+_sb_session.mount('http://', _sb_adapter)
+
 
 def _sb_headers(extra=None):
     h = {
@@ -4358,7 +4383,7 @@ def sb_ensure_bucket():
     if _sb_bucket_ready:
         return
     try:
-        r = requests.post(
+        r = _sb_session.post(
             f'{SUPABASE_URL}/storage/v1/bucket',
             headers=_sb_headers({'Content-Type': 'application/json'}),
             json={'id': SUPABASE_BUCKET, 'name': SUPABASE_BUCKET, 'public': False},
@@ -4380,7 +4405,7 @@ def sb_list(prefix):
         'offset': 0,
         'sortBy': {'column': 'name', 'order': 'asc'},
     }
-    r = requests.post(
+    r = _sb_session.post(
         f'{SUPABASE_URL}/storage/v1/object/list/{SUPABASE_BUCKET}',
         headers=_sb_headers({'Content-Type': 'application/json'}),
         json=body, timeout=30,
@@ -4425,7 +4450,7 @@ def sb_list_recursive(prefix):
             files.append(it['path'])
     # gồm cả .keep để xóa sạch folder
     body = {'prefix': f'{prefix}/' if prefix else '', 'limit': 1000, 'offset': 0}
-    r = requests.post(
+    r = _sb_session.post(
         f'{SUPABASE_URL}/storage/v1/object/list/{SUPABASE_BUCKET}',
         headers=_sb_headers({'Content-Type': 'application/json'}),
         json=body, timeout=30,
@@ -4441,7 +4466,7 @@ def sb_delete(paths):
     """Xóa danh sách object theo đường dẫn đầy đủ."""
     if not paths:
         return
-    r = requests.delete(
+    r = _sb_session.delete(
         f'{SUPABASE_URL}/storage/v1/object/{SUPABASE_BUCKET}',
         headers=_sb_headers({'Content-Type': 'application/json'}),
         json={'prefixes': paths}, timeout=60,
@@ -4450,7 +4475,7 @@ def sb_delete(paths):
 
 
 def sb_download_bytes(path):
-    r = requests.get(
+    r = _sb_session.get(
         f'{SUPABASE_URL}/storage/v1/object/{SUPABASE_BUCKET}/{path}',
         headers=_sb_headers(), timeout=120,
     )
@@ -4459,7 +4484,7 @@ def sb_download_bytes(path):
 
 
 def sb_sign_url(path, expires=120):
-    r = requests.post(
+    r = _sb_session.post(
         f'{SUPABASE_URL}/storage/v1/object/sign/{SUPABASE_BUCKET}/{path}',
         headers=_sb_headers({'Content-Type': 'application/json'}),
         json={'expiresIn': expires}, timeout=30,
@@ -6731,10 +6756,49 @@ _DEFAULT_RADIO_STATE = {
 }
 
 
-def _radio_read_state():
-    """Đọc radio state từ Supabase Storage. Trả về default nếu chưa có."""
+_radio_state_cache = {'at': 0.0, 'data': None}
+_radio_refreshing = {'on': False}
+_radio_state_lock = threading.Lock()
+RADIO_STATE_TTL = float(os.environ.get('RADIO_STATE_TTL', '2'))
+RADIO_STATE_STALE_MAX = float(os.environ.get('RADIO_STATE_STALE_MAX', '60'))
+
+
+def _radio_refresh_async():
+    """Tải lại radio state ở thread nền (tránh bắt client chờ)."""
+    with _radio_state_lock:
+        if _radio_refreshing['on']:
+            return
+        _radio_refreshing['on'] = True
+
+    def _run():
+        try:
+            _radio_read_state(force=True)
+        except Exception:
+            pass
+        finally:
+            with _radio_state_lock:
+                _radio_refreshing['on'] = False
+
+    threading.Thread(target=_run, daemon=True, name='radio-refresh').start()
+
+
+def _radio_read_state(force=False):
+    """Đọc radio state từ Supabase Storage. Trả về default nếu chưa có.
+
+    Client polling endpoint này liên tục (nhiều tab) nên cache 2 giây để không
+    phải tải file từ Supabase mỗi request.
+    """
     if not USE_SUPABASE:
         return radio_state.copy()
+    now = time.time()
+    if not force and _radio_state_cache['data'] is not None:
+        age = now - _radio_state_cache['at']
+        if age < RADIO_STATE_TTL:
+            return dict(_radio_state_cache['data'])
+        if age < RADIO_STATE_STALE_MAX:
+            # Trả bản cũ ngay, tải bản mới ở nền.
+            _radio_refresh_async()
+            return dict(_radio_state_cache['data'])
     try:
         data = sb_download_bytes(RADIO_STATE_FILE)
         state = json.loads(data)
@@ -6744,12 +6808,14 @@ def _radio_read_state():
                 state['dj_username'] = None
                 state['is_playing'] = False
                 _radio_write_state(state)
+        _radio_state_cache['at'] = now
+        _radio_state_cache['data'] = dict(state)
         return state
     except Exception:
-        return _DEFAULT_RADIO_STATE.copy()
+        return dict(_radio_state_cache['data'] or _DEFAULT_RADIO_STATE)
 
 
-def _radio_live_state():
+def _radio_live_state(force=False):
     """Trạng thái radio "thật" để trả cho client.
 
     DJ phát qua Socket.IO chỉ cập nhật radio_state trong RAM của process này,
@@ -6759,7 +6825,7 @@ def _radio_live_state():
     (lỗi "tắt DJ mà có máy vẫn ngồi trong phòng nghe chung").
     Hàm này gộp bản lưu với trạng thái RAM đang sống.
     """
-    state = _radio_read_state()
+    state = _radio_read_state(force=force)
     try:
         ram_dj = radio_state.get('dj_username')
         released_at = radio_state.get('dj_released_at') or 0
@@ -6791,6 +6857,8 @@ def _radio_write_state(state):
     try:
         state['last_update'] = time.time()
         sb_upload(RADIO_STATE_FILE, json.dumps(state).encode('utf-8'), 'application/json')
+        _radio_state_cache['at'] = time.time()
+        _radio_state_cache['data'] = dict(state)
     except Exception:
         pass
 
@@ -6801,7 +6869,37 @@ def _presence_key(username):
     return f'{h}.json'
 
 
-def _presence_read_dir(dir_path):
+# Danh sách "ai đang online / nghe nhạc": mỗi user 1 file trên Supabase. Không
+# cache thì mỗi lần client poll lại phải list folder + tải N file (~2-3s khi
+# đông người). Cache 5s là đủ mượt mà vẫn gần thời gian thực.
+_presence_cache = {}
+_presence_refreshing = set()
+_presence_lock = threading.Lock()
+PRESENCE_CACHE_TTL = float(os.environ.get('PRESENCE_CACHE_TTL', '5'))
+# Trả bản cũ ngay (không bắt người dùng chờ) và làm mới ở nền.
+PRESENCE_STALE_MAX = float(os.environ.get('PRESENCE_STALE_MAX', '120'))
+
+
+def _presence_refresh_async(dir_path):
+    """Làm mới cache presence ở thread nền (mỗi folder 1 lần)."""
+    with _presence_lock:
+        if dir_path in _presence_refreshing:
+            return
+        _presence_refreshing.add(dir_path)
+
+    def _run():
+        try:
+            _presence_read_dir(dir_path, force=True)
+        except Exception:
+            pass
+        finally:
+            with _presence_lock:
+                _presence_refreshing.discard(dir_path)
+
+    threading.Thread(target=_run, daemon=True, name='presence-refresh').start()
+
+
+def _presence_read_dir(dir_path, force=False):
     """Đọc tất cả presence file trong 1 folder, lọc bỏ entry hết hạn.
 
     Mỗi user = 1 file nên nhiều người join/heartbeat song song không ghi đè
@@ -6809,31 +6907,55 @@ def _presence_read_dir(dir_path):
     if not USE_SUPABASE:
         return []
     now = time.time()
+    hit = _presence_cache.get(dir_path)
+    if not force and hit:
+        age = now - hit['at']
+        if age < PRESENCE_CACHE_TTL:
+            return [dict(e) for e in hit['data']]
+        if age < PRESENCE_STALE_MAX:
+            # Trang đang chờ: trả ngay bản cũ, refresh nền.
+            _presence_refresh_async(dir_path)
+            return [dict(e) for e in hit['data']]
     result = []
     seen = set()
     try:
-        for it in sb_list(dir_path):
-            if it.get('is_dir'):
-                continue
-            try:
-                data = sb_download_bytes(it['path'])
-                entry = json.loads(data)
-            except Exception:
-                continue
-            if now - entry.get('last_seen', 0) >= PRESENCE_TTL:
-                # Hết hạn -> dọn file (best effort), bỏ qua
-                try:
-                    sb_delete([it['path']])
-                except Exception:
-                    pass
-                continue
-            uname = entry.get('username')
-            if uname in seen:
-                continue
-            seen.add(uname)
-            result.append(entry)
+        items = [it for it in sb_list(dir_path) if not it.get('is_dir')]
     except Exception:
-        return []
+        return [dict(e) for e in (hit['data'] if hit else [])]
+
+    def _load(it):
+        try:
+            return it['path'], json.loads(sb_download_bytes(it['path']))
+        except Exception:
+            return it['path'], None
+
+    # Tải song song: mỗi presence file là 1 request Supabase (~0.3-1s), tuần tự
+    # 8 người là ~2s -> chạy 8 luồng chỉ còn ~0.3s.
+    loaded = []
+    if items:
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=min(8, len(items))) as ex:
+            loaded = list(ex.map(_load, items))
+
+    expired = []
+    for path, entry in loaded:
+        if not isinstance(entry, dict):
+            continue
+        if now - entry.get('last_seen', 0) >= PRESENCE_TTL:
+            # Hết hạn -> dọn file (best effort), bỏ qua
+            expired.append(path)
+            continue
+        uname = entry.get('username')
+        if uname in seen:
+            continue
+        seen.add(uname)
+        result.append(entry)
+    if expired:
+        try:
+            sb_delete(expired)
+        except Exception:
+            pass
+    _presence_cache[dir_path] = {'at': now, 'data': [dict(e) for e in result]}
     return result
 
 
@@ -6847,6 +6969,16 @@ def _presence_write(dir_path, username, profile):
         entry['last_seen'] = time.time()
         sb_upload(f'{dir_path}/{_presence_key(username)}',
                   json.dumps(entry).encode('utf-8'), 'application/json')
+        # Cập nhật cache tại chỗ thay vì xoá: xoá thì request kế tiếp phải tải
+        # lại toàn bộ folder (1 list + N file) -> 1-2s. Heartbeat 10s/lần nên
+        # nếu xoá cache liên tục thì gần như lần nào cũng chậm.
+        with _presence_lock:
+            hit = _presence_cache.get(dir_path)
+            if hit is not None:
+                data = [e for e in hit['data']
+                        if e.get('username') != username]
+                data.append(dict(entry))
+                _presence_cache[dir_path] = {'at': hit['at'], 'data': data}
     except Exception:
         pass
 
@@ -6857,6 +6989,12 @@ def _presence_remove(dir_path, username):
         return
     try:
         sb_delete([f'{dir_path}/{_presence_key(username)}'])
+        with _presence_lock:
+            hit = _presence_cache.get(dir_path)
+            if hit is not None:
+                data = [e for e in hit['data']
+                        if e.get('username') != username]
+                _presence_cache[dir_path] = {'at': hit['at'], 'data': data}
     except Exception:
         pass
 
@@ -6869,6 +7007,7 @@ def _presence_clear(dir_path):
         paths = [it['path'] for it in sb_list(dir_path) if not it.get('is_dir')]
         if paths:
             sb_delete(paths)
+        _presence_cache.pop(dir_path, None)
     except Exception:
         pass
 
@@ -6918,7 +7057,7 @@ def api_radio_sync():
         return jsonify({'error': 'Unauthorized'}), 401
 
     username = session.get('user', '')
-    state = _radio_read_state()
+    state = _radio_read_state(force=True)
 
     if state.get('dj_username') != username:
         return jsonify({'error': 'Not the DJ'}), 403
@@ -6954,7 +7093,7 @@ def api_radio_claim():
         return jsonify({'error': 'Unauthorized'}), 401
 
     username = session.get('user', '')
-    state = _radio_live_state()
+    state = _radio_live_state(force=True)
 
     current_dj = state.get('dj_username')
     if current_dj and current_dj != username:
@@ -6979,7 +7118,7 @@ def api_radio_release():
         return jsonify({'error': 'Unauthorized'}), 401
 
     username = session.get('user', '')
-    state = _radio_read_state()
+    state = _radio_read_state(force=True)
 
     if state.get('dj_username') == username:
         state['dj_username'] = None
@@ -7034,7 +7173,7 @@ def api_radio_toggle():
     if not session.get('logged_in'):
         return jsonify({'error': 'Unauthorized'}), 401
 
-    state = _radio_read_state()
+    state = _radio_read_state(force=True)
     if session.get('user', '') not in _radio_dj_usernames():
         return jsonify({'error': 'Not the DJ'}), 403
 

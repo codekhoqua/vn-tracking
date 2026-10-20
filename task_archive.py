@@ -1081,8 +1081,14 @@ def count_titles(store=None, vn_only=True, q=None):
 
 
 def history_for_title(tac_pham, store=None, date_from=None, date_to=None,
-                      worker=None, job_type=None, limit=2000, vn_only=True):
-    """Lịch sử task của 1 tác phẩm + số comment + tiến độ checklist."""
+                      worker=None, job_type=None, limit=2000, vn_only=True,
+                      include_comments=False):
+    """Lịch sử task của 1 tác phẩm + số comment + tiến độ checklist.
+
+    ``include_comments=True``: trả thêm toàn bộ comment của tác phẩm, gộp vào
+    cùng request tổng hợp (tiết kiệm 1 vòng mạng ~0.26s tới Turso).
+    Trả ``items`` hoặc ``(items, comments)``.
+    """
     store = store or get_store()
     ensure_schema(store)
 
@@ -1138,8 +1144,9 @@ def history_for_title(tac_pham, store=None, date_from=None, date_to=None,
     vkeys = list({i["volume_key"] for i in items if i["volume_key"]})
     comments = {}
     progress = {}
-    # 2 query tổng hợp gửi chung 1 request (Turso: ~0.26s thay vì 2 request)
+    # Gộp mọi query tổng hợp vào 1 request (Turso: ~0.26s thay vì nhiều request)
     agg = []
+    agg_plan = []
     if tp_keys:
         marks = ", ".join("?" for _ in tp_keys)
         agg.append((f"""
@@ -1147,25 +1154,45 @@ def history_for_title(tac_pham, store=None, date_from=None, date_to=None,
             WHERE tp_key IN ({marks})
             GROUP BY tp_key
         """, tp_keys))
+        agg_plan.append("progress")
     if vkeys:
         marks = ", ".join("?" for _ in vkeys)
         agg.append((f"""
             SELECT volume_key, COUNT(*) FROM task_comments
             WHERE volume_key IN ({marks}) GROUP BY volume_key
         """, vkeys))
+        agg_plan.append("comment_count")
+    if include_comments:
+        like = f"%_{tac_pham}"
+        agg.append(("""
+            SELECT created_at, author, message, tag, ts, volume_key, tp_key
+            FROM task_comments
+            WHERE volume_key = ? OR volume_key LIKE ? OR tp_key = ? OR tp_key LIKE ?
+            ORDER BY ts ASC LIMIT ?
+        """, [tac_pham, like, tac_pham, like, 1000]))
+        agg_plan.append("comments")
 
+    comments_list = []
     if agg:
         agg_rows = _fetch_many(store, agg)
-        for r in agg_rows[0] if tp_keys else []:
-            total = r[2] or 0
-            checked = r[1] or 0
-            progress[r[0]] = {
-                "checked": checked, "total": total,
-                "percent": min(100, int(checked / CHECKLIST_BOXES * 100)) if total else 0,
-            }
-        if vkeys:
-            for r in agg_rows[1] if tp_keys else agg_rows[0]:
-                comments[r[0]] = r[1]
+        for kind, part_rows in zip(agg_plan, agg_rows):
+            if kind == "progress":
+                for r in part_rows:
+                    total = r[2] or 0
+                    checked = r[1] or 0
+                    progress[r[0]] = {
+                        "checked": checked, "total": total,
+                        "percent": min(100, int(checked / CHECKLIST_BOXES * 100)) if total else 0,
+                    }
+            elif kind == "comment_count":
+                for r in part_rows:
+                    comments[r[0]] = r[1]
+            elif kind == "comments":
+                comments_list = [
+                    {"created_at": r[0], "author": r[1], "message": r[2],
+                     "tag": r[3], "ts": r[4], "volume_key": r[5], "tp_key": r[6]}
+                    for r in part_rows
+                ]
 
     for i in items:
         vk = i["volume_key"]
@@ -1187,6 +1214,8 @@ def history_for_title(tac_pham, store=None, date_from=None, date_to=None,
     # Quy ước xem lịch sử: tập cũ hơn tuần trước coi như xong 100%.
     if OLD_CHECKLIST_100:
         apply_old_checklist_rule(items)
+    if include_comments:
+        return items, comments_list
     return items
 
 
