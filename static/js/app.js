@@ -4714,7 +4714,13 @@ if (document.readyState === 'loading') {
 }
 
 // ===================== UTILS =====================
-function changeLang(lang) { window.location.href = `/set-lang?lang=${lang}&next=${encodeURIComponent(window.location.pathname)}`; }
+function changeLang(lang, event) {
+    if (event) event.stopPropagation();
+    const sel = document.getElementById('custom-lang-select');
+    if (sel) sel.classList.remove('open');
+    const next = window.location.pathname + window.location.search;
+    window.location.href = `/set-lang?lang=${lang}&next=${encodeURIComponent(next)}`;
+}
 function refreshData() { window.location.reload(); }
 
 function softRefreshChecklist(btn) {
