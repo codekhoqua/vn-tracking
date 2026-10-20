@@ -10333,3 +10333,287 @@ body.dark-theme .task-page-container .logtime-report-copy {
     .task-page-container .task-page-main-title { font-size: 1.2rem; }
     .task-page-container .task-main-col .task-links-grid { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ==========================================================================
+   TASK LINKS MODAL v2 + CONFIRM DIALOG (2026-10)
+   Cùng ngôn ngữ thiết kế với trang Task: 1 màu nhấn, viền 1px, không gradient.
+   ========================================================================== */
+
+/* ---------- 1. Modal "Liên kết công việc" ---------- */
+#edit-task-links-modal.task-links-modal-overlay {
+    background: rgba(9, 13, 22, 0.48);
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+    padding: 20px;
+}
+#edit-task-links-modal .task-links-modal-card {
+    max-width: 540px;
+    background: var(--surface-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: 0 24px 60px -24px rgba(9, 13, 22, 0.45);
+}
+#edit-task-links-modal .task-links-modal-header {
+    padding: 16px 20px 14px;
+    background: transparent;
+    border-bottom: 1px solid var(--border-subtle);
+}
+#edit-task-links-modal .task-links-modal-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: var(--primary-bg);
+    color: var(--primary);
+    font-size: 0.9rem;
+}
+#edit-task-links-modal .task-links-modal-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+}
+#edit-task-links-modal .task-links-modal-subtitle {
+    font-size: 0.82rem;
+    color: var(--text-3);
+    margin-top: 3px;
+}
+#edit-task-links-modal .btn-modal-close {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-3);
+    font-size: 0.9rem;
+    line-height: 1;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+#edit-task-links-modal .btn-modal-close:hover {
+    background: var(--surface-hover);
+    color: var(--text);
+}
+#edit-task-links-modal .task-links-modal-body {
+    padding: 18px 20px;
+    gap: 16px;
+}
+#edit-task-links-modal .task-link-input-group {
+    gap: 7px;
+}
+#edit-task-links-modal .task-link-input-group label {
+    font-size: 0.86rem;
+    gap: 12px;
+}
+#edit-task-links-modal .tool-badge {
+    font-size: 0.76rem;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 6px;
+    gap: 6px;
+}
+#edit-task-links-modal .input-hint {
+    font-size: 0.82rem;
+    color: var(--text-3);
+    text-align: right;
+}
+#edit-task-links-modal .input-with-icon {
+    position: relative;
+}
+#edit-task-links-modal .task-link-input {
+    width: 100%;
+    height: 42px;
+    padding: 0 44px 0 12px;
+    background: var(--surface-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 0.95rem;
+    font-family: inherit;
+}
+#edit-task-links-modal .task-link-input::placeholder {
+    color: var(--text-4);
+}
+#edit-task-links-modal .task-link-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    background: var(--surface-card);
+    box-shadow: 0 0 0 3px var(--primary-bg);
+}
+#edit-task-links-modal .btn-paste-link {
+    right: 6px;
+    width: 30px;
+    height: 30px;
+    border-radius: 6px;
+    background: transparent;
+    border: 0;
+    color: var(--text-3);
+    font-size: 0.82rem;
+}
+#edit-task-links-modal .btn-paste-link:hover {
+    background: var(--surface-hover);
+    color: var(--primary);
+}
+#edit-task-links-modal .task-links-modal-footer {
+    padding: 14px 20px;
+    background: transparent;
+    border-top: 1px solid var(--border-subtle);
+    gap: 8px;
+}
+#edit-task-links-modal .btn-links-cancel {
+    height: 38px;
+    padding: 0 16px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-2);
+    font-size: 0.92rem;
+    font-weight: 600;
+}
+#edit-task-links-modal .btn-links-cancel:hover {
+    background: var(--surface-hover);
+    color: var(--text);
+}
+#edit-task-links-modal .btn-links-save {
+    height: 38px;
+    padding: 0 18px;
+    border-radius: 8px;
+    border: 0;
+    background: var(--primary);
+    color: #fff;
+    font-size: 0.92rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: none;
+}
+#edit-task-links-modal .btn-links-save:hover {
+    background: var(--primary-hover);
+    transform: none;
+    box-shadow: none;
+}
+
+/* Màu badge tool: light = màu đậm, dark = màu sáng */
+body:not(.dark-theme) #edit-task-links-modal .tool-badge.mikan  { background: rgba(245, 158, 11, 0.14); color: #b45309; }
+body:not(.dark-theme) #edit-task-links-modal .tool-badge.notion { background: #eef1f6; color: #334155; }
+body:not(.dark-theme) #edit-task-links-modal .tool-badge.asana  { background: rgba(190, 18, 60, 0.12); color: #be123c; }
+body:not(.dark-theme) #edit-task-links-modal .tool-badge.dropbox{ background: rgba(37, 99, 235, 0.12); color: #1d4ed8; }
+body.dark-theme #edit-task-links-modal .tool-badge.mikan  { background: rgba(245, 158, 11, 0.12); color: #fbbf24; }
+body.dark-theme #edit-task-links-modal .tool-badge.notion { background: rgba(255, 255, 255, 0.08); color: #e2e8f0; }
+body.dark-theme #edit-task-links-modal .tool-badge.asana  { background: rgba(244, 63, 94, 0.12); color: #fb7185; }
+body.dark-theme #edit-task-links-modal .tool-badge.dropbox{ background: rgba(59, 130, 246, 0.14); color: #93c5fd; }
+
+/* ---------- 2. Hộp thoại xác nhận dùng chung ---------- */
+.vn-confirm-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10050;
+    background: rgba(9, 13, 22, 0.48);
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    animation: vnFadeIn 0.16s ease;
+}
+.vn-confirm-card {
+    width: 100%;
+    max-width: 400px;
+    background: var(--surface-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    box-shadow: 0 24px 60px -24px rgba(9, 13, 22, 0.45);
+    animation: vnZoomIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.vn-confirm-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+.vn-confirm-icon {
+    flex: 0 0 auto;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.05rem;
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+}
+.vn-confirm-icon.safe {
+    background: var(--primary-bg);
+    color: var(--primary);
+}
+.vn-confirm-title {
+    font-size: 1.08rem;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1.35;
+}
+.vn-confirm-msg {
+    font-size: 0.95rem;
+    color: var(--text-2);
+    line-height: 1.5;
+    margin-top: 4px;
+}
+.vn-confirm-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 18px;
+}
+.vn-confirm-btn {
+    height: 38px;
+    padding: 0 16px;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    font-size: 0.92rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-family: inherit;
+}
+.vn-confirm-btn.cancel {
+    background: transparent;
+    border-color: var(--border);
+    color: var(--text-2);
+}
+.vn-confirm-btn.cancel:hover {
+    background: var(--surface-hover);
+    color: var(--text);
+}
+.vn-confirm-btn.danger {
+    background: #ef4444;
+    color: #fff;
+}
+.vn-confirm-btn.danger:hover {
+    background: #dc2626;
+}
+.vn-confirm-btn.primary {
+    background: var(--primary);
+    color: #fff;
+}
+.vn-confirm-btn.primary:hover {
+    background: var(--primary-hover);
+}
+@keyframes vnFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+@keyframes vnZoomIn {
+    from { opacity: 0; transform: translateY(6px) scale(0.98); }
+    to { opacity: 1; transform: none; }
+}
+@media (max-width: 480px) {
+    #edit-task-links-modal .task-links-modal-card { max-width: 100%; }
+    .vn-confirm-card { max-width: 100%; }
+}
