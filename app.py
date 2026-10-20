@@ -3790,6 +3790,24 @@ def logout():
     session.clear()
     return redirect('/')
 
+@app.route('/set-lang')
+def set_lang():
+    """Đổi ngôn ngữ VI/JP.
+
+    Route này từng bị xoá nhầm -> bấm nút JP bị 404 và mọi màn hình vẫn
+    hiển thị tiếng Việt. Giữ ở đây để nút đổi ngôn ngữ hoạt động.
+    """
+    lang = (request.args.get('lang') or 'vi').strip().lower()
+    if lang not in ('vi', 'ja'):
+        lang = 'vi'
+    session['lang'] = lang
+
+    next_url = (request.args.get('next') or '').strip()
+    # Chỉ cho phép đường dẫn nội bộ (tránh open redirect).
+    if (not next_url) or (not next_url.startswith('/')) or next_url.startswith('//'):
+        next_url = '/dashboard'
+    return redirect(next_url)
+
 @app.route('/psd-tool')
 def psd_tool():
     if not session.get('logged_in'):

@@ -176,6 +176,29 @@
 </style>
 
 <script>
+// Đổi ngôn ngữ VN/JP ngay ở trang đăng nhập (trang này không nạp app.js
+// nên trước đây bấm JP không có phản ứng gì).
+function toggleLangSelect(event) {
+    if (event) event.stopPropagation();
+    const el = document.getElementById('custom-lang-select');
+    if (el) el.classList.toggle('open');
+}
+
+function changeLang(lang, event) {
+    if (event) event.stopPropagation();
+    const el = document.getElementById('custom-lang-select');
+    if (el) el.classList.remove('open');
+    const next = window.location.pathname + window.location.search;
+    window.location.href = '/set-lang?lang=' + encodeURIComponent(lang) +
+        '&next=' + encodeURIComponent(next);
+}
+
+// Đóng dropdown ngôn ngữ khi bấm ra ngoài
+document.addEventListener('click', function (e) {
+    const el = document.getElementById('custom-lang-select');
+    if (el && el.classList.contains('open')) el.classList.remove('open');
+});
+
 function toggleCustomSelect(event) {
     if(event) {
         event.stopPropagation();
