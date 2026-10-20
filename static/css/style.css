@@ -9552,7 +9552,7 @@ body.dark-theme .task-page-container .step-count.complete {
 }
 .task-page-container .task-row {
     display: grid;
-    grid-template-columns: 62px minmax(0, 1fr);
+    grid-template-columns: 74px minmax(0, 1fr);
     align-items: center;
     gap: 10px;
     padding: 2px 0;
@@ -9566,17 +9566,39 @@ body.dark-theme .task-page-container .step-count.complete {
     border: 0;
 }
 .task-page-container .task-row .platform-badge {
-    width: auto;
-    justify-content: flex-start;
-    background: transparent;
-    border: 0;
-    padding: 0;
-    color: var(--text-4);
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.06em;
+    width: 74px;
+    justify-content: center;
+    text-align: center;
+    white-space: nowrap;
+    padding: 2px 6px;
+    border-radius: 5px;
+    font-size: 0.66rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
     text-transform: uppercase;
-    line-height: 1.2;
+    line-height: 1.4;
+    flex-shrink: 0;
+}
+/* Light theme: badge màu như bản cũ (dark theme dùng màu gốc bên dưới) */
+body:not(.dark-theme) .task-page-container .task-row .platform-badge.notion {
+    background: #eef1f6;
+    color: #334155;
+    border: 1px solid #dbe3ec;
+}
+body:not(.dark-theme) .task-page-container .task-row .platform-badge.sheet {
+    background: rgba(5, 150, 105, 0.14);
+    color: #047857;
+    border: 1px solid rgba(5, 150, 105, 0.36);
+}
+body:not(.dark-theme) .task-page-container .task-row .platform-badge.asana {
+    background: rgba(190, 18, 60, 0.13);
+    color: #be123c;
+    border: 1px solid rgba(190, 18, 60, 0.34);
+}
+body:not(.dark-theme) .task-page-container .task-row .platform-badge.mikan {
+    background: rgba(180, 83, 9, 0.14);
+    color: #92400e;
+    border: 1px solid rgba(180, 83, 9, 0.36);
 }
 .task-page-container .check-label {
     display: grid;
@@ -9605,7 +9627,7 @@ body.dark-theme .task-page-container .step-count.complete {
     text-decoration-color: var(--text-4);
 }
 .task-page-container .ask-task-accordion {
-    margin: 1px 0 1px 72px;
+    margin: 1px 0 1px 84px;
 }
 .task-page-container .ask-task-trigger {
     background: transparent;
@@ -9631,7 +9653,7 @@ body.dark-theme .task-page-container .step-count.complete {
 }
 .task-page-container .msg-template-card,
 .task-page-container .msg-template-card.nested {
-    margin: 6px 0 6px 72px;
+    margin: 6px 0 6px 84px;
     background: var(--bg-page);
     border: 1px solid var(--tp-line-soft);
     border-radius: var(--tp-radius-sm);
