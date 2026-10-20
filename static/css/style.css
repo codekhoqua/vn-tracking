@@ -1321,6 +1321,18 @@ body.dark-theme .liquid-glass.glass-gold i {
     color: var(--text);
     letter-spacing: -0.01em;
 }
+/* Phiên âm tên tác phẩm - hiện nhỏ dưới tiêu đề thẻ kanban */
+.card-reading {
+    font-size: 0.72rem;
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--text-3);
+    margin-top: -8px;
+    margin-bottom: 8px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
 
 .card-worker { 
     font-size: 0.82rem; font-weight: 600; color: var(--text-3); margin-bottom: 14px; 
@@ -2050,6 +2062,12 @@ body.sidebar-collapsed .modal-overlay.task-detail-page-view {
     letter-spacing: -0.025em;
     line-height: 1.25;
     margin-bottom: 10px;
+}
+.task-title-reading {
+    font-size: 0.72em;
+    font-weight: 600;
+    color: var(--text-3);
+    letter-spacing: 0;
 }
 .task-page-worker-row {
     display: flex;
@@ -6434,10 +6452,11 @@ body:has(.login-page) {
     right: 0;
     width: 380px;
     max-width: 90vw;
-    background: #0f172a;
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: var(--surface-card);
+    border: 1px solid var(--border);
+    color: var(--text);
     border-radius: 14px;
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.95), 0 0 24px rgba(99, 102, 241, 0.25);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45), 0 0 24px rgba(99, 102, 241, 0.18);
     backdrop-filter: blur(20px);
     z-index: 9999999 !important;
     display: flex;
@@ -6456,8 +6475,8 @@ body:has(.login-page) {
     align-items: center;
     justify-content: space-between;
     padding: 12px 16px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    background: rgba(255, 255, 255, 0.02);
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
 }
 
 .notification-panel-title {
@@ -6474,9 +6493,9 @@ body:has(.login-page) {
 }
 
 .btn-notif-action {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    color: var(--text-3);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-2);
     font-size: 0.72rem;
     padding: 3px 8px;
     border-radius: 6px;
@@ -6485,7 +6504,7 @@ body:has(.login-page) {
 }
 
 .btn-notif-action:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--surface-hover);
     color: var(--text);
 }
 
@@ -6512,18 +6531,18 @@ body:has(.login-page) {
     cursor: pointer;
     position: relative;
     margin-bottom: 3px;
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid rgba(255, 255, 255, 0.04);
+    background: var(--surface);
+    border: 1px solid var(--border-subtle);
 }
 
 .notification-item:hover {
-    background: rgba(255, 255, 255, 0.06);
-    border-color: rgba(255, 255, 255, 0.08);
+    background: var(--surface-hover);
+    border-color: var(--border);
 }
 
 .notification-item.unread {
-    background: rgba(99, 102, 241, 0.08);
-    border-color: rgba(99, 102, 241, 0.3);
+    background: rgba(99, 102, 241, 0.12);
+    border-color: rgba(99, 102, 241, 0.35);
 }
 
 .notif-avatar {
@@ -6562,23 +6581,31 @@ body:has(.login-page) {
 
 .notif-user-name {
     font-size: 0.8rem;
-    font-weight: 600;
-    color: #818cf8;
+    font-weight: 700;
+    color: var(--primary);
+}
+
+body.dark-theme .notif-user-name {
+    color: #a5b4fc;
 }
 
 .notif-time {
-    font-size: 0.68rem;
-    color: var(--text-4);
+    font-size: 0.7rem;
+    color: var(--text-3);
 }
 
 .notif-task-title {
     font-size: 0.75rem;
-    font-weight: 600;
-    color: #fbbf24;
+    font-weight: 700;
+    color: #b45309;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
     margin-bottom: 2px;
+}
+
+body.dark-theme .notif-task-title {
+    color: #fbbf24;
 }
 
 .notif-message-text {
@@ -6591,7 +6618,7 @@ body:has(.login-page) {
 .btn-notif-dismiss {
     background: transparent;
     border: none;
-    color: var(--text-4);
+    color: var(--text-3);
     font-size: 16px;
     line-height: 1;
     cursor: pointer;
@@ -6612,7 +6639,7 @@ body:has(.login-page) {
     align-items: center;
     justify-content: center;
     padding: 36px 16px;
-    color: var(--text-4);
+    color: var(--text-3);
     font-size: 0.82rem;
     text-align: center;
 }
@@ -6622,14 +6649,14 @@ body:has(.login-page) {
     align-items: center;
     justify-content: space-between;
     padding: 10px 16px;
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
-    background: rgba(255, 255, 255, 0.02);
+    border-top: 1px solid var(--border);
+    background: var(--surface);
 }
 
 .btn-notif-close-panel {
-    background: transparent;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: var(--text-3);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-2);
     padding: 4px 10px;
     border-radius: 6px;
     font-size: 0.75rem;
@@ -6638,7 +6665,7 @@ body:has(.login-page) {
 }
 
 .btn-notif-close-panel:hover {
-    background: rgba(255, 255, 255, 0.08);
+    background: var(--surface-hover);
     color: var(--text);
 }
 
@@ -8007,49 +8034,58 @@ body:not(.dark-theme) .ai-insights-label {
 
 /* 4. Notification Dropdown Panel */
 body:not(.dark-theme) .notification-dropdown-panel {
-    background: #ffffff !important;
-    border: 1px solid #e2e8f0 !important;
+    background: var(--surface-card) !important;
+    border: 1px solid var(--border) !important;
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.12), 0 0 24px rgba(99, 102, 241, 0.08) !important;
 }
 body:not(.dark-theme) .notification-panel-header {
-    border-bottom: 1px solid #e2e8f0 !important;
-    background: #f8fafc !important;
+    border-bottom: 1px solid var(--border) !important;
+    background: var(--surface) !important;
 }
 body:not(.dark-theme) .notification-panel-title {
-    color: #0f172a !important;
+    color: var(--text) !important;
 }
 body:not(.dark-theme) .btn-notif-action {
-    background: #f1f5f9 !important;
-    border-color: #e2e8f0 !important;
-    color: #334155 !important;
+    background: var(--surface) !important;
+    border-color: var(--border) !important;
+    color: var(--text-2) !important;
 }
 body:not(.dark-theme) .btn-notif-action:hover {
-    background: #e2e8f0 !important;
-    color: #0f172a !important;
+    background: var(--surface-hover) !important;
+    color: var(--text) !important;
 }
 body:not(.dark-theme) .notification-panel-footer {
-    border-top: 1px solid #e2e8f0 !important;
-    background: #f8fafc !important;
+    border-top: 1px solid var(--border) !important;
+    background: var(--surface) !important;
 }
 body:not(.dark-theme) .btn-notif-close-panel {
-    background: #f1f5f9 !important;
-    border-color: #e2e8f0 !important;
-    color: #475569 !important;
+    background: var(--surface) !important;
+    border-color: var(--border) !important;
+    color: var(--text-2) !important;
 }
 body:not(.dark-theme) .notification-item {
-    border-bottom: 1px solid #f1f5f9 !important;
+    background: var(--surface) !important;
+    border-color: var(--border-subtle) !important;
 }
 body:not(.dark-theme) .notification-item:hover {
-    background: #f8fafc !important;
+    background: var(--surface-hover) !important;
 }
 body:not(.dark-theme) .notification-item.unread {
-    background: rgba(99, 102, 241, 0.05) !important;
+    background: rgba(99, 102, 241, 0.10) !important;
+    border-color: rgba(99, 102, 241, 0.35) !important;
 }
-body:not(.dark-theme) .notification-item-title {
-    color: #0f172a !important;
+body:not(.dark-theme) .notif-task-title {
+    color: #b45309 !important;
 }
-body:not(.dark-theme) .notification-item-text {
-    color: #475569 !important;
+body:not(.dark-theme) .notif-message-text {
+    color: var(--text-2) !important;
+}
+body:not(.dark-theme) .notif-time {
+    color: var(--text-3) !important;
+}
+body:not(.dark-theme) .notification-empty-state,
+body:not(.dark-theme) .btn-notif-dismiss {
+    color: var(--text-3) !important;
 }
 
 /* 5. Tool Full Page Views (Calendar, Drive, PSD, Role) */

@@ -6154,12 +6154,11 @@ function renderOnlineUsers(users) {
     const container = document.getElementById('global-online-users');
     if (!container) return;
 
-    const MAX_VISIBLE = 4;
     let html = '';
 
+    // Hiện đầy đủ mọi người đang online (không gộp thành "+N" nữa)
     users.forEach((u, idx) => {
-        if (idx >= MAX_VISIBLE) return;
-        const zIndex = 100 - idx;
+        const zIndex = 1000 - idx;
         const initial = u.fullname ? u.fullname.charAt(0).toUpperCase() : 'U';
 
         html += `
@@ -6169,15 +6168,6 @@ function renderOnlineUsers(users) {
             </span>
         `;
     });
-
-    if (users.length > MAX_VISIBLE) {
-        const extraCount = users.length - MAX_VISIBLE;
-        html += `
-            <span class="worker-avatar global-avatar" style="margin-left: -8px; position: relative; z-index: 90; background: var(--bg-card); color: var(--text-2); font-size: 12px; border: 2px solid var(--bg-body);" title="+${extraCount} người nữa">
-                +${extraCount}
-            </span>
-        `;
-    }
 
     container.innerHTML = html;
 }

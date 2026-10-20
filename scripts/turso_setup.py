@@ -44,10 +44,16 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 ENV_PATH = os.path.join(ROOT, "env_vars.yaml")
 
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
+
 API = "https://api.turso.tech/v1"
 DEFAULT_DB = "vn-tracking-archive"
 DEFAULT_GROUP = "default"
-DEFAULT_LOCATION = "aws-ap-southeast-1"
+DEFAULT_LOCATION = "aws-ap-southeast-2"
 
 
 # ---------------------------------------------------------------------
@@ -97,6 +103,8 @@ def pick(obj, *names, default=None):
 # ---------------------------------------------------------------------
 def list_orgs(token):
     _, data = api("/organizations", token=token)
+    if isinstance(data, list):
+        return data
     orgs = data.get("organizations") or data.get("orgs") or []
     return orgs
 
@@ -106,6 +114,8 @@ def list_groups(token, org):
         _, data = api(f"/organizations/{org}/groups", token=token)
     except ApiError:
         return []
+    if isinstance(data, list):
+        return data
     return data.get("groups") or []
 
 
@@ -310,6 +320,30 @@ def main():
         print(f"    task đã ghi: {res.get('saved')}")
         print("    đang kéo comment/checklist/link từ Supabase...")
         ta.migrate_from_env(progress=lambda m: print("      " + str(m)))
+
+        # Avatar KHÔNG có trên Sheet/Supabase -> copy từ SQLite local sang Turso
+        local_db = os.path.join(ROOT, "data", "vn_tracking_archive.db")
+        if os.path.exists(local_db):
+            import sqlite3 as _sqlite3
+
+            con = _sqlite3.connect(local_db)
+            try:
+                avatars = list(con.execute(
+                    "SELECT username, mime, data FROM user_avatars"))
+            except Exception:
+                avatars = []
+            finally:
+                con.close()
+            moved = 0
+            for username, mime, data in avatars:
+                try:
+                    ta.save_user_avatar(
+                        username, bytes(data), mime=mime or "image/jpeg")
+                    moved += 1
+                except Exception as exc:
+                    print(f"      ! avatar {username}: {exc}")
+            print(f"    avatar đã chuyển sang Turso: {moved}")
+
         print("\n    == Thống kê ==")
         for k, v in ta.stats().items():
             print(f"      {k:<18} {v}")

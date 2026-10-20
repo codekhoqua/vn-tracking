@@ -64,7 +64,9 @@
     .title-item:hover { background: var(--surface-hover); }
     .title-item.active { background: var(--primary-bg); border-color: var(--border-focus); }
     .title-item .n { font-size: 1.12rem; font-weight: 600; color: var(--text); display: block; word-break: break-word; }
+    .title-item .read { font-size: .92rem; font-weight: 600; color: var(--text-3); display: block; margin-top: 1px; word-break: break-word; }
     .title-item .m { font-size: .92rem; color: var(--text-3); margin-top: 3px; }
+    #detail-title .read { font-size: .8em; font-weight: 600; color: var(--text-3); }
     /* Số tập VN đảm nhận (đã gộp trùng giữa 写植 và レタッチ) */
     .title-item .vols { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
     .title-item .vol {
@@ -105,6 +107,7 @@
     .kb-card.status-delivered { border-left-color: #10b981; }
     .kb-card-top { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
     .kb-title { font-size: 1.1rem; font-weight: 700; color: var(--text); margin: 6px 0 4px; word-break: break-word; line-height: 1.35; }
+    .kb-reading { font-size: .8rem; font-weight: 600; color: var(--text-3); margin: -2px 0 5px; word-break: break-word; }
     .kb-dates { font-size: .88rem; color: var(--text-3); display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
     .kb-dates .pill { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; }
     .kb-dates .pill.hot { background: rgba(244,63,94,.1); color: #f43f5e; border-color: rgba(244,63,94,.22); font-weight: 700; }
@@ -344,6 +347,8 @@
     let selected = '';
     let view = 'kanban';
     let lastData = null;
+    // Phiên âm tên tác phẩm: { "<tên tác phẩm>": "Romaji" }
+    let titleReadings = {};
     // Giá trị bộ lọc đang áp dụng (giữ lại sau mỗi lần render vì #detail-body
     // bị vẽ lại, nếu không các ô lọc sẽ tự trắng ra).
     let filterState = { from: '', to: '', worker: '', job: '' };
@@ -428,12 +433,14 @@
             const d = await r.json();
             if (d.status !== 'success') throw new Error(d.message);
             const items = d.titles || [];
+            items.forEach((t) => { titleReadings[t.tac_pham] = t.reading || ''; });
             $('title-count').textContent = items.length + ' / ' + (d.total || items.length);
             if (!items.length) { $('title-list').innerHTML = '<li class="empty">' + T.noResult + '</li>'; return; }
             $('title-list').innerHTML = items.map((t) => {
                 const vols = (t.taps || []).map((v) => '<span class="vol">' + esc(v) + '</span>').join('');
                 return '<li class="title-item' + (t.tac_pham === selected ? ' active' : '') + '" data-name="' + esc(t.tac_pham) + '">' +
                     '<span class="n">' + esc(t.tac_pham) + '</span>' +
+                    (t.reading ? '<span class="read">/ ' + esc(t.reading) + '</span>' : '') +
                     (vols ? '<span class="vols" title="' + esc(T.vnVolumes) + '">' + vols + '</span>' : '') +
                     '<span class="m">' + esc(t.row_count) + ' ' + T.taskRows +
                     (t.last_date ? ' · ' + esc(fmtDate(t.last_date)) : '') + '</span>' +
@@ -452,7 +459,8 @@
         Array.prototype.forEach.call(document.querySelectorAll('.title-item'), (el) => {
             el.classList.toggle('active', el.getAttribute('data-name') === name);
         });
-        $('detail-title').textContent = name;
+        $('detail-title').innerHTML = esc(name) +
+            (titleReadings[name] ? ' <span class="read">/ ' + esc(titleReadings[name]) + '</span>' : '');
         $('view-switch').style.display = 'inline-flex';
         loadDetail();
     }
@@ -596,6 +604,7 @@
                 (c.comments_count ? '<span class="kb-cmt" title="comment">&#128276; ' + esc(c.comments_count) + '</span>' : '') +
             '</div>' +
             '<div class="kb-title">' + esc(c.tp_key || c.volume_key || '-') + '</div>' +
+            (titleReadings[selected] ? '<div class="kb-reading">/ ' + esc(titleReadings[selected]) + '</div>' : '') +
             ((d1 || d2) ? '<div class="kb-dates">' +
                 '<span class="pill">&#128197; ' + esc(d1 || '?') + ' ~ ' + esc(d2 || '?') + '</span>' +
                 '</div>' : '') +
