@@ -1520,6 +1520,58 @@ def _avatar_cache_drop(username=None):
             _AVATAR_CACHE.clear()
 
 
+def _avatar_magic_mime(data):
+    """Đoán mime từ magic bytes của ảnh (None nếu không phải ảnh)."""
+    if not data:
+        return None
+    if data[:3] == b"\xff\xd8\xff":
+        return "image/jpeg"
+    if data[:8] == b"\x89PNG\r\n\x1a\n":
+        return "image/png"
+    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return "image/webp"
+    if data[:6] in (b"GIF87a", b"GIF89a"):
+        return "image/gif"
+    if data[:2] == b"BM":
+        return "image/bmp"
+    return None
+
+
+def _normalize_avatar_blob(mime, data):
+    """Chuẩn hoá avatar đọc từ DB.
+
+    Một số bản ghi cũ lưu ảnh dưới dạng **chuỗi base64** (text) thay vì blob
+    nhị phân -> trình duyệt nhận chuỗi đó, không vẽ được và rơi về chữ cái đầu
+    (đúng lỗi "mất avatar" của Hieu/Anh/Khuong...). Ở đây tự nhận biết và giải mã.
+    """
+    if isinstance(data, memoryview):
+        data = bytes(data)
+    if isinstance(data, str):
+        data = data.encode("utf-8", "ignore")
+    data = bytes(data or b"")
+    if not data:
+        return (mime or "image/jpeg"), b""
+    real_mime = _avatar_magic_mime(data)
+    if real_mime:
+        return real_mime, data
+    # Chỉ thử base64 khi nội dung là ASCII in được (tránh decode bừa blob lạ).
+    head = data[:128]
+    if all(32 <= b < 127 or b in (9, 10, 13, 61) for b in head):
+        import base64
+        compact = b"".join(data.split())
+        pad = (-len(compact)) % 4
+        if pad:
+            compact += b"=" * pad
+        try:
+            decoded = base64.b64decode(compact, validate=False)
+        except Exception:
+            decoded = b""
+        decoded_mime = _avatar_magic_mime(decoded)
+        if decoded_mime:
+            return decoded_mime, decoded
+    return (mime or "image/jpeg"), data
+
+
 def save_user_avatar(username, data, mime="image/jpeg"):
     """Lưu/ghi đè avatar của 1 user. ``data`` là bytes của ảnh."""
     username = (username or "").strip()
@@ -1527,7 +1579,10 @@ def save_user_avatar(username, data, mime="image/jpeg"):
         raise ValueError("Thiếu username")
     if not data:
         raise ValueError("File ảnh rỗng")
-    if len(data) > AVATAR_MAX_BYTES:
+    mime, payload = _normalize_avatar_blob(mime, data)
+    if not payload:
+        raise ValueError("File ảnh rỗng")
+    if len(payload) > AVATAR_MAX_BYTES:
         raise ValueError("Ảnh quá lớn (tối đa 3MB)")
     store = get_store()
     ensure_schema(store)
@@ -1536,7 +1591,7 @@ def save_user_avatar(username, data, mime="image/jpeg"):
         "VALUES (?, ?, ?, ?) "
         "ON CONFLICT(username) DO UPDATE SET "
         "mime=excluded.mime, data=excluded.data, updated_at=excluded.updated_at",
-        (username, mime or "image/jpeg", bytes(data), now_iso()),
+        (username, mime or "image/jpeg", bytes(payload), now_iso()),
     )
     _avatar_cache_drop(username)
     return True
@@ -1564,16 +1619,7 @@ def get_user_avatar(username):
     if not rows:
         return None
     mime, data = rows[0][0], rows[0][1]
-    if isinstance(data, memoryview):
-        data = bytes(data)
-    elif isinstance(data, str):
-        import base64
-        try:
-            data = base64.b64decode(data)
-        except Exception:
-            data = data.encode("utf-8")
-    mime = mime or "image/jpeg"
-    data = bytes(data)
+    mime, data = _normalize_avatar_blob(mime, data)
     with _AVATAR_CACHE_LOCK:
         _AVATAR_CACHE[username] = {"mime": mime, "data": data, "at": now}
         if len(_AVATAR_CACHE) > 64:
