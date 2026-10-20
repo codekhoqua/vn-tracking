@@ -11015,33 +11015,83 @@ if (typeof document !== 'undefined') {
 // AUTO RELOAD WHEN NEW CODE/BUILD IS DEPLOYED
 // =====================================================================
 (function initAutoReloadWatcher() {
+    const isVi = typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi';
     let clientVersion = (typeof window !== 'undefined' && window.APP_VERSION) 
         || (document.querySelector('.version-tag i') ? document.querySelector('.version-tag i').textContent.trim() : '');
     let clientBuildId = (typeof window !== 'undefined' && window.APP_BUILD_ID) || '';
     let isReloading = false;
+    let pendingBuild = '';
+    let reloadTimer = null;
+    let toastShown = false;
 
     function isUserTyping() {
         const active = document.activeElement;
-        if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) {
-            if (active.value && active.value.trim().length > 0) return true;
+        if (!active) return false;
+        const tag = active.tagName;
+        return tag === 'INPUT' || tag === 'TEXTAREA' || active.isContentEditable;
+    }
+
+    // Có form đang sửa dở trong modal không? (so với giá trị mặc định)
+    // Tránh reload làm mất logtime/comment người dùng đang nhập.
+    function hasDirtyForm() {
+        const els = document.querySelectorAll(
+            '.modal-overlay.open input, .modal-overlay.open textarea, .modal-overlay.open select'
+        );
+        for (const el of els) {
+            if (el.type === 'checkbox' || el.type === 'radio') {
+                if (el.checked !== el.defaultChecked) return true;
+            } else if (el.tagName === 'SELECT') {
+                let def = 0;
+                for (let i = 0; i < el.options.length; i++) {
+                    if (el.options[i].defaultSelected) { def = i; break; }
+                }
+                if (el.selectedIndex !== def) return true;
+            } else if (el.value && el.value !== el.defaultValue) {
+                return true;
+            }
         }
         return false;
     }
 
-    function triggerAutoReload(newVersion) {
-        // Triggered only when a task is explicitly finished
-        if (isReloading) return;
-        isReloading = true;
-        setTimeout(() => {
-            const url = new URL(window.location.href);
-            url.searchParams.set('_bv', Date.now());
-            window.location.href = url.toString();
-        }, 500);
+    function isBusy() {
+        return isUserTyping() || hasDirtyForm();
     }
 
-    // Exposed helper: reload automatically when a task is finished
+    function reloadNow() {
+        if (isReloading) return;
+        isReloading = true;
+        try {
+            const url = new URL(window.location.href);
+            url.searchParams.set('_v', pendingBuild || String(Date.now()));
+            window.location.replace(url.toString());
+        } catch (e) {
+            window.location.reload();
+        }
+    }
+
+    function scheduleReload() {
+        if (!pendingBuild || isReloading || reloadTimer) return;
+        if (isBusy()) return;
+
+        if (!toastShown && typeof showToast === 'function') {
+            toastShown = true;
+            showToast(
+                isVi ? 'Đã có bản mới — đang tải lại...' : '新しいバージョンがあります。再読み込みします...',
+                'info', 4000
+            );
+        }
+
+        reloadTimer = setTimeout(() => {
+            reloadTimer = null;
+            if (isBusy()) return; // đang gõ dở -> thử lại ở lần kiểm tra sau
+            reloadNow();
+        }, 1200);
+    }
+
+    // Helper cũ: reload khi đóng task vừa hoàn thành
     window.triggerAutoReloadOnTaskDone = function() {
-        triggerAutoReload();
+        pendingBuild = pendingBuild || 'task-done';
+        reloadNow();
     };
 
     function checkVersionData(data) {
@@ -11052,18 +11102,21 @@ if (typeof document !== 'undefined') {
         if (!clientVersion && sVer) clientVersion = sVer;
         if (!clientBuildId && sBuild) clientBuildId = sBuild;
 
-        // Silently record new version - DO NOT auto reload just because version changed!
-        if ((clientVersion && sVer && sVer !== clientVersion) ||
-            (clientBuildId && sBuild && sBuild !== clientBuildId)) {
-            console.log(`[AutoReload] New build registered: ${sVer}. Reload will only occur when a task is done.`);
-            clientVersion = sVer;
-            clientBuildId = sBuild;
+        const changed = (sBuild && clientBuildId && sBuild !== clientBuildId)
+            || (!sBuild && sVer && clientVersion && sVer !== clientVersion);
+
+        if (changed) {
+            pendingBuild = sBuild || sVer || String(Date.now());
+            clientVersion = sVer || clientVersion;
+            clientBuildId = sBuild || clientBuildId;
             window._pendingVersionUpdate = sVer;
-            // Silently update version badge in UI
             document.querySelectorAll('.version-tag i').forEach(el => {
                 el.textContent = sVer;
             });
+            console.log(`[AutoReload] New build ${sBuild || sVer} detected -> will reload.`);
         }
+
+        if (pendingBuild) scheduleReload();
     }
 
     // 1. Socket.IO listener (runs immediately on connect or reconnect after server deploy)
@@ -11082,6 +11135,11 @@ if (typeof document !== 'undefined') {
             .then(checkVersionData)
             .catch(() => {});
     }, 4000);
+
+    // Quay lại tab: thử reload ngay nếu đang chờ
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden && pendingBuild) scheduleReload();
+    });
 
     // Initial hook
     if (document.readyState === 'loading') {
