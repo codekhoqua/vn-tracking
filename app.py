@@ -272,7 +272,10 @@ def cached(ttl=60):
             if key in _cache and now - _cache[key]['time'] < ttl:
                 return _cache[key]['data']
             result = func(*args, **kwargs)
-            _cache[key] = {'data': result, 'time': now}
+            # Không cache dict rỗng: lỗi mạng / Google tạm chặn (429) mà cache
+            # {} thì 5 phút sau toàn bộ avatar + thành viên biến mất.
+            if not (isinstance(result, dict) and not result):
+                _cache[key] = {'data': result, 'time': now}
             return result
         return wrapper
     return decorator
@@ -410,6 +413,39 @@ def load_users_dataframe(url):
     return pd.read_csv(url).dropna(subset=['Username', 'Password'])
 
 
+# --- Dự phòng khi không đọc được Google Sheets -----------------------
+# Lỗi mạng / Google tạm chặn (429) trước đây trả về {} -> mất toàn bộ avatar
+# và danh sách thành viên (ở lịch sử, kanban, task, biểu đồ, trang Role).
+# Giờ giữ lại bản đọc được gần nhất: trong RAM và trong data/users_cache.json.
+_USERS_FALLBACK = {'data': {}}
+
+
+def _users_cache_path():
+    base = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(base, 'data', 'users_cache.json')
+
+
+def _read_users_cache_file():
+    try:
+        with open(_users_cache_path(), encoding='utf-8') as fh:
+            data = json.load(fh)
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def _write_users_cache_file(users):
+    try:
+        path = _users_cache_path()
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        tmp = path + '.tmp'
+        with open(tmp, 'w', encoding='utf-8') as fh:
+            json.dump(users, fh, ensure_ascii=False)
+        os.replace(tmp, path)
+    except Exception as exc:
+        print('Không ghi được cache users:', exc)
+
+
 @cached(ttl=300)
 def load_users_from_sheet(url):
     try:
@@ -461,10 +497,17 @@ def load_users_from_sheet(url):
                 "gmail": gmail
             }
             
+        if users:
+            _USERS_FALLBACK['data'] = users
+            _write_users_cache_file(users)
         return users
     except Exception as e:
         print("Error loading users from sheet:", e)
-        return {}
+        fallback = _USERS_FALLBACK['data'] or _read_users_cache_file()
+        if fallback:
+            _USERS_FALLBACK['data'] = fallback
+            print(f"  -> dùng lại danh sách users đã lưu ({len(fallback)} tài khoản)")
+        return fallback
 
 def delete_user_from_sheet(username):
     """Xóa 1 thành viên khỏi sheet "Pass" (bảng Users) bằng service account.
@@ -3820,9 +3863,10 @@ def history_user_profiles():
 # --- Cache ngắn cho API lịch sử ------------------------------------
 # Turso nằm ở nước ngoài: mỗi query ~0.25s. Cache vài chục giây giúp mở lại
 # trang lịch sử là hiện ngay, đồng thời giảm số request lên Turso.
-HISTORY_STATS_TTL = int(os.environ.get('HISTORY_STATS_TTL', '20'))
-HISTORY_TITLES_TTL = int(os.environ.get('HISTORY_TITLES_TTL', '60'))
-HISTORY_LIST_TTL = int(os.environ.get('HISTORY_LIST_TTL', '30'))
+# TTL dài vẫn an toàn vì mọi thao tác ghi và mỗi lần sync đều xoá cache.
+HISTORY_STATS_TTL = int(os.environ.get('HISTORY_STATS_TTL', '120'))
+HISTORY_TITLES_TTL = int(os.environ.get('HISTORY_TITLES_TTL', '300'))
+HISTORY_LIST_TTL = int(os.environ.get('HISTORY_LIST_TTL', '180'))
 _history_api_cache = {}
 _history_api_lock = threading.Lock()
 
@@ -3871,6 +3915,79 @@ def archive_worker_names():
         _worker_names_cache['data'] = names
         _worker_names_cache['at'] = now
     return names or cached
+
+
+def build_titles_payload(limit=300, vn_only=True, query=None):
+    """Danh sách tác phẩm + cách đọc tên (dùng chung cho API và nạp sẵn cache)."""
+    rows, total = task_archive.titles_page(limit=limit, vn_only=vn_only, q=query or None)
+    for item in rows:
+        item['reading'] = title_reading_for(item.get('tac_pham'))
+    return rows, total
+
+
+def archive_warm_cache():
+    """Nạp sẵn stats + danh sách tác phẩm + avatar để lần mở trang sau là tức thì."""
+    if not archive_available():
+        return
+    try:
+        history_api_cached('stats', HISTORY_STATS_TTL, task_archive.stats)
+        history_api_cached(('titles', 300, True, None), HISTORY_TITLES_TTL,
+                           lambda: build_titles_payload(300, True, None))
+    except Exception as exc:
+        print('Không nạp sẵn cache lịch sử:', exc)
+    # Avatar: mỗi ảnh 1 query Turso (~0.3s) nên nạp sẵn vào RAM.
+    try:
+        for uname in task_archive.list_avatar_users():
+            task_archive.get_user_avatar(uname)
+    except Exception as exc:
+        print('Không nạp sẵn avatar:', exc)
+
+
+def archive_warm_cache_async():
+    threading.Thread(target=archive_warm_cache, daemon=True,
+                     name='archive-warm').start()
+
+
+# --- Giữ kết nối Turso luôn "ấm" ------------------------------------
+# Turso đóng kết nối idle chỉ sau ~5 giây; query kế tiếp phải bắt tay TLS lại
+# (~1s thay vì ~0.26s) -> đúng kiểu "lúc nhanh lúc chậm". Vì vậy khi đang có
+# người dùng thao tác thì ping nhẹ mỗi 4s; idle > 5 phút thì thôi (đỡ tốn request).
+ARCHIVE_KEEPALIVE = int(os.environ.get('ARCHIVE_KEEPALIVE', '4'))
+ARCHIVE_KEEPALIVE_IDLE_STOP = int(os.environ.get('ARCHIVE_KEEPALIVE_IDLE_STOP', '300'))
+_last_activity = {'at': 0.0}
+_keepalive_started = False
+
+
+def archive_keepalive_start():
+    global _keepalive_started
+    if _keepalive_started or ARCHIVE_KEEPALIVE <= 0:
+        return
+    if not archive_available():
+        return
+    _keepalive_started = True
+
+    def _loop():
+        interval = max(2, ARCHIVE_KEEPALIVE)
+        while True:
+            idle_for = time.time() - _last_activity['at']
+            if idle_for < ARCHIVE_KEEPALIVE_IDLE_STOP:
+                try:
+                    store = task_archive.get_store()
+                    if getattr(store, 'endpoint', None):  # chỉ Turso mới cần
+                        store.execute('SELECT 1')
+                except Exception:
+                    pass
+                time.sleep(interval)
+            else:
+                time.sleep(15)
+
+    threading.Thread(target=_loop, daemon=True, name='archive-keepalive').start()
+
+
+@app.before_request
+def _mark_activity():
+    """Ghi nhận lúc có request để keepalive biết đang có người dùng."""
+    _last_activity['at'] = time.time()
 
 
 def _archive_detail_row(detail):
@@ -3923,6 +4040,7 @@ def archive_run_sync(log_fn=print):
         result['state'] = {'error': str(exc)}
         log_fn(f"archive sync state lỗi: {exc}")
     history_cache_clear()
+    archive_warm_cache_async()
     return result
 
 
@@ -4008,11 +4126,7 @@ def api_history_titles():
         limit = 300
     try:
         def _build_titles():
-            rows, total = task_archive.titles_page(
-                limit=limit, vn_only=vn_only, q=query or None)
-            for item in rows:
-                item['reading'] = title_reading_for(item.get('tac_pham'))
-            return rows, total
+            return build_titles_payload(limit=limit, vn_only=vn_only, query=query)
 
         titles, total = history_api_cached(
             ('titles', limit, vn_only, query), HISTORY_TITLES_TTL, _build_titles)
@@ -7840,6 +7954,10 @@ def start_cloudflared():
         threading.Thread(target=_runner, daemon=True, name="CloudflaredRunner").start()
     else:
         print(f"[Cloudflare Tunnel] Binary not found at {cf_path}", flush=True)
+
+
+archive_keepalive_start()
+archive_warm_cache_async()
 
 
 if os.name == 'posix':

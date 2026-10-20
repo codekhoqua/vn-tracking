@@ -69,3 +69,5 @@ model/
 *.py[cod]
 .pytest_cache/
 _archive*/
+
+data/users_cache.json
