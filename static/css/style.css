@@ -9149,27 +9149,6 @@ body:not(.dark-theme) .am-modal { box-shadow: 0 24px 60px rgba(15, 23, 42, 0.18)
     border-bottom: 1px solid var(--tp-line-soft);
     gap: 12px;
 }
-.task-page-container .task-back-btn {
-    background: transparent;
-    border: 0;
-    box-shadow: none;
-    border-radius: var(--tp-radius-sm);
-    padding: 5px 8px;
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: var(--text-2);
-    gap: 6px;
-}
-.task-page-container .task-back-btn:hover {
-    background: var(--surface-hover);
-    border: 0;
-    color: var(--text);
-    transform: none;
-    box-shadow: none;
-}
-.task-page-container .task-back-btn:active {
-    transform: none;
-}
 .task-page-container .task-page-breadcrumbs {
     font-size: 0.78rem;
     gap: 8px;
