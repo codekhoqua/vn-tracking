@@ -1080,6 +1080,81 @@ def count_titles(store=None, vn_only=True, q=None):
     return titles_page(store=store, limit=1, vn_only=vn_only, q=q)[1]
 
 
+def worker_titles(worker, store=None, vn_only=True, q=None):
+    """Tất cả tác phẩm mà 1 người làm đã tham gia, kèm tổng số.
+
+    Dùng cho ô "tìm người làm" ở trang History Task: nhập tên (hoặc 1 phần
+    tên) -> ra toàn bộ tác phẩm người đó làm + tổng số tác phẩm/task.
+
+    Trả ``{"worker", "total_titles", "total_tasks", "titles": [...]}``.
+    Mỗi tác phẩm: ``tac_pham, row_count, tap_count, taps, jobs,
+    first_date, last_date``.
+    """
+    worker = (worker or "").strip()
+    if not worker:
+        return {"worker": "", "total_titles": 0, "total_tasks": 0, "titles": []}
+
+    store = store or get_store()
+    ensure_schema(store)
+
+    where = ["worker LIKE ?"]
+    args = [f"%{worker}%"]
+    if vn_only:
+        where.append("is_vn = 1")
+    if q:
+        where.append("tac_pham LIKE ?")
+        args.append(f"%{q}%")
+
+    # 1 query duy nhất: gộp theo (tác phẩm, tập, công việc) rồi cộng dồn ở Python.
+    rows = _fetchall(store, f"""
+        SELECT tac_pham, tap, job_type, COUNT(*) AS n,
+               MIN(start_date) AS first_date,
+               MAX(COALESCE(end_date, start_date)) AS last_date
+        FROM tasks
+        WHERE {' AND '.join(where)}
+        GROUP BY tac_pham, tap, job_type
+    """, args)
+
+    titles = {}
+    total_tasks = 0
+    for tp, tap, job, n, first, last in rows:
+        if not tp:
+            continue
+        n = int(n or 0)
+        total_tasks += n
+        item = titles.get(tp)
+        if item is None:
+            item = titles[tp] = {
+                "tac_pham": tp, "row_count": 0, "taps": [], "jobs": [],
+                "first_date": None, "last_date": None,
+            }
+        item["row_count"] += n
+        tap_v = (tap or "").strip()
+        if tap_v and tap_v != "-" and tap_v not in item["taps"]:
+            item["taps"].append(tap_v)
+        job_v = (job or "").strip()
+        if job_v and job_v not in item["jobs"]:
+            item["jobs"].append(job_v)
+        if first and (not item["first_date"] or first < item["first_date"]):
+            item["first_date"] = first
+        if last and (not item["last_date"] or last > item["last_date"]):
+            item["last_date"] = last
+
+    out = []
+    for item in titles.values():
+        item["taps"] = sorted(item["taps"], key=_tap_sort_key)
+        item["tap_count"] = len(item["taps"])
+        out.append(item)
+    # Việc làm gần đây lên trước, cùng ngày thì tác phẩm nhiều task hơn lên trước.
+    out.sort(key=lambda x: (x.get("last_date") or "", x.get("row_count") or 0), reverse=True)
+    return {
+        "worker": worker,
+        "total_titles": len(out),
+        "total_tasks": total_tasks,
+        "titles": out,
+    }
+
+
 def history_for_title(tac_pham, store=None, date_from=None, date_to=None,
                       worker=None, job_type=None, limit=2000, vn_only=True,
                       include_comments=False):

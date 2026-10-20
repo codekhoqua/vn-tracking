@@ -77,7 +77,7 @@
 </div>
 
 <!-- ============ LỊCH SỬ TASK FULL-PAGE VIEW ============ -->
-<div class="modal-overlay task-detail-page-view tool-page-view" id="page-view-history" role="region" aria-label="{{ 'Lịch sử task' if lang == 'vi' else 'タスク履歴' }}" data-lenis-prevent>
+<div class="modal-overlay task-detail-page-view tool-page-view" id="page-view-history" role="region" aria-label="History Task" data-lenis-prevent>
     <div class="tool-page-container">
         <!-- Top Navigation / Breadcrumbs -->
         <div class="tool-page-nav-bar">
@@ -89,7 +89,7 @@
                 <span class="task-crumb-sep">/</span>
                 <span class="task-crumb-root" onclick="closeToolPage('history')">Dashboard</span>
                 <span class="task-crumb-sep">/</span>
-                <span class="task-crumb-current">{{ 'Lịch sử task' if lang == 'vi' else 'タスク履歴' }}</span>
+                <span class="task-crumb-current">History Task</span>
             </div>
 
             <div class="task-page-top-actions">
@@ -103,7 +103,7 @@
         </div>
 
         <div class="tool-iframe-wrapper">
-            <iframe id="history-page-iframe" src="" title="{{ 'Lịch sử task' if lang == 'vi' else 'タスク履歴' }}" style="width: 100%; height: 100%; border: none; display: block;"></iframe>
+            <iframe id="history-page-iframe" src="" title="History Task" style="width: 100%; height: 100%; border: none; display: block;"></iframe>
         </div>
     </div>
 </div>
@@ -1176,7 +1176,7 @@
             </div>
         </div>
 
-        <div class="nav-item" style="--i:5; cursor: pointer;" onclick="openToolPage('history')" id="nav-history" title="{{ 'Lịch sử task' if lang == 'vi' else 'タスク履歴' }}">
+        <div class="nav-item" style="--i:5; cursor: pointer;" onclick="openToolPage('history')" id="nav-history" title="History Task">
             <div class="nav-item-content">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                     stroke-linecap="round" stroke-linejoin="round">
@@ -1184,7 +1184,7 @@
                     <path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"></path>
                     <path d="M12 7v5l4 2"></path>
                 </svg>
-                <span>{{ 'Lịch sử task' if lang == 'vi' else 'タスク履歴' }}</span>
+                <span>History Task</span>
             </div>
         </div>
 

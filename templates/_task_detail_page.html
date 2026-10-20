@@ -8,8 +8,8 @@
    ------------------------------------------------------------------ #}
 {% if hist_lock %}<div class="hist-task-page-body">{% else %}<div class="modal-overlay task-detail-page-view" id="modal-{{ modal_id }}" role="region" aria-label="{{ tp_name_display }}" data-lenis-prevent>{% endif %}
     <div class="task-page-container">
-        {% set _back_label = ('Trở về Lịch sử task' if lang == 'vi' else 'タスク履歴に戻る') if hist_lock else ('Trở về Dashboard' if lang == 'vi' else 'ダッシュボードに戻る') %}
-        {% set _root_label = ('Lịch sử task' if lang == 'vi' else 'タスク履歴') if hist_lock else 'Dashboard' %}
+        {% set _back_label = ('Trở về History Task' if lang == 'vi' else 'History Task に戻る') if hist_lock else ('Trở về Dashboard' if lang == 'vi' else 'ダッシュボードに戻る') %}
+        {% set _root_label = 'History Task' if hist_lock else 'Dashboard' %}
         <!-- Top Navigation / Breadcrumbs -->
         <div class="task-page-nav-bar">
             <div class="task-page-breadcrumbs">

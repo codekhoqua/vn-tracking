@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}{{ 'Lịch sử task' if lang == 'vi' else 'タスク履歴' }} — VN-Tracking{% endblock %}
+{% block title %}History Task - VN-Tracking{% endblock %}
 
 {% block head %}
 <style>
@@ -201,7 +201,7 @@
                 <path d="M3 3v5h5"></path><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"></path><path d="M12 7v5l4 2"></path>
             </svg>
             <div>
-                <h1>{{ 'Lịch sử task VN' if lang == 'vi' else 'VN タスク履歴' }}</h1>
+                <h1>History Task</h1>
                 <span class="sub">{{ 'Tra lại toàn bộ task của team VN, kể cả dữ liệu đã bị xoá khỏi Google Sheet.' if lang == 'vi' else 'シートから消えた過去タスクも検索できます。' }}</span>
             </div>
         </div>
@@ -232,6 +232,12 @@
                     <input id="q" type="text" autocomplete="off"
                            placeholder="{{ 'Tìm tên tác phẩm...' if lang == 'vi' else '作品名で検索...' }}">
                 </div>
+                <div class="search-box" style="margin-top:8px;">
+                    <input id="worker-q" type="text" autocomplete="off" list="worker-list"
+                           placeholder="{{ 'Tìm người làm (ra tất cả tác phẩm)...' if lang == 'vi' else '作業者で検索（全作品）...' }}">
+                    <datalist id="worker-list"></datalist>
+                </div>
+                <div id="worker-summary" style="display:none; margin-top:8px; padding:8px 10px; border-radius:var(--radius-md); background:var(--bg-page); border:1px solid var(--border); font-size:.86rem; line-height:1.5;"></div>
                 <label class="vn-toggle" style="margin-top:10px;">
                     <input type="checkbox" id="vn-only" checked>
                     <span>{{ 'Chỉ task VN' if lang == 'vi' else 'VNタスクのみ' }}</span>
@@ -347,6 +353,9 @@
     let selected = '';
     let view = 'kanban';
     let lastData = null;
+    // Tên người làm đang tìm ở ô "Tìm người làm" (rỗng = xem tất cả tác phẩm).
+    let workerQuery = '';
+    let pendingWorker = null;
     // Phiên âm tên tác phẩm: { "<tên tác phẩm>": "Romaji" }
     let titleReadings = {};
     // Giá trị bộ lọc đang áp dụng (giữ lại sau mỗi lần render vì #detail-body
@@ -425,16 +434,46 @@
     }
 
     // ---------- danh sách tác phẩm ----------
+    // Hiển thị ô tổng kết khi đang tìm theo người làm.
+    function renderWorkerSummary(d, shown) {
+        const box = $('worker-summary');
+        if (!box) return;
+        if (!workerQuery) {
+            box.style.display = 'none';
+            box.innerHTML = '';
+            return;
+        }
+        const titles = d.total_titles != null ? d.total_titles : shown;
+        const tasks = d.total_tasks != null ? d.total_tasks : 0;
+        box.style.display = 'block';
+        box.innerHTML = '<b>' + esc(d.worker || workerQuery) + '</b>: ' +
+            '<b>' + esc(titles) + '</b> ' + (VI ? 'tác phẩm' : '作品') + ' · ' +
+            '<b>' + esc(tasks) + '</b> ' + (VI ? 'task' : '件') +
+            '<a href="#" onclick="window.__clearWorker(); return false;" style="margin-left:8px;">' +
+            (VI ? 'Xoá lọc' : 'クリア') + '</a>';
+    }
+
     async function loadTitles(q) {
         $('title-list').innerHTML = '<li class="empty">' + T.loading + '</li>';
         const vn = $('vn-only').checked ? '1' : '0';
         try {
-            const r = await fetch('/api/history/titles?vn=' + vn + '&limit=400&q=' + encodeURIComponent(q || ''));
+            let url;
+            if (workerQuery) {
+                url = '/api/history/worker?vn=' + vn +
+                    '&worker=' + encodeURIComponent(workerQuery) +
+                    '&q=' + encodeURIComponent(q || '');
+            } else {
+                url = '/api/history/titles?vn=' + vn + '&limit=400&q=' + encodeURIComponent(q || '');
+            }
+            const r = await fetch(url);
             const d = await r.json();
             if (d.status !== 'success') throw new Error(d.message);
             const items = d.titles || [];
             items.forEach((t) => { titleReadings[t.tac_pham] = t.reading || ''; });
-            $('title-count').textContent = items.length + ' / ' + (d.total || items.length);
+            renderWorkerSummary(d, items.length);
+            $('title-count').textContent = workerQuery
+                ? items.length + ' / ' + (d.total_titles != null ? d.total_titles : items.length)
+                : items.length + ' / ' + (d.total || items.length);
             if (!items.length) { $('title-list').innerHTML = '<li class="empty">' + T.noResult + '</li>'; return; }
             $('title-list').innerHTML = items.map((t) => {
                 const vols = (t.taps || []).map((v) => '<span class="vol">' + esc(v) + '</span>').join('');
@@ -462,6 +501,8 @@
         $('detail-title').innerHTML = esc(name) +
             (titleReadings[name] ? ' <span class="read">/ ' + esc(titleReadings[name]) + '</span>' : '');
         $('view-switch').style.display = 'inline-flex';
+        // Đang tìm theo người làm -> tự lọc chi tiết theo đúng người đó.
+        pendingWorker = workerQuery || '';
         loadDetail();
     }
 
@@ -487,8 +528,13 @@
         if (!selected) return;
         // Phải đọc bộ lọc TRƯỚC khi xoá #detail-body, vì các ô lọc nằm trong đó.
         const read = (id) => { const el = $(id); return el && el.value ? el.value : ''; };
+        // Vừa chọn tác phẩm từ danh sách -> ưu tiên người làm đang tìm.
+        const workerVal = (pendingWorker !== null)
+            ? pendingWorker
+            : ($('f-worker') ? read('f-worker') : (workerQuery || ''));
+        pendingWorker = null;
         filterState = { from: read('f-from'), to: read('f-to'),
-                        worker: read('f-worker'), job: read('f-job') };
+                        worker: workerVal, job: read('f-job') };
         $('detail-body').innerHTML = '<div class="empty">' + T.loading + '</div>';
         const qs = new URLSearchParams({ tac_pham: selected });
         qs.set('vn', $('vn-only').checked ? '1' : '0');
@@ -861,7 +907,49 @@
         timer = setTimeout(() => loadTitles(v), 260);
     });
 
+    // ---------- tìm theo người làm ----------
+    async function loadWorkerOptions() {
+        try {
+            const r = await fetch('/api/history/workers');
+            const d = await r.json();
+            if (d.status !== 'success') return;
+            $('worker-list').innerHTML = (d.workers || [])
+                .map((w) => '<option value="' + esc(w) + '"></option>').join('');
+        } catch (e) { /* im lặng */ }
+    }
+
+    function applyWorker(value) {
+        const next = String(value || '').trim();
+        if (next === workerQuery) return;
+        workerQuery = next;
+        loadTitles($('q').value || '');
+    }
+
+    window.__clearWorker = function () {
+        const el = $('worker-q');
+        if (el) el.value = '';
+        workerQuery = '';
+        loadTitles($('q').value || '');
+    };
+
+    let workerTimer = null;
+    if ($('worker-q')) {
+        $('worker-q').addEventListener('input', function (e) {
+            clearTimeout(workerTimer);
+            const v = e.target.value;
+            workerTimer = setTimeout(() => applyWorker(v), 320);
+        });
+        $('worker-q').addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                clearTimeout(workerTimer);
+                applyWorker(e.target.value);
+            }
+        });
+    }
+
     loadStats();
+    loadWorkerOptions();
     loadTitles('');
 })();
 </script>
