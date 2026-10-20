@@ -55,6 +55,23 @@
     }
     .search-box input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--border-focus); }
 
+    /* ---------- Gợi ý tên người làm (autocomplete) ---------- */
+    .worker-suggest {
+        position: absolute; left: 0; right: 0; top: calc(100% + 6px); z-index: 60;
+        background: var(--surface-card, var(--bg-page)); border: 1px solid var(--border);
+        border-radius: var(--radius-md); box-shadow: 0 14px 34px rgba(0,0,0,.22);
+        max-height: 250px; overflow-y: auto; display: none; padding: 5px;
+    }
+    .worker-suggest.open { display: block; }
+    .worker-suggest .ws-item {
+        padding: 9px 11px; border-radius: 8px; cursor: pointer; font-size: .95rem;
+        color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .worker-suggest .ws-item:hover,
+    .worker-suggest .ws-item.active { background: var(--surface-hover, var(--bg-page)); }
+    .worker-suggest .ws-item b { color: var(--primary); font-weight: 800; }
+    .worker-suggest .ws-empty { padding: 9px 11px; color: var(--text-3); font-size: .9rem; }
+
     .title-list { flex: 1; min-height: 0; overflow-y: auto; margin: 0; padding: 4px; list-style: none; }
     @media (max-width: 1150px) { .title-list { flex: none; max-height: 46vh; } }
     /* Khung chi tiết (kanban/bảng) tự cuộn, lấp hết chiều cao còn lại */
@@ -233,9 +250,9 @@
                            placeholder="{{ 'Tìm tên tác phẩm...' if lang == 'vi' else '作品名で検索...' }}">
                 </div>
                 <div class="search-box" style="margin-top:8px;">
-                    <input id="worker-q" type="text" autocomplete="off" list="worker-list"
+                    <input id="worker-q" type="text" autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="worker-suggest" aria-expanded="false"
                            placeholder="{{ 'Tìm người làm (ra tất cả tác phẩm)...' if lang == 'vi' else '作業者で検索（全作品）...' }}">
-                    <datalist id="worker-list"></datalist>
+                    <div id="worker-suggest" class="worker-suggest" role="listbox"></div>
                 </div>
                 <div id="worker-summary" style="display:none; margin-top:8px; padding:8px 10px; border-radius:var(--radius-md); background:var(--bg-page); border:1px solid var(--border); font-size:.86rem; line-height:1.5;"></div>
                 <label class="vn-toggle" style="margin-top:10px;">
@@ -907,15 +924,77 @@
         timer = setTimeout(() => loadTitles(v), 260);
     });
 
-    // ---------- tìm theo người làm ----------
+    // ---------- tìm theo người làm (gợi ý theo tên gần giống) ----------
+    let workersCache = [];
+    let suggestItems = [];
+    let suggestIndex = -1;
+
     async function loadWorkerOptions() {
         try {
             const r = await fetch('/api/history/workers');
             const d = await r.json();
             if (d.status !== 'success') return;
-            $('worker-list').innerHTML = (d.workers || [])
-                .map((w) => '<option value="' + esc(w) + '"></option>').join('');
+            workersCache = d.workers || [];
         } catch (e) { /* im lặng */ }
+    }
+
+    function closeWorkerSuggest() {
+        const box = $('worker-suggest');
+        if (box) box.classList.remove('open');
+        const inp = $('worker-q');
+        if (inp) inp.setAttribute('aria-expanded', 'false');
+        suggestIndex = -1;
+    }
+
+    // Tô đậm phần khớp với từ khoá: "T" -> <b>T</b>an
+    function markMatch(name, term) {
+        const s = String(name || '');
+        if (!term) return esc(s);
+        const i = s.toLowerCase().indexOf(String(term).toLowerCase());
+        if (i < 0) return esc(s);
+        return esc(s.slice(0, i)) +
+            '<b>' + esc(s.slice(i, i + term.length)) + '</b>' +
+            esc(s.slice(i + term.length));
+    }
+
+    function showWorkerSuggest(term) {
+        const box = $('worker-suggest');
+        const inp = $('worker-q');
+        if (!box) return;
+        const t = String(term || '').trim();
+        if (!t) { closeWorkerSuggest(); return; }
+
+        const lt = t.toLowerCase();
+        const starts = [];
+        const contains = [];
+        workersCache.forEach((w) => {
+            const lw = String(w).toLowerCase();
+            if (lw.indexOf(lt) === 0) starts.push(w);
+            else if (lw.indexOf(lt) >= 0) contains.push(w);
+        });
+        // Ưu tiên tên bắt đầu bằng từ khoá, sau đó mới đến tên chứa từ khoá.
+        suggestItems = starts.concat(contains).slice(0, 8);
+        suggestIndex = -1;
+
+        if (!suggestItems.length) {
+            box.innerHTML = '<div class="ws-empty">' +
+                (VI ? 'Không có người làm nào khớp' : '一致する作業者がいません') + '</div>';
+        } else {
+            box.innerHTML = suggestItems.map((w) =>
+                '<div class="ws-item" data-name="' + esc(w) + '" role="option">' +
+                markMatch(w, t) + '</div>').join('');
+        }
+        box.classList.add('open');
+        if (inp) inp.setAttribute('aria-expanded', 'true');
+    }
+
+    function highlightSuggest() {
+        const box = $('worker-suggest');
+        if (!box) return;
+        Array.prototype.forEach.call(box.querySelectorAll('.ws-item'), (el, i) => {
+            el.classList.toggle('active', i === suggestIndex);
+            if (i === suggestIndex && el.scrollIntoView) el.scrollIntoView({ block: 'nearest' });
+        });
     }
 
     function applyWorker(value) {
@@ -925,28 +1004,83 @@
         loadTitles($('q').value || '');
     }
 
+    function pickWorker(name) {
+        const el = $('worker-q');
+        if (el) el.value = name;
+        closeWorkerSuggest();
+        applyWorker(name);
+    }
+
     window.__clearWorker = function () {
         const el = $('worker-q');
         if (el) el.value = '';
+        closeWorkerSuggest();
         workerQuery = '';
         loadTitles($('q').value || '');
     };
 
-    let workerTimer = null;
-    if ($('worker-q')) {
-        $('worker-q').addEventListener('input', function (e) {
-            clearTimeout(workerTimer);
+    (function initWorkerSuggest() {
+        const inp = $('worker-q');
+        const box = $('worker-suggest');
+        if (!inp || !box) return;
+
+        inp.addEventListener('input', function (e) {
             const v = e.target.value;
-            workerTimer = setTimeout(() => applyWorker(v), 320);
-        });
-        $('worker-q').addEventListener('keydown', function (e) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                clearTimeout(workerTimer);
-                applyWorker(e.target.value);
+            showWorkerSuggest(v);
+            // Xoá hết chữ -> bỏ lọc, quay về tất cả tác phẩm.
+            if (!String(v).trim() && workerQuery) {
+                workerQuery = '';
+                loadTitles($('q').value || '');
             }
         });
-    }
+
+        inp.addEventListener('focus', function () {
+            if (inp.value.trim()) showWorkerSuggest(inp.value);
+        });
+
+        inp.addEventListener('keydown', function (e) {
+            const open = box.classList.contains('open');
+            if (e.key === 'ArrowDown' && open) {
+                e.preventDefault();
+                suggestIndex = Math.min(suggestIndex + 1, suggestItems.length - 1);
+                highlightSuggest();
+            } else if (e.key === 'ArrowUp' && open) {
+                e.preventDefault();
+                suggestIndex = Math.max(suggestIndex - 1, -1);
+                highlightSuggest();
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                if (open && suggestIndex >= 0 && suggestItems[suggestIndex]) {
+                    pickWorker(suggestItems[suggestIndex]);
+                } else if (open && suggestItems.length) {
+                    pickWorker(suggestItems[0]);
+                } else {
+                    closeWorkerSuggest();
+                    applyWorker(inp.value);
+                }
+            } else if (e.key === 'Escape') {
+                closeWorkerSuggest();
+            }
+        });
+
+        // Chọn bằng chuột: dùng mousedown để không bị blur đóng dropdown trước.
+        box.addEventListener('mousedown', function (e) {
+            const item = e.target.closest ? e.target.closest('.ws-item') : null;
+            if (!item) return;
+            e.preventDefault();
+            pickWorker(item.getAttribute('data-name'));
+        });
+
+        inp.addEventListener('blur', function () {
+            setTimeout(closeWorkerSuggest, 120);
+        });
+
+        // Gõ tên rồi bấm ra ngoài/Tab -> áp dụng luôn giá trị đang gõ.
+        inp.addEventListener('change', function () {
+            const v = String(inp.value || '').trim();
+            if (v !== workerQuery) applyWorker(v);
+        });
+    })();
 
     loadStats();
     loadWorkerOptions();
