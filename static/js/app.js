@@ -12229,5 +12229,151 @@ async function testAdminLeaveEmail() {
 }
 window.testAdminLeaveEmail = testAdminLeaveEmail;
 
+/* ==========================================================================
+   VN-SELECT — menu chọn bo góc mềm cho các <select> trong form Logtime
+   - Giữ nguyên <select> gốc để FormData / required / JS cũ hoạt động
+   - Chặn popup native, mở menu tự vẽ (bo 12px) giống dropdown ngoài login
+   - Event delegation nên cũng áp dụng cho task detail nạp qua AJAX (History)
+   ========================================================================== */
+let vnSelectMenuEl = null;
+let vnSelectCurrent = null;
 
+function closeVnSelectMenu() {
+    if (vnSelectMenuEl) {
+        vnSelectMenuEl.remove();
+        vnSelectMenuEl = null;
+    }
+    if (vnSelectCurrent) {
+        vnSelectCurrent.classList.remove('vn-select-open');
+        vnSelectCurrent = null;
+    }
+}
 
+function vnSelectZoom() {
+    const z = parseFloat(getComputedStyle(document.body).zoom);
+    return z > 0 ? z : 1;
+}
+
+function positionVnSelectMenu() {
+    if (!vnSelectMenuEl || !vnSelectCurrent) return;
+    const rect = vnSelectCurrent.getBoundingClientRect();
+    const z = vnSelectZoom();
+    const vw = window.innerWidth / z;
+    const vh = window.innerHeight / z;
+
+    if (rect.bottom < 0 || rect.top > window.innerHeight) {
+        closeVnSelectMenu();
+        return;
+    }
+
+    const width = Math.max(rect.width / z, 160);
+    vnSelectMenuEl.style.width = width + 'px';
+    vnSelectMenuEl.style.left = Math.max(8, Math.min(rect.left / z, vw - width - 8)) + 'px';
+    vnSelectMenuEl.style.maxHeight = Math.min(300, vh - 24) + 'px';
+
+    let top = rect.bottom / z + 6;
+    const menuH = vnSelectMenuEl.offsetHeight;
+    if (top + menuH > vh - 8 && rect.top / z - menuH - 6 > 8) {
+        top = rect.top / z - menuH - 6;
+    }
+    vnSelectMenuEl.style.top = top + 'px';
+}
+
+function openVnSelectMenu(sel) {
+    closeVnSelectMenu();
+
+    const menu = document.createElement('div');
+    menu.className = 'vn-select-menu';
+
+    Array.from(sel.options).forEach((opt) => {
+        const item = document.createElement('div');
+        item.className = 'vn-select-option';
+        if (opt.selected) item.classList.add('selected');
+        if (opt.disabled) item.classList.add('disabled');
+        item.textContent = (opt.textContent || '').trim();
+        item.dataset.value = opt.value;
+
+        if (!opt.disabled) {
+            item.addEventListener('mousedown', (ev) => ev.preventDefault());
+            item.addEventListener('mouseenter', () => {
+                menu.querySelectorAll('.vn-select-option.active').forEach(el => el.classList.remove('active'));
+                item.classList.add('active');
+            });
+            item.addEventListener('click', () => {
+                sel.value = opt.value;
+                sel.dispatchEvent(new Event('change', { bubbles: true }));
+                closeVnSelectMenu();
+                sel.focus({ preventScroll: true });
+            });
+        }
+        menu.appendChild(item);
+    });
+
+    document.body.appendChild(menu);
+
+    vnSelectMenuEl = menu;
+    vnSelectCurrent = sel;
+    sel.classList.add('vn-select-open');
+    positionVnSelectMenu();
+
+    const selectedItem = menu.querySelector('.vn-select-option.selected');
+    if (selectedItem) selectedItem.scrollIntoView({ block: 'nearest' });
+}
+
+/* Mở menu thay cho popup native */
+document.addEventListener('mousedown', (e) => {
+    const sel = e.target && e.target.closest ? e.target.closest('.logtime-form select') : null;
+    if (sel) {
+        if (e.button !== 0) return;
+        e.preventDefault();
+        if (vnSelectCurrent === sel && vnSelectMenuEl) {
+            closeVnSelectMenu();
+        } else {
+            sel.focus({ preventScroll: true });
+            openVnSelectMenu(sel);
+        }
+        return;
+    }
+    if (vnSelectMenuEl && !vnSelectMenuEl.contains(e.target)) {
+        closeVnSelectMenu();
+    }
+}, true);
+
+/* Bàn phím: Esc đóng, ↑↓ di chuyển, Enter chọn */
+document.addEventListener('keydown', (e) => {
+    if (!vnSelectMenuEl || !vnSelectCurrent) return;
+
+    if (e.key === 'Escape') {
+        e.preventDefault();
+        const sel = vnSelectCurrent;
+        closeVnSelectMenu();
+        if (sel) sel.focus();
+        return;
+    }
+
+    const items = Array.from(vnSelectMenuEl.querySelectorAll('.vn-select-option:not(.disabled)'));
+    let idx = items.findIndex(el => el.classList.contains('active'));
+
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (!items.length) return;
+        idx = e.key === 'ArrowDown'
+            ? Math.min(items.length - 1, idx + 1)
+            : Math.max(0, idx < 0 ? 0 : idx - 1);
+        items.forEach(el => el.classList.remove('active'));
+        items[idx].classList.add('active');
+        items[idx].scrollIntoView({ block: 'nearest' });
+    } else if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        if (idx < 0 && items.length) idx = 0;
+        if (idx >= 0) items[idx].click();
+    }
+}, true);
+
+/* Cuộn trang: giữ menu bám theo select thay vì đóng ngay */
+window.addEventListener('scroll', (e) => {
+    if (!vnSelectMenuEl) return;
+    if (e.target === vnSelectMenuEl || vnSelectMenuEl.contains(e.target)) return;
+    positionVnSelectMenu();
+}, true);
+window.addEventListener('resize', closeVnSelectMenu);
