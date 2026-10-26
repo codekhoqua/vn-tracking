@@ -34,7 +34,19 @@ push lên GitHub master → panel Restart → panel pull code mới → app ch�
 
 ### Chuyển server đang chạy từ ZIP sang Git
 
-Server đang cài bằng zip thường **không có `.git`**, nên panel không tự pull được. Dùng script có sẵn để chuyển một lần, an toàn:
+Server đang cài bằng zip thường **không có `.git`**, nên panel không tự pull được. Dùng script có sẵn để chuyển một lần, an toàn.
+
+> **Nên Stop app trước khi chạy** để SQLite/DB không bị tách file khi script di chuyển `data/`.
+>
+> Nếu panel không cho gõ Console lúc server đang Stop, làm tạm:
+>
+> 1. Panel → Startup: đổi `APP PY FILE` thành `scripts/setup_cloudcode_git.py`, `AUTO UPDATE` = `0`.
+> 2. Start; xem Console đến khi script báo **HOÀN TẤT** rồi Stop.
+> 3. Đổi lại `APP PY FILE` = `app.py`, `AUTO UPDATE` = `1`; Start.
+>
+> Nếu đã upload script ra thư mục gốc thì dùng `setup_cloudcode_git.py` thay cho `scripts/setup_cloudcode_git.py`.
+
+Chạy khi app đã dừng (hoặc qua Console nếu panel cho phép):
 
 ```bash
 cd /home/container
