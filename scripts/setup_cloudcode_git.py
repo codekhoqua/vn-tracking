@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 r"""Chuyển server CloudCode từ bản upload ZIP sang deploy bằng GitHub.
 
+QUAN TRỌNG: Nên Stop app trước khi chạy, vì script có di chuyển `data/` (SQLite).
+Nếu panel chỉ cho Console lúc server chạy, xem docs/DEPLOY_CLOUDCODE.md mục
+"Chuyển server đang chạy từ ZIP sang Git" để chạy qua APP PY FILE tạm thời.
+
 Script chạy trên server Linux (CloudCode/Pterodactyl), trong thư mục app
 (mặc định /home/container). Nó sẽ:
 
