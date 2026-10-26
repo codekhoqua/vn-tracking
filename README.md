@@ -41,7 +41,10 @@ Theo dõi task theo tuần, checklist giao nhận, logtime, drive tài nguyên, 
 │
 ├── docs/
 │   ├── DESIGN.md              # Design system & quy chuẩn giao diện
+│   ├── MOTION.md              # GSAP + IntersectionObserver (API, cách dùng, debug)
 │   └── PRODUCT.md             # Bối cảnh sản phẩm, người dùng, phạm vi
+│
+├── .opencode/skills/          # AI skills cho GSAP (vendor từ greensock/gsap-skills)
 │
 ├── scripts/
 │   ├── archive_sync.py        # Backfill/đồng bộ kho lưu trữ dài hạn (CLI)
@@ -256,6 +259,14 @@ radio/presence/chat lưu trong RAM và Socket.IO cần một process duy nhất.
 `vercel.json` chạy Flask dạng serverless. WebSocket không tồn tại ở môi trường này, nên
 radio/online-users tự chuyển sang polling REST và lưu trạng thái trên Supabase Storage.
 Checklist, comment, task links, drive, logtime vẫn hoạt động bình thường qua HTTP.
+
+## Giao diện & animation
+
+- `static/js/motion.js` + `static/css/motion.css`: lớp motion dùng chung (GSAP + IntersectionObserver).
+- Bật hiệu ứng bằng data-attribute (`data-reveal`, `data-reveal-group`, `data-countup`,
+  `data-magnetic`, `data-pause-offscreen`) — không cần viết JS mới cho từng trang.
+- Chi tiết API, cách thêm trang mới và debug: [`docs/MOTION.md`](docs/MOTION.md).
+- GSAP AI skills cho coding agent nằm ở `.opencode/skills/gsap-*` (nguồn: `greensock/gsap-skills`).
 
 ## Scripts
 

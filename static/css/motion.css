@@ -1,0 +1,90 @@
+/* ================================================================
+   VN-TRACKING — MOTION LAYER (CSS)
+   Chỉ hoạt động khi JS thêm class .motion-ready / .motion-gsap.
+   Không có JS -> nội dung hiển thị bình thường, không bị giấu.
+   ================================================================ */
+
+@media (prefers-reduced-motion: no-preference) {
+    /* ---------- Reveal on scroll (IntersectionObserver) ---------- */
+    html.motion-ready [data-reveal]:not(.is-revealed),
+    html.motion-ready [data-reveal-group]:not(.is-revealed) > *:not([data-reveal-ignore]) {
+        opacity: 0;
+        transform: translate3d(0, 22px, 0);
+        pointer-events: none;
+    }
+
+    html.motion-ready [data-reveal="left"]:not(.is-revealed),
+    html.motion-ready [data-reveal-group][data-reveal="left"]:not(.is-revealed) > *:not([data-reveal-ignore]) {
+        transform: translate3d(-22px, 0, 0);
+    }
+
+    html.motion-ready [data-reveal="right"]:not(.is-revealed),
+    html.motion-ready [data-reveal-group][data-reveal="right"]:not(.is-revealed) > *:not([data-reveal-ignore]) {
+        transform: translate3d(22px, 0, 0);
+    }
+
+    html.motion-ready [data-reveal="zoom"]:not(.is-revealed),
+    html.motion-ready [data-reveal-group][data-reveal="zoom"]:not(.is-revealed) > *:not([data-reveal-ignore]) {
+        transform: scale(0.965);
+    }
+
+    html.motion-ready [data-reveal="fade"]:not(.is-revealed),
+    html.motion-ready [data-reveal-group][data-reveal="fade"]:not(.is-revealed) > *:not([data-reveal-ignore]) {
+        transform: none;
+    }
+
+    /* Mobile: dịch chuyển ngắn hơn cho đỡ mỏi mắt. */
+    @media (max-width: 767px) {
+        html.motion-ready [data-reveal]:not(.is-revealed),
+        html.motion-ready [data-reveal-group]:not(.is-revealed) > *:not([data-reveal-ignore]) {
+            transform: translate3d(0, 14px, 0);
+        }
+        html.motion-ready [data-reveal="left"]:not(.is-revealed) {
+            transform: translate3d(-14px, 0, 0);
+        }
+        html.motion-ready [data-reveal="right"]:not(.is-revealed) {
+            transform: translate3d(14px, 0, 0);
+        }
+    }
+
+    /* Fallback thuần CSS khi GSAP không tải được. */
+    html.motion-css [data-reveal],
+    html.motion-css [data-reveal-group] > *:not([data-reveal-ignore]) {
+        transition:
+            opacity 0.62s cubic-bezier(0.16, 1, 0.3, 1),
+            transform 0.62s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    html.motion-css [data-reveal-group] > *:nth-child(2) { transition-delay: 0.06s; }
+    html.motion-css [data-reveal-group] > *:nth-child(3) { transition-delay: 0.12s; }
+    html.motion-css [data-reveal-group] > *:nth-child(4) { transition-delay: 0.18s; }
+    html.motion-css [data-reveal-group] > *:nth-child(5) { transition-delay: 0.24s; }
+    html.motion-css [data-reveal-group] > *:nth-child(6) { transition-delay: 0.30s; }
+
+    /* ---------- Page entrance (GSAP timeline) ---------- */
+    html.motion-gsap [data-motion="page"]:not(.is-motion-done) [data-motion-item] {
+        opacity: 0;
+    }
+}
+
+/* ---------- Pause CSS animations khi phần tử ra khỏi viewport ---------- */
+.motion-paused,
+.motion-paused * {
+    animation-play-state: paused !important;
+}
+
+/* ---------- Lazy background ---------- */
+[data-bg] {
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+[data-bg]:not(.is-bg-loaded) {
+    background-color: var(--surface-muted, rgba(148, 163, 184, 0.12));
+}
+
+/* ---------- Magnetic buttons: tắt transition transform của CSS ---------- */
+[data-magnetic] {
+    will-change: transform;
+}

@@ -2133,8 +2133,8 @@
 </aside>
 
 <!-- ============ MAIN AREA ============ -->
-<main class="main-area">
-    <div class="hero-banner" id="main-hero-banner"
+<main class="main-area" data-motion="page">
+    <div class="hero-banner" id="main-hero-banner" data-pause-offscreen
         style="position: relative; overflow: visible; display: flex; flex-direction: column; margin-bottom: 32px; border-radius: 24px; border: 1px solid var(--border); box-shadow: var(--shadow-lg); min-height: 115px;">
 
         <!-- Dynamic Weather Background Wrapper with rounded corners -->
@@ -2157,7 +2157,7 @@
             style="position: relative; z-index: 50; display: flex; flex-direction: column; justify-content: space-between; width: 100%; padding: 18px 28px; min-height: 145px; gap: 10px; pointer-events: none;">
 
             <!-- Top Row: Welcome & Title -->
-            <div class="hero-identity-section" style="pointer-events: auto;">
+            <div class="hero-identity-section" style="pointer-events: auto;" data-motion-item>
                 <div class="hero-welcome-text">
                     {{ t.welcome }}, {{ user }}
                 </div>
@@ -2167,7 +2167,7 @@
             </div>
 
             <!-- Bottom Row: Weather Row on Left, Action Controls on Right -->
-            <div class="hero-action-bar" style="display: flex; justify-content: space-between; align-items: flex-end; width: 100%; gap: 16px; flex-wrap: wrap;">
+            <div class="hero-action-bar" data-motion-item style="display: flex; justify-content: space-between; align-items: flex-end; width: 100%; gap: 16px; flex-wrap: wrap;">
 
                 <!-- Left: Inline Weather Bar -->
                 <div id="inline-weather-container" class="hero-weather-inline-bar"
@@ -2279,8 +2279,6 @@
                 padding: 10px 0;
                 display: flex;
                 align-items: center;
-                backdrop-filter: blur(16px);
-                -webkit-backdrop-filter: blur(16px);
                 overflow: hidden;
                 border-bottom-left-radius: 24px;
                 border-bottom-right-radius: 24px;
@@ -2347,7 +2345,7 @@
                 flex-shrink: 0;
             }
         </style>
-        <div class="ai-insights-bar">
+        <div class="ai-insights-bar" data-pause-offscreen>
             <div class="ai-insights-label">
                 AI Insights
             </div>
@@ -2448,7 +2446,7 @@
         </div>
     </div>
 
-    <div class="dashboard-controls">
+    <div class="dashboard-controls" data-motion-item>
 
         <div class="tab-bar">
             <button class="tab-btn" data-tab="truoc" onclick="switchTab('truoc')">{{ t.tab0 }}</button>
@@ -2498,18 +2496,18 @@
     <!-- ==================== TAB: TUẦN TRƯỚC ==================== -->
     <div class="tab-content" id="tab-truoc">
         {% if weeks.truoc.tasks %}
-        <div class="metrics-row">
+        <div class="metrics-row" data-reveal-group="0.07">
             <div class="metric-card">
                 <div class="metric-title">{{ t.metric_total }}</div>
-                <div class="metric-value">{{ weeks.truoc.metrics.total }}</div>
+                <div class="metric-value" data-countup>{{ weeks.truoc.metrics.total }}</div>
             </div>
             <div class="metric-card">
                 <div class="metric-title">{{ t.metric_retouch }}</div>
-                <div class="metric-value">{{ weeks.truoc.metrics.retouch }}</div>
+                <div class="metric-value" data-countup>{{ weeks.truoc.metrics.retouch }}</div>
             </div>
             <div class="metric-card">
                 <div class="metric-title">{{ t.metric_type }}</div>
-                <div class="metric-value">{{ weeks.truoc.metrics.lettering }}</div>
+                <div class="metric-value" data-countup>{{ weeks.truoc.metrics.lettering }}</div>
             </div>
         </div>
 
@@ -2581,7 +2579,7 @@
                     {% if group_cards|length > 0 %}
                     <div class="job-group-header">{{ jt }}</div>
                     {% for card in group_cards %}
-                    <div class="progress-card status-{{ card.status_class }}" data-tp-key="{{ card.key }}"
+                    <div class="progress-card status-{{ card.status_class }}" data-reveal data-tp-key="{{ card.key }}"
                         data-checked-ids="{{ card.checked_ids }}" onclick="openModal('truoc', '{{ card.key }}')">
                         <div class="card-tags">
                             {% set cv = card.name.split(' - ')[0] %}
@@ -2757,7 +2755,7 @@
                     {% if other_cards|length > 0 %}
                     <div class="job-group-header">Other</div>
                     {% for card in other_cards %}
-                    <div class="progress-card status-{{ card.status_class }}" data-tp-key="{{ card.key }}"
+                    <div class="progress-card status-{{ card.status_class }}" data-reveal data-tp-key="{{ card.key }}"
                         data-checked-ids="{{ card.checked_ids }}" onclick="openModal('truoc', '{{ card.key }}')">
                         <div class="card-tags">
                             {% set cv = card.name.split(' - ')[0] %}
@@ -2936,18 +2934,18 @@
     <!-- ==================== TAB: TUẦN NÀY ==================== -->
     <div class="tab-content active" id="tab-nay">
         {% if weeks.nay.tasks %}
-        <div class="metrics-row">
+        <div class="metrics-row" data-reveal-group="0.07">
             <div class="metric-card">
                 <div class="metric-title">{{ t.metric_total }}</div>
-                <div class="metric-value">{{ weeks.nay.metrics.total }}</div>
+                <div class="metric-value" data-countup>{{ weeks.nay.metrics.total }}</div>
             </div>
             <div class="metric-card">
                 <div class="metric-title">{{ t.metric_retouch }}</div>
-                <div class="metric-value">{{ weeks.nay.metrics.retouch }}</div>
+                <div class="metric-value" data-countup>{{ weeks.nay.metrics.retouch }}</div>
             </div>
             <div class="metric-card">
                 <div class="metric-title">{{ t.metric_type }}</div>
-                <div class="metric-value">{{ weeks.nay.metrics.lettering }}</div>
+                <div class="metric-value" data-countup>{{ weeks.nay.metrics.lettering }}</div>
             </div>
         </div>
 
@@ -3018,7 +3016,7 @@
                     {% if group_cards|length > 0 %}
                     <div class="job-group-header">{{ jt }}</div>
                     {% for card in group_cards %}
-                    <div class="progress-card status-{{ card.status_class }}" data-tp-key="{{ card.key }}"
+                    <div class="progress-card status-{{ card.status_class }}" data-reveal data-tp-key="{{ card.key }}"
                         data-checked-ids="{{ card.checked_ids }}" onclick="openModal('nay', '{{ card.key }}')">
                         <div class="card-tags">
                             {% set cv = card.name.split(' - ')[0] %}
@@ -3194,7 +3192,7 @@
                     {% if other_cards|length > 0 %}
                     <div class="job-group-header">Other</div>
                     {% for card in other_cards %}
-                    <div class="progress-card status-{{ card.status_class }}" data-tp-key="{{ card.key }}"
+                    <div class="progress-card status-{{ card.status_class }}" data-reveal data-tp-key="{{ card.key }}"
                         data-checked-ids="{{ card.checked_ids }}" onclick="openModal('nay', '{{ card.key }}')">
                         <div class="card-tags">
                             {% set cv = card.name.split(' - ')[0] %}
@@ -3373,18 +3371,18 @@
     <!-- ==================== TAB: TUẦN SAU ==================== -->
     <div class="tab-content" id="tab-sau">
         {% if weeks.sau.tasks %}
-        <div class="metrics-row">
+        <div class="metrics-row" data-reveal-group="0.07">
             <div class="metric-card">
                 <div class="metric-title">{{ t.metric_total }}</div>
-                <div class="metric-value">{{ weeks.sau.metrics.total }}</div>
+                <div class="metric-value" data-countup>{{ weeks.sau.metrics.total }}</div>
             </div>
             <div class="metric-card">
                 <div class="metric-title">{{ t.metric_retouch }}</div>
-                <div class="metric-value">{{ weeks.sau.metrics.retouch }}</div>
+                <div class="metric-value" data-countup>{{ weeks.sau.metrics.retouch }}</div>
             </div>
             <div class="metric-card">
                 <div class="metric-title">{{ t.metric_type }}</div>
-                <div class="metric-value">{{ weeks.sau.metrics.lettering }}</div>
+                <div class="metric-value" data-countup>{{ weeks.sau.metrics.lettering }}</div>
             </div>
         </div>
 
@@ -3455,7 +3453,7 @@
                     {% if group_cards|length > 0 %}
                     <div class="job-group-header">{{ jt }}</div>
                     {% for card in group_cards %}
-                    <div class="progress-card status-{{ card.status_class }}" data-tp-key="{{ card.key }}"
+                    <div class="progress-card status-{{ card.status_class }}" data-reveal data-tp-key="{{ card.key }}"
                         data-checked-ids="{{ card.checked_ids }}" onclick="openModal('sau', '{{ card.key }}')">
                         <div class="card-tags">
                             {% set cv = card.name.split(' - ')[0] %}
@@ -3631,7 +3629,7 @@
                     {% if other_cards|length > 0 %}
                     <div class="job-group-header">Other</div>
                     {% for card in other_cards %}
-                    <div class="progress-card status-{{ card.status_class }}" data-tp-key="{{ card.key }}"
+                    <div class="progress-card status-{{ card.status_class }}" data-reveal data-tp-key="{{ card.key }}"
                         data-checked-ids="{{ card.checked_ids }}" onclick="openModal('sau', '{{ card.key }}')">
                         <div class="card-tags">
                             {% set cv = card.name.split(' - ')[0] %}
@@ -3845,7 +3843,9 @@
         </div>
     </div>
 
-    <!-- CHAT BUBBLE BUTTON -->
+</main>
+
+<!-- CHAT BUBBLE BUTTON -->
     <div id="mini-chat-widget" style="position: fixed; bottom: 16px; right: 20px; z-index: 10000;">
         <button id="chat-bubble-btn" class="chat-bubble-btn" onclick="toggleChat()">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -3883,7 +3883,7 @@
         </div>
 
         <!-- Messages -->
-        <div id="chat-messages" class="chat-messages">
+        <div id="chat-messages" class="chat-messages" data-lenis-prevent>
             <div class="chat-welcome">{{ 'Chào mừng bạn đến với kênh chat chung! 💬' if lang == 'vi' else
                 'グループチャットへようこそ！💬' }}</div>
         </div>
@@ -3903,8 +3903,22 @@
                 <div class="emoji-grid" id="emoji-grid"></div>
             </div>
 
+            <!-- Reply Preview -->
+            <div id="chat-reply-preview" class="chat-reply-preview">
+                <div class="chat-reply-preview-body">
+                    <div class="chat-reply-preview-label">
+                        <span class="chat-reply-arrow">↩</span>
+                        <span id="chat-reply-name"></span>
+                    </div>
+                    <div class="chat-reply-preview-text" id="chat-reply-text"></div>
+                </div>
+                <button type="button" class="chat-reply-cancel" onclick="cancelChatReply()"
+                    title="{{ 'Hủy trả lời' if lang == 'vi' else '返信をキャンセル' }}">&times;</button>
+            </div>
+
             <!-- File Preview -->
             <div id="chat-file-preview" class="chat-file-preview">
+                <img id="chat-file-thumb" class="chat-file-thumb" alt="" style="display: none;">
                 <span class="file-icon">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
@@ -3953,10 +3967,6 @@
             </div>
         </div>
     </div>
-
-
-
-</main>
 
 <!-- ============ TASK DETAIL FULL-PAGE VIEWS (DASHBOARD / TASK) ============ -->
 {% for tab_key in ['truoc', 'nay', 'sau'] %}
@@ -5847,6 +5857,55 @@
         border: 1px solid rgba(168, 85, 247, 0.3) !important;
         box-shadow: 0 16px 36px -8px rgba(0, 0, 0, 0.65), 0 4px 12px rgba(0, 0, 0, 0.4) !important;
         border-radius: 24px !important;
+    }
+
+    /* 2 modal 3D pet luôn dùng surface tối. Trước đây header/footer lấy biến
+       theme nên ở light theme bị trắng toát, lệch hẳn với phần thân màu tối. */
+    .cp-modal.pet-theme-modal .modal-header,
+    .cp-modal.pet-theme-modal .modal-footer {
+        background: rgba(11, 15, 25, 0.94) !important;
+        border-color: rgba(255, 255, 255, 0.08) !important;
+    }
+    .cp-modal.pet-theme-modal .modal-header h3 {
+        color: #f8fafc !important;
+    }
+    .cp-modal.pet-theme-modal .modal-header > div > span {
+        color: #94a3b8 !important;
+    }
+    .cp-modal.pet-theme-modal .modal-close {
+        background: rgba(255, 255, 255, 0.06) !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        color: #cbd5e1 !important;
+    }
+    .cp-modal.pet-theme-modal .modal-close:hover {
+        background: rgba(255, 255, 255, 0.14) !important;
+        color: #ffffff !important;
+    }
+    .cp-modal.pet-theme-modal .cp-btn-secondary {
+        background: rgba(255, 255, 255, 0.07) !important;
+        border: 1px solid rgba(255, 255, 255, 0.12) !important;
+        color: #e2e8f0 !important;
+        font-family: inherit;
+        font-weight: 700;
+        cursor: pointer;
+        transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+    }
+    .cp-modal.pet-theme-modal .cp-btn-secondary:hover {
+        background: rgba(255, 255, 255, 0.14) !important;
+        border-color: rgba(255, 255, 255, 0.22) !important;
+        color: #ffffff !important;
+    }
+    .cp-modal.pet-theme-modal .pet-action-btn {
+        border: 0;
+        color: #ffffff !important;
+        font-family: inherit;
+        font-weight: 700;
+        cursor: pointer;
+        transition: filter 0.2s ease, transform 0.2s ease;
+    }
+    .cp-modal.pet-theme-modal .pet-action-btn:hover {
+        filter: brightness(1.08);
+        transform: translateY(-1px);
     }
 
     .pet-switch-stage-card {

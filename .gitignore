@@ -45,6 +45,7 @@ scratch/
 scratch_*
 data/leave_requests.json
 data/leave_attachments/
+data/notifications.json
 static/weather_album/_thumbs/
 
 # Archive DB local (SQLite fallback) - không commit dữ liệu thật

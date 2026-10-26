@@ -10,7 +10,7 @@
 </div>
 
 <div class="login-page">
-    <div class="login-settings">
+    <div class="login-settings" data-reveal="fade" data-reveal-delay="0.2">
         <!-- Custom Language Select -->
         <div class="custom-lang-select" id="custom-lang-select" onclick="toggleLangSelect(event)">
             <div class="lang-trigger">
@@ -35,7 +35,7 @@
         <div class="orb orb-3"></div>
     </div>
 
-    <div class="login-card">
+    <div class="login-card" data-reveal-group="0.08">
         <div class="login-icon">
             <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" width="44" height="44" style="border-radius: var(--radius-sm);">
         </div>
@@ -80,7 +80,7 @@
                 <input type="password" name="password" id="password" placeholder="{{ 'Nhập mật khẩu...' if lang == 'vi' else 'パスワードを入力してください...' }}" required autocomplete="current-password">
             </div>
 
-            <button type="submit" class="login-btn-submit">{{ 'Đăng nhập' if lang == 'vi' else 'ログイン' }}</button>
+            <button type="submit" class="login-btn-submit" data-magnetic="0.2">{{ 'Đăng nhập' if lang == 'vi' else 'ログイン' }}</button>
         </form>
     </div>
 </div>

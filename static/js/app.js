@@ -8,12 +8,13 @@
 
     try {
         const lenis = new Lenis({
-            duration: 1.15,
+            // 1.15s quá "trôi" với chuột trên máy yếu; 0.9s vẫn mượt nhưng phản hồi nhanh hơn.
+            duration: 0.9,
             easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)), // Apple exponential ease-out
             orientation: 'vertical',
             gestureOrientation: 'vertical',
             smoothWheel: true,
-            wheelMultiplier: 1.0,
+            wheelMultiplier: 1.08,
             touchMultiplier: 1.6,
             infinite: false,
         });
@@ -51,7 +52,9 @@
             '.vn-select-menu',
             '.lth-wrap',
             '.lth-body',
-            '.notification-panel'
+            '.notification-panel',
+            '.chat-messages',
+            '#chat-messages'
         ].join(', ');
 
         const markPreventContainers = (root) => {
@@ -115,6 +118,24 @@
     }
 })();
 
+// Đánh dấu lúc trang đang cuộn để tạm dừng các hiệu ứng nặng (pet 3D, cỏ,
+// mưa/tuyết). Chúng chạy lại ngay sau khi ngừng cuộn ~160ms.
+(function initScrollPerfFlag() {
+    let timer = null;
+    const markScrolling = () => {
+        const root = document.documentElement;
+        root.classList.add('is-scrolling');
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(() => {
+            root.classList.remove('is-scrolling');
+            timer = null;
+        }, 160);
+    };
+    window.addEventListener('scroll', markScrolling, { passive: true });
+    window.addEventListener('wheel', markScrolling, { passive: true });
+    window.addEventListener('touchmove', markScrolling, { passive: true });
+})();
+
 // ===================== TOAST =====================
 function showToast(message, type = 'info', duration = 4000) {
     let container = document.getElementById('toast-container');
@@ -169,6 +190,11 @@ function switchTab(tabId, syncChart = true) {
         if (tabId === 'truoc') selectWeek(-1, isVi ? 'Tuần trước' : '先週', null, false);
         else if (tabId === 'nay') selectWeek(0, isVi ? 'Tuần này' : '今週', null, false);
         else if (tabId === 'sau') selectWeek(1, isVi ? 'Tuần sau' : '来週', null, false);
+    }
+
+    // GSAP: cột Kanban của tab mới trượt vào nhẹ (không animate layout).
+    if (window.VNMotion && typeof window.VNMotion.tabEnter === 'function') {
+        window.VNMotion.tabEnter(tabId);
     }
 }
 
@@ -1085,6 +1111,8 @@ window.simulateWeatherEffect = function(mode) {
     let isGrassRunning = false;
     let grassPaused = false;
     let grassAnimId = null;
+    let grassInView = true;
+    let grassVisibilityObserver = null;
     let lastFrameTime = performance.now();
     let elapsedTotal = 0;
 
@@ -1766,6 +1794,14 @@ window.simulateWeatherEffect = function(mode) {
     function animate(now) {
         if (!isGrassRunning) return;
 
+        // Hero đã cuộn ra khỏi màn hình hoặc đang cuộn: bỏ qua vẽ canvas để
+        // tránh đốt GPU vô ích. Vòng rAF vẫn chạy nhẹ để tự resume ngay.
+        if (!grassInView || document.documentElement.classList.contains('is-scrolling')) {
+            lastFrameTime = now;
+            grassAnimId = requestAnimationFrame(animate);
+            return;
+        }
+
         // Đang mở player nổi (PiP): KHÔNG tắt cỏ, chỉ vẽ cách khung -> giảm tải CPU/GPU
         // cho video mà hiệu ứng vẫn chạy (trước đây bị ẩn hẳn, người dùng không muốn).
         if (window.__lsaPopoutFrameSkip) {
@@ -1801,7 +1837,7 @@ window.simulateWeatherEffect = function(mode) {
     }
 
     function updatePointerFromEvent(clientX, clientY) {
-        if (!canvas || !isGrassRunning || canvas.style.display === 'none') return;
+        if (!canvas || !isGrassRunning || !grassInView || canvas.style.display === 'none') return;
         const rect = canvas.getBoundingClientRect();
         const localX = clientX - rect.left;
         const localY = clientY - rect.top;
@@ -1911,6 +1947,16 @@ window.simulateWeatherEffect = function(mode) {
             ctx = canvas.getContext('2d', { alpha: false });
             window.syncGrassBannerTheme();
             timeOfDay = targetTimeOfDay;
+
+            if (typeof IntersectionObserver !== 'undefined') {
+                if (grassVisibilityObserver) grassVisibilityObserver.disconnect();
+                grassVisibilityObserver = new IntersectionObserver((entries) => {
+                    const entry = entries && entries[0];
+                    if (entry) grassInView = entry.isIntersecting;
+                }, { rootMargin: '120px 0px' });
+                grassVisibilityObserver.observe(canvas);
+            }
+
             const filmstripLayer = document.getElementById('hero-filmstrip-layer');
             const albumData = window.weatherAlbumData;
             const isAlbumDisabled = !albumData || !albumData.settings || albumData.settings.enabled === false || (albumData.photos && albumData.photos.length === 0) || (filmstripLayer && filmstripLayer.classList.contains('disabled'));
@@ -2848,7 +2894,9 @@ function getStoredNotifications() {
     try {
         const data = localStorage.getItem(getNotifStorageKey());
         const list = data ? JSON.parse(data) : [];
-        return list.filter(n => isTaskAssignedToMe(n.tpKey));
+        if (!Array.isArray(list)) return [];
+        // Bỏ các toast "tự thông báo" khi chính mình lưu link từ phiên bản cũ.
+        return list.filter(n => !String(n && n.id || '').startsWith('link_'));
     } catch (e) {
         return [];
     }
@@ -2859,6 +2907,47 @@ function saveStoredNotifications(list) {
         localStorage.setItem(getNotifStorageKey(), JSON.stringify(list.slice(0, 50)));
     } catch (e) {}
     renderNotificationCenter();
+}
+
+// Đồng bộ thông báo đã lưu trên server (Supabase). Nhờ vậy user offline,
+// đổi máy hoặc bỏ lỡ socket event vẫn thấy thông báo khi đăng nhập lại.
+function syncNotificationsFromServer() {
+    return fetch('/api/notifications', { credentials: 'same-origin' })
+        .then(function (res) {
+            if (!res.ok) return null;
+            return res.json();
+        })
+        .then(function (data) {
+            if (!data || data.status !== 'success' || !Array.isArray(data.notifications)) return;
+            // Server là nguồn chuẩn (đã tính cả trạng thái đã đọc/xoá).
+            // Giữ thêm thông báo local rất mới chưa kịp có trên server (tránh race
+            // giữa lúc poll đang bay và lúc socket vừa nhận tin).
+            const serverList = data.notifications;
+            const serverIds = new Set(serverList.map(n => String(n.id)));
+            const cutoff = Date.now() - 60000;
+            const pendingLocal = getStoredNotifications().filter(n =>
+                !serverIds.has(String(n.id)) && Number(n.timestamp || 0) > cutoff
+            );
+            const merged = serverList.concat(pendingLocal)
+                .sort((a, b) => Number(b.timestamp || 0) - Number(a.timestamp || 0))
+                .slice(0, 50);
+            // Chỉ render lại khi dữ liệu thật sự đổi (tránh nháy panel mỗi 30s).
+            if (JSON.stringify(merged) !== JSON.stringify(getStoredNotifications())) {
+                saveStoredNotifications(merged);
+            }
+        })
+        .catch(function () { });
+}
+
+window.syncNotificationsFromServer = syncNotificationsFromServer;
+
+function postNotificationAction(action, ids) {
+    fetch('/api/notifications', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: action, ids: ids || [] })
+    }).catch(function () { });
 }
 
 function addNotification(item) {
@@ -2942,24 +3031,29 @@ function renderNotificationCenter() {
     list.forEach(n => {
         const avatar = getAvatarForUser(n.user);
         const initial = (n.user || 'U').charAt(0).toUpperCase();
-        const avatarHtml = avatar 
-            ? `<img src="${avatar}" class="notif-avatar" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><div class="notif-avatar-fallback" style="display:none;">${initial}</div>`
-            : `<div class="notif-avatar-fallback">${initial}</div>`;
-        
-        const shortTp = n.tpKey.includes(' - ') ? n.tpKey.split(' - ')[1] : n.tpKey;
+        const safeUser = chatEscape(n.user || 'Hệ thống');
+        const safeInitial = chatEscape(initial);
+        const avatarHtml = avatar
+            ? `<img src="${chatEscape(avatar)}" class="notif-avatar" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><div class="notif-avatar-fallback" style="display:none;">${safeInitial}</div>`
+            : `<div class="notif-avatar-fallback">${safeInitial}</div>`;
+
+        const rawTp = String(n.tpKey || '');
+        const shortTp = rawTp.includes(' - ') ? rawTp.split(' - ')[1] : rawTp;
+        const safeId = chatEscape(String(n.id || ''));
+        const safeTp = chatEscape((n.tpKey || '').replace(/'/g, "\\'"));
 
         html += `
-            <div class="notification-item ${n.isRead ? '' : 'unread'}" id="notif_item_${n.id}" onclick="handleNotificationClick('${n.id}', '${(n.tpKey || '').replace(/'/g, "\\'")}')">
+            <div class="notification-item ${n.isRead ? '' : 'unread'}" id="notif_item_${safeId}" onclick="handleNotificationClick('${safeId}', '${safeTp}')">
                 ${avatarHtml}
                 <div class="notif-body">
                     <div class="notif-header-row">
-                        <span class="notif-user-name">${n.user}</span>
-                        <span class="notif-time">${n.time}</span>
+                        <span class="notif-user-name">${safeUser}</span>
+                        <span class="notif-time">${chatEscape(n.time || '')}</span>
                     </div>
-                    ${shortTp ? `<div class="notif-task-title">📖 ${shortTp}</div>` : ''}
-                    <div class="notif-message-text">${n.message}</div>
+                    ${shortTp ? `<div class="notif-task-title">📖 ${chatEscape(shortTp)}</div>` : ''}
+                    <div class="notif-message-text">${chatEscape(n.message || '')}</div>
                 </div>
-                <button type="button" class="btn-notif-dismiss" onclick="event.stopPropagation(); dismissNotification('${n.id}')" title="Bỏ qua">&times;</button>
+                <button type="button" class="btn-notif-dismiss" onclick="event.stopPropagation(); dismissNotification('${safeId}')" title="Bỏ qua">&times;</button>
             </div>
         `;
     });
@@ -3099,6 +3193,7 @@ function handleNotificationClick(notifId, tpKey) {
     if (item) {
         item.isRead = true;
         saveStoredNotifications(list);
+        postNotificationAction('read', [notifId]);
     }
     navigateToTask(tpKey);
 }
@@ -3106,15 +3201,19 @@ function handleNotificationClick(notifId, tpKey) {
 function dismissNotification(notifId) {
     const list = getStoredNotifications().filter(n => n.id !== notifId);
     saveStoredNotifications(list);
+    postNotificationAction('dismiss', [notifId]);
 }
 
 function markAllNotificationsRead() {
     const list = getStoredNotifications().map(n => ({ ...n, isRead: true }));
     saveStoredNotifications(list);
+    postNotificationAction('read', []);
 }
 
 function clearAllNotifications() {
+    const ids = getStoredNotifications().map(n => n.id);
     saveStoredNotifications([]);
+    postNotificationAction('dismiss', ids);
 }
 
 function showTaskToast(user, tpKey, message, id = null) {
@@ -3133,8 +3232,17 @@ function showTaskToast(user, tpKey, message, id = null) {
     if (!container) {
         container = document.createElement('div');
         container.id = 'task-toast-container';
-        container.style.cssText = 'position: fixed; top: 24px; right: 24px; z-index: 999999; display: flex; flex-direction: column; gap: 10px; max-width: 360px; pointer-events: none;';
+        // Đặt dưới khu vực header/bell để toast không che nút chuông.
+        container.style.cssText = 'position: fixed; top: 88px; right: 24px; z-index: 999999; display: flex; flex-direction: column; gap: 10px; width: min(360px, calc(100vw - 32px)); box-sizing: border-box; pointer-events: none;';
         document.body.appendChild(container);
+        // Đặt ngay dưới nút chuông thay vì đè lên header.
+        const bell = document.getElementById('notification-bell-btn');
+        if (bell) {
+            const br = bell.getBoundingClientRect();
+            // body có zoom 0.92 nên phải quy đổi để top hiển thị đúng.
+            const zoom = parseFloat(getComputedStyle(document.body).zoom) || 1;
+            container.style.top = Math.max(24, Math.ceil((br.bottom + 12) / zoom)) + 'px';
+        }
     }
 
     const toast = document.createElement('div');
@@ -3142,31 +3250,32 @@ function showTaskToast(user, tpKey, message, id = null) {
     if (id) toast.dataset.toastId = id;
     toast.dataset.tpKey = tpKey;
     toast.dataset.message = message;
-    toast.style.cssText = 'pointer-events: auto; background: rgba(17, 24, 39, 0.96); border: 1px solid rgba(129, 140, 248, 0.4); backdrop-filter: blur(12px); border-radius: 10px; padding: 10px 14px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); display: flex; gap: 10px; align-items: flex-start; color: #fff; animation: toastSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1); transition: all 0.3s ease; cursor: pointer;';
-    
-    const avatar = getAvatarForUser(user);
-    const initial = (user || 'U').charAt(0).toUpperCase();
-    const avatarHtml = avatar 
-        ? `<img src="${avatar}" style="width:32px; height:32px; border-radius:50%; object-fit:cover; border:1.5px solid #818cf8;">`
-        : `<div style="width:32px; height:32px; border-radius:50%; background:#4f46e5; display:flex; align-items:center; justify-content:center; font-weight:bold; color:#fff; font-size:12px;">${initial}</div>`;
+    toast.style.cssText = 'pointer-events: auto; box-sizing: border-box; width: 100%; max-width: 100%; overflow: hidden; background: var(--surface-card, #fff); border: 1px solid var(--border, #e2e8f0); backdrop-filter: blur(12px); border-radius: 10px; padding: 10px 12px; box-shadow: var(--shadow-lg); display: flex; gap: 10px; align-items: flex-start; color: var(--text, #090d16); animation: toastSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1); transition: all 0.3s ease; cursor: pointer;';
 
-    const shortTp = tpKey.includes(' - ') ? tpKey.split(' - ')[1] : tpKey;
+    const avatar = getAvatarForUser(user);
+    const initial = chatEscape((user || 'U').charAt(0).toUpperCase());
+    const avatarHtml = avatar
+        ? `<img src="${chatEscape(avatar)}" alt="" style="width:32px; height:32px; border-radius:50%; object-fit:cover; border:1.5px solid #818cf8; flex-shrink:0;">`
+        : `<div style="width:32px; height:32px; border-radius:50%; background:#4f46e5; display:flex; align-items:center; justify-content:center; font-weight:bold; color:#fff; font-size:12px; flex-shrink:0;">${initial}</div>`;
+
+    const rawTp = String(tpKey || '');
+    const shortTp = rawTp.includes(' - ') ? rawTp.split(' - ')[1] : rawTp;
 
     toast.onclick = function() {
         navigateToTask(tpKey);
     };
 
     toast.innerHTML = `
-        <div style="flex-shrink: 0;">${avatarHtml}</div>
-        <div style="flex: 1; min-width: 0;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
-                <span style="font-weight: 700; font-size: 0.82rem; color: #818cf8;">${user}</span>
-                <span style="font-size: 0.7rem; color: var(--text-4);">Vừa xong</span>
+        ${avatarHtml}
+        <div style="flex: 1; min-width: 0; overflow: hidden;">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 2px;">
+                <span style="font-weight: 700; font-size: 0.82rem; color: var(--primary, #4f46e5); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${chatEscape(user || 'Hệ thống')}</span>
+                <span style="font-size: 0.7rem; color: var(--text-3, #64748b); flex-shrink:0;">Vừa xong</span>
             </div>
-            <div style="font-size: 0.72rem; color: #fbbf24; font-weight: 600; margin-bottom: 3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">📖 ${shortTp}</div>
-            <div style="font-size: 0.82rem; color: var(--text); line-height: 1.3;">${message}</div>
+            ${shortTp ? `<div class="task-toast-task" style="font-size: 0.72rem; font-weight: 600; margin-bottom: 3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">📖 ${chatEscape(shortTp)}</div>` : ''}
+            <div style="font-size: 0.82rem; color: var(--text, #090d16); line-height: 1.35; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;">${chatEscape(message || '')}</div>
         </div>
-        <button onclick="event.stopPropagation(); this.parentElement.remove()" style="background:none; border:none; color:var(--text-4); cursor:pointer; font-size:16px; padding:0; line-height:1;">&times;</button>
+        <button type="button" class="task-toast-close" onclick="event.stopPropagation(); this.parentElement.remove()" style="background:none; border:none; cursor:pointer; font-size:16px; padding:0; line-height:1; flex-shrink:0;" title="Đóng">&times;</button>
     `;
 
     container.appendChild(toast);
@@ -3187,6 +3296,25 @@ function setupTaskCommentsSocket() {
     // Always unbind first to guarantee no duplicate event listeners
     window.socket.off('task_comment_new');
     window.socket.off('task_comment_deleted');
+    window.socket.off('notification_new');
+
+    // Khi socket nối lại sau mất mạng, đồng bộ bù các thông báo đã lỡ.
+    if (window.__notifOnSocketConnect) {
+        window.socket.off('connect', window.__notifOnSocketConnect);
+    }
+    window.__notifOnSocketConnect = function () {
+        syncNotificationsFromServer();
+    };
+    window.socket.on('connect', window.__notifOnSocketConnect);
+
+    // Thông báo hệ thống (vd: đồng đội cập nhật link) do server đẩy realtime.
+    window.socket.on('notification_new', function (data) {
+        if (!data || !data.notification || !data.username) return;
+        const me = (typeof CURRENT_USER !== 'undefined' ? CURRENT_USER : '');
+        if (String(data.username).toLowerCase() !== String(me).toLowerCase()) return;
+        const n = data.notification;
+        showTaskToast(n.user || 'Hệ thống', n.tpKey || '', n.message || '', n.id);
+    });
 
     window.socket.on('task_comment_new', function(data) {
         if (!data || !data.tp_key || !data.comment) return;
@@ -3381,7 +3509,6 @@ async function submitSaveTaskLinks() {
         if (data.status === 'success') {
             updateTaskLinksUI(tpKey, data.links || links);
             closeEditTaskLinksModal();
-            showTaskToast('Hệ thống', tpKey, '✓ Đã cập nhật liên kết làm việc!', `link_${Date.now()}`);
         } else {
             alert('Lỗi lưu liên kết: ' + (data.message || 'Không xác định'));
         }
@@ -3449,6 +3576,13 @@ function openModal(tabKey, cardName) {
             modal.scrollTop = 0;
             modal.classList.add('open');
 
+            // GSAP: mở trang task bằng timeline (container + nav/header + 2 cột).
+            if (window.VNMotion && typeof window.VNMotion.taskOpen === 'function') {
+                const sourceCard = Array.from(document.querySelectorAll('.progress-card'))
+                    .find(c => c.dataset.tpKey === cardName && c.offsetParent !== null);
+                window.VNMotion.taskOpen(modal, sourceCard);
+            }
+
             requestAnimationFrame(() => {
                 initChecklistInContainer(modal.querySelector('.task-page-body') || modal.querySelector('.modal-body') || modal);
 
@@ -3484,6 +3618,10 @@ function openModal(tabKey, cardName) {
 function closeModal(modalId) {
     const modal = document.getElementById(`modal-${modalId}`);
     if (modal) {
+        // Hủy timeline mở task để lần mở sau không dính trạng thái ẩn.
+        if (window.VNMotion && typeof window.VNMotion.taskReset === 'function') {
+            window.VNMotion.taskReset(modal);
+        }
         modal.classList.remove('open');
         document.body.style.overflow = '';
         if (window.lenis) window.lenis.start();
@@ -3502,7 +3640,12 @@ function closeModal(modalId) {
 // ===================== TOOLS FULL-PAGE DETAIL VIEWS =====================
 function openToolPage(toolKey) {
     // Close other open modals/pages
-    document.querySelectorAll('.modal-overlay.open').forEach(m => m.classList.remove('open'));
+    document.querySelectorAll('.modal-overlay.open').forEach(m => {
+        if (window.VNMotion && typeof window.VNMotion.taskReset === 'function') {
+            window.VNMotion.taskReset(m);
+        }
+        m.classList.remove('open');
+    });
     document.querySelectorAll('#sidebar-tools .nav-item').forEach(n => n.classList.remove('active'));
 
     const pageId = `page-view-${toolKey}`;
@@ -3663,6 +3806,9 @@ document.addEventListener('keydown', (e) => {
             return;
         }
         document.querySelectorAll('.modal-overlay.open').forEach(m => {
+            if (window.VNMotion && typeof window.VNMotion.taskReset === 'function') {
+                window.VNMotion.taskReset(m);
+            }
             m.classList.remove('open');
         });
         document.querySelectorAll('#sidebar-tools .nav-item').forEach(n => n.classList.remove('active'));
@@ -3682,6 +3828,9 @@ document.addEventListener('keydown', (e) => {
 // Close modal when clicking overlay (skip if clicking inside a full-page task view)
 document.addEventListener('click', (e) => {
     if (e.target.classList.contains('modal-overlay') && !e.target.classList.contains('task-detail-page-view')) {
+        if (window.VNMotion && typeof window.VNMotion.taskReset === 'function') {
+            window.VNMotion.taskReset(e.target);
+        }
         e.target.classList.remove('open');
         document.body.style.overflow = '';
         if (window.lenis) window.lenis.start();
@@ -6256,6 +6405,164 @@ document.addEventListener('DOMContentLoaded', () => {
 let unreadChatCount = 0;
 let isChatOpen = false;
 let currentChatFile = null;
+let chatReplyTo = null;
+let chatGroupState = { username: null, ts: 0, startTs: 0, body: null };
+const chatMessageStore = new Map();
+
+// Tab title + favicon giống Messenger: có tin mới thì hiện (N) trên tab.
+const CHAT_TAB_TITLE = document.title;
+const chatFaviconLink = document.getElementById('app-favicon');
+const chatFaviconBase = chatFaviconLink ? chatFaviconLink.href : '';
+const chatFaviconImage = new Image();
+const chatFaviconCache = new Map();
+let chatFaviconReady = false;
+
+if (chatFaviconBase) {
+    chatFaviconImage.onload = function () {
+        chatFaviconReady = true;
+        updateChatFavicon(unreadChatCount);
+    };
+    chatFaviconImage.src = chatFaviconBase;
+}
+
+function updateChatFavicon(count) {
+    if (!chatFaviconLink) return;
+    count = Math.max(0, Math.floor(Number(count) || 0));
+    if (!count) {
+        chatFaviconLink.href = chatFaviconBase;
+        return;
+    }
+    if (!chatFaviconReady) return;
+
+    const key = count > 99 ? '99+' : String(count);
+    if (chatFaviconCache.has(key)) {
+        chatFaviconLink.href = chatFaviconCache.get(key);
+        return;
+    }
+
+    try {
+        const size = 64;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        ctx.clearRect(0, 0, size, size);
+        ctx.drawImage(chatFaviconImage, 0, 0, size, size);
+
+        const radius = key.length > 1 ? 18 : 16;
+        const cx = size - radius - 2;
+        const cy = radius + 2;
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+        ctx.fillStyle = '#ef4444';
+        ctx.fill();
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = '#ffffff';
+        ctx.stroke();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = `700 ${key.length > 1 ? 16 : 22}px Inter, Arial, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(key, cx, cy + 1);
+
+        const dataUrl = canvas.toDataURL('image/png');
+        chatFaviconCache.set(key, dataUrl);
+        chatFaviconLink.href = dataUrl;
+    } catch (e) {
+        // Favicon badge là phần phụ; lỗi canvas không được ảnh hưởng chat.
+    }
+}
+
+function updateChatTabNotification() {
+    const count = Math.max(0, Number(unreadChatCount) || 0);
+    const lang = (typeof CURRENT_LANG !== 'undefined' ? CURRENT_LANG : 'vi');
+    const label = lang === 'ja' ? '新着メッセージ' : 'Tin nhắn mới';
+    const display = count > 99 ? '99+' : String(count);
+    document.title = count > 0
+        ? `(${display}) ${label} — VN-Tracking`
+        : CHAT_TAB_TITLE;
+    updateChatFavicon(count);
+}
+
+function chatEscape(value) {
+    return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function chatMessagePreview(data) {
+    if (!data) return '';
+    const text = String(data.msg || '').replace(/\s+/g, ' ').trim();
+    if (text) return text.length > 80 ? text.slice(0, 80) + '…' : text;
+    if (data.file_type && String(data.file_type).startsWith('image/')) {
+        return (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'ja') ? '📷 画像' : '📷 Hình ảnh';
+    }
+    if (data.file_name) return '📎 ' + data.file_name;
+    return (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'ja') ? 'メッセージ' : 'Tin nhắn';
+}
+
+function resetChatRenderState() {
+    chatMessageStore.clear();
+    chatGroupState = { username: null, ts: 0, startTs: 0, body: null };
+}
+
+window.startChatReply = function (messageId) {
+    const entry = chatMessageStore.get(String(messageId));
+    if (!entry) return;
+    const d = entry.data;
+    const me = (typeof CURRENT_USER !== 'undefined' ? CURRENT_USER : '');
+    const lang = (typeof CURRENT_LANG !== 'undefined' ? CURRENT_LANG : 'vi');
+
+    chatReplyTo = {
+        id: d.id,
+        username: d.username,
+        fullname: d.fullname,
+        msg: d.msg,
+        file_type: d.file_type,
+        file_name: d.file_name
+    };
+
+    const bar = document.getElementById('chat-reply-preview');
+    const nameEl = document.getElementById('chat-reply-name');
+    const textEl = document.getElementById('chat-reply-text');
+    if (nameEl) {
+        nameEl.textContent = d.username === me
+            ? (lang === 'vi' ? 'Bạn' : 'あなた')
+            : (d.fullname || d.username || '');
+    }
+    if (textEl) textEl.textContent = chatMessagePreview(d);
+    if (bar) bar.classList.add('active');
+
+    const input = document.getElementById('chat-input');
+    if (input) input.focus();
+};
+
+window.cancelChatReply = function () {
+    chatReplyTo = null;
+    const bar = document.getElementById('chat-reply-preview');
+    if (bar) bar.classList.remove('active');
+};
+
+window.toggleChatReaction = function (messageId, emoji) {
+    if (!messageId || !emoji || !window.socket) return;
+    window.socket.emit('chat_reaction', { message_id: String(messageId), emoji: String(emoji) });
+};
+
+window.scrollToChatMessage = function (messageId) {
+    const entry = messageId ? chatMessageStore.get(String(messageId)) : null;
+    if (!entry || !entry.el) return;
+    entry.el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    entry.el.classList.remove('is-flashing');
+    void entry.el.offsetWidth;
+    entry.el.classList.add('is-flashing');
+    setTimeout(() => entry.el.classList.remove('is-flashing'), 1300);
+};
 
 // Messenger-style notification sound using Web Audio API
 function playChatNotification() {
@@ -6312,14 +6619,28 @@ window.toggleChat = function () {
         isChatOpen = true;
         window.socket && window.socket.emit('chat_mark_read');
         unreadChatCount = 0;
+        updateChatTabNotification();
         if (badge) badge.style.display = 'none';
         if (bubbleBtn) bubbleBtn.classList.remove('has-unread');
+        setupChatPaste();
         const input = document.getElementById('chat-input');
         if (input) setTimeout(() => input.focus(), 100);
         const msgs = document.getElementById('chat-messages');
-        if (msgs) msgs.scrollTop = msgs.scrollHeight;
+        if (msgs) setTimeout(() => { msgs.scrollTop = msgs.scrollHeight; }, 60);
     }
 };
+
+// Quay lại tab khi panel chat vẫn mở: coi như đã đọc và xoá badge/title.
+document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState !== 'visible' || !isChatOpen || unreadChatCount <= 0) return;
+    window.socket && window.socket.emit('chat_mark_read');
+    unreadChatCount = 0;
+    updateChatTabNotification();
+    const badge = document.getElementById('chat-badge');
+    const bubbleBtn = document.getElementById('chat-bubble-btn');
+    if (badge) badge.style.display = 'none';
+    if (bubbleBtn) bubbleBtn.classList.remove('has-unread');
+});
 
 // ---- EMOJI PICKER ----
 const EMOJI_DATA = {
@@ -6492,35 +6813,97 @@ document.addEventListener('click', (e) => {
     }
 });
 
-// ---- FILE HANDLING (Auto-send on attach) ----
-window.handleChatFileSelect = function (e) {
-    const file = e.target.files[0];
-    if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-        alert("File quá lớn. Vui lòng chọn file dưới 5MB.");
-        e.target.value = '';
+// ---- FILE HANDLING (Auto-send on attach / paste) ----
+function updateChatFilePreview() {
+    const preview = document.getElementById('chat-file-preview');
+    const nameEl = document.getElementById('chat-file-name');
+    const thumb = document.getElementById('chat-file-thumb');
+    if (!preview) return;
+
+    if (!currentChatFile) {
+        preview.classList.remove('active');
+        if (thumb) {
+            thumb.style.display = 'none';
+            thumb.removeAttribute('src');
+        }
         return;
     }
+
+    preview.classList.add('active');
+    if (nameEl) nameEl.textContent = currentChatFile.name || 'file';
+    if (thumb) {
+        if (currentChatFile.type && currentChatFile.type.startsWith('image/')) {
+            thumb.src = currentChatFile.data;
+            thumb.style.display = 'block';
+        } else {
+            thumb.style.display = 'none';
+            thumb.removeAttribute('src');
+        }
+    }
+}
+window.updateChatFilePreview = updateChatFilePreview;
+
+function stageChatFileAndSend(file) {
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+        if (window.showToast) {
+            showToast(CURRENT_LANG === 'vi' ? 'File quá lớn. Vui lòng chọn file dưới 5MB.' : 'ファイルが大きすぎます（最大5MB）。', 'error');
+        } else {
+            alert('File quá lớn. Vui lòng chọn file dưới 5MB.');
+        }
+        return;
+    }
+
+    const isImage = file.type && file.type.startsWith('image/');
+    const fallbackName = isImage ? `pasted-image-${Date.now()}.png` : `file-${Date.now()}`;
     const reader = new FileReader();
-    reader.onload = function(evt) {
+    reader.onload = function (evt) {
         currentChatFile = {
-            name: file.name,
-            type: file.type,
+            name: file.name || fallbackName,
+            type: file.type || 'application/octet-stream',
             data: evt.target.result
         };
-        // Auto-send immediately when file is selected
+        updateChatFilePreview();
+        // Giữ hành vi cũ: chọn/dán file là gửi luôn.
         sendChatMessage();
     };
     reader.readAsDataURL(file);
+}
+
+window.handleChatFileSelect = function (e) {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    stageChatFileAndSend(file);
+    e.target.value = '';
 };
 
 window.cancelChatFile = function() {
     currentChatFile = null;
     const fileInput = document.getElementById('chat-file-input');
-    const preview = document.getElementById('chat-file-preview');
     if (fileInput) fileInput.value = '';
-    if (preview) preview.classList.remove('active');
+    updateChatFilePreview();
 };
+
+// Dán ảnh trực tiếp vào khung chat (Ctrl/Cmd+V)
+function setupChatPaste() {
+    const panel = document.getElementById('chat-panel');
+    if (!panel || panel.dataset.pasteReady === '1') return;
+    panel.dataset.pasteReady = '1';
+    panel.addEventListener('paste', function (e) {
+        if (!isChatOpen || !e.clipboardData) return;
+        const items = e.clipboardData.items || [];
+        for (let i = 0; i < items.length; i++) {
+            const item = items[i];
+            if (item.kind === 'file' && item.type && item.type.startsWith('image/')) {
+                const file = item.getAsFile();
+                if (!file) continue;
+                e.preventDefault();
+                stageChatFileAndSend(file);
+                break;
+            }
+        }
+    });
+}
 
 // ---- SEND MESSAGE ----
 window.sendChatMessage = function () {
@@ -6536,15 +6919,18 @@ window.sendChatMessage = function () {
             payload.file_type = currentChatFile.type;
             payload.file_data = currentChatFile.data;
         }
+        if (chatReplyTo && chatReplyTo.id) {
+            payload.reply_to_id = chatReplyTo.id;
+        }
         window.socket.emit('chat_message', payload);
         window.socket.emit('chat_stop_typing');
-        
+
         input.value = '';
         if (fileInput) fileInput.value = '';
         currentChatFile = null;
-        const preview = document.getElementById('chat-file-preview');
-        if (preview) preview.classList.remove('active');
-        
+        updateChatFilePreview();
+        if (window.cancelChatReply) window.cancelChatReply();
+
         // Close emoji picker after send
         const emojiPicker = document.getElementById('emoji-picker');
         if (emojiPicker) emojiPicker.classList.remove('open');
@@ -6553,6 +6939,7 @@ window.sendChatMessage = function () {
 
 // ---- CHAT INIT & SOCKET EVENTS ----
 document.addEventListener('DOMContentLoaded', () => {
+    setupChatPaste();
     const input = document.getElementById('chat-input');
     if (input) {
         let typingTimeout;
@@ -6569,8 +6956,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.socket.emit('chat_stop_typing');
             }, 2000);
         });
-        input.addEventListener('keypress', function (e) {
-            if (e.key === 'Enter') sendChatMessage();
+        input.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' && chatReplyTo) {
+                window.cancelChatReply();
+                return;
+            }
+            // Không gửi khi đang gõ tiếng Nhật (IME composition).
+            if (e.key === 'Enter' && !e.isComposing && !e.shiftKey) {
+                e.preventDefault();
+                sendChatMessage();
+            }
         });
     }
 
@@ -6583,17 +6978,23 @@ document.addEventListener('DOMContentLoaded', () => {
         window.socket.on('chat_history', function (messages) {
             const msgs = document.getElementById('chat-messages');
             if (!msgs) return;
-            
-            const welcomeText = typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi' 
-                ? 'Chào mừng bạn đến với kênh chat chung! 💬' 
+
+            const welcomeText = typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi'
+                ? 'Chào mừng bạn đến với kênh chat chung! 💬'
                 : 'グループチャットへようこそ！💬';
+            resetChatRenderState();
             msgs.innerHTML = `<div class="chat-welcome">${welcomeText}</div>`;
-            
-            messages.forEach(data => appendChatMessage(msgs, data, false));
+
+            (messages || []).forEach(data => appendChatMessage(msgs, data, false));
             msgs.scrollTop = msgs.scrollHeight;
             if (isChatOpen) {
                 window.socket.emit('chat_mark_read');
             }
+        });
+
+        window.socket.on('chat_reaction_update', function (data) {
+            if (!data || !data.message_id) return;
+            renderChatReactions(data.message_id, data.reactions || {});
         });
 
         const typingUsers = new Map();
@@ -6625,19 +7026,31 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         window.socket.on('chat_read_update', function(data) {
-            const { message_ids, user } = data;
-            message_ids.forEach(id => {
+            const messageIds = Array.isArray(data && data.message_ids) ? data.message_ids : [];
+            const reader = data && data.user;
+            if (!reader || !reader.username) return;
+
+            const me = (typeof CURRENT_USER !== 'undefined' ? CURRENT_USER : '').trim();
+            // Không hiển thị avatar "đã xem" của chính người đang mở chat.
+            if (String(reader.username).trim().toLowerCase() === me.toLowerCase()) return;
+
+            messageIds.forEach(id => {
+                const entry = chatMessageStore.get(String(id));
+                // Read receipt chỉ có ý nghĩa trên tin do mình gửi.
+                if (!entry || String(entry.data.username || '').trim().toLowerCase() !== me.toLowerCase()) return;
+
                 const container = document.getElementById(`read-avatars-${id}`);
                 if (container) {
-                    const existing = container.querySelector(`img[data-user="${user.username}"]`);
+                    const existing = container.querySelector(`img[data-user="${reader.username}"]`);
                     if (!existing) {
                         const img = document.createElement('img');
-                        img.src = user.avatar;
-                        img.title = user.username;
-                        img.dataset.user = user.username;
-                        img.onerror = function() { this.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.username)}&background=random&size=30`; };
+                        img.src = reader.avatar;
+                        img.title = reader.username;
+                        img.dataset.user = reader.username;
+                        img.onerror = function() { this.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(reader.username)}&background=random&size=30`; };
                         container.appendChild(img);
                     }
+                    container.classList.add('has-read');
                 }
             });
         });
@@ -6646,23 +7059,30 @@ document.addEventListener('DOMContentLoaded', () => {
             const msgs = document.getElementById('chat-messages');
             if (!msgs) return;
 
+            // Chỉ tự cuộn khi đang ở gần cuối hoặc chính mình vừa gửi.
+            // Nếu user đang đọc tin cũ phía trên thì không kéo họ xuống.
+            const nearBottom = (msgs.scrollHeight - msgs.scrollTop) <= (msgs.clientHeight + 90);
             const isMe = appendChatMessage(msgs, data, true);
-            msgs.scrollTop = msgs.scrollHeight;
+            if (isMe || nearBottom) msgs.scrollTop = msgs.scrollHeight;
 
-            if (!isChatOpen) {
+            // Chỉ coi là "đã xem" khi panel chat đang mở VÀ tab đang được nhìn thấy.
+            // Nếu user chuyển sang tab khác, tin mới vẫn phải lên title/favicon.
+            const chatVisible = isChatOpen && document.visibilityState === 'visible';
+            if (!chatVisible) {
                 unreadChatCount++;
                 const badge = document.getElementById('chat-badge');
                 const bubbleBtn = document.getElementById('chat-bubble-btn');
                 if (badge) {
-                    badge.innerText = unreadChatCount;
+                    badge.innerText = unreadChatCount > 99 ? '99+' : unreadChatCount;
                     badge.style.display = 'flex';
                 }
                 if (bubbleBtn) bubbleBtn.classList.add('has-unread');
+                updateChatTabNotification();
             } else {
                 window.socket.emit('chat_mark_read');
             }
-            
-            if (!isMe && !isChatOpen) {
+
+            if (!isMe && !chatVisible) {
                 playChatNotification();
             }
         });
@@ -6680,24 +7100,96 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         
         function appendChatMessage(container, data, animate) {
-            const isMe = data.username === (typeof CURRENT_USER !== 'undefined' ? CURRENT_USER : '');
+            const me = (typeof CURRENT_USER !== 'undefined' ? CURRENT_USER : '');
+            const isMe = data.username === me;
+            const id = String(data.id || '');
+            const lang = (typeof CURRENT_LANG !== 'undefined' ? CURRENT_LANG : 'vi');
+            const senderName = isMe ? (lang === 'vi' ? 'Bạn' : 'あなた') : (data.fullname || data.username);
+            const avatarUrl = data.avatar || getAvatarForUser(data.username) || `/static/img/pet/1.gif`;
+
+            // Gộp các tin liên tiếp của cùng một người (trong 5 phút) vào 1 cụm:
+            // avatar + tên chỉ hiện 1 lần, các tin sau nối tiếp bên dưới.
+            const ts = Number(data.ts) || Date.now();
+            const GROUP_WINDOW_MS = 5 * 60 * 1000;
+            let groupMessages = null;
+
+            if (chatGroupState.username === data.username &&
+                chatGroupState.body && chatGroupState.body.isConnected &&
+                (ts - chatGroupState.ts) <= GROUP_WINDOW_MS &&
+                (ts - chatGroupState.startTs) <= GROUP_WINDOW_MS) {
+                groupMessages = chatGroupState.body;
+                chatGroupState.ts = ts;
+            } else {
+                const group = document.createElement('div');
+                group.className = `chat-group ${isMe ? 'me' : ''}`;
+
+                const img = document.createElement('img');
+                img.className = 'chat-group-avatar';
+                img.src = avatarUrl;
+                img.alt = senderName;
+                img.onerror = function () {
+                    this.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(data.username || 'U')}&background=random&size=30`;
+                };
+
+                const body = document.createElement('div');
+                body.className = 'chat-group-body';
+
+                const meta = document.createElement('div');
+                meta.className = 'chat-group-meta';
+                const nameEl = document.createElement('span');
+                nameEl.className = 'msg-sender';
+                nameEl.textContent = senderName;
+                const timeEl = document.createElement('span');
+                timeEl.textContent = '• ' + (data.time || '');
+                meta.appendChild(nameEl);
+                meta.appendChild(timeEl);
+
+                const messages = document.createElement('div');
+                messages.className = 'chat-group-messages';
+
+                body.appendChild(meta);
+                body.appendChild(messages);
+                group.appendChild(img);
+                group.appendChild(body);
+                if (!animate) group.style.animation = 'none';
+                container.appendChild(group);
+
+                groupMessages = messages;
+                chatGroupState = { username: data.username, ts: ts, startTs: ts, body: messages };
+            }
+
             let contentHtml = '';
-            
+
+            // Trích dẫn tin được trả lời
+            if (data.reply_to) {
+                const quote = data.reply_to;
+                const quoteName = quote.username === me
+                    ? (lang === 'vi' ? 'Bạn' : 'あなた')
+                    : (quote.fullname || quote.username || '');
+                const quoteText = chatMessagePreview(quote);
+                contentHtml += `
+                    <span class="chat-reply-quote" onclick="scrollToChatMessage('${chatEscape(quote.id || '')}')">
+                        <span class="chat-reply-quote-name">${chatEscape(quoteName)}</span>
+                        <span class="chat-reply-quote-text">${chatEscape(quoteText)}</span>
+                    </span>`;
+            }
+
             // File content
             if (data.file_data) {
+                const safeHref = chatEscape(data.file_data);
                 if (data.file_type && data.file_type.startsWith('image/')) {
-                    contentHtml += `<div style="margin-bottom: 4px;"><img src="${data.file_data}" onclick="window.open('${data.file_data}', '_blank')" alt="image" /></div>`;
+                    contentHtml += `<div style="margin-bottom: 4px;"><img src="${safeHref}" onclick="window.open(this.src, '_blank')" alt="image" loading="lazy" /></div>`;
                 } else {
-                    contentHtml += `<div style="margin-bottom: 4px;"><a href="${data.file_data}" download="${data.file_name}" class="file-link">
+                    contentHtml += `<div style="margin-bottom: 4px;"><a href="${safeHref}" download="${chatEscape(data.file_name || 'file')}" class="file-link">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                        ${data.file_name || 'Download file'}
+                        ${chatEscape(data.file_name || 'Download file')}
                     </a></div>`;
                 }
             }
-            
+
             // Text content — check if it's emoji-only
             if (data.msg) {
-                const escapedMsg = data.msg.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                const escapedMsg = chatEscape(data.msg);
                 const emojiOnlyRegex = /^[\p{Emoji}\p{Emoji_Component}\s]+$/u;
                 const isEmojiOnly = emojiOnlyRegex.test(data.msg) && data.msg.trim().length <= 8 && !data.file_data;
                 if (isEmojiOnly) {
@@ -6708,40 +7200,54 @@ document.addEventListener('DOMContentLoaded', () => {
                     contentHtml += `<div>${formattedMsg}</div>`;
                 }
             }
-            
-            const avatarUrl = data.avatar || `/static/img/pet/1.gif`;
-            const senderName = isMe 
-                ? (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi' ? 'Bạn' : 'あなた')
-                : (data.fullname || data.username);
 
             let readAvatarsHtml = '';
-            if (data.read_by && data.read_by.length > 0) {
+            // Chỉ hiện "đã xem" trên tin mình gửi, và bỏ chính mình khỏi danh sách.
+            if (isMe && Array.isArray(data.read_by) && data.read_by.length > 0) {
                 data.read_by.forEach(u => {
-                    readAvatarsHtml += `<img src="${u.avatar}" title="${u.username}" data-user="${u.username}" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(u.username)}&background=random&size=30'" />`;
+                    if (!u || String(u.username || '').trim().toLowerCase() === String(me).trim().toLowerCase()) return;
+                    readAvatarsHtml += `<img src="${chatEscape(u.avatar || '')}" title="${chatEscape(u.username || '')}" data-user="${chatEscape(u.username || '')}" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(u.username || 'U')}&background=random&size=30'" />`;
                 });
             }
 
-            const row = document.createElement('div');
-            row.className = `chat-msg-row ${isMe ? 'me' : ''}`;
-            if (!animate) row.style.animation = 'none';
-            
-            row.innerHTML = `
-                <img src="${avatarUrl}" class="chat-msg-avatar" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(data.username)}&background=random&size=30'" />
-                <div class="chat-msg-content">
-                    <div class="chat-msg-meta">
-                        <span class="msg-sender">${senderName}</span> • ${data.time}
-                    </div>
-                    <div class="chat-msg-bubble ${isMe ? 'me' : 'other'}">
-                        ${contentHtml}
-                    </div>
-                    <div class="chat-msg-read-avatars" id="read-avatars-${data.id || ''}">
-                        ${readAvatarsHtml}
-                    </div>
+            const msgEl = document.createElement('div');
+            msgEl.className = 'chat-msg';
+            msgEl.dataset.id = id;
+            if (!animate) msgEl.style.animation = 'none';
+            msgEl.innerHTML = `
+                <div class="chat-msg-bubble ${isMe ? 'me' : 'other'}">${contentHtml}</div>
+                <div class="chat-msg-actions">
+                    <button type="button" class="chat-msg-action" title="Thích" onclick="toggleChatReaction('${chatEscape(id)}','👍')">👍</button>
+                    <button type="button" class="chat-msg-action" title="Yêu" onclick="toggleChatReaction('${chatEscape(id)}','❤️')">❤️</button>
+                    <button type="button" class="chat-msg-action" title="Haha" onclick="toggleChatReaction('${chatEscape(id)}','😂')">😂</button>
+                    <button type="button" class="chat-msg-action reply" title="${lang === 'vi' ? 'Trả lời' : '返信'}" onclick="startChatReply('${chatEscape(id)}')">↩</button>
                 </div>
+                <div class="chat-msg-read-avatars${readAvatarsHtml ? ' has-read' : ''}" id="read-avatars-${chatEscape(id)}">
+                    ${readAvatarsHtml}
+                </div>
+                <div class="chat-reactions" data-msg-id="${chatEscape(id)}"></div>
             `;
-            
-            container.appendChild(row);
+
+            groupMessages.appendChild(msgEl);
+            if (id) chatMessageStore.set(id, { data: data, el: msgEl });
+            renderChatReactions(id, data.reactions);
             return isMe;
+        }
+
+        function renderChatReactions(messageId, reactions) {
+            const entry = messageId ? chatMessageStore.get(String(messageId)) : null;
+            const wrap = entry && entry.el ? entry.el.querySelector('.chat-reactions') : null;
+            if (!wrap) return;
+
+            const me = (typeof CURRENT_USER !== 'undefined' ? CURRENT_USER : '');
+            let html = '';
+            Object.keys(reactions || {}).forEach(function (emoji) {
+                const users = Array.isArray(reactions[emoji]) ? reactions[emoji] : [];
+                if (!users.length) return;
+                const mine = users.some(function (u) { return String(u).toLowerCase() === String(me).toLowerCase(); });
+                html += `<button type="button" class="chat-reaction-chip${mine ? ' mine' : ''}" data-emoji="${chatEscape(emoji)}" title="${chatEscape(users.join(', '))}" onclick="toggleChatReaction('${chatEscape(String(messageId))}','${chatEscape(emoji)}')">${chatEscape(emoji)} <span>${users.length}</span></button>`;
+            });
+            wrap.innerHTML = html;
         }
     }
 });
@@ -6764,6 +7270,29 @@ function getColorForUser(str) {
     }
     const h = Math.abs(hash) % 360;
     return `hsl(${h}, 70%, 50%)`;
+}
+
+// Chuẩn hoá tên để cursor không bị nhân đôi do khác hoa/thường/khoảng trắng
+// hoặc do cùng một người có 2 session/socket id khác nhau.
+function normalizeCursorIdentity(value) {
+    return String(value == null ? '' : value)
+        .trim()
+        .replace(/\s+/g, ' ')
+        .toLowerCase();
+}
+
+function removeRemoteCursor(uid) {
+    const entry = cursors[uid];
+    if (!entry) return;
+    if (entry.timeoutId) clearTimeout(entry.timeoutId);
+    if (entry.el && entry.el.parentNode) entry.el.remove();
+    delete cursors[uid];
+}
+
+function clearRemoteCursors() {
+    Object.keys(cursors).forEach(removeRemoteCursor);
+    // Dọn luôn các cursor mồ côi còn sót trong DOM (ví dụ sau reconnect).
+    document.querySelectorAll('[data-live-cursor]').forEach(el => el.remove());
 }
 
 // Vẽ cursor bằng transform (compositor) + nội suy theo rAF.
@@ -6821,17 +7350,50 @@ document.addEventListener('DOMContentLoaded', () => {
     if (window.socket) {
         window.socket.on('cursor_move', (data) => {
             if (!isDashboard || !data) return;
-            const uid = data.username; // Key by username to prevent duplicates
-            if (typeof CURRENT_USER !== 'undefined' && uid === CURRENT_USER) return;
+
+            const displayName = String(data.fullname || data.username || '').trim();
+            let uid = normalizeCursorIdentity(data.username || displayName);
+            const fullnameKey = normalizeCursorIdentity(displayName);
+            if (!uid) return;
+
+            const me = normalizeCursorIdentity(typeof CURRENT_USER !== 'undefined' ? CURRENT_USER : '');
+            if (me && uid === me) return;
+
+            // Cùng một người có thể xuất hiện với 2 username/socket khác nhau
+            // nhưng cùng tên hiển thị -> tái sử dụng cursor cũ (không tạo mới
+            // liên tục) và xoá các bản trùng còn lại.
+            const sameNameKeys = Object.keys(cursors).filter(key =>
+                key !== uid && normalizeCursorIdentity(cursors[key].fullname) === fullnameKey
+            );
+            if (sameNameKeys.length) {
+                uid = sameNameKeys[0];
+                sameNameKeys.slice(1).forEach(removeRemoteCursor);
+            }
+
             let cursorEl = cursors[uid];
+            if (cursorEl && (!cursorEl.el || !cursorEl.el.isConnected)) {
+                removeRemoteCursor(uid);
+                cursorEl = null;
+            }
+
             if (!cursorEl) {
-                const userColor = getColorForUser(data.username);
+                // Chỉ quét DOM khi tạo cursor mới (không quét 16k node mỗi packet).
+                document.querySelectorAll('[data-live-cursor]').forEach(el => {
+                    if (el.dataset.userKey === uid || normalizeCursorIdentity(el.dataset.fullname) === fullnameKey) {
+                        el.remove();
+                    }
+                });
+
+                const userColor = getColorForUser(data.username || displayName);
                 const el = document.createElement('div');
-                el.dataset.username = data.username;
+                el.dataset.username = data.username || displayName;
+                el.dataset.fullname = displayName;
+                el.dataset.userKey = uid;
+                el.dataset.liveCursor = '1';
                 el.innerHTML = `
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="${userColor}" stroke="white" stroke-width="2"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"></path></svg>
                     <div style="background: ${userColor}; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; margin-top: 2px; font-weight: bold; white-space: nowrap;">
-                        ${data.fullname || data.username}
+                        ${displayName}
                     </div>
                 `;
                 Object.assign(el.style, {
@@ -6848,31 +7410,42 @@ document.addEventListener('DOMContentLoaded', () => {
                     contain: 'layout style paint'
                 });
                 document.body.appendChild(el);
-                cursorEl = { el, x: undefined, y: undefined, nx: data.x || 0, ny: data.y || 0, lastX: null, lastY: null, timeoutId: null };
+                cursorEl = { el, fullname: displayName, x: undefined, y: undefined, nx: data.x || 0, ny: data.y || 0, lastX: null, lastY: null, timeoutId: null };
                 cursors[uid] = cursorEl;
             }
 
+            cursorEl.fullname = displayName;
+            cursorEl.el.dataset.username = data.username || displayName;
+            cursorEl.el.dataset.fullname = displayName;
             cursorEl.nx = data.x || 0;
             cursorEl.ny = data.y || 0;
             ensureCursorLoop();
 
             clearTimeout(cursorEl.timeoutId);
+            const timeoutEl = cursorEl.el;
             cursorEl.timeoutId = setTimeout(() => {
-                cursorEl.el.remove();
-                delete cursors[uid];
+                if (cursors[uid] && cursors[uid].el === timeoutEl) {
+                    removeRemoteCursor(uid);
+                } else if (timeoutEl.parentNode) {
+                    timeoutEl.remove();
+                }
             }, 15000); // ẩn sau 15s không di chuyển
         });
 
         window.socket.on('online_users_update', (users) => {
             // Remove offline cursors
-            const onlineUsernames = users.map(u => u.username);
+            const onlineUsernames = new Set((users || []).map(u => normalizeCursorIdentity(u.username)));
             for (let uid in cursors) {
-                if (!onlineUsernames.includes(uid)) {
-                    cursors[uid].el.remove();
-                    delete cursors[uid];
+                if (!onlineUsernames.has(uid)) {
+                    removeRemoteCursor(uid);
                 }
             }
         });
+
+        // Sau khi socket mất kết nối, cursor cũ có thể bị treo. Dọn sạch để
+        // khi kết nối lại không hiện 2 cursor của cùng một người.
+        window.socket.on('disconnect', clearRemoteCursors);
+        window.socket.on('connect', clearRemoteCursors);
 
         // Realtime Checklist Sync via version polling
         // Only fetches full data when something actually changed
@@ -6921,6 +7494,104 @@ let radioPollingInterval = null;
 // Detect serverless: Socket.IO không khả dụng hoặc không thể kết nối
 let useRadioPolling = false;
 let lastSeekTime = 0;
+
+// --- Đồng bộ phát nhạc cho listener ---
+// Trước đây listener seek lại mỗi khi lệch >3s (cooldown 5s). Mỗi lần seek,
+// YouTube phải buffer lại -> nhạc giật ~1-2s. Lệch nhỏ giờ được bù bằng
+// playbackRate, chỉ seek khi lệch thật lớn và không seek lúc đang buffer.
+let radioLastSyncSeekAt = 0;
+let radioLastLoadAt = 0;
+let radioSyncGraceUntil = 0;
+let radioPlaybackRate = 1;
+const RADIO_HARD_SEEK_SECONDS = 8;
+const RADIO_SOFT_DRIFT_SECONDS = 2;
+const RADIO_RATE_SLOW = 0.95;
+const RADIO_RATE_FAST = 1.05;
+
+function radioMarkMediaLoaded(graceMs) {
+    const now = Date.now();
+    radioLastLoadAt = now;
+    // Sau khi load/seek, cho player vài giây buffer rồi mới chỉnh tiếp.
+    radioSyncGraceUntil = Math.max(radioSyncGraceUntil, now + (graceMs || 4000));
+}
+
+function radioSetPlaybackRate(rate) {
+    if (!ytPlayer || typeof ytPlayer.setPlaybackRate !== 'function') return;
+    if (Math.abs(rate - radioPlaybackRate) < 0.005) return;
+    try {
+        ytPlayer.setPlaybackRate(rate);
+        radioPlaybackRate = rate;
+    } catch (e) { }
+}
+
+// Đồng bộ player listener với state mới nhất từ DJ.
+// Dùng chung cho cả Socket.IO và chế độ polling để tránh 2 bản logic lệch nhau.
+function radioApplyPlaybackSync(state) {
+    if (!state || !isListening || isRadioDJ || isCrossfading) return;
+    if (!ytPlayer || typeof ytPlayer.loadVideoById !== 'function') return;
+
+    const now = Date.now();
+    const playerState = ytPlayer.getPlayerState ? ytPlayer.getPlayerState() : -1;
+    const currentVideo = (ytPlayer.getVideoData && ytPlayer.getVideoData()?.video_id) || '';
+    const targetVideo = state.youtube_id || '';
+    const duration = ytPlayer.getDuration ? (ytPlayer.getDuration() || 0) : 0;
+    const currentTime = ytPlayer.getCurrentTime ? (ytPlayer.getCurrentTime() || 0) : 0;
+    const isNearEnd = duration > 0 && (duration - currentTime) <= 25;
+
+    // 1) Chuyển bài. Chỉ load khi biết chắc video hiện tại khác target:
+    // getVideoData() có thể trả rỗng trong lúc đang buffer -> load lặp gây giật.
+    if (targetVideo && currentVideo && currentVideo !== targetVideo) {
+        const canCrossfade = !!window.crossfadeTo && (
+            state.is_crossfading === true ||
+            (radioState.is_automix_enabled && isNearEnd)
+        );
+        if (canCrossfade) {
+            window.crossfadeTo(targetVideo, Number(state.current_time) || 0);
+        } else {
+            ytPlayer.loadVideoById(targetVideo, Number(state.current_time) || 0);
+            radioSetPlaybackRate(1);
+            radioMarkMediaLoaded(4500);
+        }
+        return;
+    }
+
+    // 2) Bù lệch thời gian. Lệch nhỏ = chỉnh tốc độ rất nhẹ (không nghe ra),
+    // lệch lớn mới seek. Không bao giờ seek khi player đang buffer.
+    const expected = Number(state.current_time) || 0;
+    const drift = currentTime - expected; // >0: máy nghe đang chạy trước DJ
+    if (now >= radioSyncGraceUntil &&
+        playerState !== YT.PlayerState.BUFFERING &&
+        playerState !== YT.PlayerState.UNSTARTED) {
+        if (Math.abs(drift) >= RADIO_HARD_SEEK_SECONDS) {
+            if (now - radioLastSyncSeekAt > 8000) {
+                radioLastSyncSeekAt = now;
+                radioSetPlaybackRate(1);
+                try { ytPlayer.seekTo(expected, true); } catch (e) { }
+                radioMarkMediaLoaded(2500);
+                return;
+            }
+        } else if (Math.abs(drift) >= RADIO_SOFT_DRIFT_SECONDS) {
+            radioSetPlaybackRate(drift > 0 ? RADIO_RATE_SLOW : RADIO_RATE_FAST);
+        } else {
+            radioSetPlaybackRate(1);
+        }
+    }
+
+    // 3) Play/pause theo DJ, tránh gọi play dồn dập ngay sau khi load.
+    if (state.is_playing) {
+        if ((playerState === YT.PlayerState.PAUSED ||
+             playerState === YT.PlayerState.CUED ||
+             playerState === YT.PlayerState.UNSTARTED) &&
+            now - radioLastLoadAt > 1500) {
+            try { ytPlayer.playVideo(); } catch (e) { }
+        }
+    } else {
+        radioSetPlaybackRate(1);
+        if (playerState === YT.PlayerState.PLAYING) {
+            try { ytPlayer.pauseVideo(); } catch (e) { }
+        }
+    }
+}
 
 // Dynamically load YouTube Iframe API
 const tag = document.createElement('script');
@@ -7261,6 +7932,8 @@ window.crossfadeTo = function(newVideoId, startTime, callback) {
             applyUserRadioVolume(ytPlayer);
             isCrossfading = false;
             targetCrossfadeVideoId = null;
+            radioPlaybackRate = 1;
+            radioMarkMediaLoaded(2500);
             if (callback) callback();
         }
     }, intervalTime);
@@ -7504,45 +8177,7 @@ function handleRadioStateFromPolling(state) {
     // Cập nhật UI ngay, phòng khi phần đồng bộ player bên dưới gặp lỗi
     if (window.updateRadioUI) updateRadioUI();
 
-    if (isListening && ytPlayer && ytPlayer.loadVideoById) {
-        const currentVideo = ytPlayer.getVideoData?.()?.video_id;
-        const duration = ytPlayer.getDuration?.() || 0;
-        const currentTime = ytPlayer.getCurrentTime?.() || 0;
-        const isNearEnd = duration > 0 && (duration - currentTime) <= 25;
-
-        if (currentVideo !== state.youtube_id) {
-            if (isCrossfading && targetCrossfadeVideoId === state.youtube_id) {
-                // Đang trong tiến trình crossfade mượt sang bài này - không ngắt hay reload!
-            } else {
-                const canCrossfade = !isCrossfading && currentVideo && window.crossfadeTo && (
-                    state.is_crossfading === true ||
-                    (radioState.is_automix_enabled && isNearEnd)
-                );
-
-                if (canCrossfade) {
-                    window.crossfadeTo(state.youtube_id, state.current_time);
-                } else {
-                    if (isCrossfading && window.cancelCrossfade) window.cancelCrossfade();
-                    ytPlayer.loadVideoById(state.youtube_id, state.current_time);
-                }
-            }
-        } else if (!isCrossfading && Math.abs(currentTime - state.current_time) > 3) {
-            const now = Date.now();
-            if (now - lastSeekTime > 5000) {
-                ytPlayer.seekTo(state.current_time, true);
-                lastSeekTime = now;
-            }
-        }
-
-        const playerState = ytPlayer.getPlayerState?.();
-        if (state.is_playing && playerState !== YT.PlayerState.PLAYING && playerState !== YT.PlayerState.BUFFERING) {
-            ytPlayer.playVideo();
-            if (isCrossfading && ytPlayer2 && ytPlayer2.playVideo) ytPlayer2.playVideo();
-        } else if (!state.is_playing && playerState !== YT.PlayerState.PAUSED && playerState !== YT.PlayerState.CUED && playerState !== YT.PlayerState.UNSTARTED) {
-            ytPlayer.pauseVideo();
-            if (isCrossfading && ytPlayer2 && ytPlayer2.pauseVideo) ytPlayer2.pauseVideo();
-        }
-    }
+    radioApplyPlaybackSync(state);
 
     // Cập nhật listener avatars từ REST response
     if (state.listeners) {
@@ -7849,45 +8484,7 @@ function setupSocketRadio() {
         if (window.syncQueueToLocalPlaylist) window.syncQueueToLocalPlaylist(radioState.queue);
     }
 
-        if (isListening && ytPlayer && ytPlayer.loadVideoById) {
-            const currentVideo = ytPlayer.getVideoData?.()?.video_id;
-            const duration = ytPlayer.getDuration?.() || 0;
-            const currentTime = ytPlayer.getCurrentTime?.() || 0;
-            const isNearEnd = duration > 0 && (duration - currentTime) <= 25;
-
-            if (currentVideo !== state.youtube_id) {
-                if (isCrossfading && targetCrossfadeVideoId === state.youtube_id) {
-                    // Đang trong tiến trình crossfade mượt sang bài này - không ngắt hay reload!
-                } else {
-                    const canCrossfade = !isCrossfading && currentVideo && window.crossfadeTo && (
-                        state.is_crossfading === true ||
-                        (radioState.is_automix_enabled && isNearEnd)
-                    );
-
-                    if (canCrossfade) {
-                        window.crossfadeTo(state.youtube_id, state.current_time);
-                    } else {
-                        if (isCrossfading && window.cancelCrossfade) window.cancelCrossfade();
-                        ytPlayer.loadVideoById(state.youtube_id, state.current_time);
-                    }
-                }
-            } else if (!isCrossfading && Math.abs(currentTime - state.current_time) > 3) {
-                const now = Date.now();
-                if (now - lastSeekTime > 5000) {
-                    ytPlayer.seekTo(state.current_time, true);
-                    lastSeekTime = now;
-                }
-            }
-
-            const playerState = ytPlayer.getPlayerState?.();
-            if (state.is_playing && playerState !== YT.PlayerState.PLAYING && playerState !== YT.PlayerState.BUFFERING) {
-                ytPlayer.playVideo();
-                if (isCrossfading && ytPlayer2 && ytPlayer2.playVideo) ytPlayer2.playVideo();
-            } else if (!state.is_playing && playerState !== YT.PlayerState.PAUSED && playerState !== YT.PlayerState.CUED && playerState !== YT.PlayerState.UNSTARTED) {
-                ytPlayer.pauseVideo();
-                if (isCrossfading && ytPlayer2 && ytPlayer2.pauseVideo) ytPlayer2.pauseVideo();
-            }
-        }
+        radioApplyPlaybackSync(state);
 
         updateRadioUI();
         const statusText = document.getElementById('radio-status');
@@ -8069,6 +8666,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else {
                     ytPlayer.seekTo(radioState.current_time, true);
                 }
+                // Vừa join: cho buffer ổn định rồi mới bù lệch, tránh seek ngay gây giật.
+                radioSetPlaybackRate(1);
+                radioMarkMediaLoaded(5000);
 
                 // Trả lại âm lượng của user trước khi phát (phòng khi bị kẹt volume 0
                 // do crossfade lần trước) -> tránh "vào nghe chung mà không có tiếng"
@@ -8769,6 +9369,8 @@ function setInputStatus(id, state) {
     let weatherAnimId = null;
     let currentWeatherMode = null; // 'rain', 'thunder', 'snow', 'sun', null
     let weatherPaused = false;
+    let weatherInView = true;
+    let weatherVisibilityObserver = null;
     let weatherHost = null;          // hero clip wrapper (or documentElement fallback)
     let weatherResizeObserver = null;
 
@@ -8894,6 +9496,18 @@ function setInputStatus(id, state) {
             weatherResizeObserver = new ResizeObserver(() => handleWeatherResize());
             weatherResizeObserver.observe(host || document.documentElement);
         }
+
+        if (typeof IntersectionObserver !== 'undefined') {
+            if (weatherVisibilityObserver) weatherVisibilityObserver.disconnect();
+            const observeTarget = (host && host !== document.documentElement) ? host : weatherCanvas;
+            if (observeTarget) {
+                weatherVisibilityObserver = new IntersectionObserver((entries) => {
+                    const entry = entries && entries[0];
+                    if (entry) weatherInView = entry.isIntersecting;
+                }, { rootMargin: '120px 0px' });
+                weatherVisibilityObserver.observe(observeTarget);
+            }
+        }
     }
 
     // Size of the area the particles are allowed to live in (hero, or viewport
@@ -9005,6 +9619,12 @@ function setInputStatus(id, state) {
     let weatherFrameTick = 0;
     function updateWeatherParticles() {
         if (!currentWeatherMode || !weatherCtx) return;
+
+        // Hero đã cuộn ra khỏi màn hình hoặc đang cuộn: tạm dừng vẽ mưa/tuyết.
+        if (!weatherInView || document.documentElement.classList.contains('is-scrolling')) {
+            weatherAnimId = requestAnimationFrame(updateWeatherParticles);
+            return;
+        }
 
         // Đang mở player nổi (PiP): mưa/tuyết VẪN RƠI, chỉ vẽ cách khung cho nhẹ máy.
         if (window.__lsaPopoutFrameSkip) {
@@ -9614,6 +10234,16 @@ window.initPopoutDragAndResize = function() {
         wrapper.style.transform = '';
         const rect = wrapper.getBoundingClientRect();
         dragScale = window.getLsaPopoutScale();
+
+        // Popout mặc định neo bằng right/bottom. Nếu chỉ set right/bottom = auto
+        // mà chưa chuyển vị trí hiện tại sang left/top, element sẽ rơi về vị trí
+        // static trong <html> (thường nằm dưới đáy trang) rồi biến mất khi kéo.
+        // Chốt left/top theo đúng rect đang thấy TRƯỚC khi bỏ neo right/bottom.
+        wrapper.style.left = (rect.left / dragScale) + 'px';
+        wrapper.style.top = (rect.top / dragScale) + 'px';
+        wrapper.style.right = 'auto';
+        wrapper.style.bottom = 'auto';
+
         dragStartX = e.clientX;
         dragStartY = e.clientY;
         startLeft = rect.left;
@@ -9622,8 +10252,6 @@ window.initPopoutDragAndResize = function() {
         dragH = rect.height;
         pendingShift = null;
 
-        wrapper.style.right = 'auto';
-        wrapper.style.bottom = 'auto';
         wrapper.classList.add('is-dragging');
 
         document.addEventListener('mousemove', onDragMove);
@@ -11000,14 +11628,26 @@ window.toggleExternalStart = function(tpKey, element) {
 
 // Initialize Notification Center and Task Sockets on load
 if (typeof document !== 'undefined') {
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', function() {
-            renderNotificationCenter();
-            setTimeout(setupTaskCommentsSocket, 500);
-        });
-    } else {
+    const initNotificationSync = function () {
         renderNotificationCenter();
         setTimeout(setupTaskCommentsSocket, 500);
+
+        // Lấy thông báo đã lưu trên server (kể cả khi user offline lúc có comment).
+        syncNotificationsFromServer();
+        // Poll dự phòng: socket có thể mất gói khi mạng chập chờn / đổi tab.
+        setInterval(function () {
+            if (!document.hidden) syncNotificationsFromServer();
+        }, 30000);
+        document.addEventListener('visibilitychange', function () {
+            if (!document.hidden) syncNotificationsFromServer();
+        });
+        window.addEventListener('online', syncNotificationsFromServer);
+    };
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initNotificationSync);
+    } else {
+        initNotificationSync();
     }
 }
 
@@ -11015,7 +11655,12 @@ if (typeof document !== 'undefined') {
 // AUTO RELOAD WHEN NEW CODE/BUILD IS DEPLOYED
 // =====================================================================
 (function initAutoReloadWatcher() {
-    const isVi = typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'vi';
+    // CURRENT_LANG được khai báo ở cuối trang, sau app.js. Phải đọc lại lúc hiện toast,
+    // không chốt ngôn ngữ lúc script vừa chạy (khi đó CURRENT_LANG còn undefined).
+    function isVi() {
+        if (typeof CURRENT_LANG !== 'undefined') return CURRENT_LANG === 'vi';
+        return (document.documentElement.lang || 'vi') !== 'ja';
+    }
     let clientVersion = (typeof window !== 'undefined' && window.APP_VERSION) 
         || (document.querySelector('.version-tag i') ? document.querySelector('.version-tag i').textContent.trim() : '');
     let clientBuildId = (typeof window !== 'undefined' && window.APP_BUILD_ID) || '';
@@ -11076,7 +11721,7 @@ if (typeof document !== 'undefined') {
         if (!toastShown && typeof showToast === 'function') {
             toastShown = true;
             showToast(
-                isVi ? 'Đã có bản mới — đang tải lại...' : '新しいバージョンがあります。再読み込みします...',
+                isVi() ? 'Đã có bản mới — đang tải lại...' : '新しいバージョンがあります。再読み込みします...',
                 'info', 4000
             );
         }
