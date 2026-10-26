@@ -77,6 +77,15 @@ SKIP_TOP = {"backup_local"}
 RUNTIME_TRACKED_PATHS = ["data", "static/weather_album"]
 
 
+def env_value(*names: str, default: str = "") -> str:
+    """Đọc env, bỏ qua biến rỗng (Pterodactyl hay export biến rỗng)."""
+    for name in names:
+        value = os.environ.get(name)
+        if value is not None and value.strip():
+            return value.strip()
+    return default
+
+
 def log(message: str) -> None:
     print(f"\n[{time.strftime('%H:%M:%S')}] {message}", flush=True)
 
@@ -388,46 +397,48 @@ def main() -> int:
     )
     parser.add_argument(
         "--app-dir",
-        default=os.environ.get("APP_DIR", DEFAULT_APP_DIR),
+        default=env_value("APP_DIR", default=DEFAULT_APP_DIR),
         help=f"Thư mục app trên server (mặc định: {DEFAULT_APP_DIR})",
     )
     parser.add_argument(
         "--repo",
-        default=os.environ.get("REPO_URL", DEFAULT_REPO),
+        default=env_value("REPO_URL", "GIT_REPO_ADDRESS", default=DEFAULT_REPO),
         help="URL Git repo",
     )
     parser.add_argument(
         "--branch",
-        default=os.environ.get("BRANCH", DEFAULT_BRANCH),
+        default=env_value("BRANCH", "GIT_BRANCH", default=DEFAULT_BRANCH),
         help="Branch cần deploy",
     )
     parser.add_argument(
         "--backup-root",
-        default=os.environ.get("BACKUP_ROOT"),
+        default=env_value("BACKUP_ROOT", default="") or None,
         help="Thư mục backup (mặc định: <app>/backup_local/pre_git_<timestamp>)",
     )
     args = parser.parse_args()
 
     app_dir = Path(args.app_dir).expanduser().resolve()
+    repo = args.repo.strip()
+    branch = args.branch.strip()
     if not app_dir.is_dir():
         warn(f"Không thấy thư mục app: {app_dir}")
         return 1
     if not shutil.which("git"):
         warn("Chưa cài git trên server. Hãy cài git rồi chạy lại.")
         return 1
-    if not args.repo.strip() or not args.branch.strip():
+    if not repo or not branch:
         warn("Repo URL hoặc branch rỗng.")
         return 1
 
     try:
         if (app_dir / ".git").exists():
-            return existing_repo_update(app_dir, args.repo, args.branch)
+            return existing_repo_update(app_dir, repo, branch)
         backup_root = (
             Path(args.backup_root).expanduser().resolve()
             if args.backup_root
             else None
         )
-        return migrate(app_dir, args.repo, args.branch, backup_root)
+        return migrate(app_dir, repo, branch, backup_root)
     except KeyboardInterrupt:
         warn("Đã huỷ.")
         return 130
