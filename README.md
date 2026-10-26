@@ -40,15 +40,19 @@ Theo dõi task theo tuần, checklist giao nhận, logtime, drive tài nguyên, 
 ├── credentials.json           # Service account Google (local, không commit)
 │
 ├── docs/
+│   ├── DEPLOY_CLOUDCODE.md    # Deploy ZIP/Git lên CloudCode, secret, cloudflared
 │   ├── DESIGN.md              # Design system & quy chuẩn giao diện
 │   ├── MOTION.md              # GSAP + IntersectionObserver (API, cách dùng, debug)
 │   └── PRODUCT.md             # Bối cảnh sản phẩm, người dùng, phạm vi
 │
+├── .gitattributes             # Ép LF cho script chạy trên Linux
 ├── .opencode/skills/          # AI skills cho GSAP (vendor từ greensock/gsap-skills)
 │
 ├── scripts/
 │   ├── archive_sync.py        # Backfill/đồng bộ kho lưu trữ dài hạn (CLI)
 │   ├── turso_setup.py         # Tạo DB Turso + ghi cấu hình + backfill (không cần CLI)
+│   ├── build_cloudcode_zip.py # Đóng gói ZIP full để upload CloudCode
+│   ├── setup_cloudcode_git.py # Chuyển server ZIP -> Git, giữ secret/data/cloudflared
 │   ├── build_docx.py          # Xuất tài liệu PSD từ Notion ra .docx
 │   └── convert_fbx_to_glb.py  # Convert model thú cưng FBX → GLB
 │
@@ -270,9 +274,12 @@ Checklist, comment, task links, drive, logtime vẫn hoạt động bình thư�
 
 ## Scripts
 
+- `scripts/build_cloudcode_zip.py`: đóng gói ZIP full (source + secret + data JSON + cloudflared) để upload CloudCode.
+- `scripts/setup_cloudcode_git.py`: chuyển server CloudCode từ bản ZIP sang Git, tự backup và giữ secret/data/cloudflared.
 - `scripts/build_docx.py`: cào trang Notion PSD và xuất `.docx` (cần Playwright + python-docx).
 - `scripts/convert_fbx_to_glb.py`: convert model FBX sang GLB kèm texture cho thú cưng 3D.
 - `sync_master.bat`: kiểm tra cập nhật từ GitHub, đồng bộ config bundle, tải binary cloudflared.
+- Hướng dẫn deploy ZIP/Git, secret và Cloudflare: [`docs/DEPLOY_CLOUDCODE.md`](docs/DEPLOY_CLOUDCODE.md).
 
 ## Ghi chú vận hành
 
