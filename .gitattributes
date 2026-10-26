@@ -1,0 +1,4 @@
+# CloudCode chạy Linux: script trong scripts/ phải dùng LF.
+.gitattributes text eol=lf
+*.sh text eol=lf
+scripts/*.py text eol=lf
