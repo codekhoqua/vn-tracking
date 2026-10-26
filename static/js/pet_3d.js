@@ -511,7 +511,8 @@ window.Pet3DEngine = (function () {
             powerPreference: 'high-performance'
         });
         renderer.setSize(width, height);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        // Pet chỉ chiếm vùng nhỏ; 1.5x đủ nét và nhẹ hơn đáng kể trên màn hình Retina/4K.
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
         renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -1333,6 +1334,12 @@ window.Pet3DEngine = (function () {
         const now = performance.now();
         const delta = Math.min((now - lastAnimTimestamp) / 1000, 0.1);
         lastAnimTimestamp = now;
+
+        // Trong lúc cuộn hoặc tab bị ẩn, tạm ngưng render 3D để nhường GPU
+        // cho scroll. Pet tự chạy tiếp ngay khi ngừng cuộn.
+        if (document.hidden || document.documentElement.classList.contains('is-scrolling')) {
+            return;
+        }
         const time = clock ? clock.getElapsedTime() : (now / 1000);
 
         updateViewportAnimation(roaming, time, delta);

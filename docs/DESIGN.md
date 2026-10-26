@@ -28,3 +28,9 @@
 - Timing Functions: Smooth exponential ease-out (`cubic-bezier(0.16, 1, 0.3, 1)` or `ease-out`).
 - Avoid cartoonish bounce easings (`cubic-bezier(0.34, 1.56, 0.64, 1)`).
 - Layout Transitions: Animate `transform` and `opacity` instead of geometry (`width`, `height`, `all`).
+- Scroll reveals: `IntersectionObserver` quyết định thời điểm, GSAP chạy animation. Opt-in bằng
+  `data-reveal` / `data-reveal-group`; không animate element nào người dùng chưa thấy.
+- Luôn tôn trọng `prefers-reduced-motion: reduce` (CSS chỉ active trong
+  `@media (prefers-reduced-motion: no-preference)`).
+- Không dùng `ScrollTrigger` cho reveal thường ngày — tránh thêm JS và tránh xung đột Lenis.
+- Chi tiết & API: xem `docs/MOTION.md`.

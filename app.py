@@ -860,6 +860,151 @@ def save_supabase_task_comments(data):
         except Exception as e:
             print("Error uploading task comments to Supabase:", e)
 
+# =====================================================================
+# NOTIFICATIONS (lưu server để user offline/login máy khác vẫn thấy)
+# =====================================================================
+_notifications_cache = None
+_notifications_cache_time = 0
+notifications_lock = threading.RLock()
+NOTIFICATIONS_OBJECT = '_system/notifications.json'
+_NOTIFICATIONS_LOCAL_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), 'data', 'notifications.json')
+
+
+def _notifications_load(force_refresh=False):
+    global _notifications_cache, _notifications_cache_time
+    now = time.time()
+    if not force_refresh and _notifications_cache is not None and (now - _notifications_cache_time < 5):
+        return _notifications_cache
+
+    data = None
+    if USE_SUPABASE:
+        try:
+            raw = sb_download_bytes(NOTIFICATIONS_OBJECT)
+            if raw:
+                data = json.loads(raw.decode('utf-8'))
+        except Exception:
+            data = None
+    if data is None:
+        try:
+            if os.path.exists(_NOTIFICATIONS_LOCAL_PATH):
+                with open(_NOTIFICATIONS_LOCAL_PATH, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+        except Exception:
+            data = None
+
+    if not isinstance(data, dict):
+        data = {}
+    _notifications_cache = data
+    _notifications_cache_time = now
+    return _notifications_cache
+
+
+def _notifications_save(data):
+    global _notifications_cache, _notifications_cache_time
+    with notifications_lock:
+        _notifications_cache = data
+        _notifications_cache_time = time.time()
+        if USE_SUPABASE:
+            try:
+                payload = json.dumps(data, ensure_ascii=False).encode('utf-8')
+                sb_upload(NOTIFICATIONS_OBJECT, payload, content_type='application/json')
+            except Exception as e:
+                print('Error uploading notifications to Supabase:', e)
+        try:
+            os.makedirs(os.path.dirname(_NOTIFICATIONS_LOCAL_PATH), exist_ok=True)
+            with open(_NOTIFICATIONS_LOCAL_PATH, 'w', encoding='utf-8') as f:
+                json.dump(data, f, ensure_ascii=False)
+        except Exception:
+            pass
+
+
+def get_notifications_for(username):
+    if not username:
+        return []
+    data = _notifications_load()
+    items = data.get(username) or []
+    return sorted(items, key=lambda n: n.get('timestamp', 0), reverse=True)[:50]
+
+
+def push_notifications(usernames, actor, tp_key, message, ntype='comment', ref_id='', notif_id=None):
+    """Thêm thông báo cho danh sách user (trừ người thao tác). Trả về list (user, notif)."""
+    targets = []
+    seen = set()
+    actor_l = (actor or '').strip().lower()
+    for raw in usernames or []:
+        name = str(raw or '').strip()
+        if not name or name.lower() == actor_l or name.lower() in seen:
+            continue
+        seen.add(name.lower())
+        targets.append(name)
+    if not targets:
+        return []
+
+    with notifications_lock:
+        data = _notifications_load(force_refresh=True)
+        now = datetime.now(timezone(timedelta(hours=7)))
+        stamp = int(time.time() * 1000)
+        dedupe = f'{ntype}:{ref_id}:{tp_key}' if ref_id else ''
+        created = []
+
+        for name in targets:
+            bucket = data.setdefault(name, [])
+            if dedupe and any(n.get('dedupe') == dedupe for n in bucket):
+                continue
+            notif = {
+                'id': str(notif_id) if notif_id else f'notif_{uuid.uuid4().hex[:16]}',
+                'type': ntype,
+                'user': actor or 'Hệ thống',
+                'tpKey': tp_key or '',
+                'message': message or '',
+                'time': now.strftime('%H:%M %d/%m'),
+                'timestamp': stamp,
+                'isRead': False,
+                'dedupe': dedupe,
+            }
+            bucket.insert(0, notif)
+            data[name] = bucket[:50]
+            created.append((name, notif))
+
+        if created:
+            _notifications_save(data)
+        return created
+
+
+_task_assignee_cache = {}
+
+
+def collect_task_assignees(tp_key):
+    """Lấy người thực hiện của task/volume để gửi thông báo."""
+    assignees = []
+    if not tp_key:
+        return assignees
+    now = time.time()
+    cached = _task_assignee_cache.get(tp_key)
+    if cached and now - cached[0] < 60:
+        return list(cached[1])
+    try:
+        df_raw = load_sheet_data(csv_url)
+        df_truoc = load_sheet_data(csv_url_truoc)
+        combined_df = pd.concat([df_raw, df_truoc], ignore_index=True)
+        for _, r in combined_df.iterrows():
+            tp = str(r.get('Tên tác phẩm', '')).strip()
+            tap = str(r.get('Tập', '')).strip()
+            vol = f"{tap}_{tp}" if tap and tap.lower() not in ['nan', 'none', ''] else tp
+            if vol in tp_key or tp_key in vol or tp in tp_key or tp_key in tp:
+                w = str(r.get('Người thực hiện', '')).strip()
+                if w and w.lower() not in ['nan', 'none', '']:
+                    for p in w.split(','):
+                        p_clean = p.strip()
+                        if p_clean and p_clean not in assignees:
+                            assignees.append(p_clean)
+        _task_assignee_cache[tp_key] = (now, list(assignees))
+    except Exception:
+        pass
+    return assignees
+
+
 _task_links_cache = None
 _task_links_cache_time = 0
 task_links_lock = threading.Lock()
@@ -2961,24 +3106,18 @@ def api_task_comments():
         save_supabase_task_comments(comments_db)
         
         # Collect assignees for this task / volume to target notifications
-        assignees = []
+        assignees = collect_task_assignees(tp_key)
+
+        # Lưu thông báo phía server: người nhận đang offline / đổi máy vẫn thấy
+        # khi đăng nhập lại (trước đây chỉ có localStorage + socket nên dễ mất).
         try:
-            df_raw = load_sheet_data(csv_url)
-            df_truoc = load_sheet_data(csv_url_truoc)
-            combined_df = pd.concat([df_raw, df_truoc], ignore_index=True)
-            for _, r in combined_df.iterrows():
-                tp = str(r.get('Tên tác phẩm', '')).strip()
-                tap = str(r.get('Tập', '')).strip()
-                vol = f"{tap}_{tp}" if tap and tap.lower() not in ['nan', 'none', ''] else tp
-                if vol in tp_key or tp_key in vol or tp in tp_key or tp_key in tp:
-                    w = str(r.get('Người thực hiện', '')).strip()
-                    if w and w.lower() not in ['nan', 'none', '']:
-                        for p in w.split(','):
-                            p_clean = p.strip()
-                            if p_clean and p_clean not in assignees:
-                                assignees.append(p_clean)
-        except Exception:
-            pass
+            preview = message if len(message) <= 500 else message[:500] + '…'
+            push_notifications(
+                assignees, actor=user, tp_key=tp_key,
+                message=preview, ntype='comment', ref_id=comment_item['id'],
+                notif_id=comment_item['id'])
+        except Exception as e:
+            print('Error saving comment notifications:', e)
 
         # Broadcast via SocketIO
         socketio.emit('task_comment_new', {
@@ -3075,8 +3214,61 @@ def api_task_links():
             "tp_key": tp_key,
             "links": sanitized_links
         })
+
+        # Thông báo cho những người cùng làm task (trừ người vừa lưu)
+        try:
+            actor = session.get('user', '')
+            created = push_notifications(
+                collect_task_assignees(tp_key), actor=actor, tp_key=tp_key,
+                message='✓ Đã cập nhật liên kết làm việc!', ntype='system',
+                ref_id=f'links-{int(time.time() * 1000)}')
+            for name, notif in created:
+                socketio.emit('notification_new', {
+                    'username': name,
+                    'notification': notif
+                })
+        except Exception as e:
+            print('Error saving link notifications:', e)
         
         return jsonify({"status": "success", "links": sanitized_links})
+
+
+@app.route('/api/notifications', methods=['GET', 'POST'])
+def api_notifications():
+    """Danh sách + đánh dấu đã đọc/xoá thông báo của user hiện tại."""
+    if not session.get('logged_in'):
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+
+    username = session.get('user', '')
+    if not username:
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+
+    if request.method == 'GET':
+        return jsonify({
+            "status": "success",
+            "notifications": get_notifications_for(username),
+            "server_time": int(time.time() * 1000)
+        })
+
+    data = request.get_json() or {}
+    action = str(data.get('action') or '').strip()
+    ids = {str(i) for i in (data.get('ids') or []) if i}
+    if action not in ('read', 'dismiss'):
+        return jsonify({"status": "error", "message": "Invalid action"}), 400
+
+    with notifications_lock:
+        store = _notifications_load(force_refresh=True)
+        bucket = store.get(username) or []
+        if action == 'read':
+            for n in bucket:
+                if not ids or str(n.get('id')) in ids:
+                    n['isRead'] = True
+        else:
+            bucket = [n for n in bucket if str(n.get('id')) not in ids]
+        store[username] = bucket
+        _notifications_save(store)
+    return jsonify({"status": "success", "notifications": bucket})
+
 
 @app.route('/api/weather')
 def api_weather():
@@ -7977,6 +8169,23 @@ def handle_chat_message(data):
             except:
                 avatar = f"https://ui-avatars.com/api/?name={username}&background=random"
 
+        # Snapshot tin được trả lời (nếu có) để quote vẫn hiển thị đúng
+        # kể cả khi tin gốc đã bị đẩy khỏi history.
+        reply_to = None
+        reply_to_id = str(data.get('reply_to_id') or '').strip()
+        if reply_to_id:
+            for old in reversed(chat_history):
+                if str(old.get('id')) == reply_to_id:
+                    reply_to = {
+                        'id': old.get('id'),
+                        'username': old.get('username'),
+                        'fullname': old.get('fullname'),
+                        'msg': old.get('msg') or '',
+                        'file_name': old.get('file_name'),
+                        'file_type': old.get('file_type'),
+                    }
+                    break
+
         message_obj = {
             'id': str(uuid.uuid4()),
             'username': username,
@@ -7987,7 +8196,10 @@ def handle_chat_message(data):
             'file_type': file_type,
             'file_data': file_data,
             'time': datetime.now(timezone(timedelta(hours=7))).strftime("%H:%M"),
-            'read_by': []
+            'ts': int(time.time() * 1000),
+            'read_by': [],
+            'reactions': {},
+            'reply_to': reply_to
         }
         
         chat_history.append(message_obj)
@@ -8016,12 +8228,46 @@ def handle_chat_message(data):
                     'avatar': 'https://api.dicebear.com/7.x/bottts/svg?seed=TranslateBot',
                     'msg': f"**{lang_flag} [Dịch sang {lang_name}]:**\n{translated_text}",
                     'time': datetime.now(timezone(timedelta(hours=7))).strftime("%H:%M"),
-                    'read_by': []
+                    'ts': int(time.time() * 1000),
+                    'read_by': [],
+                    'reactions': {},
+                    'reply_to': None
                 }
                 chat_history.append(bot_msg)
                 if len(chat_history) > 100:
                     chat_history.pop(0)
                 emit('chat_message', bot_msg, broadcast=True)
+
+@socketio.on('chat_reaction')
+def handle_chat_reaction(data):
+    """Toggle 1 reaction của user hiện tại lên 1 tin nhắn, broadcast cho mọi người."""
+    username = session.get('user')
+    if not username or not isinstance(data, dict):
+        return
+
+    message_id = str(data.get('message_id') or '').strip()
+    emoji = str(data.get('emoji') or '').strip()
+    # Giới hạn để tránh payload rác; emoji nhiều codepoint vẫn dưới 16 ký tự.
+    if not message_id or not emoji or len(emoji) > 16:
+        return
+
+    for msg in chat_history:
+        if str(msg.get('id')) != message_id:
+            continue
+        reactions = msg.setdefault('reactions', {})
+        users = reactions.setdefault(emoji, [])
+        if username in users:
+            users.remove(username)
+        else:
+            users.append(username)
+        if not users:
+            reactions.pop(emoji, None)
+        emit('chat_reaction_update', {
+            'message_id': message_id,
+            'reactions': reactions
+        }, broadcast=True)
+        return
+
 
 @socketio.on('chat_typing')
 def handle_chat_typing():
