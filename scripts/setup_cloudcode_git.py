@@ -65,6 +65,7 @@ PRESERVE = [
     "data",
     "logs",
     "drive_data",
+    ".local",
     "static/chat_uploads",
     "static/weather_album",
 ]
