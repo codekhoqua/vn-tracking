@@ -6356,11 +6356,8 @@ def export_notion_csv():
         title = row.get('job_type', '')
         project_name = row.get('name', '')
         status_class = row.get('status_class', '')
-        # Task chưa giao → import thẳng vào Notion là In Progress.
-        if status_class == 'delivered':
-            status = 'Done'
-        else:
-            status = 'In Progress'
+        # Mọi task khi import vào Notion đều ở trạng thái In Progress.
+        status = 'In Progress'
 
         # 作業日程 (Start/End) đổi theo ngày tải; 納品日 giữ deadline từ sheet.
         start_date = week_monday.strftime('%m/%d/%Y')
@@ -6412,11 +6409,8 @@ def export_single_notion_csv():
     title = target_row.get('job_type', '')
     project_name = target_row.get('name', '')
     status_class = target_row.get('status_class', '')
-    # Task chưa giao → import thẳng vào Notion là In Progress.
-    if status_class == 'delivered':
-        status = 'Done'
-    else:
-        status = 'In Progress'
+    # Mọi task khi import vào Notion đều ở trạng thái In Progress.
+    status = 'In Progress'
 
     # 作業日程 (Start/End) đổi theo ngày tải; 納品日 giữ deadline từ sheet.
     start_date = week_monday.strftime('%m/%d/%Y')

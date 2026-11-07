@@ -7704,9 +7704,8 @@
         const task = taskDetailsMap[tp_key];
         if (!task) return;
         
-        // Task chưa giao → import thẳng vào Notion là In Progress.
-        let status = 'In Progress';
-        if (task.status_class === 'delivered') status = 'Done';
+        // Mọi task khi import vào Notion đều ở trạng thái In Progress.
+        const status = 'In Progress';
         
         // Chỉ 作業日程 (ngày bắt đầu + kết thúc) đổi theo ngày tải:
         //  - Tải T2–T4 → thứ 2 đến thứ 6 của tuần hiện tại
