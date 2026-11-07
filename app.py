@@ -26,6 +26,7 @@ import pandas as pd
 import requests
 import re
 import json
+import unicodedata
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 from functools import wraps
@@ -6265,6 +6266,60 @@ def api_get_leave_requests():
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
 
+NOTION_EMAIL_DOMAIN = os.environ.get('NOTION_EMAIL_DOMAIN', 'linkstory.asia')
+
+
+def _derive_notion_email(fullname):
+    """'PHAN DUY TÂN' → 'duy.tan@linkstory.asia' (bỏ dấu, lấy 2 chữ cuối)."""
+    text = unicodedata.normalize('NFD', str(fullname or ''))
+    text = ''.join(ch for ch in text if unicodedata.category(ch) != 'Mn')
+    text = text.replace('đ', 'd').replace('Đ', 'D').lower()
+    text = re.sub(r'[^a-z\s]', ' ', text)
+    words = [word for word in text.split() if word]
+    if not words:
+        return ''
+    given = words[-1]
+    middle = words[-2] if len(words) >= 2 else ''
+    local = f'{middle}.{given}' if middle else given
+    return f'{local}@{NOTION_EMAIL_DOMAIN}'
+
+
+def _notion_person_email(worker, downloader=''):
+    """Email Notion của người tải file (fallback: người làm).
+
+    Notion People nhận diện bằng email, không phải tên hiển thị.
+    """
+    try:
+        users = load_users_from_sheet(USER_SHEET_URL) or {}
+    except Exception:
+        return ''
+
+    def email_for(username):
+        info = users.get(username) or {}
+        return (
+            str(info.get('notion_email') or '').strip()
+            or _derive_notion_email(info.get('fullname'))
+            or str(info.get('gmail') or '').strip()
+        )
+
+    me = email_for(downloader)
+    if me:
+        return me
+    target = str(worker or '').lower().strip()
+    if target:
+        for uname, info in users.items():
+            key = str(uname or '').lower().strip()
+            full = str((info or {}).get('fullname') or '').lower().strip()
+            hit = (key and (key in target or target in key)) or (
+                full and (full in target or target in full)
+            )
+            if hit:
+                email = email_for(uname)
+                if email:
+                    return email
+    return ''
+
+
 def _notion_week_range():
     """Tuần làm việc ghi vào file import Notion.
 
@@ -6310,7 +6365,9 @@ def export_notion_csv():
         # 作業日程 (Start/End) đổi theo ngày tải; 納品日 giữ deadline từ sheet.
         start_date = week_monday.strftime('%m/%d/%Y')
         end_date = week_friday.strftime('%m/%d/%Y')
-        worker = row.get('worker', '')
+        worker = _notion_person_email(
+            row.get('worker', ''), session.get('user', '')
+        ) or row.get('worker', '')
         deadline = row.get('deadline') or row.get('end_date', '')
 
         writer.writerow([title, project_name, status, start_date, end_date, worker, deadline])
@@ -6364,7 +6421,9 @@ def export_single_notion_csv():
     # 作業日程 (Start/End) đổi theo ngày tải; 納品日 giữ deadline từ sheet.
     start_date = week_monday.strftime('%m/%d/%Y')
     end_date = week_friday.strftime('%m/%d/%Y')
-    worker = target_row.get('worker', '')
+    worker = _notion_person_email(
+        target_row.get('worker', ''), session.get('user', '')
+    ) or target_row.get('worker', '')
     deadline = target_row.get('deadline') or target_row.get('end_date', '')
     
     writer.writerow([title, project_name, status, start_date, end_date, worker, deadline])

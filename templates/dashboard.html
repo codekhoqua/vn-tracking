@@ -7604,6 +7604,9 @@
     // Inject Detailed Task Data
     let vntaskDataList = [];
     const userProfilesDB = {{ user_profiles | tojson }};
+    const CURRENT_USER = {{ user | tojson }};
+    // Notion People nhận diện bằng email công ty (vd duy.tan@linkstory.asia).
+    const NOTION_EMAIL_DOMAIN = {{ (notion_email_domain | default('linkstory.asia', true)) | tojson }};
 
     // Store mappings from card name to modal ID
     const modalMap = {};
@@ -7648,6 +7651,56 @@
         return name.replace(/^(\d+)_/, '$1巻_');
     }
 
+    /**
+     * Email công ty từ họ tên: "PHAN DUY TÂN" → duy.tan@linkstory.asia.
+     * Notion People chỉ hiểu email, không hiểu tên hiển thị.
+     */
+    function deriveNotionEmail(fullname) {
+        const words = String(fullname || '')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/đ/g, 'd')
+            .replace(/Đ/g, 'D')
+            .toLowerCase()
+            .replace(/[^a-z\s]/g, ' ')
+            .trim()
+            .split(/\s+/)
+            .filter(Boolean);
+        if (!words.length) return '';
+        const given = words[words.length - 1];
+        const middle = words.length >= 2 ? words[words.length - 2] : '';
+        return `${middle ? middle + '.' : ''}${given}@${NOTION_EMAIL_DOMAIN}`;
+    }
+
+    /** Email Notion của thành viên (khớp mờ tên đăng nhập hoặc họ tên). */
+    function notionEmailForName(rawName) {
+        const target = String(rawName || '').toLowerCase().trim();
+        if (!target) return '';
+        for (const [key, info] of Object.entries(userProfilesDB || {})) {
+            const name = String(key || '').toLowerCase().trim();
+            const full = String((info || {}).fullname || '').toLowerCase().trim();
+            const hit =
+                (name && (name.includes(target) || target.includes(name))) ||
+                (full && (full.includes(target) || target.includes(full)));
+            if (!hit) continue;
+            return (
+                String((info || {}).notion_email || '').trim() ||
+                deriveNotionEmail((info || {}).fullname) ||
+                String((info || {}).gmail || '').trim()
+            );
+        }
+        return '';
+    }
+
+    function currentUserNotionEmail() {
+        const me = (userProfilesDB || {})[CURRENT_USER] || {};
+        return (
+            String(me.notion_email || '').trim() ||
+            deriveNotionEmail(me.fullname) ||
+            String(me.gmail || '').trim()
+        );
+    }
+
     function exportSingleNotionCSV(tp_key) {
         const task = taskDetailsMap[tp_key];
         if (!task) return;
@@ -7683,19 +7736,20 @@
         };
         const dateRange = fmt(monday) + ' → ' + fmt(friday);
 
-        const personMap = {
-            "Tan-タン": "Phan Duy Tan (タン - Retouch)",
-            "Khuong クォン": "Nguyen An Khuong (クォン - 写植)",
-            "Thang タンコイ": "Pham Thanh Thang (タンコイ - Retouch )"
-        };
-        
-        let workerExport = task.worker;
-        for (const [name, notionName] of Object.entries(personMap)) {
-            if (task.worker.includes(name)) {
-                workerExport = notionName;
-                break;
+        // Notion nhận diện People bằng email. Người bấm tải file là người
+        // nhận task trong Notion; nếu không có email thì mới lấy người làm.
+        const workers = String(task.worker || '')
+            .split(',')
+            .map((name) => name.trim())
+            .filter(Boolean);
+        let workerExport = currentUserNotionEmail();
+        if (!workerExport) {
+            for (const name of workers) {
+                workerExport = notionEmailForName(name);
+                if (workerExport) break;
             }
         }
+        if (!workerExport) workerExport = task.worker;
 
         const projectName = getCleanProjectName(task.project_name);
 
