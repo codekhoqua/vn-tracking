@@ -6265,6 +6265,19 @@ def api_get_leave_requests():
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
 
+def _notion_week_range():
+    """Tuần làm việc ghi vào file import Notion.
+
+    Tải vào T2–T4  → thứ 2 đến thứ 6 của tuần hiện tại.
+    Tải vào T5–CN  → thứ 2 đến thứ 6 của tuần sau.
+    """
+    today = date.today()
+    monday = today - timedelta(days=today.weekday())
+    if today.weekday() >= 3:  # T5, T6, T7, CN
+        monday += timedelta(days=7)
+    return monday, monday + timedelta(days=4)
+
+
 @app.route('/api/export_notion_csv')
 def export_notion_csv():
     import csv, io
@@ -6282,7 +6295,8 @@ def export_notion_csv():
     si.write('\ufeff')
     writer = csv.writer(si)
     writer.writerow(['Name', '作品名', 'ステータス', 'Start Date', 'End Date', '作業者', '納品日'])
-    
+    week_monday, week_friday = _notion_week_range()
+
     for row in dashboard_data:
         title = row.get('job_type', '')
         project_name = row.get('name', '')
@@ -6294,11 +6308,12 @@ def export_notion_csv():
         else:
             status = 'Not Started'
             
-        start_date = row.get('start_date', '')
-        end_date = row.get('end_date', '')
+        # Deadline luôn rơi vào tuần làm việc đã chọn (T2 → T6).
+        start_date = week_monday.strftime('%m/%d/%Y')
+        end_date = week_friday.strftime('%m/%d/%Y')
         worker = row.get('worker', '')
-        deadline = row.get('deadline') or row.get('end_date', '')
-        
+        deadline = week_friday.strftime('%Y-%m-%d')
+
         writer.writerow([title, project_name, status, start_date, end_date, worker, deadline])
         
     output = make_response(si.getvalue())
@@ -6336,6 +6351,7 @@ def export_single_notion_csv():
     si.write('\ufeff')
     writer = csv.writer(si)
     writer.writerow(['Name', '作品名', 'ステータス', 'Start Date', 'End Date', '作業者', '納品日'])
+    week_monday, week_friday = _notion_week_range()
     
     title = target_row.get('job_type', '')
     project_name = target_row.get('name', '')
@@ -6347,10 +6363,10 @@ def export_single_notion_csv():
     else:
         status = 'Not Started'
         
-    start_date = target_row.get('start_date', '')
-    end_date = target_row.get('end_date', '')
+    start_date = week_monday.strftime('%m/%d/%Y')
+    end_date = week_friday.strftime('%m/%d/%Y')
     worker = target_row.get('worker', '')
-    deadline = target_row.get('deadline') or target_row.get('end_date', '') 
+    deadline = week_friday.strftime('%Y-%m-%d')
     
     writer.writerow([title, project_name, status, start_date, end_date, worker, deadline])
     
