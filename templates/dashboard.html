@@ -7604,7 +7604,6 @@
     // Inject Detailed Task Data
     let vntaskDataList = [];
     const userProfilesDB = {{ user_profiles | tojson }};
-    const CURRENT_USER = {{ user | tojson }};
     // Notion People nhận diện bằng email công ty (vd duy.tan@linkstory.asia).
     const NOTION_EMAIL_DOMAIN = {{ (notion_email_domain | default('linkstory.asia', true)) | tojson }};
 
