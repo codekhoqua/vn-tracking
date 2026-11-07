@@ -7652,13 +7652,14 @@
         const task = taskDetailsMap[tp_key];
         if (!task) return;
         
-        let status = 'Not Started';
+        // Task chưa giao → import thẳng vào Notion là In Progress.
+        let status = 'In Progress';
         if (task.status_class === 'delivered') status = 'Done';
-        else if (task.status_class === 'in-progress') status = 'In Progress';
         
-        // Tuần làm việc xuất sang Notion:
+        // Chỉ 作業日程 (ngày bắt đầu + kết thúc) đổi theo ngày tải:
         //  - Tải T2–T4 → thứ 2 đến thứ 6 của tuần hiện tại
         //  - Tải T5–CN → thứ 2 đến thứ 6 của tuần sau
+        // 納品日 vẫn lấy deadline từ Google Sheet (không đổi).
         const today = new Date();
         const day = today.getDay(); // 0 = CN, 1 = T2, ..., 6 = T7
         const diffToMonday = day === 0 ? -6 : 1 - day;
@@ -7680,13 +7681,6 @@
             const dd = String(dt.getDate()).padStart(2, '0');
             return `${yy}/${mm}/${dd}`;
         };
-        const fmtNotion = (dt) => {
-            const yy = dt.getFullYear();
-            const mm = String(dt.getMonth() + 1).padStart(2, '0');
-            const dd = String(dt.getDate()).padStart(2, '0');
-            return `${yy}-${mm}-${dd}`;
-        };
-
         const dateRange = fmt(monday) + ' → ' + fmt(friday);
 
         const personMap = {
@@ -7717,8 +7711,8 @@
             return String(dStr).replace(/\//g, '-');
         };
 
-        // Ngày nộp = thứ 6 của tuần đã chọn ở trên.
-        const deadlineExport = fmtNotion(friday);
+        // 納品日: giữ nguyên logic cũ — lấy deadline từ Google Sheet.
+        const deadlineExport = formatNotionDate(task.deadline || task.end_date);
 
         const header = ['Name', '作品名', 'ステータス', '作業日程', '作業者', '納品日'];
         const escapeCSV = (val) => `"${(val || '').replace(/"/g, '""')}"`;

@@ -6301,18 +6301,17 @@ def export_notion_csv():
         title = row.get('job_type', '')
         project_name = row.get('name', '')
         status_class = row.get('status_class', '')
+        # Task chưa giao → import thẳng vào Notion là In Progress.
         if status_class == 'delivered':
             status = 'Done'
-        elif status_class == 'in-progress':
-            status = 'In Progress'
         else:
-            status = 'Not Started'
-            
-        # Deadline luôn rơi vào tuần làm việc đã chọn (T2 → T6).
+            status = 'In Progress'
+
+        # 作業日程 (Start/End) đổi theo ngày tải; 納品日 giữ deadline từ sheet.
         start_date = week_monday.strftime('%m/%d/%Y')
         end_date = week_friday.strftime('%m/%d/%Y')
         worker = row.get('worker', '')
-        deadline = week_friday.strftime('%Y-%m-%d')
+        deadline = row.get('deadline') or row.get('end_date', '')
 
         writer.writerow([title, project_name, status, start_date, end_date, worker, deadline])
         
@@ -6356,17 +6355,17 @@ def export_single_notion_csv():
     title = target_row.get('job_type', '')
     project_name = target_row.get('name', '')
     status_class = target_row.get('status_class', '')
+    # Task chưa giao → import thẳng vào Notion là In Progress.
     if status_class == 'delivered':
         status = 'Done'
-    elif status_class == 'in-progress':
-        status = 'In Progress'
     else:
-        status = 'Not Started'
-        
+        status = 'In Progress'
+
+    # 作業日程 (Start/End) đổi theo ngày tải; 納品日 giữ deadline từ sheet.
     start_date = week_monday.strftime('%m/%d/%Y')
     end_date = week_friday.strftime('%m/%d/%Y')
     worker = target_row.get('worker', '')
-    deadline = week_friday.strftime('%Y-%m-%d')
+    deadline = target_row.get('deadline') or target_row.get('end_date', '')
     
     writer.writerow([title, project_name, status, start_date, end_date, worker, deadline])
     
