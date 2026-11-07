@@ -128,7 +128,7 @@ Luôn đóng gói **bản FULL**:
     server, đóng vào zip sẽ **đè mất dữ liệu** (task/comment/checklist/link/avatar).
     Bảng `user_avatars` tự được tạo khi app khởi động.
   - `.git/`, `__pycache__/`, `drive_data/`, `.venv/`
-  - `backup_local/`, `logs/`, `.opencode/` (rác dev)
+  - `backup_local/`, `logs/` (rác dev)
   - `*.pyc`, `*.log`, `*.zip`, `*.msi`
   - `data/leave_attachments/`
   - `static/weather_album/_thumbs/`

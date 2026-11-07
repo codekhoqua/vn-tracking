@@ -55,11 +55,9 @@ data/vn_tracking_archive.db-shm
 
 
 # IDE
-.claude/
 .agents/
 .agent/
 .cursor/
-.gemini/
 .vscode/
 ANIMAL/
 model/

@@ -8,7 +8,7 @@ Quy ước duy nhất:
   sẽ không tạo thư mục templates/static -> TemplateNotFound / 404.
 - Nội dung phẳng ở gốc zip (không bọc thư mục project).
 - Kèm binary `cloudflared` nếu có; nếu thiếu, app tự tải trên Linux.
-- Không kèm backup_local/, logs/, .opencode/ (rác dev).
+- Không kèm backup_local/, logs/ (rác dev).
 
 Cách dùng:
     python scripts/build_cloudcode_zip.py
@@ -25,7 +25,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 EXCLUDE_DIRS = {
     '.git', '__pycache__', 'drive_data', '.venv', 'venv', '.vercel',
     'leave_attachments', '_thumbs', 'node_modules',
-    'backup_local', 'logs', '.opencode',
+    'backup_local', 'logs',
 }
 EXCLUDE_FILES = {'.DS_Store', 'Thumbs.db'}
 EXCLUDE_SUFFIXES = ('.pyc', '.pyo', '.log', '.zip', '.msi', '.bak')

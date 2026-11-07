@@ -26,6 +26,5 @@ cloudflared*
 .agents/
 .agent/
 .cursor/
-.gemini/
 .vscode/
 backup_local/
