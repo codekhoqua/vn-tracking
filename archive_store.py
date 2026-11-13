@@ -71,7 +71,8 @@ def _encode_arg(value):
     if isinstance(value, int):
         return {"type": "integer", "value": str(value)}
     if isinstance(value, float):
-        return {"type": "float", "value": repr(value)}
+        # Hrana v2 nhận value là JSON number (không phải string).
+        return {"type": "float", "value": float(value)}
     if isinstance(value, (bytes, bytearray)):
         import base64
         return {"type": "blob", "base64": base64.b64encode(bytes(value)).decode("ascii")}
