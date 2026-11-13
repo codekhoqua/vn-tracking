@@ -108,6 +108,37 @@
     </div>
 </div>
 
+<!-- ============ TASK ASSIGNEE FULL-PAGE VIEW ============ -->
+<div class="modal-overlay task-detail-page-view tool-page-view" id="page-view-assignee" role="region" aria-label="Task Assignee" data-lenis-prevent>
+    <div class="tool-page-container">
+        <div class="tool-page-nav-bar">
+            <div class="task-page-breadcrumbs">
+                <button type="button" class="task-back-btn" onclick="closeToolPage('assignee')" title="{{ 'Trở về Dashboard' if lang == 'vi' else 'ダッシュボードに戻る' }}">
+                    <i class="fas fa-chevron-left"></i>
+                    <span>{{ 'Trở về Dashboard' if lang == 'vi' else 'ダッシュボードに戻る' }}</span>
+                </button>
+                <span class="task-crumb-sep">/</span>
+                <span class="task-crumb-root" onclick="closeToolPage('assignee')">Dashboard</span>
+                <span class="task-crumb-sep">/</span>
+                <span class="task-crumb-current">Task Assignee</span>
+            </div>
+
+            <div class="task-page-top-actions">
+                <button class="task-page-close-btn" onclick="closeToolPage('assignee')" title="{{ 'Đóng trang' if lang == 'vi' else '閉じる' }} (Esc)">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <div class="tool-iframe-wrapper">
+            <iframe id="assignee-page-iframe" src="" title="Task Assignee" style="width: 100%; height: 100%; border: none; display: block;"></iframe>
+        </div>
+    </div>
+</div>
+
 <!-- ============ TEAM CALENDAR FULL-PAGE VIEW ============ -->
 {% set cur_u_profile = user_profiles.get(user, {}) %}
 {% set u_team = (cur_u_profile.get('team', '') or '').upper() %}
@@ -1188,8 +1219,22 @@
             </div>
         </div>
 
+        {% if session.get('user') == 'Manager' or session.get('role') in ['admin', 'manager', 'leader'] %}
+        <div class="nav-item" style="--i:6; cursor: pointer;" onclick="openToolPage('assignee')" id="nav-assignee" title="Task Assignee">
+            <div class="nav-item-content">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"></path>
+                    <rect x="9" y="3" width="6" height="4" rx="1"></rect>
+                    <path d="M9 14l2 2 4-4"></path>
+                </svg>
+                <span>Task Assignee</span>
+            </div>
+        </div>
+        {% endif %}
+
         {% if session.get('user') == 'Manager' or session.get('role') == 'admin' %}
-        <div class="nav-item" style="--i:6; cursor: pointer;" onclick="openToolPage('role')" id="nav-role" title="Role Members">
+        <div class="nav-item" style="--i:7; cursor: pointer;" onclick="openToolPage('role')" id="nav-role" title="Role Members">
             <div class="nav-item-content">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                     stroke-linecap="round" stroke-linejoin="round">

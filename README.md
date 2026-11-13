@@ -20,6 +20,7 @@
 | Nghỉ phép | Form nhiều bước, upload ảnh xác nhận, tạo Calendar event, gửi email admin |
 | Tiện ích | Weather + album ảnh, Lofi Radio, thú cưng 3D |
 | Quản trị | Phân quyền member/admin, đổi mật khẩu, cấu hình email nghỉ phép |
+| Task Assignee | Leader/admin phân công người làm trực tiếp lên Google Sheet JP; hiển thị độ khó Dễ / Trung bình / Khó lấy từ logtime (cache DB) |
 | Notion | Xuất CSV cho DB project và DB task (kèm trạng thái, lịch làm việc, người làm) |
 
 ## Công nghệ
@@ -47,6 +48,41 @@
 ├── integrations/              # Google Apps Script (Drive, Calendar, email)
 └── docs/                      # Tài liệu thiết kế, deploy và sản phẩm
 ```
+
+## Task Assignee + độ khó task
+
+Tool **Task Assignee** (sidebar TOOLS, chỉ leader/admin) đọc task từ tab
+`LS受注_all` của sheet `写植スケ管理表` (Google Sheet JP), hiển thị độ khó và cho chọn
+người làm từ dropdown. Danh sách task đọc bằng CSV export (không tốn quota
+Sheets API); độ khó đọc từ bảng DB `task_difficulty` (Turso/SQLite) nên không
+gọi lại sheet 日報 mỗi lần mở UI.
+
+- Đồng bộ độ khó: nút **Đồng bộ độ khó** hoặc tự chạy nền khi dữ liệu cũ hơn
+  `DIFFICULTY_SYNC_TTL` (mặc định 30 phút).
+- Nguồn: cột `難易度` trong logtime (`低` = Dễ, `中` = Trung bình, `高` = Khó);
+  task chưa có nhãn thì ước lượng từ số trang + phút/trang theo loại việc.
+- Bảng độ khó gồm 3 phạm vi: `exact` (công việc + tác phẩm + tập + chương),
+  `title` (công việc + tác phẩm), `job` (loại công việc).
+- Bảng `worker_skill` lưu kinh nghiệm từng người theo loại việc/tác phẩm.
+- Tool gợi ý top người làm theo team, kinh nghiệm, độ khó và tải tuần;
+  panel **Cân bằng tải** hiển thị task/giờ ước tính của tuần này và tuần sau.
+  `ASSIGNEE_WEEK_CAPACITY_HOURS` (mặc định 40) là mốc giờ/người/tuần.
+
+### Ghi vào cột 作業者
+
+Cột này nằm ở tab `LS受注_all` của sheet `写植スケ管理表`. Service account đã có quyền ghi trực tiếp (tab không bị Protect). Nếu sau này bị Protect, có 2 cách:
+
+1. **Thêm service account vào vùng Protect** (khuyến nghị, 1 lần):
+   Google Sheet → Data → Protect sheets and ranges → chọn vùng đang bảo vệ →
+   Change permissions → thêm `logtime-sa@logtime-app-3366.iam.gserviceaccount.com`
+   làm Editor.
+2. **Dùng Apps Script proxy**: deploy `integrations/assign_task_webapp.gs`
+   (Execute as: Me, Who has access: Anyone), rồi khai báo trong `env_vars.yaml`:
+   ```yaml
+   ASSIGNEE_WRITE_URL: "https://script.google.com/macros/s/.../exec"
+   ASSIGNEE_WRITE_TOKEN: "chuoi-bi-mat-giong-WRITE_TOKEN-trong-script"
+   ```
+   Script chạy dưới quyền owner nên ghi được ô đang Protect.
 
 ## Cài đặt
 
@@ -77,6 +113,7 @@ Toàn bộ cấu hình nằm trong `env_vars.yaml` (không commit) hoặc biến
 | Kho lưu trữ | `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`, `ARCHIVE_SQLITE_PATH` |
 | Đồng bộ archive | `ARCHIVE_SYNC_INTERVAL`, `ARCHIVE_CRON_TOKEN` |
 | Calendar / nghỉ phép | `GOOGLE_CALENDAR_EMBED_URL`, `LEAVE_GDRIVE_SCRIPT_URL`, `LEAVE_RESPONSES_SPREADSHEET_ID` |
+| Task Assignee | `DIFFICULTY_SYNC_TTL`, `ASSIGNEE_WRITE_URL`, `ASSIGNEE_WRITE_TOKEN` |
 | Tuỳ chọn | `PORT`, `CF_TUNNEL_TOKEN` |
 
 - Thiếu Supabase: app dùng fallback filesystem `drive_data/`.

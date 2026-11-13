@@ -1,0 +1,1105 @@
+{% extends "base.html" %}
+
+{% block title %}Task Assignee - VN-Tracking{% endblock %}
+
+{% block head %}
+<style>
+    html, body { height: 100%; }
+    body { background: var(--bg-page); }
+
+    .ta-wrap {
+        height: 100%; box-sizing: border-box; padding: 16px 18px 18px;
+        display: flex; flex-direction: column; gap: 12px; max-width: none;
+    }
+    .ta-head {
+        display: flex; align-items: flex-start; justify-content: space-between;
+        gap: 16px; flex-wrap: wrap; flex-shrink: 0;
+    }
+    .ta-head h1 {
+        margin: 0; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.7rem;
+        font-weight: 800; letter-spacing: -0.02em; color: var(--text);
+    }
+    .ta-head .sub { color: var(--text-3); font-size: .93rem; margin-top: 3px; }
+    .ta-head-actions { display: flex; gap: 9px; flex-wrap: wrap; }
+
+    .ta-btn {
+        border: 1px solid var(--border); background: var(--surface-card); color: var(--text-2);
+        border-radius: var(--radius-md); padding: 9px 14px; font-size: .92rem; font-weight: 600;
+        cursor: pointer; display: inline-flex; align-items: center; gap: 7px; transition: .16s;
+        white-space: nowrap;
+    }
+    .ta-btn:hover { background: var(--surface-hover); }
+    .ta-btn.primary { background: var(--primary-gradient); color: #fff; border-color: transparent; box-shadow: var(--shadow-sm); }
+    .ta-btn.primary:hover { filter: brightness(1.05); }
+    .ta-btn:disabled { opacity: .55; cursor: not-allowed; }
+    .ta-btn i { font-size: .9em; }
+
+    .ta-stats { display: flex; gap: 9px; flex-wrap: wrap; flex-shrink: 0; }
+    .ta-stat {
+        background: var(--surface-card); border: 1px solid var(--border); border-radius: var(--radius-md);
+        padding: 8px 13px; min-width: 96px; box-shadow: var(--shadow-xs);
+    }
+    .ta-stat .v { font-size: 1.15rem; font-weight: 800; line-height: 1.2; color: var(--text); }
+    .ta-stat .k { font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; color: var(--text-3); font-weight: 700; }
+    .ta-stat.danger .v { color: #ef4444; }
+    .ta-stat.warn .v { color: #f59e0b; }
+    .ta-stat.ok .v { color: #10b981; }
+    button.ta-stat {
+        font: inherit; text-align: left; cursor: pointer; color: inherit;
+        transition: border-color .16s, background .16s, box-shadow .16s, transform .16s;
+        -webkit-appearance: none; appearance: none;
+    }
+    button.ta-stat:hover { border-color: var(--primary); transform: translateY(-1px); }
+    button.ta-stat.active {
+        border-color: var(--primary); background: rgba(99,102,241,.08);
+        box-shadow: 0 0 0 3px var(--border-focus);
+    }
+
+    .ta-banner {
+        display: flex; align-items: center; gap: 9px; padding: 9px 13px;
+        border: 1px solid var(--border); border-radius: var(--radius-md);
+        background: var(--surface-card); color: var(--text-2); font-size: .9rem;
+        flex-shrink: 0;
+    }
+    .ta-banner.error { border-color: rgba(239,68,68,.35); color: #ef4444; }
+    .ta-banner.busy { border-color: rgba(99,102,241,.35); color: var(--primary); }
+    .ta-spinner {
+        width: 14px; height: 14px; border: 2px solid currentColor; border-right-color: transparent;
+        border-radius: 50%; animation: ta-spin .8s linear infinite; flex-shrink: 0;
+    }
+    @keyframes ta-spin { to { transform: rotate(360deg); } }
+
+    .ta-panel {
+        flex: 1; min-height: 0; display: flex; flex-direction: column;
+        background: var(--surface-card); border: 1px solid var(--border);
+        border-radius: var(--radius-lg); box-shadow: var(--shadow-md); overflow: hidden;
+    }
+    .ta-toolbar {
+        display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
+        padding: 12px 14px; border-bottom: 1px solid var(--border-subtle); flex-shrink: 0;
+    }
+    .ta-search {
+        position: relative; flex: 1 1 260px; min-width: 200px; max-width: 460px;
+    }
+    .ta-search i {
+        position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+        color: var(--text-3); font-size: .9rem; pointer-events: none;
+    }
+    .ta-search input, .ta-toolbar select, .ta-picker-head input {
+        width: 100%; box-sizing: border-box; border: 1px solid var(--border);
+        background: var(--bg-page); color: var(--text); border-radius: var(--radius-md);
+        padding: 9px 12px; font-size: .92rem; outline: none;
+    }
+    .ta-search input { padding-left: 34px; }
+    .ta-toolbar select { width: auto; min-width: 130px; cursor: pointer; }
+    .ta-field { display: inline-flex; align-items: center; gap: 7px; }
+    .ta-field-label {
+        font-size: .78rem; font-weight: 700; color: var(--text-3);
+        white-space: nowrap; text-transform: uppercase; letter-spacing: .04em;
+    }
+    .ta-search input:focus, .ta-toolbar select:focus, .ta-picker-head input:focus {
+        border-color: var(--primary); box-shadow: 0 0 0 3px var(--border-focus);
+    }
+    .ta-check {
+        display: inline-flex; align-items: center; gap: 7px; font-size: .9rem;
+        color: var(--text-2); cursor: pointer; user-select: none; white-space: nowrap;
+    }
+    .ta-check input { width: 16px; height: 16px; accent-color: var(--primary); cursor: pointer; }
+
+    .ta-legend {
+        display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+        padding: 8px 14px; border-bottom: 1px solid var(--border-subtle);
+        color: var(--text-3); font-size: .8rem; flex-shrink: 0;
+    }
+    .ta-legend .ta-sync-note { margin-left: auto; }
+
+    .ta-table-wrap { flex: 1; min-height: 0; overflow: auto; }
+    .ta-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: .9rem; }
+    .ta-table thead th {
+        position: sticky; top: 0; z-index: 2; text-align: left; padding: 10px 12px;
+        background: var(--surface-card); color: var(--text-3); font-size: .72rem;
+        text-transform: uppercase; letter-spacing: .05em; font-weight: 700;
+        border-bottom: 1px solid var(--border); white-space: nowrap;
+    }
+    .ta-table tbody td { padding: 11px 12px; border-bottom: 1px solid var(--border-subtle); vertical-align: middle; }
+    .ta-table tbody tr:hover { background: var(--surface-hover); }
+    .ta-table tbody tr:last-child td { border-bottom: 0; }
+
+    .ta-task-title { font-weight: 700; color: var(--text); line-height: 1.35; }
+    .ta-task-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+    .ta-job {
+        display: inline-flex; align-items: center; padding: 2px 7px; border-radius: 5px;
+        background: rgba(99,102,241,.1); color: var(--primary); font-size: .74rem; font-weight: 700;
+    }
+    .ta-muted { color: var(--text-3); font-size: .8rem; }
+    .ta-vol { color: var(--text-2); font-weight: 600; font-size: .8rem; }
+
+    .ta-diff {
+        display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px;
+        border-radius: 999px; font-size: .78rem; font-weight: 700; white-space: nowrap;
+    }
+    .ta-diff.easy { background: rgba(16,185,129,.12); color: #059669; }
+    .ta-diff.medium { background: rgba(245,158,11,.14); color: #d97706; }
+    .ta-diff.hard { background: rgba(239,68,68,.12); color: #dc2626; }
+    .ta-diff.unknown { background: rgba(148,163,184,.14); color: var(--text-3); }
+    .ta-diff .ta-approx { font-size: .72em; opacity: .8; }
+
+    .ta-workers { display: flex; flex-wrap: wrap; gap: 5px; }
+    .ta-worker-chip {
+        display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px;
+        border-radius: 999px; background: var(--bg-page); border: 1px solid var(--border);
+        color: var(--text-2); font-size: .78rem; font-weight: 600;
+    }
+    .ta-worker-chip.retouch { border-color: rgba(236,72,153,.3); color: #db2777; }
+    .ta-worker-chip.lettering { border-color: rgba(59,130,246,.3); color: #2563eb; }
+    .ta-unassigned { color: var(--text-3); font-size: .82rem; font-style: italic; }
+
+    .ta-action {
+        border: 1px solid var(--border); background: var(--surface-card); color: var(--text-2);
+        border-radius: var(--radius-md); padding: 7px 12px; font-size: .82rem; font-weight: 700;
+        cursor: pointer; white-space: nowrap; transition: .16s;
+    }
+    .ta-action:hover { border-color: var(--primary); color: var(--primary); background: var(--surface-hover); }
+    .ta-empty { text-align: center; padding: 40px 12px; color: var(--text-3); }
+
+    /* ---------- Cân bằng tải ---------- */
+    .ta-workload {
+        background: var(--surface-card); border: 1px solid var(--border);
+        border-radius: var(--radius-lg); padding: 12px 14px; flex-shrink: 0;
+        box-shadow: var(--shadow-xs);
+    }
+    .ta-workload[hidden] { display: none !important; }
+    .ta-workload-head {
+        display: flex; align-items: flex-start; justify-content: space-between;
+        gap: 12px; margin-bottom: 10px;
+    }
+    .ta-workload-head h2 { margin: 0; font-size: 1rem; font-weight: 800; color: var(--text); }
+    .ta-workload-head .sub { color: var(--text-3); font-size: .8rem; margin-top: 2px; }
+    .ta-workload-grid {
+        display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        gap: 8px;
+    }
+    .ta-wl-card {
+        border: 1px solid var(--border); border-radius: var(--radius-md);
+        background: var(--bg-page); padding: 8px 10px;
+    }
+    .ta-wl-top { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+    .ta-wl-name { font-weight: 800; font-size: .86rem; color: var(--text); }
+    .ta-wl-team { font-size: .68rem; color: var(--text-3); text-transform: uppercase; letter-spacing: .05em; font-weight: 700; }
+    .ta-wl-week { margin-top: 6px; }
+    .ta-wl-week-row {
+        display: flex; align-items: center; justify-content: space-between;
+        gap: 8px; font-size: .76rem; color: var(--text-3);
+    }
+    .ta-wl-week-row b { color: var(--text-2); font-size: .78rem; }
+    .ta-wl-bar {
+        height: 5px; background: var(--border); border-radius: 999px;
+        overflow: hidden; margin-top: 3px;
+    }
+    .ta-wl-bar i { display: block; height: 100%; background: #10b981; border-radius: 999px; }
+    .ta-wl-bar i.warn { background: #f59e0b; }
+    .ta-wl-bar i.danger { background: #ef4444; }
+
+    /* ---------- Gợi ý người làm ---------- */
+    .ta-suggest-block { margin-bottom: 14px; }
+    .ta-suggest-head {
+        display: flex; align-items: center; justify-content: space-between;
+        gap: 8px; margin-bottom: 7px; font-weight: 800; font-size: .9rem;
+        color: var(--text-2);
+    }
+    .ta-suggest-list { display: flex; flex-direction: column; gap: 6px; }
+    .ta-suggest-team {
+        margin-left: 6px; padding: 1px 7px; border-radius: 999px;
+        background: rgba(99,102,241,.1); color: var(--primary);
+        font-size: .68rem; font-weight: 800; letter-spacing: .02em;
+        vertical-align: middle;
+    }
+    .ta-suggest-card {
+        display: flex; flex-direction: column; gap: 4px; text-align: left;
+        border: 1px solid var(--border); background: var(--bg-page);
+        border-radius: var(--radius-md); padding: 8px 10px; cursor: pointer;
+        transition: .14s; color: var(--text);
+    }
+    .ta-suggest-card:hover { border-color: var(--primary); background: var(--surface-hover); }
+    .ta-suggest-card.on { border-color: var(--primary); background: rgba(99,102,241,.08); }
+    .ta-suggest-top { display: flex; align-items: center; gap: 8px; }
+    .ta-suggest-name { font-weight: 800; font-size: .9rem; }
+    .ta-suggest-score { margin-left: auto; font-weight: 800; color: var(--primary); font-size: .85rem; }
+    .ta-suggest-score small { font-weight: 600; color: var(--text-3); }
+    .ta-suggest-reasons { font-size: .76rem; color: var(--text-3); line-height: 1.35; }
+    .ta-suggest-load { font-size: .74rem; color: var(--text-2); }
+    .ta-suggest-empty { font-size: .82rem; color: var(--text-3); padding: 6px 0; }
+    .ta-suggest-empty.warn { color: #d97706; }
+
+    /* ---------- Modal phân công ---------- */
+    .ta-modal {
+        position: fixed; inset: 0; z-index: 100050; background: rgba(2,6,23,.55);
+        display: flex; align-items: center; justify-content: center; padding: 18px;
+        backdrop-filter: blur(3px);
+    }
+    .ta-modal[hidden] { display: none !important; }
+    .ta-modal-box {
+        width: min(680px, 100%); max-height: calc(100vh - 36px); display: flex; flex-direction: column;
+        background: var(--surface-card); border: 1px solid var(--border); border-radius: var(--radius-lg);
+        box-shadow: 0 24px 60px rgba(0,0,0,.28); overflow: hidden; min-height: 0;
+    }
+    .ta-modal-head {
+        display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+        padding: 16px 18px; border-bottom: 1px solid var(--border-subtle);
+    }
+    .ta-modal-head h3 { margin: 0; font-size: 1.08rem; font-weight: 800; color: var(--text); line-height: 1.35; }
+    .ta-modal-head .sub { color: var(--text-3); font-size: .84rem; margin-top: 3px; }
+    .ta-icon-btn {
+        border: 0; background: transparent; color: var(--text-3); font-size: 1.5rem;
+        line-height: 1; cursor: pointer; padding: 0 3px;
+    }
+    .ta-icon-btn:hover { color: var(--text); }
+    .ta-modal-body { padding: 14px 18px; overflow: auto; flex: 1; min-height: 0; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+    .ta-modal-foot {
+        display: flex; align-items: center; justify-content: space-between; gap: 12px;
+        padding: 13px 18px; border-top: 1px solid var(--border-subtle); flex-wrap: wrap;
+    }
+    .ta-modal-foot > div:last-child { display: flex; gap: 8px; margin-left: auto; }
+
+    .ta-diff-card {
+        display: flex; gap: 12px; align-items: flex-start; padding: 11px 13px;
+        border: 1px solid var(--border); border-radius: var(--radius-md);
+        background: var(--bg-page); margin-bottom: 14px;
+    }
+    .ta-diff-card .ta-diff { flex-shrink: 0; }
+    .ta-diff-card .ta-diff-detail { color: var(--text-3); font-size: .84rem; line-height: 1.45; }
+    .ta-diff-card .ta-diff-detail b { color: var(--text-2); }
+
+    .ta-picker-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 9px; }
+    .ta-picker-head span { font-weight: 700; color: var(--text-2); font-size: .9rem; }
+    .ta-picker-head input { width: 190px; padding: 7px 10px; font-size: .85rem; }
+
+    .ta-select-row { display: flex; align-items: center; gap: 9px; margin-bottom: 12px; }
+    .ta-select-row select {
+        flex: 1; min-width: 0; border: 1px solid var(--border); background: var(--bg-page);
+        color: var(--text); border-radius: var(--radius-md); padding: 10px 12px;
+        font-size: .92rem; outline: none; cursor: pointer;
+    }
+    .ta-select-row select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--border-focus); }
+    .ta-select-row .ta-btn { white-space: nowrap; }
+    .ta-selected { display: flex; flex-wrap: wrap; gap: 5px; min-height: 30px; align-items: center; }
+
+    .ta-sel-chip {
+        display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px;
+        border-radius: 999px; background: rgba(99,102,241,.1); color: var(--primary);
+        font-size: .78rem; font-weight: 700;
+    }
+    .ta-sel-chip button { border: 0; background: transparent; color: inherit; cursor: pointer; padding: 0; font-size: 1rem; line-height: 1; }
+
+    @media (max-width: 860px) {
+        .ta-wrap { padding: 12px; }
+        .ta-head h1 { font-size: 1.4rem; }
+        .ta-table thead { display: none; }
+        .ta-table tbody tr { display: block; border-bottom: 1px solid var(--border); padding: 6px 0; }
+        .ta-table tbody td { display: flex; justify-content: space-between; gap: 12px; border: 0; padding: 5px 12px; }
+        .ta-table tbody td::before { content: attr(data-label); color: var(--text-3); font-size: .74rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; flex-shrink: 0; }
+        .ta-table tbody td.ta-cell-task { display: block; }
+        .ta-table tbody td.ta-cell-task::before { display: none; }
+        .ta-table tbody td.ta-cell-action { justify-content: flex-end; }
+        .ta-table tbody td.ta-cell-action::before { display: none; }
+        .ta-modal-foot { flex-direction: column; align-items: stretch; }
+        .ta-modal-foot > div:last-child { margin-left: 0; display: flex; }
+        .ta-modal-foot .ta-btn { flex: 1; justify-content: center; }
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="ta-wrap">
+    <header class="ta-head">
+        <div>
+            <h1>Task Assignee</h1>
+            <div class="sub">
+                Phân công trực tiếp vào cột <b>作業者</b> của Google Sheet JP · độ khó lấy từ logtime (DB)
+            </div>
+        </div>
+        <div class="ta-head-actions">
+            <button type="button" class="ta-btn" id="ta-workload-btn" title="Xem tải task tuần này / tuần sau theo từng người">
+                <i class="fas fa-scale-balanced"></i> Cân bằng tải
+            </button>
+            <button type="button" class="ta-btn" id="ta-sync-btn" title="Đọc lại sheet 日報 và cập nhật bảng độ khó trong DB">
+                <i class="fas fa-rotate"></i> Đồng bộ độ khó
+            </button>
+            <button type="button" class="ta-btn" id="ta-refresh-btn" title="Tải lại danh sách task từ Google Sheet">
+                <i class="fas fa-arrows-rotate"></i> Tải lại
+            </button>
+        </div>
+    </header>
+
+    <div class="ta-stats" id="ta-stats">
+        <div class="ta-stat"><div class="v" id="stat-total">—</div><div class="k">Task trong khoảng</div></div>
+        <button type="button" class="ta-stat danger" data-filter="unassigned" aria-pressed="false">
+            <div class="v" id="stat-unassigned">—</div><div class="k">Chưa phân công</div>
+        </button>
+        <button type="button" class="ta-stat ok" data-filter="easy" aria-pressed="false">
+            <div class="v" id="stat-easy">—</div><div class="k">Dễ</div>
+        </button>
+        <button type="button" class="ta-stat warn" data-filter="medium" aria-pressed="false">
+            <div class="v" id="stat-medium">—</div><div class="k">Trung bình</div>
+        </button>
+        <button type="button" class="ta-stat danger" data-filter="hard" aria-pressed="false">
+            <div class="v" id="stat-hard">—</div><div class="k">Khó</div>
+        </button>
+    </div>
+
+    <section class="ta-workload" id="ta-workload" hidden>
+        <div class="ta-workload-head">
+            <div>
+                <h2>Cân bằng tải</h2>
+                <div class="sub" id="ta-workload-sub"></div>
+            </div>
+            <button type="button" class="ta-icon-btn" id="ta-workload-close" aria-label="Đóng">&times;</button>
+        </div>
+        <div class="ta-workload-grid" id="ta-workload-grid"></div>
+    </section>
+
+    <div class="ta-banner" id="ta-banner" hidden></div>
+
+    <section class="ta-panel">
+        <div class="ta-toolbar">
+            <div class="ta-search">
+                <i class="fas fa-search"></i>
+                <input type="search" id="ta-search" placeholder="Tìm tác phẩm, công việc, người làm...">
+            </div>
+            <label class="ta-field" title="Khoảng thời gian hiển thị task (không phải sắp xếp)">
+                <span class="ta-field-label">Lịch</span>
+                <select id="ta-window">
+                    <option value="14">Tuần trước → 2 tuần tới</option>
+                    <option value="35" selected>Tuần trước → 5 tuần tới</option>
+                    <option value="60">Tuần trước → 8 tuần tới</option>
+                    <option value="90">Tuần trước → 12 tuần tới</option>
+                </select>
+            </label>
+            <select id="ta-team" title="Lọc theo team">
+                <option value="">Tất cả team</option>
+                <option value="Retouch">Retouch</option>
+                <option value="Lettering">Lettering</option>
+            </select>
+            <label class="ta-check">
+                <input type="checkbox" id="ta-unassigned">
+                <span>Chỉ chưa phân công</span>
+            </label>
+        </div>
+
+        <div class="ta-legend">
+            <span class="ta-diff easy">Dễ</span>
+            <span class="ta-diff medium">Trung bình</span>
+            <span class="ta-diff hard">Khó</span>
+            <span class="ta-diff unknown">Chưa rõ</span>
+            <span class="ta-muted">≈ = ước lượng từ số trang / thời gian logtime</span>
+            <span class="ta-sync-note" id="ta-sync-note"></span>
+        </div>
+
+        <div class="ta-table-wrap" data-lenis-prevent>
+            <table class="ta-table">
+                <thead>
+                    <tr>
+                        <th>Task</th>
+                        <th>Lịch làm</th>
+                        <th>Trang</th>
+                        <th>Độ khó</th>
+                        <th>Người làm</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="ta-tbody">
+                    <tr><td colspan="6" class="ta-empty">Đang tải danh sách task...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+</div>
+
+<!-- Modal phân công -->
+<div class="ta-modal" id="ta-modal" hidden data-lenis-prevent>
+    <div class="ta-modal-box" role="dialog" aria-modal="true" aria-labelledby="ta-modal-title">
+        <div class="ta-modal-head">
+            <div>
+                <h3 id="ta-modal-title">Phân công task</h3>
+                <div class="sub" id="ta-modal-sub"></div>
+            </div>
+            <button type="button" class="ta-icon-btn" id="ta-modal-close" aria-label="Đóng">&times;</button>
+        </div>
+        <div class="ta-modal-body" id="ta-modal-body" data-lenis-prevent>
+            <div class="ta-diff-card" id="ta-modal-diff"></div>
+            <div class="ta-suggest-block">
+                <div class="ta-suggest-head">
+                    <span><i class="fas fa-wand-magic-sparkles"></i> Gợi ý người làm
+                        <span class="ta-suggest-team" id="ta-suggest-team"></span>
+                    </span>
+                    <span class="ta-muted" id="ta-suggest-week"></span>
+                </div>
+                <div class="ta-suggest-list" id="ta-suggest-list"></div>
+            </div>
+            <div class="ta-picker-head">
+                <span>Chọn người làm</span>
+                <span class="ta-muted">Có thể thêm nhiều người</span>
+            </div>
+            <div class="ta-select-row">
+                <select id="ta-worker-select" aria-label="Chọn người làm"></select>
+                <button type="button" class="ta-btn primary" id="ta-add-worker">
+                    <i class="fas fa-plus"></i> Thêm
+                </button>
+            </div>
+            <div class="ta-selected" id="ta-selected"></div>
+        </div>
+        <div class="ta-modal-foot" style="justify-content:flex-end;">
+            <div>
+                <button type="button" class="ta-btn" id="ta-modal-cancel">Hủy</button>
+                <button type="button" class="ta-btn primary" id="ta-save">
+                    <i class="fas fa-check"></i> Lưu phân công
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Trang này có modal/table tự cuộn bên trong. Lenis của dashboard sẽ "nuốt"
+// sự kiện lăn chuột trong iframe -> tắt Lenis để scroll native hoạt động.
+(function disableSmoothScrollHere() {
+    function kill() {
+        try {
+            if (window.lenis && typeof window.lenis.destroy === 'function') window.lenis.destroy();
+        } catch (e) { /* bỏ qua */ }
+        window.lenis = null;
+    }
+    kill();
+    document.addEventListener('DOMContentLoaded', kill);
+    window.addEventListener('load', kill);
+})();
+</script>
+<script>
+(function () {
+    'use strict';
+
+    const state = {
+        tasks: [],
+        workers: [],
+        selected: new Set(),
+        currentTask: null,
+        loading: false,
+        saving: false,
+        pollTimer: null,
+        search: '',
+        levelFilters: new Set(),
+        capacityHours: 40,
+        suggestionsData: null,
+    };
+
+    const $ = (id) => document.getElementById(id);
+    const tbody = $('ta-tbody');
+    const banner = $('ta-banner');
+    const modal = $('ta-modal');
+
+    const TEAM_LABEL = { Retouch: 'Retouch', Lettering: 'Lettering' };
+    const LEVEL_ORDER = { easy: 0, medium: 1, hard: 2, unknown: 3 };
+
+    function esc(value) {
+        return String(value == null ? '' : value)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    function toast(message, type) {
+        if (typeof window.showToast === 'function') {
+            try { window.showToast(message, type || 'info'); return; } catch (e) {}
+        }
+        console.log('[TaskAssignee]', type || 'info', message);
+    }
+
+    function setBanner(message, kind) {
+        if (!message) {
+            banner.hidden = true;
+            banner.className = 'ta-banner';
+            banner.innerHTML = '';
+            return;
+        }
+        banner.hidden = false;
+        banner.className = 'ta-banner' + (kind ? ' ' + kind : '');
+        banner.innerHTML = (kind === 'busy' ? '<span class="ta-spinner"></span>' : '') + esc(message);
+    }
+
+    function fmtDate(iso) {
+        if (!iso) return '—';
+        const parts = String(iso).split('-');
+        if (parts.length !== 3) return iso;
+        return parts[2] + '/' + parts[1];
+    }
+
+    function dateRange(task) {
+        if (!task.start && !task.end) return '—';
+        if (!task.start) return '→ ' + fmtDate(task.end);
+        if (!task.end) return fmtDate(task.start) + ' →';
+        return fmtDate(task.start) + ' → ' + fmtDate(task.end);
+    }
+
+    function workerTeam(username) {
+        const item = state.workers.find(w => w.username === username);
+        return item ? (item.team || '') : '';
+    }
+
+    function workerClass(username) {
+        const team = workerTeam(username).toLowerCase();
+        if (team === 'retouch') return ' retouch';
+        if (team === 'lettering') return ' lettering';
+        return '';
+    }
+
+    function diffBadge(diff) {
+        const d = diff || { level: 'unknown', label: 'Chưa rõ', source: 'none', detail: '' };
+        const approx = d.source === 'estimate' ? '<span class="ta-approx">≈</span>' : '';
+        return '<span class="ta-diff ' + esc(d.level) + '" title="' + esc(d.detail || '') + '">' +
+            approx + esc(d.label || 'Chưa rõ') + '</span>';
+    }
+
+    function workerChips(task) {
+        const list = (task.workers && task.workers.length) ? task.workers : (task.worker ? [task.worker] : []);
+        if (!list.length) return '<span class="ta-unassigned">Chưa phân công</span>';
+        return '<div class="ta-workers">' + list.map(w =>
+            '<span class="ta-worker-chip' + workerClass(w) + '">' + esc(w) + '</span>'
+        ).join('') + '</div>';
+    }
+
+    function filteredTasks() {
+        const q = state.search.trim().toLowerCase();
+        const team = $('ta-team').value;
+        const onlyUnassigned = $('ta-unassigned').checked;
+        return state.tasks.filter(task => {
+            if (onlyUnassigned && (task.workers || []).length) return false;
+            if (state.levelFilters.size) {
+                const level = (task.difficulty && task.difficulty.level) || 'unknown';
+                if (!state.levelFilters.has(level)) return false;
+            }
+            if (team) {
+                const assignedTeams = (task.workers || []).map(workerTeam).filter(Boolean);
+                const hint = task.team_hint || '';
+                if (assignedTeams.length) {
+                    if (!assignedTeams.includes(team)) return false;
+                } else if (hint && hint !== team) {
+                    return false;
+                }
+            }
+            if (!q) return true;
+            const hay = [task.cong_viec, task.tac_pham, task.tap, task.chuong, task.worker,
+                task.publisher, task.note].join(' ').toLowerCase();
+            return hay.includes(q);
+        });
+    }
+
+    function updateFilterButtons() {
+        document.querySelectorAll('#ta-stats [data-filter]').forEach(btn => {
+            const filter = btn.getAttribute('data-filter');
+            const on = filter === 'unassigned'
+                ? $('ta-unassigned').checked
+                : state.levelFilters.has(filter);
+            btn.classList.toggle('active', on);
+            btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
+    }
+
+    function updateStats(tasks) {
+        const count = tasks.length;
+        const unassigned = tasks.filter(t => !(t.workers || []).length).length;
+        const levels = { easy: 0, medium: 0, hard: 0 };
+        tasks.forEach(t => {
+            const level = t.difficulty && t.difficulty.level;
+            if (level in levels) levels[level] += 1;
+        });
+        $('stat-total').textContent = count;
+        $('stat-unassigned').textContent = unassigned;
+        $('stat-easy').textContent = levels.easy;
+        $('stat-medium').textContent = levels.medium;
+        $('stat-hard').textContent = levels.hard;
+    }
+
+    function isoDate(d) {
+        return d.getFullYear() + '-' +
+            String(d.getMonth() + 1).padStart(2, '0') + '-' +
+            String(d.getDate()).padStart(2, '0');
+    }
+
+    function weekBounds(offset) {
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
+        const mondayOffset = (now.getDay() + 6) % 7;
+        const monday = new Date(now);
+        monday.setDate(now.getDate() - mondayOffset + offset * 7);
+        const sunday = new Date(monday);
+        sunday.setDate(monday.getDate() + 6);
+        return { from: isoDate(monday), to: isoDate(sunday) };
+    }
+
+    function taskOverlapsWeek(task, week) {
+        const start = task.start || task.end;
+        const end = task.end || task.start;
+        if (!start || !end) return false;
+        return end >= week.from && start <= week.to;
+    }
+
+    function tasksForWorkerWeek(worker, week) {
+        return state.tasks.filter(task =>
+            (task.workers || []).includes(worker.username) && taskOverlapsWeek(task, week)
+        );
+    }
+
+    function renderWorkload() {
+        const grid = $('ta-workload-grid');
+        if (!grid) return;
+        const capacity = Number(state.capacityHours) || 40;
+        const thisWeek = weekBounds(0);
+        const nextWeek = weekBounds(1);
+        $('ta-workload-sub').textContent =
+            'Tuần này ' + fmtDate(thisWeek.from) + '–' + fmtDate(thisWeek.to) +
+            ' · Tuần sau ' + fmtDate(nextWeek.from) + '–' + fmtDate(nextWeek.to) +
+            ' · ' + capacity + 'h/người';
+
+        const cards = state.workers.map(worker => {
+            const tw = tasksForWorkerWeek(worker, thisWeek);
+            const nw = tasksForWorkerWeek(worker, nextWeek);
+            const hoursFor = (list) => list.reduce((sum, t) =>
+                sum + (Number(t.estimated_hours) || 0) / Math.max(1, (t.workers || []).length), 0);
+            return { worker, tw: tw.length, twh: hoursFor(tw), nw: nw.length, nwh: hoursFor(nw) };
+        }).sort((a, b) => b.twh - a.twh);
+
+        if (!cards.length) {
+            grid.innerHTML = '<div class="ta-empty">Chưa có dữ liệu thành viên.</div>';
+            return;
+        }
+
+        const bar = (hours) => {
+            const pct = Math.min(100, Math.round((hours / capacity) * 100));
+            const cls = hours > capacity ? 'danger' : (hours > capacity * 0.8 ? 'warn' : '');
+            return '<div class="ta-wl-bar"><i class="' + cls + '" style="width:' + pct + '%"></i></div>';
+        };
+
+        grid.innerHTML = cards.map(c =>
+            '<div class="ta-wl-card">' +
+                '<div class="ta-wl-top">' +
+                    '<span class="ta-wl-name">' + esc(c.worker.username) + '</span>' +
+                    '<span class="ta-wl-team">' + esc(c.worker.team || '') + '</span>' +
+                '</div>' +
+                '<div class="ta-wl-week">' +
+                    '<div class="ta-wl-week-row"><span>Tuần này</span><b>' +
+                        c.tw + ' task · ~' + c.twh.toFixed(0) + 'h</b></div>' +
+                    bar(c.twh) +
+                '</div>' +
+                '<div class="ta-wl-week">' +
+                    '<div class="ta-wl-week-row"><span>Tuần sau</span><b>' +
+                        c.nw + ' task · ~' + c.nwh.toFixed(0) + 'h</b></div>' +
+                    bar(c.nwh) +
+                '</div>' +
+            '</div>'
+        ).join('');
+    }
+
+    function render() {
+        const tasks = filteredTasks();
+        updateStats(state.tasks);
+        updateFilterButtons();
+
+        if (!tasks.length) {
+            tbody.innerHTML = '<tr><td colspan="6" class="ta-empty">' +
+                (state.tasks.length ? 'Không có task khớp bộ lọc.' : 'Không có task trong khoảng thời gian này.') +
+                '</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = tasks.map(task => {
+            const meta = [];
+            if (task.tap) meta.push('<span class="ta-vol">Tập ' + esc(task.tap) + '</span>');
+            if (task.chuong) meta.push('<span class="ta-vol">Chương ' + esc(task.chuong) + '</span>');
+            if (task.publisher) meta.push('<span class="ta-muted">' + esc(task.publisher) + '</span>');
+            if (task.status) meta.push('<span class="ta-muted">' + esc(task.status) + '</span>');
+            return '<tr data-row="' + esc(task.row) + '">' +
+                '<td class="ta-cell-task">' +
+                    '<div class="ta-task-title">' + esc(task.tac_pham) + '</div>' +
+                    '<div class="ta-task-meta"><span class="ta-job">' + esc(task.cong_viec) + '</span>' +
+                        meta.join('') +
+                    '</div>' +
+                '</td>' +
+                '<td data-label="Lịch">' + esc(dateRange(task)) + '</td>' +
+                '<td data-label="Trang">' + esc(task.page || '—') + '</td>' +
+                '<td data-label="Độ khó">' + diffBadge(task.difficulty) + '</td>' +
+                '<td data-label="Người làm">' + workerChips(task) + '</td>' +
+                '<td class="ta-cell-action"><button type="button" class="ta-action" data-assign="' +
+                    esc(task.row) + '">Phân công</button></td>' +
+            '</tr>';
+        }).join('');
+        renderWorkload();
+    }
+
+    function syncNote(meta, ttl) {
+        const note = $('ta-sync-note');
+        if (!meta || !meta.last_sync_at) {
+            note.textContent = 'Độ khó: chưa đồng bộ';
+            return;
+        }
+        let when = String(meta.last_sync_at).replace('T', ' ').slice(0, 16);
+        try {
+            when = new Date(meta.last_sync_at).toLocaleString('vi-VN', { hour12: false });
+        } catch (e) {}
+        const rows = meta.logtime_rows ? ' · ' + meta.logtime_rows + ' dòng logtime' : '';
+        note.textContent = 'Độ khó cập nhật: ' + when + rows;
+    }
+
+    async function loadTasks(force) {
+        if (state.loading) return;
+        state.loading = true;
+        tbody.innerHTML = '<tr><td colspan="6" class="ta-empty">Đang tải danh sách task...</td></tr>';
+        try {
+            const days = $('ta-window').value || '35';
+            const url = '/api/task_assignee/tasks?days=' + encodeURIComponent(days) + (force ? '&refresh=1' : '');
+            const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || data.status !== 'ok') {
+                throw new Error(data.message || ('HTTP ' + res.status));
+            }
+            state.tasks = Array.isArray(data.tasks) ? data.tasks : [];
+            state.workers = Array.isArray(data.workers) ? data.workers : [];
+            state.capacityHours = Number(data.capacity_hours) || 40;
+            render();
+            syncNote(data.meta, data.ttl);
+            if (data.stale) {
+                setBanner('Đang dùng dữ liệu cache (Google tạm lỗi): ' + (data.cache_error || ''), 'error');
+            } else {
+                setBanner('');
+            }
+            if (data.sync && data.sync.status === 'started') {
+                setBanner('Đang đồng bộ độ khó từ logtime...', 'busy');
+                startPolling();
+            } else if (data.sync && data.sync.status === 'running') {
+                setBanner('Đang đồng bộ độ khó từ logtime...', 'busy');
+                startPolling();
+            }
+        } catch (err) {
+            tbody.innerHTML = '<tr><td colspan="6" class="ta-empty">Không tải được task: ' +
+                esc(err.message || err) + '</td></tr>';
+            setBanner('Không tải được danh sách task: ' + (err.message || err), 'error');
+        } finally {
+            state.loading = false;
+        }
+    }
+
+    async function startSync(force) {
+        const btn = $('ta-sync-btn');
+        btn.disabled = true;
+        setBanner('Đang đồng bộ độ khó từ sheet 日報...', 'busy');
+        try {
+            const res = await fetch('/api/task_assignee/sync', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ force: force !== false })
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.message || ('HTTP ' + res.status));
+            if (data.sync && data.sync.status === 'fresh') {
+                setBanner('Bảng độ khó vẫn còn mới, không cần đồng bộ.', '');
+                btn.disabled = false;
+                return;
+            }
+            if (data.sync && data.sync.status === 'error') {
+                setBanner('Đồng bộ lỗi: ' + (data.sync.message || 'không rõ'), 'error');
+                btn.disabled = false;
+                return;
+            }
+            startPolling();
+        } catch (err) {
+            setBanner('Đồng bộ thất bại: ' + (err.message || err), 'error');
+            btn.disabled = false;
+        }
+    }
+
+    function stopPolling() {
+        if (state.pollTimer) {
+            clearInterval(state.pollTimer);
+            state.pollTimer = null;
+        }
+    }
+
+    function startPolling() {
+        if (state.pollTimer) return;
+        const btn = $('ta-sync-btn');
+        btn.disabled = true;
+        state.pollTimer = setInterval(async () => {
+            try {
+                const res = await fetch('/api/task_assignee/status', { headers: { 'Accept': 'application/json' } });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(data.message || ('HTTP ' + res.status));
+                if (data.running) {
+                    setBanner('Đang đồng bộ độ khó từ logtime...', 'busy');
+                    return;
+                }
+                stopPolling();
+                btn.disabled = false;
+                const meta = data.meta || {};
+                syncNote(meta);
+                if (data.state && data.state.ok === false) {
+                    setBanner('Đồng bộ lỗi: ' + (data.state.message || 'không rõ'), 'error');
+                } else {
+                    setBanner('Đã cập nhật bảng độ khó.', '');
+                    window.setTimeout(() => setBanner(''), 2500);
+                    await loadTasks(false);
+                }
+            } catch (err) {
+                stopPolling();
+                btn.disabled = false;
+                setBanner('Không kiểm tra được trạng thái đồng bộ: ' + (err.message || err), 'error');
+            }
+        }, 2500);
+    }
+
+    // ---------------- Modal ----------------
+    function openModal(task) {
+        state.currentTask = task;
+        state.selected = new Set(task.workers || []);
+        $('ta-modal-title').textContent = task.tac_pham || 'Phân công task';
+        const sub = [task.cong_viec, task.tap ? ('Tập ' + task.tap) : '', task.chuong ? ('Chương ' + task.chuong) : '',
+            dateRange(task)].filter(Boolean).join(' · ');
+        $('ta-modal-sub').textContent = sub;
+        const d = task.difficulty || {};
+        $('ta-modal-diff').innerHTML = diffBadge(d) +
+            '<div class="ta-diff-detail"><b>' + esc(d.label || 'Chưa rõ') + '</b> — ' +
+            esc(d.detail || 'Chưa có dữ liệu logtime') +
+            (d.samples && d.source !== 'estimate' ? ' <span class="ta-muted">(' + d.samples + ' mẫu)</span>' : '') + '</div>';
+        renderWorkerSelect();
+        renderSelected();
+        state.suggestionsData = null;
+        $('ta-suggest-list').innerHTML = '<div class="ta-suggest-empty">Đang tính gợi ý...</div>';
+        $('ta-suggest-week').textContent = '';
+        $('ta-suggest-team').textContent = '';
+        modal.hidden = false;
+        $('ta-modal-body').scrollTop = 0;
+        loadSuggestions(task);
+        window.setTimeout(() => $('ta-worker-select').focus({ preventScroll: true }), 60);
+    }
+
+    function closeModal() {
+        modal.hidden = true;
+        state.currentTask = null;
+        state.selected = new Set();
+        state.saving = false;
+        state.suggestionsData = null;
+        $('ta-save').disabled = false;
+        $('ta-save').innerHTML = '<i class="fas fa-check"></i> Lưu phân công';
+    }
+
+    function renderWorkerSelect() {
+        const groups = {};
+        state.workers.forEach(w => {
+            const team = w.team || 'Khác';
+            (groups[team] = groups[team] || []).push(w);
+        });
+        const html = ['<option value="">— Chọn tên người làm —</option>'];
+        Object.keys(groups).sort().forEach(team => {
+            html.push('<optgroup label="' + esc(TEAM_LABEL[team] || team) + '">');
+            groups[team].forEach(w => {
+                const label = w.username + (w.fullname ? ' · ' + w.fullname : '');
+                html.push('<option value="' + esc(w.username) + '">' + esc(label) + '</option>');
+            });
+            html.push('</optgroup>');
+        });
+        $('ta-worker-select').innerHTML = html.join('');
+        $('ta-worker-select').value = '';
+    }
+
+    function addSelectedWorker() {
+        const select = $('ta-worker-select');
+        const username = select.value;
+        if (!username) return;
+        state.selected.add(username);
+        select.value = '';
+        renderSelected();
+    }
+
+    async function loadSuggestions(task) {
+        try {
+            const res = await fetch('/api/task_assignee/suggest?row=' + encodeURIComponent(task.row));
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || data.status !== 'ok') {
+                throw new Error(data.message || ('HTTP ' + res.status));
+            }
+            state.suggestionsData = data;
+            const teams = data.team_filter || [];
+            $('ta-suggest-team').textContent = teams.length ? teams.join(' + ') : '';
+            $('ta-suggest-week').textContent =
+                'Tuần ' + (data.week && data.week.label ? data.week.label : '') +
+                ' · ' + (data.capacity_hours || 40) + 'h/người';
+            renderSuggestions();
+        } catch (err) {
+            $('ta-suggest-list').innerHTML =
+                '<div class="ta-suggest-empty">Không tính được gợi ý: ' + esc(err.message || err) + '</div>';
+        }
+    }
+
+    function renderSuggestions() {
+        const data = state.suggestionsData;
+        const list = $('ta-suggest-list');
+        if (!data) return;
+        const items = (data.suggestions || []).slice(0, 5);
+        let html = '';
+        if (!data.skill_ready) {
+            html += '<div class="ta-suggest-empty warn">Chưa có dữ liệu kinh nghiệm — bấm “Đồng bộ độ khó” để gợi ý chính xác hơn.</div>';
+        }
+        if (!items.length) {
+            const teamTxt = (data.team_filter || []).join(' / ');
+            const empty = teamTxt
+                ? 'Chưa có người thuộc công đoạn ' + esc(teamTxt) + '.'
+                : 'Chưa có thành viên phù hợp.';
+            list.innerHTML = html + '<div class="ta-suggest-empty">' + empty + '</div>';
+            return;
+        }
+        html += items.map(item => {
+            const on = state.selected.has(item.username);
+            const reasons = (item.reasons || []).join(' · ');
+            const wl = item.workload || {};
+            return '<button type="button" class="ta-suggest-card' + (on ? ' on' : '') +
+                '" data-suggest="' + esc(item.username) + '">' +
+                '<div class="ta-suggest-top">' +
+                    '<span class="ta-suggest-name">' + esc(item.username) + '</span>' +
+                    '<span class="ta-suggest-score">' + esc(item.score) + '<small>/100</small></span>' +
+                '</div>' +
+                '<div class="ta-suggest-reasons">' + esc(reasons) + '</div>' +
+                '<div class="ta-suggest-load">' + (wl.tasks || 0) + ' task · ~' +
+                    (wl.hours || 0) + 'h / ' + (wl.capacity || 40) + 'h' +
+                    (item.team ? ' · ' + esc(item.team) : '') + '</div>' +
+            '</button>';
+        }).join('');
+        list.innerHTML = html;
+    }
+
+    function renderSelected() {
+        const box = $('ta-selected');
+        if (!state.selected.size) {
+            box.innerHTML = '<span class="ta-muted">Chưa chọn người — lưu để bỏ phân công.</span>';
+        } else {
+            box.innerHTML = Array.from(state.selected).map(username =>
+                '<span class="ta-sel-chip">' + esc(username) +
+                '<button type="button" data-remove="' + esc(username) + '" aria-label="Bỏ chọn">&times;</button></span>'
+            ).join('');
+        }
+        if (state.suggestionsData) renderSuggestions();
+    }
+
+    async function saveAssignment() {
+        if (!state.currentTask || state.saving) return;
+        state.saving = true;
+        const btn = $('ta-save');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="ta-spinner"></span> Đang lưu...';
+        try {
+            const res = await fetch('/api/task_assignee/assign', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    row: state.currentTask.row,
+                    signature: state.currentTask.signature,
+                    workers: Array.from(state.selected),
+                })
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || data.status !== 'ok') {
+                if (res.status === 409) {
+                    toast(data.message || 'Task đã thay đổi, tải lại rồi thử lại.', 'error');
+                    closeModal();
+                    await loadTasks(true);
+                    return;
+                }
+                throw new Error(data.message || ('HTTP ' + res.status));
+            }
+
+            const updated = data.task || {};
+            closeModal();
+            toast('Đã lưu phân công cho ' + (updated.tac_pham || 'task'), 'success');
+            await loadTasks(true);
+        } catch (err) {
+            toast('Lỗi phân công: ' + (err.message || err), 'error');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-check"></i> Lưu phân công';
+        } finally {
+            state.saving = false;
+        }
+    }
+
+    // ---------------- Events ----------------
+    $('ta-refresh-btn').addEventListener('click', () => loadTasks(true));
+    $('ta-sync-btn').addEventListener('click', () => startSync(true));
+    $('ta-workload-btn').addEventListener('click', () => {
+        const panel = $('ta-workload');
+        panel.hidden = !panel.hidden;
+        if (!panel.hidden) renderWorkload();
+    });
+    $('ta-workload-close').addEventListener('click', () => { $('ta-workload').hidden = true; });
+    $('ta-window').addEventListener('change', () => loadTasks(true));
+
+    let searchTimer = null;
+    $('ta-search').addEventListener('input', (e) => {
+        state.search = e.target.value || '';
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(render, 120);
+    });
+    $('ta-team').addEventListener('change', render);
+    $('ta-unassigned').addEventListener('change', render);
+
+    $('ta-stats').addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-filter]');
+        if (!btn) return;
+        const filter = btn.getAttribute('data-filter');
+        if (filter === 'unassigned') {
+            const cb = $('ta-unassigned');
+            cb.checked = !cb.checked;
+        } else if (state.levelFilters.has(filter)) {
+            state.levelFilters.delete(filter);
+        } else {
+            state.levelFilters.add(filter);
+        }
+        render();
+    });
+
+    tbody.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-assign]');
+        if (!btn) return;
+        const row = btn.getAttribute('data-assign');
+        const task = state.tasks.find(t => String(t.row) === String(row));
+        if (task) openModal(task);
+    });
+
+    $('ta-modal-close').addEventListener('click', closeModal);
+    $('ta-modal-cancel').addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+    $('ta-save').addEventListener('click', saveAssignment);
+    $('ta-add-worker').addEventListener('click', addSelectedWorker);
+    $('ta-worker-select').addEventListener('change', addSelectedWorker);
+
+    $('ta-suggest-list').addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-suggest]');
+        if (!btn) return;
+        const username = btn.getAttribute('data-suggest');
+        if (state.selected.has(username)) state.selected.delete(username);
+        else state.selected.add(username);
+        renderSelected();
+    });
+
+    $('ta-selected').addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-remove]');
+        if (!btn) return;
+        const username = btn.getAttribute('data-remove');
+        state.selected.delete(username);
+        renderSelected();
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !modal.hidden) closeModal();
+    });
+
+    loadTasks(false);
+})();
+</script>
+{% endblock %}

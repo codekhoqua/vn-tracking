@@ -390,7 +390,7 @@ document.addEventListener('DOMContentLoaded', () => {
     mainNavItems.forEach((item, index) => {
         item.addEventListener('click', () => {
             // Close any open tool page views when navigating main dashboard/table
-            ['drive', 'calendar', 'psd', 'role', 'history'].forEach(t => {
+            ['drive', 'calendar', 'psd', 'role', 'history', 'assignee'].forEach(t => {
                 const el = document.getElementById(`page-view-${t}`);
                 if (el && el.classList.contains('open')) closeToolPage(t);
             });
@@ -3140,6 +3140,9 @@ function navigateToTask(tpKey) {
             if (typeof initChecklistInContainer === 'function') {
                 initChecklistInContainer(modal.querySelector('.task-page-body') || modal.querySelector('.modal-body') || modal);
             }
+            if (typeof refreshSheetStatus === 'function') {
+                refreshSheetStatus(modal.querySelector('.task-page-body') || modal.querySelector('.modal-body') || modal);
+            }
 
             const handoverBox = modal.querySelector('.task-handover-box');
             if (handoverBox) {
@@ -3585,6 +3588,9 @@ function openModal(tabKey, cardName) {
 
             requestAnimationFrame(() => {
                 initChecklistInContainer(modal.querySelector('.task-page-body') || modal.querySelector('.modal-body') || modal);
+                if (typeof refreshSheetStatus === 'function') {
+                    refreshSheetStatus(modal.querySelector('.task-page-body') || modal.querySelector('.modal-body') || modal);
+                }
 
                 // Load Task Handover Comments if combined task
                 const handoverBox = modal.querySelector('.task-handover-box');
@@ -3683,6 +3689,11 @@ function openToolPage(toolKey) {
         const iframe = document.getElementById('history-page-iframe');
         if (iframe && (!iframe.src || iframe.src === window.location.href || iframe.src.endsWith('/'))) {
             iframe.src = '/history';
+        }
+    } else if (toolKey === 'assignee') {
+        const iframe = document.getElementById('assignee-page-iframe');
+        if (iframe && (!iframe.src || iframe.src === window.location.href || iframe.src.endsWith('/'))) {
+            iframe.src = '/task-assignee';
         }
     }
 
@@ -3875,13 +3886,55 @@ function initChecklistInContainer(container) {
                     card.dataset.checkedIds = checkedIds.join(',');
                 });
 
+                const syncIndicator = ['t2', 't4', 't7'].includes(rawId)
+                    ? cb.closest('.task-row')?.querySelector('[data-sync-indicator="' + rawId + '"]')
+                    : null;
+                const syncStarted = Date.now();
+                if (syncIndicator) {
+                    syncIndicator.className = 'checklist-sync-indicator spinning';
+                    cb.disabled = true;
+                }
+
                 fetch('/api/checklist_sync', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ tac_pham: tpKey, checkbox_id: rawId, status: e.target.checked })
                 }).then(r => r.json()).then(data => {
                     if (typeof handlePetXPResponse === 'function') handlePetXPResponse(data);
-                }).catch(() => {});
+                    const sheetBadge = (cb.closest('.checklist-card') || container.querySelector('.checklist-card'))
+                        ?.querySelector('[data-sheet-status]');
+                    if (sheetBadge && typeof updateSheetBadgeFromAction === 'function') {
+                        updateSheetBadgeFromAction(sheetBadge, rawId, data.sheet_sync || {});
+                    }
+                    if (syncIndicator) {
+                        const action = (data.sheet_sync || {}).action || '';
+                        const failed = /^(NO_|NOT_VN|AMBIGUOUS|MULTI_WORKER|SKIP_LATER)/.test(action);
+                        const finish = () => {
+                            if (failed) {
+                                syncIndicator.className = 'checklist-sync-indicator failed';
+                            } else if (typeof syncSheetIndicators === 'function') {
+                                syncSheetIndicators(container, {
+                                    found: !!(sheetBadge && sheetBadge.dataset.sheetRow),
+                                    o: sheetBadge ? (sheetBadge.dataset.sheetO || '') : '',
+                                    p: sheetBadge ? (sheetBadge.dataset.sheetP || '') : ''
+                                });
+                            } else {
+                                syncIndicator.className = 'checklist-sync-indicator done';
+                            }
+                            cb.disabled = false;
+                        };
+                        // Giữ spinner tối thiểu 650ms để người dùng thấy hiệu ứng.
+                        window.setTimeout(finish, Math.max(0, 650 - (Date.now() - syncStarted)));
+                    }
+                }).catch(() => {
+                    if (syncIndicator) {
+                        const finish = () => {
+                            syncIndicator.className = 'checklist-sync-indicator failed';
+                            cb.disabled = false;
+                        };
+                        window.setTimeout(finish, Math.max(0, 650 - (Date.now() - syncStarted)));
+                    }
+                });
 
                 if ((rawId === 't9' || rawId === 't8') && e.target.checked) {
                     window._taskFinishedPendingReload = true;
@@ -3906,6 +3959,140 @@ function initChecklistInContainer(container) {
         // 2. BACKGROUND FETCH FOR FRESHNESS is removed because it conflicts with old_tp_key logic
         // We now rely entirely on Python's initial render (which merges old and new keys)
         // and Socket.IO for real-time synchronization between clients.
+    });
+}
+
+// ===================== SHEET LIVE STATUS (O / P) =====================
+function sheetStatusLabels() {
+    const isVi = (document.documentElement.lang || 'vi') !== 'ja';
+    return isVi
+        ? { loading: 'Sheet…', notFound: 'Sheet: không khớp', error: 'Sheet: lỗi đọc — thử lại', empty: 'trống', started: 'đã bắt đầu', notStarted: 'chưa', title: 'Trạng thái hiện tại trên Google Sheet' }
+        : { loading: 'Sheet…', notFound: 'Sheet: 不一致', error: 'Sheet: 読取エラー — 再試行', empty: '空欄', started: '開始済み', notStarted: '未開始', title: 'Google Sheet の現在ステータス' };
+}
+
+function renderSheetBadge(badge, state) {
+    if (!badge) return;
+    const l = sheetStatusLabels();
+    const isVi = (document.documentElement.lang || 'vi') !== 'ja';
+    if (!state || state.found === false) {
+        badge.className = 'sheet-live-status failed';
+        const action = (state && state.action) || '';
+        const byAction = {
+            NOT_VN: isVi ? 'Sheet: không phải VN' : 'Sheet: VN以外',
+            NO_WORKER_MATCH: isVi ? 'Sheet: sai người làm' : 'Sheet: 作業者不一致',
+            NO_MATCH: isVi ? 'Sheet: không thấy dòng' : 'Sheet: 行なし',
+            NO_TASK: isVi ? 'Sheet: thiếu task' : 'Sheet: タスクなし',
+            NO_WORKER: isVi ? 'Sheet: thiếu người làm' : 'Sheet: 作業者なし',
+            AMBIGUOUS: isVi ? 'Sheet: nhiều dòng khớp' : 'Sheet: 複数行一致',
+            MULTI_WORKER: isVi ? 'Sheet: nhiều người làm' : 'Sheet: 複数作業者'
+        };
+        badge.textContent = (action === 'READ_ERROR' || !action)
+            ? l.error
+            : (byAction[action] || l.notFound);
+        badge.title = action;
+        return;
+    }
+    const o = state.o || '';
+    const p = (state.p || '').toUpperCase();
+    badge.dataset.sheetO = o;
+    badge.dataset.sheetP = p;
+    badge.dataset.sheetRow = state.row || '';
+    badge.dataset.sheetK = state.k || '';
+    badge.dataset.sheetWorker = state.sheet_worker || '';
+    badge.className = 'sheet-live-status found';
+    badge.innerHTML =
+        '<span class="sheet-live-label">Sheet</span>' +
+        '<span class="sheet-live-value">O: ' + escapeHtml(o || l.empty) + '</span>' +
+        '<span class="sheet-live-sep">·</span>' +
+        '<span class="sheet-live-value">P: ' + escapeHtml(p === 'TRUE' ? l.started : (p === 'FALSE' || p === '' ? l.notStarted : l.empty)) + '</span>';
+    badge.title = l.title + ' — dòng ' + (state.row || '?') + ' · K=' + (state.k || '') + ' · 作業者 ' + (state.sheet_worker || '');
+}
+
+function syncSheetIndicators(container, state) {
+    if (!container || !state || state.found === false) return;
+    const grid = container.querySelector('.checklist-grid[data-tp-key]');
+    const tpKey = grid ? grid.dataset.tpKey : '';
+    const o = state.o || '';
+    const p = (state.p || '').toUpperCase();
+    const desired = {
+        t2: o === 'notion済' || o === '納品済み',
+        t4: p === 'TRUE',
+        t7: o === '納品済み'
+    };
+    const statesToSave = {};
+    Object.keys(desired).forEach(id => {
+        const cb = container.querySelector('input[data-check-id="' + id + '"]');
+        if (!cb) return;
+        const row = cb.closest('.task-row');
+        const ind = row ? row.querySelector('[data-sync-indicator="' + id + '"]') : null;
+        if (ind) ind.className = 'checklist-sync-indicator' + (desired[id] ? ' done' : '');
+        if (cb.checked !== desired[id]) {
+            cb.checked = desired[id];
+            statesToSave[id] = desired[id];
+        }
+    });
+    if (!tpKey || !Object.keys(statesToSave).length) return;
+
+    // Cập nhật card ngoài dashboard + tiến độ trong modal.
+    if (typeof getProgressCardsByTpKey === 'function') {
+        getProgressCardsByTpKey(tpKey).forEach(card => {
+            let ids = (card.dataset.checkedIds || '').split(',').filter(Boolean);
+            Object.keys(statesToSave).forEach(id => {
+                ids = ids.filter(x => x !== id);
+                if (statesToSave[id]) ids.push(id);
+            });
+            card.dataset.checkedIds = ids.join(',');
+        });
+    }
+    if (typeof updateTaskProgressLocally === 'function') {
+        updateTaskProgressLocally(tpKey, container);
+    }
+    // Lưu DB theo sheet, không ghi ngược lại sheet.
+    fetch('/api/checklist_state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tac_pham: tpKey, states: statesToSave })
+    }).catch(() => {});
+}
+
+async function refreshSheetStatus(container) {
+    if (!container) return;
+    const grid = container.querySelector('.checklist-grid[data-tp-key]');
+    const badge = container.querySelector('[data-sheet-status]');
+    if (!grid || !badge) return;
+    const tpKey = grid.dataset.tpKey;
+    if (!tpKey) return;
+    badge.className = 'sheet-live-status loading';
+    badge.textContent = sheetStatusLabels().loading;
+    try {
+        const res = await fetch('/api/sheet_status?tac_pham=' + encodeURIComponent(tpKey), { headers: { 'Accept': 'application/json' } });
+        const data = await res.json();
+        const state = (data && data.sheet) || { found: false };
+        renderSheetBadge(badge, state);
+        syncSheetIndicators(container, state);
+    } catch (err) {
+        renderSheetBadge(badge, { found: false });
+    }
+}
+
+function updateSheetBadgeFromAction(badge, cbId, sync) {
+    if (!badge || !sync || !sync.action) return;
+    if (sync.target === undefined || sync.target === null) return;
+    if (!badge.dataset.sheetRow) return;
+    if (cbId === 't2' || cbId === 't7') {
+        badge.dataset.sheetO = sync.target;
+    } else if (cbId === 't4') {
+        badge.dataset.sheetP = String(sync.target).toUpperCase();
+    } else {
+        return;
+    }
+    renderSheetBadge(badge, {
+        found: true,
+        o: badge.dataset.sheetO || '',
+        p: badge.dataset.sheetP || '',
+        row: badge.dataset.sheetRow || sync.row || '',
+        k: badge.dataset.sheetK || '',
+        sheet_worker: badge.dataset.sheetWorker || ''
     });
 }
 

@@ -12,6 +12,7 @@ if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
 import uuid
 import zipfile
 import io
+import csv
 import base64
 import gspread
 from flask import send_file
@@ -30,7 +31,7 @@ import unicodedata
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 from functools import wraps
-from flask import Flask, render_template, request, redirect, url_for, session, jsonify
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify, abort
 from markupsafe import Markup
 from dateutil import parser as date_parser
 
@@ -63,6 +64,14 @@ except Exception as _archive_import_exc:  # pragma: no cover
     task_archive = None
     ARCHIVE_IMPORT_ERROR = str(_archive_import_exc)
     print("Không import được task_archive:", _archive_import_exc)
+
+try:
+    import task_difficulty
+    DIFFICULTY_IMPORT_ERROR = ""
+except Exception as _difficulty_import_exc:  # pragma: no cover
+    task_difficulty = None
+    DIFFICULTY_IMPORT_ERROR = str(_difficulty_import_exc)
+    print("Không import được task_difficulty:", _difficulty_import_exc)
 
 try:
     import title_readings
@@ -199,8 +208,26 @@ _logtime_history_cache = {'time': 0.0, 'rows': []}  # cache lịch sử logtime 
 _logtime_history_lock = threading.Lock()
 _logtime_history_fetch_lock = threading.Lock()  # chỉ 1 thread đọc sheet tại 1 thời điểm
 LOGTIME_HISTORY_TTL = 60.0  # giây
+
+# ==================== TASK ASSIGNEE ====================
+# Sheet JP: leader đang sửa cột 作業者 trực tiếp trên tab này.
+ASSIGNEE_SHEET_ID = '1dkCu_HUs12DTas--yZlDTB9M17DKnUGBvWJ6vdVuIGU'
+ASSIGNEE_SHEET_NAME = 'LS受注_all'
+ASSIGNEE_TASKS_TTL = 180.0         # cache danh sách task đọc từ sheet (giây)
+DIFFICULTY_SYNC_TTL = int(os.environ.get('DIFFICULTY_SYNC_TTL', '1800'))  # 30 phút
+DIFFICULTY_MAP_TTL = 60.0          # cache bảng độ khó đọc từ DB (giây)
+# Nếu cột 作業者 bị Protect, có thể trỏ ghi qua Apps Script Web App chạy dưới
+# quyền owner (xem integrations/assign_task_webapp.gs). Để trống = ghi trực tiếp
+# bằng service account.
+ASSIGNEE_WRITE_URL = os.environ.get('ASSIGNEE_WRITE_URL', '').strip()
+ASSIGNEE_WRITE_TOKEN = os.environ.get('ASSIGNEE_WRITE_TOKEN', '').strip()
+ASSIGNEE_WEEK_CAPACITY_HOURS = float(os.environ.get('ASSIGNEE_WEEK_CAPACITY_HOURS', '40'))
 creds_path = 'credentials.json'
-scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+scope = [
+    "https://spreadsheets.google.com/feeds",
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/drive",
+]
 last_sheet_error = ""
 
 def load_credentials_dict():
@@ -804,12 +831,25 @@ def save_supabase_checklists(data, actor=None):
                 history_cache_clear()
             except Exception as e:
                 print("Error saving checklists to archive DB:", e)
-        # 2. Mirror sang Supabase Storage để giữ tương thích ngược
+        # 2. Mirror sang Supabase Storage ở nền (không chặn phản hồi tick)
         try:
             json_bytes = json.dumps(data, ensure_ascii=False).encode('utf-8')
-            sb_upload('_system/checklists.json', json_bytes, content_type='application/json')
+
+            def _mirror_checklists():
+                try:
+                    sb_upload(
+                        '_system/checklists.json',
+                        json_bytes,
+                        content_type='application/json',
+                    )
+                except Exception as exc:
+                    print("Error uploading checklists to Supabase:", exc)
+
+            threading.Thread(
+                target=_mirror_checklists, daemon=True, name='checklist-mirror'
+            ).start()
         except Exception as e:
-            print("Error uploading checklists to Supabase:", e)
+            print("Error preparing checklists mirror:", e)
 
 _task_comments_cache = None
 _task_comments_cache_time = 0
@@ -1635,6 +1675,727 @@ def get_logtime_history(limit=100, worker=None, date_from=None, date_to=None, q=
         limit = 100
     return out[:max(1, min(limit, 500))]
 
+# =====================================================================
+# TASK ASSIGNEE — đọc task từ sheet JP, ghi cột 作業者
+# + bảng độ khó trong DB (không đọc logtime mỗi lần mở UI)
+# =====================================================================
+class AssigneeConflict(RuntimeError):
+    """Dòng sheet đã bị thay đổi trong lúc leader đang phân công."""
+
+
+class AssigneeValidationError(RuntimeError):
+    """Dữ liệu phân công không hợp lệ."""
+
+
+_task_diff_sync_lock = threading.Lock()
+_task_diff_state = {
+    'running': False,
+    'started_at': 0.0,
+    'ok': None,
+    'message': '',
+    'rows': 0,
+    'written': 0,
+}
+_task_diff_map_cache = {'time': 0.0, 'map': {}}
+_task_diff_meta_cache = {'time': 0.0, 'meta': {}}
+_task_diff_last_attempt = 0.0
+_task_diff_map_lock = threading.Lock()
+_worker_skill_cache = {'time': 0.0, 'data': {}}
+
+_assignee_ws_cache = {}
+_assignee_ws_lock = threading.Lock()
+_assignee_tasks_cache = {
+    'time': 0.0, 'rows': [], 'cols': {}, 'headers': [], 'header_idx': None,
+    'stale': False, 'error': '',
+}
+_assignee_tasks_lock = threading.Lock()
+
+
+def _difficulty_ready():
+    return task_difficulty is not None and archive_available()
+
+
+def _difficulty_sync_meta():
+    if not _difficulty_ready():
+        return {}
+    now = time.time()
+    if _task_diff_meta_cache['meta'] and (now - _task_diff_meta_cache['time']) < 5:
+        return _task_diff_meta_cache['meta']
+    try:
+        meta = task_difficulty.get_sync_meta() or {}
+        _task_diff_meta_cache['time'] = time.time()
+        _task_diff_meta_cache['meta'] = meta
+        return meta
+    except Exception as exc:
+        print('Không đọc được difficulty_sync:', repr(exc), flush=True)
+        return {}
+
+
+def _difficulty_needs_sync():
+    meta = _difficulty_sync_meta()
+    last = meta.get('last_sync_at')
+    if not last:
+        return True
+    try:
+        parsed = datetime.fromisoformat(str(last).replace('Z', '+00:00'))
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return (datetime.now(timezone.utc) - parsed).total_seconds() >= DIFFICULTY_SYNC_TTL
+    except Exception:
+        return True
+
+
+def _invalidate_difficulty_cache():
+    with _task_diff_map_lock:
+        _task_diff_map_cache['time'] = 0.0
+        _task_diff_map_cache['map'] = {}
+        _task_diff_meta_cache['time'] = 0.0
+        _task_diff_meta_cache['meta'] = {}
+        _worker_skill_cache['time'] = 0.0
+        _worker_skill_cache['data'] = {}
+
+
+def _fetch_logtime_rows_for_difficulty():
+    ws = _get_logtime_ws((LOGTIME_SPREADSHEET_ID, LOGTIME_SHEET_NAME))
+    return ws.get('A2:N') or []
+
+
+def _run_difficulty_sync():
+    """Đọc sheet 日報 một lần, tổng hợp rồi ghi DB. Không gọi từ request UI."""
+    if not _difficulty_ready():
+        return {'status': 'error', 'message': DIFFICULTY_IMPORT_ERROR or ARCHIVE_IMPORT_ERROR}
+
+    started = time.time()
+    try:
+        raw = _fetch_logtime_rows_for_difficulty()
+        rows = task_difficulty.build_rows(raw)
+        written = task_difficulty.save_rows(rows, logtime_rows=len(raw))
+        worker_rows = task_difficulty.build_worker_rows(raw)
+        worker_written = task_difficulty.save_worker_rows(worker_rows)
+        _invalidate_difficulty_cache()
+        elapsed = round(time.time() - started, 1)
+        _task_diff_state.update({
+            'ok': True,
+            'message': f'ok · {elapsed}s',
+            'rows': len(raw),
+            'written': written,
+            'workers_written': worker_written,
+        })
+        print(
+            f"[TaskAssignee] Đồng bộ độ khó xong: {len(raw)} dòng logtime -> "
+            f"{written} dòng độ khó, {worker_written} dòng kỹ năng ({elapsed}s)",
+            flush=True,
+        )
+        return {
+            'status': 'ok', 'rows': len(raw), 'written': written,
+            'workers_written': worker_written, 'elapsed': elapsed,
+        }
+    except Exception as exc:
+        message = f"{type(exc).__name__}: {exc}"
+        _task_diff_state.update({'ok': False, 'message': message})
+        try:
+            task_difficulty.mark_sync_error(message)
+        except Exception:
+            pass
+        print('[TaskAssignee] Đồng bộ độ khó lỗi:', message, flush=True)
+        return {'status': 'error', 'message': message}
+    finally:
+        _task_diff_state['running'] = False
+        try:
+            _task_diff_sync_lock.release()
+        except RuntimeError:
+            pass
+
+
+def sync_task_difficulty(background=False, force=False):
+    """Kích hoạt đồng bộ độ khó. Trả về trạng thái hiện tại."""
+    global _task_diff_last_attempt
+
+    if not _difficulty_ready():
+        return {'status': 'error', 'message': DIFFICULTY_IMPORT_ERROR or ARCHIVE_IMPORT_ERROR}
+
+    if _task_diff_state['running']:
+        return {'status': 'running', 'message': 'Đang đồng bộ'}
+
+    if not force and not _difficulty_needs_sync():
+        return {'status': 'fresh'}
+
+    # Nếu vừa lỗi (mất mạng / Google lỗi), đừng thử lại liên tục mỗi request.
+    if not force and (time.time() - _task_diff_last_attempt) < 60:
+        return {'status': 'cooldown'}
+
+    if not _task_diff_sync_lock.acquire(blocking=False):
+        return {'status': 'running', 'message': 'Đang đồng bộ'}
+
+    _task_diff_last_attempt = time.time()
+    _task_diff_state.update({
+        'running': True,
+        'started_at': time.time(),
+        'ok': None,
+        'message': '',
+    })
+
+    if background:
+        threading.Thread(
+            target=_run_difficulty_sync,
+            daemon=True,
+            name='task-difficulty-sync',
+        ).start()
+        return {'status': 'started'}
+
+    return _run_difficulty_sync()
+
+
+def get_difficulty_map():
+    """Đọc bảng độ khó từ DB (cache ngắn), không đọc Google Sheet."""
+    if not _difficulty_ready():
+        return {}
+    now = time.time()
+    with _task_diff_map_lock:
+        if _task_diff_map_cache['map'] and (now - _task_diff_map_cache['time']) < DIFFICULTY_MAP_TTL:
+            return _task_diff_map_cache['map']
+    try:
+        data = task_difficulty.load_map()
+    except Exception as exc:
+        print('Không đọc được bảng độ khó:', repr(exc), flush=True)
+        return {}
+    with _task_diff_map_lock:
+        _task_diff_map_cache['time'] = time.time()
+        _task_diff_map_cache['map'] = data
+    return data
+
+
+def get_worker_skills():
+    """Đọc bảng kinh nghiệm worker_skill từ DB (cache ngắn)."""
+    if not _difficulty_ready():
+        return {}
+    now = time.time()
+    with _task_diff_map_lock:
+        if _worker_skill_cache['data'] and (now - _worker_skill_cache['time']) < DIFFICULTY_MAP_TTL:
+            return _worker_skill_cache['data']
+    try:
+        data = task_difficulty.load_worker_skills()
+    except Exception as exc:
+        print('Không đọc được worker_skill:', repr(exc), flush=True)
+        return {}
+    with _task_diff_map_lock:
+        _worker_skill_cache['time'] = time.time()
+        _worker_skill_cache['data'] = data
+    return data
+
+
+def _get_assignee_ws():
+    key = (ASSIGNEE_SHEET_ID, ASSIGNEE_SHEET_NAME)
+    ws = _assignee_ws_cache.get(key)
+    if ws is not None:
+        return ws
+    with _assignee_ws_lock:
+        ws = _assignee_ws_cache.get(key)
+        if ws is not None:
+            return ws
+        client = get_gspread_client()
+        if not client:
+            raise RuntimeError(
+                'Không lấy được gspread client: ' + str(last_sheet_error or 'kiểm tra credentials.json')
+            )
+        book = client.open_by_key(ASSIGNEE_SHEET_ID)
+        ws = book.worksheet(ASSIGNEE_SHEET_NAME)
+        _assignee_ws_cache[key] = ws
+        return ws
+
+
+def _find_header_row(values):
+    """Tìm dòng header trong tab LS受注_all (thường ở dòng 1)."""
+    for idx, row in enumerate(values[:20]):
+        if task_archive.find_col(row, '作業内容', 'công việc') is not None and \
+                task_archive.find_col(row, '作業者', 'người thực hiện') is not None:
+            return idx
+    return None
+
+
+def _sched_col(headers, part):
+    for idx, header in enumerate(headers):
+        text = str(header or '').lower()
+        if '作業日程' in text and part in text:
+            return idx
+    return None
+
+
+def _assignee_columns(headers):
+    return {
+        'cong_viec': task_archive.find_col(headers, '作業内容', 'công việc'),
+        'tac_pham': task_archive.find_col(headers, '作品名', 'tên tác phẩm'),
+        'chuong': task_archive.find_col(headers, '話数', 'chương'),
+        'tap': task_archive.find_col(headers, '巻数', 'tập'),
+        'page': task_archive.find_col(headers, 'page'),
+        'category': task_archive.find_col(headers, 'カテゴリ', 'category'),
+        'publisher': task_archive.find_col(headers, '出版社', 'nxb'),
+        'start_raw': task_archive.find_col(headers, '開始日', 'ngày bắt đầu'),
+        'end_raw': task_archive.find_col(headers, '納品日', 'hạn chót', 'deadline'),
+        'sched_start': _sched_col(headers, '開始'),
+        'sched_end': _sched_col(headers, '終了'),
+        'vn': task_archive.find_col(headers, 'vn'),
+        'worker': task_archive.find_col(headers, '作業者', 'người thực hiện'),
+        'qc': task_archive.find_col(headers, '社内qc', 'qc'),
+        'status': task_archive.find_col(headers, 'ステータス', 'trạng thái'),
+        'note': task_archive.find_col(headers, '備考', 'ghi chú'),
+    }
+
+
+def _assignee_cell(row, cols, key):
+    idx = cols.get(key)
+    if idx is None or idx >= len(row):
+        return ''
+    return _display_cell(row[idx])
+
+
+def _display_cell(value):
+    text = str(value or '').strip()
+    if text.lower() in ('nan', 'none', 'null'):
+        return ''
+    return re.sub(r'\s+', ' ', text).strip()
+
+
+def _row_signature(row, cols):
+    parts = [
+        _assignee_cell(row, cols, key)
+        for key in ('cong_viec', 'tac_pham', 'tap', 'chuong', 'start_raw', 'end_raw', 'worker')
+    ]
+    return hashlib.sha1('|'.join(parts).encode('utf-8')).hexdigest()
+
+
+def _split_workers(value):
+    return [w.strip() for w in re.split(r'[,、]', str(value or '')) if w.strip()]
+
+
+def _team_hint(cong_viec):
+    """Gợi ý team theo loại công việc (để lọc nhanh trong UI)."""
+    text = str(cong_viec or '')
+    if 'レタッチ' in text or 'ﾚﾀｯﾁ' in text:
+        return 'Retouch'
+    if '写植' in text:
+        return 'Lettering'
+    return ''
+
+
+def _fetch_assignee_rows():
+    """Đọc tab LS受注_all của sheet 写植スケ管理表 bằng service account.
+
+    Sheet này private (không export CSV công khai được), nhưng SA đã là editor
+    và tab không bị Protect. Cache 3 phút ở ``_load_assignee_tasks`` nên mỗi
+    lần mở UI không phải đọc lại Google.
+    """
+    ws = _get_assignee_ws()
+    return ws.get_all_values()
+
+
+def _load_assignee_tasks(force=False, include_non_vn=False):
+    """Đọc tab LS受注_all -> danh sách task (cache 3 phút)."""
+    now = time.time()
+    with _assignee_tasks_lock:
+        cached = _assignee_tasks_cache
+        if not force and cached['rows'] and (now - cached['time']) < ASSIGNEE_TASKS_TTL:
+            if include_non_vn:
+                return list(cached['rows']), cached['cols']
+            return [t for t in cached['rows'] if t.get('vn')], cached['cols']
+
+    try:
+        values = _fetch_assignee_rows()
+    except Exception as exc:
+        # Mất mạng / Google 429: vẫn trả cache cũ để leader không bị màn hình trắng.
+        with _assignee_tasks_lock:
+            if _assignee_tasks_cache['rows']:
+                _assignee_tasks_cache['stale'] = True
+                _assignee_tasks_cache['error'] = str(exc)
+                rows = _assignee_tasks_cache['rows']
+                cols = _assignee_tasks_cache['cols']
+                if include_non_vn:
+                    return list(rows), cols
+                return [t for t in rows if t.get('vn')], cols
+        raise
+
+    header_idx = _find_header_row(values)
+    if header_idx is None:
+        raise RuntimeError("Không tìm thấy dòng header (作業内容 / 作業者) trong tab LS受注_all")
+
+    headers = values[header_idx]
+    cols = _assignee_columns(headers)
+    if cols.get('cong_viec') is None or cols.get('worker') is None:
+        raise RuntimeError("Tab ALL thiếu cột 作業内容 hoặc 作業者")
+
+    rows = []
+    for offset, raw in enumerate(values[header_idx + 1:], start=header_idx + 2):
+        row = list(raw) + [''] * max(0, len(headers) - len(raw))
+        tac_pham = _assignee_cell(row, cols, 'tac_pham')
+        cong_viec = _assignee_cell(row, cols, 'cong_viec')
+        if not tac_pham or tac_pham in ('作品名', 'Tên tác phẩm'):
+            continue
+        if not cong_viec:
+            continue
+
+        worker = _assignee_cell(row, cols, 'worker')
+        vn_raw = _assignee_cell(row, cols, 'vn')
+        is_vn = task_archive.is_vn_row(vn_raw, worker)
+
+        start_raw = _assignee_cell(row, cols, 'start_raw')
+        end_raw = _assignee_cell(row, cols, 'end_raw')
+        sched_start_raw = _assignee_cell(row, cols, 'sched_start')
+        sched_end_raw = _assignee_cell(row, cols, 'sched_end')
+
+        start_d = task_archive.parse_sheet_date(sched_start_raw) or task_archive.parse_sheet_date(start_raw)
+        end_d = task_archive.parse_sheet_date(sched_end_raw) or task_archive.parse_sheet_date(end_raw)
+
+        rows.append({
+            'row': offset,
+            'signature': _row_signature(row, cols),
+            'cong_viec': cong_viec,
+            'tac_pham': tac_pham,
+            'tap': _assignee_cell(row, cols, 'tap'),
+            'chuong': _assignee_cell(row, cols, 'chuong'),
+            'page': _assignee_cell(row, cols, 'page'),
+            'category': _assignee_cell(row, cols, 'category'),
+            'publisher': _assignee_cell(row, cols, 'publisher'),
+            'team_hint': _team_hint(cong_viec),
+            'start': start_d.isoformat() if start_d else '',
+            'end': end_d.isoformat() if end_d else '',
+            'start_raw': start_raw,
+            'end_raw': end_raw,
+            'sched_start_raw': sched_start_raw,
+            'sched_end_raw': sched_end_raw,
+            'worker': worker,
+            'workers': _split_workers(worker),
+            'qc': _assignee_cell(row, cols, 'qc'),
+            'status': _assignee_cell(row, cols, 'status'),
+            'note': _assignee_cell(row, cols, 'note'),
+            'vn': bool(is_vn),
+        })
+
+    with _assignee_tasks_lock:
+        _assignee_tasks_cache.update({
+            'time': time.time(),
+            'rows': rows,
+            'cols': cols,
+            'headers': headers,
+            'header_idx': header_idx,
+            'stale': False,
+            'error': '',
+        })
+
+    if include_non_vn:
+        return list(rows), cols
+    return [t for t in rows if t.get('vn')], cols
+
+
+
+def _assignee_task_payload(task, diff_map):
+    result = dict(task)
+    result['difficulty'] = task_difficulty.resolve(task, diff_map) if task_difficulty else {
+        'level': 'unknown', 'label': 'Chưa rõ', 'source': 'none',
+        'scope': None, 'samples': 0, 'score': None, 'breakdown': {},
+        'detail': 'Chưa bật module độ khó',
+    }
+    if task_difficulty:
+        hours, source = task_difficulty.estimate_hours(task, diff_map)
+    else:
+        hours, source = 4.0, 'default'
+    result['estimated_hours'] = hours
+    result['estimate_source'] = source
+    return result
+
+
+def _assignee_workers_payload():
+    users = load_users_from_sheet(USER_SHEET_URL) or {}
+    out = []
+    for username, info in users.items():
+        username = str(username or '').strip()
+        if not username or username.lower() == 'manager':
+            continue
+        team = _display_cell(info.get('team'))
+        if not team:
+            continue
+        out.append({
+            'username': username,
+            'fullname': _display_cell(info.get('fullname')),
+            'team': team,
+            'role': _display_cell(info.get('role')),
+            'avatar': _display_cell(info.get('avatar')),
+        })
+    out.sort(key=lambda u: (u['team'].lower(), u['username'].lower()))
+    return out
+
+
+# =====================================================================
+# Gợi ý người làm + cân bằng tải
+# =====================================================================
+def _task_worker_list(task):
+    workers = task.get('workers')
+    if isinstance(workers, list):
+        return workers
+    return _split_workers(task.get('worker'))
+
+
+def _week_bounds(iso_date):
+    try:
+        day = date.fromisoformat(str(iso_date or '')[:10])
+    except (TypeError, ValueError):
+        day = date.today()
+    start = day - timedelta(days=day.weekday())
+    return start, start + timedelta(days=6)
+
+
+def _overlaps_week(task, week_start, week_end):
+    start = task.get('start') or task.get('end') or ''
+    end = task.get('end') or task.get('start') or ''
+    if not start or not end:
+        return False
+    return end >= week_start.isoformat() and start <= week_end.isoformat()
+
+
+def _workload_for(worker, tasks, week_start, week_end, exclude_row=None):
+    count = 0
+    hours = 0.0
+    for task in tasks:
+        if exclude_row is not None and task.get('row') == exclude_row:
+            continue
+        assigned = _task_worker_list(task)
+        if worker not in assigned:
+            continue
+        if not _overlaps_week(task, week_start, week_end):
+            continue
+        count += 1
+        try:
+            # Task nhiều người làm thì chia đều giờ cho từng người.
+            share = len(assigned) or 1
+            hours += float(task.get('estimated_hours') or 0) / share
+        except (TypeError, ValueError):
+            pass
+    return count, round(hours, 1)
+
+
+def _suggest_team_filter(cong_viec):
+    """Team/công đoạn được phép gợi ý theo loại công việc."""
+    text = str(cong_viec or '')
+    teams = []
+    if '写植' in text:
+        teams.append('Lettering')
+    if 'レタッチ' in text or 'ﾚﾀｯﾁ' in text:
+        teams.append('Retouch')
+    return teams
+
+
+def _suggest_workers(task, tasks, workers, skills, diff_map, week_start, week_end,
+                     team_filter=None):
+    """Chấm điểm người làm cho 1 task. Trả về list đã sắp xếp."""
+    cv = task.get('cong_viec', '')
+    tp = task.get('tac_pham', '')
+    team_hint = task.get('team_hint') or ''
+    task_diff = task.get('difficulty') or {}
+    task_level = task_diff.get('level') or 'unknown'
+    task_score = task_diff.get('score')
+    if task_score is None:
+        task_score = {'easy': 1.0, 'medium': 2.0, 'hard': 3.0}.get(task_level)
+    task_workers = set(_task_worker_list(task))
+
+    job_skill_key = task_difficulty.job_key(cv) if task_difficulty else ''
+    title_skill_key = task_difficulty.title_key(cv, tp) if task_difficulty else ''
+
+    suggestions = []
+    for worker in workers:
+        username = worker['username']
+        team = worker.get('team') or ''
+        bucket = skills.get(username) or {}
+        job_skill = (bucket.get('job') or {}).get(job_skill_key) or {}
+        title_skill = (bucket.get('title') or {}).get(title_skill_key) or {}
+
+        job_samples = int(job_skill.get('samples') or 0)
+        title_samples = int(title_skill.get('samples') or 0)
+        worker_diff = title_skill.get('difficulty_score')
+        if worker_diff is None:
+            worker_diff = job_skill.get('difficulty_score')
+
+        count, hours = _workload_for(username, tasks, week_start, week_end)
+        if username in task_workers:
+            count, hours = _workload_for(
+                username, tasks, week_start, week_end, exclude_row=task.get('row')
+            )
+
+        score = 40.0
+        reasons = []
+
+        if team_hint:
+            if team == team_hint:
+                score += 20
+                reasons.append(f'Đúng team {team_hint}')
+            elif team:
+                score -= 35
+                reasons.append(f'Khác team ({team})')
+
+        if title_samples:
+            score += min(22, 4.0 * title_samples)
+            reasons.append(f'Đã làm {tp} {title_samples} lần')
+        elif job_samples:
+            score += min(12, 2.0 * job_samples)
+            reasons.append(f'Đã làm {cv} {job_samples} lần')
+
+        if worker_diff is not None:
+            if task_level == 'hard' and worker_diff >= 2.3:
+                score += 10
+                reasons.append('Có kinh nghiệm task khó')
+            elif task_level == 'hard' and worker_diff < 1.5:
+                score -= 10
+                reasons.append('Ít kinh nghiệm task khó')
+            elif task_level == 'easy' and worker_diff <= 1.7:
+                score += 8
+                reasons.append('Phù hợp task dễ')
+            else:
+                score += 3
+
+        capacity = ASSIGNEE_WEEK_CAPACITY_HOURS or 40.0
+        ratio = (hours / capacity) if capacity else 0
+        if ratio <= 0.6:
+            score += 12
+            reasons.append(f'Còn trống ({hours:.0f}h/{capacity:.0f}h)')
+        elif ratio <= 1.0:
+            score += 5
+            reasons.append(f'Tải vừa ({hours:.0f}h/{capacity:.0f}h)')
+        else:
+            score -= min(30, (ratio - 1.0) * 30)
+            reasons.append(f'Quá tải ({hours:.0f}h/{capacity:.0f}h)')
+
+        score -= min(10, count * 1.5)
+        if username in task_workers:
+            reasons.append('Đang được giao task này')
+
+        suggestions.append({
+            'username': username,
+            'fullname': worker.get('fullname') or '',
+            'team': team,
+            'role': worker.get('role') or '',
+            'score': round(max(0, min(100, score))),
+            'reasons': reasons[:5],
+            'workload': {
+                'tasks': count,
+                'hours': hours,
+                'capacity': capacity,
+                'ratio': round(ratio, 2),
+            },
+            'skill': {
+                'title_samples': title_samples,
+                'job_samples': job_samples,
+                'difficulty_score': worker_diff,
+            },
+        })
+
+    if team_filter:
+        suggestions = [s for s in suggestions if s.get('team') in team_filter]
+
+    suggestions.sort(key=lambda s: (-s['score'], s['workload']['hours'], s['username']))
+    return suggestions
+
+
+def _assignee_is_allowed():
+    role = (session.get('role') or '').lower()
+    return session.get('user') == 'Manager' or role in ('admin', 'manager', 'leader')
+
+
+def _assignee_write_via_apps_script(row_number, column_number, value, expected_worker):
+    """Ghi ô qua Apps Script Web App (chạy dưới quyền owner, bỏ qua Protect)."""
+    if not ASSIGNEE_WRITE_URL:
+        return False
+    payload = {
+        'action': 'assign_task',
+        'token': ASSIGNEE_WRITE_TOKEN,
+        'sheet_id': ASSIGNEE_SHEET_ID,
+        'sheet_name': ASSIGNEE_SHEET_NAME,
+        'row': row_number,
+        'column': column_number,
+        'value': value,
+        'expected_worker': expected_worker or '',
+    }
+    resp = requests.post(ASSIGNEE_WRITE_URL, json=payload, timeout=30)
+    try:
+        data = resp.json()
+    except Exception:
+        data = {}
+    if not resp.ok:
+        raise RuntimeError(
+            f"Apps Script HTTP {resp.status_code}: {str(data.get('message') or resp.text)[:300]}"
+        )
+    if not data.get('success'):
+        if data.get('code') == 'conflict':
+            raise AssigneeConflict(data.get('message') or 'Dòng sheet đã bị người khác sửa')
+        raise RuntimeError(data.get('message') or 'Apps Script trả về lỗi')
+    return True
+
+
+def _assign_workers_to_row(row_number, signature, workers):
+    """Ghi danh sách người làm vào cột 作業者 của đúng dòng sheet."""
+    try:
+        row_number = int(row_number)
+    except (TypeError, ValueError):
+        raise AssigneeValidationError('Dòng sheet không hợp lệ')
+
+    if row_number <= 0:
+        raise AssigneeValidationError('Dòng sheet không hợp lệ')
+
+    workers = [str(w).strip() for w in (workers or []) if str(w).strip()]
+    # Giữ thứ tự, bỏ trùng.
+    workers = list(dict.fromkeys(workers))
+    if len(workers) > 8:
+        raise AssigneeValidationError('Tối đa 8 người cho một task')
+
+    known = {u['username'] for u in _assignee_workers_payload()}
+    unknown = [w for w in workers if w not in known]
+    if unknown:
+        raise AssigneeValidationError('Không có trong danh sách thành viên: ' + ', '.join(unknown))
+
+    tasks, cols = _load_assignee_tasks()
+    task = next((t for t in tasks if t['row'] == row_number), None)
+    if task is None:
+        # Có thể cache cũ; thử đọc lại 1 lần.
+        tasks, cols = _load_assignee_tasks(force=True)
+        task = next((t for t in tasks if t['row'] == row_number), None)
+    if task is None:
+        raise AssigneeValidationError('Không tìm thấy task ở dòng này trong tab LS受注_all')
+    if not task.get('vn'):
+        raise AssigneeValidationError('Chỉ phân công task của team VN')
+    if signature and signature != task['signature']:
+        raise AssigneeConflict('Task đã thay đổi, vui lòng tải lại rồi phân công lại')
+    if cols.get('worker') is None:
+        raise AssigneeValidationError('Không xác định được cột 作業者')
+
+    value = ', '.join(workers)
+    old_value = task.get('worker') or ''
+    worker_col = cols['worker'] + 1
+
+    if ASSIGNEE_WRITE_URL:
+        # Apps Script chạy dưới quyền owner -> ghi được cả ô đang Protect.
+        _assignee_write_via_apps_script(row_number, worker_col, value, old_value)
+    else:
+        ws = _get_assignee_ws()
+        current_values = ws.row_values(row_number)
+        current_sig = _row_signature(current_values, cols)
+        if signature and current_sig != signature:
+            raise AssigneeConflict('Dòng sheet vừa bị người khác sửa, vui lòng tải lại')
+        ws.update_cell(row_number, worker_col, value)
+
+    # Cache danh sách task sẽ đọc lại bằng CSV ở lần sau (không tốn quota Sheets API).
+    with _assignee_tasks_lock:
+        _assignee_tasks_cache['time'] = 0.0
+
+    print(
+        f"[TaskAssignee] {session.get('user', '?')} phân công dòng {row_number} "
+        f"({task['cong_viec']} · {task['tac_pham']} · tập {task['tap'] or '-'}): "
+        f"'{old_value}' -> '{value}'",
+        flush=True,
+    )
+
+    result = dict(task)
+    result['worker'] = value
+    result['workers'] = workers
+    return result
+
+
 # ==================== CẤU HÌNH THEO DÕI THỜI GIAN (JP-Tracking) ====================
 TRACKER_SPREADSHEET_ID = '1EvTrNJx7dBO5pK58sc25WXkKPMTCJogzpMRz_e-Tr0k'
 TRACKER_SHEET_NAME = 'JPメンバー用'
@@ -2086,6 +2847,7 @@ def render_task_steps_html(tac_pham_key, index, lang, checked_ids=None):
     <div class="checklist-card">
         <div class="checklist-card-head">
             <span class="checklist-card-title">{checklist_label}</span>
+            <span class="sheet-live-status" data-sheet-status aria-live="polite"></span>
             <span class="checklist-total" id="checklist_total_{index}">{total_done}/{total_all}</span>
         </div>
         <div class="checklist-card-bar"><i id="checklist_bar_{index}" style="width:{total_pct}%"></i></div>
@@ -2118,7 +2880,8 @@ def render_task_steps_html(tac_pham_key, index, lang, checked_ids=None):
                     <label class="check-label">
                         <input type="checkbox" data-checklist data-check-id="t2" {ch('t2')}>
                         <span class="checkmark"></span>
-                        <span class="action-text">{l['t2']}</span>
+                        <span class="action-text sheet-sync-text">{l['t2']}</span>
+                        <span class="checklist-sync-indicator" data-sync-indicator="t2" aria-live="polite"></span>
                     </label>
                 </div>
             </div>
@@ -2177,7 +2940,8 @@ def render_task_steps_html(tac_pham_key, index, lang, checked_ids=None):
                     <label class="check-label">
                         <input type="checkbox" data-checklist data-check-id="t4" {ch('t4')}>
                         <span class="checkmark"></span>
-                        <span class="action-text">{l['t4']}</span>
+                        <span class="action-text sheet-sync-text">{l['t4']}</span>
+                        <span class="checklist-sync-indicator" data-sync-indicator="t4" aria-live="polite"></span>
                     </label>
                 </div>
                 <div class="task-row">
@@ -2220,7 +2984,8 @@ def render_task_steps_html(tac_pham_key, index, lang, checked_ids=None):
                     <label class="check-label">
                         <input type="checkbox" data-checklist data-check-id="t7" {ch('t7')}>
                         <span class="checkmark"></span>
-                        <span class="action-text">{l['t7']}</span>
+                        <span class="action-text sheet-sync-text">{l['t7']}</span>
+                        <span class="checklist-sync-indicator" data-sync-indicator="t7" aria-live="polite"></span>
                     </label>
                 </div>
                 <div class="task-row">
@@ -3023,10 +3788,11 @@ def api_checklist_sync():
         tp_key = req_data.get('tac_pham')
         cb_id = req_data.get('checkbox_id')
         status = req_data.get('status')
+        sheet_sync_result = None
         
         if tp_key and cb_id:
             with checklist_lock:
-                data = get_supabase_checklists(force_refresh=True)
+                data = get_supabase_checklists(force_refresh=False)
                 if tp_key not in data:
                     data[tp_key] = {}
                 was_checked = data[tp_key].get(cb_id, False)
@@ -3047,7 +3813,20 @@ def api_checklist_sync():
                 _checklist_cache = data
                 _checklist_cache_time = time.time()
                 checklist_version += 1
-        
+
+            # t2/t4/t7 (các ô Sheet) đổi trạng thái → đồng bộ cột O/P của sheet LS受注_all.
+            # Mặc định dry-run; bật ghi bằng SCHEDULE_STATUS_MODE=apply.
+            if cb_id in ('t2', 't4', 't7') and bool(status) != bool(was_checked):
+                try:
+                    from sheet_status_sync import sync_checklist_status
+                    sheet_sync_result = sync_checklist_status(
+                        tp_key, cb_id, checked=bool(status)
+                    )
+                    if sheet_sync_result:
+                        print("[schedule-sync]", sheet_sync_result, flush=True)
+                except Exception as _sheet_exc:
+                    print("[schedule-sync] lỗi:", _sheet_exc, flush=True)
+
         pet_result = None
         if reward_granted:
             username = session.get('user', '')
@@ -3063,10 +3842,76 @@ def api_checklist_sync():
         resp = {"status": "success"}
         if pet_result:
             resp['pet'] = pet_result
+        resp['sheet_sync'] = sheet_sync_result
         return jsonify(resp)
     except Exception as e:
         print("Error saving checklist:", e)
         return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route('/api/sheet_status')
+def api_sheet_status():
+    """Đọc trạng thái hiện tại (O/P) của đúng dòng trên Google Sheet."""
+    if not session.get('logged_in'):
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+    tp_key = (request.args.get('tac_pham') or '').strip()
+    if not tp_key:
+        return jsonify({"status": "error", "message": "Missing tac_pham"}), 400
+    try:
+        from sheet_status_sync import get_sheet_state
+        state = get_sheet_state(tp_key)
+        return jsonify({"status": "success", "sheet": state})
+    except Exception as exc:  # noqa: BLE001
+        print("[sheet-status] lỗi:", exc, flush=True)
+        return jsonify({
+            "status": "error",
+            "message": str(exc),
+            "sheet": {"found": False, "action": "READ_ERROR"},
+        })
+
+@app.route('/api/checklist_state', methods=['POST'])
+def api_checklist_state():
+    """Đồng bộ trạng thái checklist từ Google Sheet → DB, KHÔNG ghi lại sheet."""
+    if not session.get('logged_in'):
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+    req = request.get_json(silent=True) or {}
+    tp_key = (req.get('tac_pham') or '').strip()
+    raw_states = req.get('states') or {}
+    states = {
+        key: bool(value)
+        for key, value in raw_states.items()
+        if key in ('t2', 't4', 't7')
+    }
+    if not tp_key or not states:
+        return jsonify({"status": "error", "message": "Missing tac_pham/states"}), 400
+
+    changed = {}
+    try:
+        with checklist_lock:
+            data = get_supabase_checklists(force_refresh=False)
+            if tp_key not in data:
+                data[tp_key] = {}
+            for key, value in states.items():
+                if bool(data[tp_key].get(key, False)) != value:
+                    data[tp_key][key] = value
+                    changed[key] = value
+            if changed:
+                save_supabase_checklists(data, actor=session.get('user', ''))
+                global _checklist_cache, _checklist_cache_time, checklist_version
+                _checklist_cache = data
+                _checklist_cache_time = time.time()
+                checklist_version += 1
+    except Exception as exc:  # noqa: BLE001
+        print("[checklist-state] lỗi:", exc, flush=True)
+        return jsonify({"status": "error", "message": str(exc)}), 500
+
+    for key, value in changed.items():
+        socketio.emit('checklist_updated', {
+            'tp_key': tp_key,
+            'cb_id': key,
+            'status': value,
+            'reconciled': True,
+        })
+    return jsonify({"status": "success", "changed": changed})
 
 @app.route('/api/task_comments', methods=['GET', 'POST'])
 def api_task_comments():
@@ -4391,6 +5236,234 @@ def history_page():
         archive_error=ARCHIVE_IMPORT_ERROR,
         app_version=get_current_app_version(),
     )
+
+
+@app.route('/task-assignee')
+def task_assignee_page():
+    """Công cụ phân công task + xem độ khó (chỉ leader/admin)."""
+    if not session.get('logged_in'):
+        return redirect('/')
+    if not _assignee_is_allowed():
+        abort(403)
+    return render_template(
+        'task_assignee.html',
+        lang=session.get('lang', 'vi'),
+        user=session.get('user', ''),
+        role=session.get('role', 'member'),
+        app_version=get_current_app_version(),
+    )
+
+
+def _assignee_api_guard():
+    if not session.get('logged_in'):
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+    if not _assignee_is_allowed():
+        return jsonify({"status": "error", "message": "Chỉ leader/admin được phân công task"}), 403
+    return None
+
+
+@app.route('/api/task_assignee/status')
+def api_task_assignee_status():
+    guard = _assignee_api_guard()
+    if guard:
+        return guard
+    return jsonify(
+        status='ok',
+        running=bool(_task_diff_state.get('running')),
+        state=dict(_task_diff_state),
+        meta=_difficulty_sync_meta(),
+        needs_sync=_difficulty_needs_sync(),
+        ttl=DIFFICULTY_SYNC_TTL,
+        db=task_difficulty is not None,
+        error=DIFFICULTY_IMPORT_ERROR or None,
+    )
+
+
+@app.route('/api/task_assignee/tasks')
+def api_task_assignee_tasks():
+    guard = _assignee_api_guard()
+    if guard:
+        return guard
+
+    force = request.args.get('refresh') == '1'
+    include_non_vn = request.args.get('all') == '1'
+    try:
+        tasks, _cols = _load_assignee_tasks(force=force, include_non_vn=include_non_vn)
+    except Exception as exc:
+        print('Lỗi đọc task cho Task Assignee:', repr(exc), flush=True)
+        return jsonify({"status": "error", "message": str(exc)}), 503
+
+    today = date.today()
+    try:
+        days = int(request.args.get('days', 35))
+    except (TypeError, ValueError):
+        days = 35
+    days = max(1, min(days, 180))
+
+    date_from = (request.args.get('from') or (today - timedelta(days=7)).isoformat()).strip()
+    date_to = (request.args.get('to') or (today + timedelta(days=days)).isoformat()).strip()
+    try:
+        date.fromisoformat(date_from)
+        date.fromisoformat(date_to)
+    except ValueError:
+        return jsonify({"status": "error", "message": "Ngày không hợp lệ (YYYY-MM-DD)"}), 400
+
+    def in_range(task):
+        start = task.get('start') or task.get('end') or ''
+        end = task.get('end') or task.get('start') or ''
+        if not start or not end:
+            return False
+        return end >= date_from and start <= date_to
+
+    filtered = [t for t in tasks if in_range(t)]
+    filtered.sort(key=lambda t: (
+        t.get('start') or '9999-99-99',
+        t.get('tac_pham', ''),
+        t.get('cong_viec', ''),
+        t.get('row') or 0,
+    ))
+
+    diff_map = get_difficulty_map()
+    payload = [_assignee_task_payload(t, diff_map) for t in filtered]
+
+    # Nếu bảng độ khó đã cũ, đồng bộ nền (không chặn response).
+    sync_state = sync_task_difficulty(background=True)
+
+    return jsonify(
+        status='ok',
+        tasks=payload,
+        count=len(payload),
+        workers=_assignee_workers_payload(),
+        capacity_hours=ASSIGNEE_WEEK_CAPACITY_HOURS,
+        range={'from': date_from, 'to': date_to},
+        sync=sync_state,
+        meta=_difficulty_sync_meta(),
+        ttl=DIFFICULTY_SYNC_TTL,
+        stale=bool(_assignee_tasks_cache.get('stale')),
+        cache_error=_assignee_tasks_cache.get('error') or '',
+    )
+
+
+@app.route('/api/task_assignee/suggest')
+def api_task_assignee_suggest():
+    """Gợi ý người làm cho 1 task dựa trên team, kinh nghiệm, độ khó, tải tuần."""
+    guard = _assignee_api_guard()
+    if guard:
+        return guard
+
+    try:
+        row_number = int(request.args.get('row'))
+    except (TypeError, ValueError):
+        return jsonify({"status": "error", "message": "Thiếu row"}), 400
+
+    try:
+        tasks, _cols = _load_assignee_tasks()
+        diff_map = get_difficulty_map()
+        enriched = [_assignee_task_payload(t, diff_map) for t in tasks]
+        task = next((t for t in enriched if t['row'] == row_number), None)
+        if task is None:
+            return jsonify({"status": "error", "message": "Không tìm thấy task"}), 404
+
+        week_start, week_end = _week_bounds(task.get('start') or task.get('end'))
+        skills = get_worker_skills()
+        team_filter = _suggest_team_filter(task.get('cong_viec'))
+        suggestions = _suggest_workers(
+            task, enriched, _assignee_workers_payload(), skills,
+            diff_map, week_start, week_end, team_filter=team_filter,
+        )
+        return jsonify(
+            status='ok',
+            task=task,
+            team_filter=team_filter,
+            week={
+                'from': week_start.isoformat(),
+                'to': week_end.isoformat(),
+                'label': week_start.strftime('%d/%m') + ' – ' + week_end.strftime('%d/%m'),
+            },
+            capacity_hours=ASSIGNEE_WEEK_CAPACITY_HOURS,
+            skill_ready=bool(skills),
+            suggestions=suggestions,
+        )
+    except Exception as exc:
+        print('Lỗi gợi ý người làm:', repr(exc), flush=True)
+        return jsonify({"status": "error", "message": str(exc)}), 500
+
+
+@app.route('/api/task_assignee/assign', methods=['POST'])
+def api_task_assignee_assign():
+    guard = _assignee_api_guard()
+    if guard:
+        return guard
+
+    data = request.get_json(silent=True) or {}
+    try:
+        task = _assign_workers_to_row(
+            data.get('row'),
+            str(data.get('signature') or ''),
+            data.get('workers') or [],
+        )
+    except AssigneeConflict as exc:
+        return jsonify({"status": "conflict", "message": str(exc)}), 409
+    except AssigneeValidationError as exc:
+        return jsonify({"status": "error", "message": str(exc)}), 400
+    except Exception as exc:
+        print('Lỗi phân công task:', repr(exc), flush=True)
+        detail = f"{type(exc).__name__}: {exc}"
+        hint = ''
+        if 'protected cell' in str(exc).lower() or 'protected' in str(exc).lower():
+            try:
+                sa_email = (load_credentials_dict() or {}).get('client_email', '')
+            except Exception:
+                sa_email = ''
+            hint = (
+                " Cột 作業者 trong tab LS受注_all đang bị Protect. Cách 1: vào Google Sheet → "
+                "Data → Protect sheets and ranges → chọn vùng bảo vệ → "
+                "Change permissions → thêm service account"
+                + (f" {sa_email}" if sa_email else "")
+                + " làm Editor. Cách 2: deploy integrations/assign_task_webapp.gs "
+                "rồi khai báo ASSIGNEE_WRITE_URL + ASSIGNEE_WRITE_TOKEN trong env_vars.yaml."
+            )
+        return jsonify({
+            "status": "error",
+            "message": f"Không ghi được vào Google Sheet: {detail}.{hint}",
+        }), 500
+
+    # Cho kho lịch sử cập nhật sớm (không chặn response).
+    try:
+        archive_maybe_sync()
+    except Exception:
+        pass
+
+    return jsonify(
+        status='ok',
+        task=task,
+        difficulty=task_difficulty.resolve(task, get_difficulty_map()) if task_difficulty else None,
+    )
+
+
+@app.route('/api/task_assignee/sync', methods=['POST'])
+def api_task_assignee_sync():
+    guard = _assignee_api_guard()
+    if guard:
+        return guard
+    data = request.get_json(silent=True) or {}
+    force = str(data.get('force', '1')).lower() not in ('0', 'false', 'no')
+    result = sync_task_difficulty(background=True, force=force)
+    return jsonify(
+        status='ok',
+        sync=result,
+        running=bool(_task_diff_state.get('running')),
+        state=dict(_task_diff_state),
+        meta=_difficulty_sync_meta(),
+    )
+
+
+@app.route('/api/task_assignee/workers')
+def api_task_assignee_workers():
+    guard = _assignee_api_guard()
+    if guard:
+        return guard
+    return jsonify(status='ok', workers=_assignee_workers_payload())
 
 
 @app.route('/api/history/stats')
@@ -8541,6 +9614,13 @@ def start_cloudflared():
 
 archive_keepalive_start()
 archive_warm_cache_async()
+
+# Nạp sẵn index sheet LS受注_all để tick đầu tiên không phải chờ đọc cả sheet.
+try:
+    from sheet_status_sync import start_warmup as _sheet_warmup_start
+    _sheet_warmup_start()
+except Exception as _sheet_warmup_exc:
+    print("[schedule-sync] không khởi động warmup:", _sheet_warmup_exc, flush=True)
 
 
 if os.name == 'posix':

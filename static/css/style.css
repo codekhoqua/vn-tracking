@@ -416,6 +416,7 @@ body.sidebar-collapsed .sidebar-rail-tog svg {
     white-space: nowrap;
     overflow: hidden;
     max-height: 24px;
+    flex-shrink: 0;
     transition: opacity 0.2s ease, max-height 0.28s cubic-bezier(0.16, 1, 0.3, 1), margin 0.28s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -435,6 +436,7 @@ body:not(.dark-theme) .nav-label {
     display: flex;
     flex-direction: column;
     gap: 4px;
+    flex-shrink: 0;
 }
 .sidebar-hl {
     position: absolute;
@@ -10932,4 +10934,134 @@ body.dark-theme #edit-task-links-modal .tool-badge.dropbox{ background: rgba(59,
         opacity: 1;
         transform: none;
     }
+}
+
+/* Checklist t2 → sheet sync indicator (spinner → tick) */
+.checklist-sync-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+.checklist-sync-indicator.spinning::before {
+  content: '';
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(99, 102, 241, 0.25);
+  border-top-color: #6366f1;
+  border-radius: 50%;
+  animation: checklistSyncSpin 0.8s linear infinite;
+}
+.checklist-sync-indicator.done {
+  color: #10b981;
+}
+.checklist-sync-indicator.done::before {
+  content: '✓';
+  font-size: 13px;
+  font-weight: 800;
+}
+.checklist-sync-indicator.failed {
+  color: #ef4444;
+}
+.checklist-sync-indicator.failed::before {
+  content: '!';
+  font-size: 13px;
+  font-weight: 800;
+}
+@keyframes checklistSyncSpin {
+  to { transform: rotate(360deg); }
+}
+
+/* Live sheet status (O/P) loaded from Google Sheet */
+.sheet-live-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+  padding: 2px 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  background: rgba(148, 163, 184, 0.12);
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  line-height: 1.6;
+}
+.sheet-live-status::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #94a3b8;
+  flex: 0 0 auto;
+}
+.sheet-live-status:empty {
+  display: none;
+}
+.sheet-live-status.loading::before {
+  animation: sheetStatusPulse 0.9s ease-in-out infinite;
+}
+.sheet-live-status.found {
+  color: #047857;
+  background: rgba(16, 185, 129, 0.10);
+  border-color: rgba(16, 185, 129, 0.35);
+}
+.sheet-live-status.found::before {
+  background: #10b981;
+}
+.sheet-live-status.failed {
+  color: #b45309;
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.4);
+}
+.sheet-live-status.failed::before {
+  background: #f59e0b;
+}
+.sheet-live-status .sheet-live-label {
+  color: inherit;
+  opacity: 0.75;
+  font-weight: 600;
+}
+.sheet-live-status .sheet-live-value {
+  font-weight: 800;
+}
+.sheet-live-status .sheet-live-sep {
+  opacity: 0.4;
+  margin: 0 1px;
+}
+.sheet-live-status + .checklist-total {
+  margin-left: 8px !important;
+}
+@keyframes sheetStatusPulse {
+  0%, 100% { opacity: 0.35; transform: scale(0.85); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
+
+/* Tick/spinner đồng bộ nằm sau chữ, cùng dòng (không rớt xuống dưới) */
+.check-label .checklist-sync-indicator {
+  position: static;
+  left: auto;
+  top: auto;
+  transform: none;
+  margin-left: -6px;
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
+  vertical-align: middle;
+}
+.check-label .action-text.sheet-sync-text {
+  padding-left: 0;
+}
+/* Task page: label là grid 2 cột → thêm cột thứ 3 cho tick, ngay sau chữ */
+.task-page-container .check-label {
+  grid-template-columns: 16px auto minmax(0, 1fr);
+}
+.task-page-container .check-label .checklist-sync-indicator {
+  grid-column: 3;
+  justify-self: start;
+  align-self: center;
 }

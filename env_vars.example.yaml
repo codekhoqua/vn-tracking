@@ -31,5 +31,15 @@ LEAVE_GDRIVE_SCRIPT_URL: ""
 LEAVE_RESPONSES_SPREADSHEET_ID: ""
 LEAVE_RESPONSES_SHEET_TAB: "Form Responses 1"
 
+# ===== Task Assignee =====
+# Độ khó task được đồng bộ vào DB. Mặc định 1800 giây (30 phút).
+DIFFICULTY_SYNC_TTL: "1800"
+# Số giờ tham chiếu mỗi người/tuần để tính cân bằng tải
+ASSIGNEE_WEEK_CAPACITY_HOURS: "40"
+# Nếu cột 作業者 bị Protect, deploy integrations/assign_task_webapp.gs rồi dán
+# URL + token vào đây để ghi qua Apps Script (chạy dưới quyền owner).
+ASSIGNEE_WRITE_URL: ""
+ASSIGNEE_WRITE_TOKEN: ""
+
 # Chỉ dùng khi chạy trên Linux và muốn mở Cloudflare Tunnel
 CF_TUNNEL_TOKEN: ""
